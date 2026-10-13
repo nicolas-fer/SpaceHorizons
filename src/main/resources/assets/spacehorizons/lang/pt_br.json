@@ -1,3 +1,5 @@
 {
-  "generator.spacehorizons.earth": "Space Horizons (Terra curva)"
+  "generator.spacehorizons.earth": "Space Horizons (Terra curva)",
+  "biome.spacehorizons.lunar": "Superfície lunar",
+  "dimension.spacehorizons.moon": "A Lua"
 }

@@ -6,7 +6,6 @@ import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.interfaces.world.IDhApiLevelWrapper;
 import com.seibel.distanthorizons.api.methods.events.DhApiEventRegister;
 import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiLevelLoadEvent;
-import com.seibel.distanthorizons.api.methods.events.abstractEvents.DhApiLevelUnloadEvent;
 import com.seibel.distanthorizons.api.methods.events.sharedParameterObjects.DhApiEventParam;
 import com.seibel.distanthorizons.api.objects.DhApiResult;
 
@@ -20,8 +19,8 @@ import net.minecraft.world.level.Level;
  * Ponte com o Distant Horizons. Só é chamado quando o DH está carregado: classes da API do DH
  * ficam neste pacote para o mod continuar funcionando sem ele.
  *
- * Ao carregar um level que é planeta, registra o gerador de LOD próprio e ajusta a curvatura do DH
- * para o raio do planeta. Ao descarregar, devolve a curvatura ao valor do usuário.
+ * Ao carregar um level que é planeta, registra o gerador de LOD próprio. A curvatura do DH é ajustada
+ * no cliente (DhCurvatureClient), pelo planeta que a câmera está vendo.
  */
 public final class DhIntegration {
     private DhIntegration() {
@@ -29,7 +28,6 @@ public final class DhIntegration {
 
     public static void init() {
         DhApiEventRegister.on(DhApiLevelLoadEvent.class, new LevelLoad());
-        DhApiEventRegister.on(DhApiLevelUnloadEvent.class, new LevelUnload());
         DhCloudConfig.init();
     }
 
@@ -54,16 +52,6 @@ public final class DhIntegration {
                     wrapper, new PlanetLodGenerator(wrapper, level, planet.get()));
             if (!registered.success) {
                 SpaceHorizons.LOGGER.warn("DH recusou o gerador do planeta {}: {}", planet.get().id(), registered.message);
-            }
-            DhCurvatureConfig.apply(planet.get());
-        }
-    }
-
-    private static final class LevelUnload extends DhApiLevelUnloadEvent {
-        @Override
-        public void onLevelUnload(DhApiEventParam<EventParam> event) {
-            if (planetOf(event.value.levelWrapper).isPresent()) {
-                DhCurvatureConfig.restore();
             }
         }
     }

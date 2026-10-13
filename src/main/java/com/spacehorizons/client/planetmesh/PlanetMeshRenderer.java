@@ -19,6 +19,7 @@ import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.pipeline.IndexType;
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.client.space.SpaceSun;
 import com.spacehorizons.client.planetmesh.dh.DhRange;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
@@ -364,9 +365,11 @@ final class PlanetMeshRenderer {
         float centerZ = offZ;
 
         // direção do sol no referencial do mundo: o céu gira (0,1,0) por Y(-90°) e depois X(sunAngle) => (-sin a, cos a, 0)
-        float sunAngle = state.skyRenderState.sunAngle;
-        float sunX = -(float) Math.sin(sunAngle);
-        float sunY = (float) Math.cos(sunAngle);
+        float[] sun = new float[3];
+        SpaceSun.localAt(minecraft.level, planet, camX, camY, camZ, state.skyRenderState.sunAngle, sun);
+        float sunX = sun[0];
+        float sunY = sun[1];
+        float sunZ = sun[2];
 
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
         GpuBuffer uniforms = ensureUbo();
@@ -374,7 +377,7 @@ final class PlanetMeshRenderer {
             ByteBuffer data = Std140Builder.onStack(stack, UBO_SIZE)
                     .putMat4f(mvp)
                     .putVec4(offX, offY, offZ, 0.0F)
-                    .putVec4(sunX, sunY, 0.0F, NIGHT_AMBIENT)
+                    .putVec4(sunX, sunY, sunZ, NIGHT_AMBIENT)
                     .putVec4(centerX, centerY, centerZ, (float) radius)
                     .get();
             encoder.writeToBuffer(uniforms.slice(0L, UBO_SIZE), data);

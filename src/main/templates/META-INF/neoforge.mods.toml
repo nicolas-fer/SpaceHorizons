@@ -47,6 +47,10 @@ Espaço contínuo: planetas curvos, órbita e viagem interplanetária integrados
 [[mixins]]
 config="${mod_id}.mixins.json"
 
+# Viagem entre corpos: troca de dimensão sem tela de carregamento e sem anti-cheat no voo orbital.
+[[mixins]]
+config="${mod_id}.travel.mixins.json"
+
 # Curvatura do terreno do Sodium: este config só é carregado se o mod "sodium" estiver presente.
 [[mixins]]
 config="${mod_id}.sodium.mixins.json"

@@ -7,9 +7,9 @@ import com.spacehorizons.planet.SurfaceType;
  * Cores da malha orbital. A terra vem da cor de mapa do bloco de topo da SurfacePalette (a mesma fonte
  * de chunks e DH, então não há salto de tom); a água é própria, porque o topo do OCEAN na paleta é o fundo de areia.
  *
- * Só chamar depois que os blocos estão registrados (na primeira renderização de um level).
+ * Também usada pelos corpos vistos de fora (client/space), para a cor ser a mesma. Só chamar depois que os blocos estão registrados (na primeira renderização de um level).
  */
-final class PlanetMeshPalette {
+public final class PlanetMeshPalette {
     /** Água rasa e funda, próximas do que o DH mostra para o oceano do overworld. */
     private static final int WATER_SHALLOW = 0x3F76E4;
     private static final int WATER_DEEP = 0x1A3A8C;
@@ -17,7 +17,7 @@ final class PlanetMeshPalette {
     private PlanetMeshPalette() {
     }
 
-    static PlanetMeshGeometry.Palette create() {
+    public static PlanetMeshGeometry.Palette create() {
         SurfaceType[] types = SurfaceType.values();
         int[] land = new int[types.length];
         for (SurfaceType type : types) {

@@ -104,7 +104,8 @@ final class PlanetLodGenerator implements IDhApiWorldGenerator {
         int maxY = minY + level.getHeight();
         int seaTop = planet.seaLevel() + 1;
         int solidTop = surfaceY + 1;
-        int columnTop = Math.max(solidTop, surfaceY < planet.seaLevel() ? seaTop : solidTop);
+        boolean water = planet.hasOcean() && surfaceY < planet.seaLevel();
+        int columnTop = water ? Math.max(solidTop, seaTop) : solidTop;
 
         IDhApiBiomeWrapper biome = biomeWrapper(type);
         List<DhApiTerrainDataPoint> points = new ArrayList<>(5);
@@ -113,7 +114,7 @@ final class PlanetLodGenerator implements IDhApiWorldGenerator {
         addSegment(points, detailLevel, minY, surfaceY - FILLER_DEPTH, surfaceY, NO_SKY_LIGHT,
                 SurfacePalette.filler(type), biome);
         addSegment(points, detailLevel, minY, surfaceY, solidTop, NO_SKY_LIGHT, SurfacePalette.top(type), biome);
-        if (surfaceY < planet.seaLevel()) {
+        if (water) {
             addSegment(points, detailLevel, minY, solidTop, seaTop, FULL_SKY_LIGHT,
                     Blocks.WATER.defaultBlockState(), biome);
         }

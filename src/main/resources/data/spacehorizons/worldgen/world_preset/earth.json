@@ -21,6 +21,23 @@
         }
       }
     },
+    "spacehorizons:moon": {
+      "type": "spacehorizons:moon",
+      "generator": {
+        "type": "spacehorizons:planet",
+        "planet": "spacehorizons:moon",
+        "biome_source": {
+          "type": "spacehorizons:planet",
+          "planet": "spacehorizons:moon",
+          "biomes": {
+            "regolith": "spacehorizons:lunar",
+            "mare": "spacehorizons:lunar",
+            "highland": "spacehorizons:lunar",
+            "crater_floor": "spacehorizons:lunar"
+          }
+        }
+      }
+    },
     "minecraft:the_end": {
       "type": "minecraft:the_end",
       "generator": {

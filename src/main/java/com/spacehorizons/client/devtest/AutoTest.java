@@ -32,7 +32,12 @@ public final class AutoTest {
     private static final float EAST = -90f;
     private static final float SOUTH = 0f;
 
-    private record Step(int waitTicks, Consumer<Minecraft> action) {
+    /** Passo que roda por vários ticks; devolve true quando termina. */
+    private interface Ticker {
+        boolean tick(Minecraft mc);
+    }
+
+    private record Step(int waitTicks, Consumer<Minecraft> action, Ticker ticker) {
     }
 
     /** Com -Dspacehorizons.autotest.fresh=NOME, cria um mundo novo com o tipo "Space Horizons" a partir do menu. */
@@ -41,6 +46,7 @@ public final class AutoTest {
     private final List<Step> steps = new ArrayList<>();
     private boolean freshRequested;
     private int index;
+    private Ticker active;
     private int countdown = 200;
     private int pushTicks;
     private double pushX;
@@ -52,107 +58,215 @@ public final class AutoTest {
         cmd(20, "time set noon");
         step(20, mc -> logPos(mc, "spawn (esperado dim=minecraft:overworld com curvatura)"));
         cmd(20, "spacehorizons goto earth");
-        look(200, EAST, 15f);
-        shot(20, "01_surface_horizon");
 
-        // nuvens vistas do chão, curvando no horizonte
+        // (a) do chão do spawn, olhando para o zênite: a Lua deve ser uma esfera, não a lua vanilla
+        look(300, EAST, -90f);
+        shot(40, "p3_01_ground_zenith");
+        look(20, EAST, -60f);
+        shot(40, "p3_01b_ground_up60");
+        look(20, EAST, 15f);
+        shot(40, "p3_01c_ground_horizon");
+        // sobe um pouco para ver a Lua sem o chão no caminho
+        cmd(20, "tp @s 0 2000 0");
+        fly(20);
+        look(20, EAST, -90f);
+        shot(300, "p3_02_alt2000_zenith");
+
+        // (b), (c) viagem Terra -> Lua pelo piloto automático, com prints rápidos em volta da transferência
         cmd(20, "tp @s 0 200 0");
         fly(20);
-        look(20, EAST, -8f);
-        shot(300, "01b_clouds_ground");
+        look(40, EAST, -90f);
+        cmd(5, "spacehorizons fly moon");
+        travel("tr_out", "moon", 36000, 6000);
+        step(20, mc -> logPos(mc, "chegada na Lua"));
+        // (d) chegada: crateras, horizonte e a Terra no céu
+        look(300, EAST, 90f);
+        shot(60, "p3_10_moon_down");
+        look(20, EAST, 60f);
+        shot(40, "p3_10b_moon_down60");
+        look(20, EAST, 5f);
+        shot(40, "p3_11_moon_horizon_e");
+        look(20, 90f, 5f);
+        shot(40, "p3_11b_moon_horizon_w");
+        look(20, EAST, -90f);
+        shot(40, "p3_12_moon_earth_zenith");
+        look(20, EAST, -50f);
+        shot(40, "p3_12b_moon_sky_up50");
 
-        // subida: horizonte (em altitude alta o limbo do planeta fica bem abaixo, por isso o pitch cresce) e para baixo
-        int[] alts = {600, 2000, 5000, 15000, 40000};
-        float[] horizonPitch = {10f, 15f, 25f, 55f, 70f};
-        float[] downPitch = {55f, 70f, 75f, 85f, 90f};
-        int[] waits = {900, 700, 700, 600, 600};
+        // (e) chão da Lua: pulo e altura máxima (gravidade baixa)
+        cmd(20, "spacehorizons goto moon");
+        look(600, EAST, 15f);
+        shot(60, "p3_20_moon_ground");
+        look(20, EAST, -60f);
+        shot(40, "p3_20b_moon_ground_sky");
+        look(10, EAST, 10f);
+        jumpTest();
+        shot(10, "p3_21_after_jump");
+
+        // (f) volta para a Terra
+        cmd(20, "tp @s ~ ~300 ~");
+        fly(20);
+        look(40, EAST, -90f);
+        cmd(5, "spacehorizons fly earth");
+        travel("tr_back", "overworld", 8500, 6000);
+        step(20, mc -> logPos(mc, "chegada na Terra"));
+        look(300, EAST, 90f);
+        shot(60, "p3_30_earth_down");
+        look(20, EAST, 10f);
+        shot(40, "p3_31_earth_horizon");
+        look(20, EAST, -90f);
+        shot(40, "p3_32_earth_zenith");
+
+        // regressão resumida da fase 2 (altitudes e costura em X); acima de ~38.000 blocos a esfera de influência da Lua assume
+        int[] alts = {2000, 30000};
+        float[] horizonPitch = {15f, 70f};
+        float[] downPitch = {70f, 90f};
+        int[] waits = {700, 600};
         for (int i = 0; i < alts.length; i++) {
             int alt = alts[i];
             cmd(20, "tp @s 0 " + alt + " 0");
             fly(20);
             look(20, EAST, horizonPitch[i]);
-            // espera o DH e a malha orbital carregarem
-            shot(waits[i], String.format("%02d_alt%d_horizon", 2 + i * 2, alt));
+            shot(waits[i], String.format("r_alt%d_horizon", alt));
             look(20, EAST, downPitch[i]);
-            shot(60, String.format("%02d_alt%d_down", 3 + i * 2, alt));
+            shot(60, String.format("r_alt%d_down", alt));
         }
-
-        // P1: a 600 blocos olhando para o céu (procura faixas concêntricas)
-        cmd(20, "tp @s 0 600 0");
-        fly(20);
-        look(20, EAST, -30f);
-        shot(500, "10_alt600_sky_up");
-        look(20, EAST, -80f);
-        shot(40, "10b_alt600_zenith");
-
-        // P4: "continentes nadando" - mesmo pitch em x=0 e x=+3000, a 15.000 blocos
-        cmd(20, "tp @s 0 15000 0");
-        fly(20);
-        look(20, EAST, 70f);
-        shot(700, "11_p4_alt15000_x0");
-        cmd(20, "tp @s 3000 15000 0");
-        fly(20);
-        look(20, EAST, 70f);
-        shot(500, "11b_p4_alt15000_x3000");
-
-        // P6: armor stands brilhantes no chão a 50, 100, 150 e 200 blocos à frente, vistos de ~40 blocos de altura
-        cmd(20, "tp @s 0 200 0");
-        fly(200);
-        for (int d : new int[] {50, 100, 150, 200}) {
-            cmd(20, "execute positioned " + d + " 0 0 positioned over world_surface run summon minecraft:armor_stand ~ ~ ~ "
-                    + "{Glowing:1b,NoGravity:1b,ShowArms:1b}");
-        }
-        cmd(40, "execute positioned 0 0 0 positioned over world_surface run tp @s ~ ~40 ~");
-        fly(20);
-        look(20, EAST, 12f);
-        shot(200, "12_entities_row_40up");
-        look(20, EAST, 35f);
-        shot(40, "12b_entities_row_down");
-        // um pouco mais perto, para ver o assentamento no chão
-        cmd(20, "execute positioned 90 0 0 positioned over world_surface run tp @s ~ ~12 ~");
-        fly(20);
-        look(20, EAST, 8f);
-        shot(120, "12c_entities_row_low");
-        cmd(20, "kill @e[type=minecraft:armor_stand]");
-
-        // P5: nuvens distantes vistas de baixo e de cima da camada
-        cmd(20, "tp @s 0 120 0");
-        fly(20);
-        look(20, EAST, -12f);
-        shot(300, "13_clouds_low");
-        cmd(20, "tp @s 0 300 0");
-        fly(20);
-        look(20, EAST, 4f);
-        shot(300, "13b_clouds_above");
-
         cmd(20, "tp @s 32740 140 0");
         fly(20);
         look(20, EAST, 10f);
-        shot(200, "06_before_seam");
-        step(20, mc -> logPos(mc, "antes da costura"));
+        shot(200, "r_before_seam");
         step(0, mc -> push(1.0, 0.0, 60));
         step(80, mc -> logPos(mc, "depois de empurrar 60 ticks para leste (esperado x perto de -32768+)"));
-        shot(100, "07_after_seam");
-
-        // borda entre chunks vanilla e LODs do DH, vista de perto
-        cmd(20, "tp @s 0 90 0");
-        fly(20);
-        look(20, EAST, 8f);
-        shot(200, "08a_chunk_lod_border");
-
-        // chega no polo por cima: a parede de gelo é alta
-        cmd(20, "tp @s 0 330 12600");
-        fly(20);
-        look(20, SOUTH, 35f);
-        shot(200, "08_near_pole");
-        step(0, mc -> push(0.0, 1.0, 120));
-        step(140, mc -> logPos(mc, "depois de empurrar 120 ticks para o sul (esperado z <= ~12741)"));
-        shot(20, "09_pole_barrier");
+        shot(100, "r_after_seam");
 
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });
+    }
+
+    /**
+     * Acompanha uma viagem do piloto automático: loga troca de dimensão, telas abertas (tela de carregamento) e
+     * velocidade; tira prints periódicos e, perto da esfera de influência, prints a cada 3 ticks.
+     * Termina quando chega ao destino (dimensão certa e parado) ou estoura o limite de ticks.
+     */
+    private void travel(String prefix, String targetDim, double fastFromY, int maxTicks) {
+        tickerStep(0, new Ticker() {
+            int n;
+            String lastDim = null;
+            int changeTick = -1;
+            int shots;
+            int fastShots;
+            int calm;
+            boolean fast;
+            double lx, ly, lz;
+            boolean hasLast;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                LocalPlayer p = mc.player;
+                n++;
+                String dim = mc.level.dimension().identifier().getPath();
+                double speed = hasLast ? Math.sqrt((p.getX() - lx) * (p.getX() - lx) + (p.getY() - ly) * (p.getY() - ly)
+                        + (p.getZ() - lz) * (p.getZ() - lz)) : 0.0;
+                lx = p.getX();
+                ly = p.getY();
+                lz = p.getZ();
+                hasLast = true;
+                if (lastDim != null && !lastDim.equals(dim)) {
+                    changeTick = n;
+                    SpaceHorizons.LOGGER.info(TAG + "{} TROCA DE DIMENSAO tick={} {} -> {} pos=({}, {}, {}) velocidade={} blocos/tick "
+                            + "yaw={} pitch={}", prefix, n, lastDim, dim, f(p.getX()), f(p.getY()), f(p.getZ()), f(speed),
+                            f(p.getYRot()), f(p.getXRot()));
+                }
+                lastDim = dim;
+                if (mc.gui.screen() != null) {
+                    SpaceHorizons.LOGGER.info(TAG + "{} TELA ABERTA tick={} {}", prefix, n, mc.gui.screen().getClass().getName());
+                }
+                if (n % 100 == 0) {
+                    logPos(mc, prefix + " tick=" + n + " velocidade=" + f(speed));
+                }
+                // modo rápido: perto da transferência (antes: altitude alta; depois: até 60 ticks)
+                boolean nearSwap = changeTick < 0 ? p.getY() > fastFromY : n - changeTick < 60;
+                if (nearSwap && !fast && changeTick < 0) {
+                    fast = true;
+                    p.setXRot(-90f);
+                    SpaceHorizons.LOGGER.info(TAG + "{} modo rápido ligado tick={} y={}", prefix, n, f(p.getY()));
+                }
+                if (nearSwap && fastShots < 90 && n % 3 == 0) {
+                    fastShots++;
+                    grab(mc, String.format("%s_fast_%03d_%s", prefix, fastShots, dim));
+                } else if (!nearSwap && n % 240 == 120) {
+                    // alterna olhar para cima e para baixo; o print sai 20 ticks depois
+                    p.setXRot(shots % 2 == 0 ? -90f : 90f);
+                } else if (!nearSwap && n % 240 == 140) {
+                    grab(mc, String.format("%s_%02d_%s_%s", prefix, shots++, dim, p.getXRot() < 0 ? "up" : "down"));
+                }
+                if (changeTick >= 0 && dim.equals(targetDim) && n - changeTick > 80) {
+                    calm = speed < 0.3 ? calm + 1 : 0;
+                    if (calm >= 40) {
+                        SpaceHorizons.LOGGER.info(TAG + "{} chegou ao destino tick={}", prefix, n);
+                        return true;
+                    }
+                }
+                if (n >= maxTicks) {
+                    SpaceHorizons.LOGGER.error(TAG + "{} ESTOUROU o limite de {} ticks (dim={} trocou={})", prefix, maxTicks, dim,
+                            changeTick >= 0);
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    /** Fica no chão, pula uma vez e loga a altura máxima do pulo. */
+    private void jumpTest() {
+        tickerStep(0, new Ticker() {
+            int phase;
+            int n;
+            double y0;
+            double maxY;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                LocalPlayer p = mc.player;
+                n++;
+                if (phase == 0) {
+                    if (n == 1) {
+                        p.getAbilities().flying = false;
+                        p.onUpdateAbilities();
+                    }
+                    if (p.onGround() && n > 40) {
+                        y0 = p.getY();
+                        maxY = y0;
+                        p.jumpFromGround();
+                        SpaceHorizons.LOGGER.info(TAG + "pulo: y0={} gravidade={}", f(y0),
+                                p.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY));
+                        phase = 1;
+                        n = 0;
+                    } else if (n > 600) {
+                        SpaceHorizons.LOGGER.error(TAG + "pulo: nunca ficou no chão");
+                        return true;
+                    }
+                    return false;
+                }
+                maxY = Math.max(maxY, p.getY());
+                if (n > 5 && p.onGround()) {
+                    SpaceHorizons.LOGGER.info(TAG + "pulo: altura máxima={} blocos, duração={} ticks (Terra: ~1,25 blocos, ~12 ticks)",
+                            f(maxY - y0), n);
+                    return true;
+                }
+                if (n > 600) {
+                    SpaceHorizons.LOGGER.error(TAG + "pulo: nunca voltou ao chão");
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    private static String f(double v) {
+        return String.format("%.2f", v);
     }
 
     public static void register() {
@@ -176,11 +290,30 @@ public final class AutoTest {
             player.setDeltaMovement(pushX, 0.0, pushZ);
             pushTicks--;
         }
+        if (active != null) {
+            boolean done;
+            try {
+                done = active.tick(mc);
+            } catch (RuntimeException e) {
+                SpaceHorizons.LOGGER.error(TAG + "passo em andamento falhou", e);
+                done = true;
+            }
+            if (!done) {
+                return;
+            }
+            active = null;
+            countdown = index < steps.size() ? Math.max(1, steps.get(index).waitTicks()) : 0;
+            return;
+        }
         if (--countdown > 0) {
             return;
         }
         Step step = steps.get(index++);
         try {
+            if (step.ticker() != null) {
+                active = step.ticker();
+                return;
+            }
             step.action().accept(mc);
         } catch (RuntimeException e) {
             SpaceHorizons.LOGGER.error(TAG + "passo {} falhou", index, e);
@@ -202,7 +335,11 @@ public final class AutoTest {
     }
 
     private void step(int wait, Consumer<Minecraft> action) {
-        steps.add(new Step(wait, action));
+        steps.add(new Step(wait, action, null));
+    }
+
+    private void tickerStep(int wait, Ticker ticker) {
+        steps.add(new Step(wait, null, ticker));
     }
 
     private void cmd(int wait, String command) {
@@ -235,9 +372,13 @@ public final class AutoTest {
     private void shot(int wait, String name) {
         step(wait, mc -> {
             logPos(mc, "print " + name);
-            Screenshot.grab(mc.gameDirectory, "autotest_" + name + ".png", mc.gameRenderer.mainRenderTarget(), 1,
-                    msg -> SpaceHorizons.LOGGER.info(TAG + "print salvo: {}", msg.getString()));
+            grab(mc, name);
         });
+    }
+
+    private static void grab(Minecraft mc, String name) {
+        Screenshot.grab(mc.gameDirectory, "autotest_" + name + ".png", mc.gameRenderer.mainRenderTarget(), 1,
+                msg -> SpaceHorizons.LOGGER.info(TAG + "print salvo: {}", msg.getString()));
     }
 
     private static void logPos(Minecraft mc, String label) {

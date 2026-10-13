@@ -2,10 +2,14 @@ package com.spacehorizons.client.atmosphere;
 
 import java.util.Optional;
 
+import com.spacehorizons.client.space.SpaceSun;
+
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.fog.FogData;
 import net.minecraft.client.renderer.fog.environment.AtmosphericFogEnvironment;
 import net.minecraft.client.renderer.state.level.SkyRenderState;
+import net.minecraft.world.attribute.EnvironmentAttributeProbe;
+import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.dimension.DimensionType;
@@ -88,14 +92,41 @@ final class AtmosphereFog {
      */
     static void onExtractRenderState(ExtractLevelRenderStateEvent event) {
         SkyRenderState sky = event.getRenderState().skyRenderState;
-        if (sky.skybox != DimensionType.Skybox.OVERWORLD || sky.skyColor == null) {
-            return;
-        }
         Optional<AtmosphereSample> sample = AtmosphereSample.of(event.getLevel(), event.getCamera().position().y);
         if (sample.isEmpty()) {
+            SpaceSun.clearStarRotation();
             return;
         }
         AtmosphereModel model = sample.get().model();
+        // estrelas fixas no espaço: a mesma rotação nos dois lados de uma troca de dimensão
+        double starVacuum = model.present() ? 1.0 - model.skyBrightness(sample.get().altitude()) : 1.0;
+        // posição do jogador (e não da Camera): no primeiro quadro depois de uma troca de dimensão a Camera ainda guarda a do mundo antigo
+        net.minecraft.world.entity.Entity cameraEntity = event.getCamera().entity();
+        SpaceSun.updateStars(event.getLevel(), sample.get().planet(),
+                cameraEntity != null ? cameraEntity.getX() : event.getCamera().position().x,
+                cameraEntity != null ? cameraEntity.getZ() : event.getCamera().position().z, sky.starAngle, starVacuum);
+        if (!model.present() && sky.skybox == DimensionType.Skybox.NONE) {
+            // mundo sem ar cujo tipo de dimensão não tem céu: liga o céu do overworld, preto e estrelado
+            sky.skybox = DimensionType.Skybox.OVERWORLD;
+            sky.skyColor = new Vector3f();
+            sky.sunriseAndSunsetColor = new Vector4f();
+            sky.rainBrightness = 1.0F;
+            sky.starBrightness = 1.0F;
+            // o sol e as estrelas vêm dos atributos de ambiente, como o SkyRenderer faz (com skybox none ele não os lê)
+            float partialTick = event.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+            EnvironmentAttributeProbe probe = event.getCamera().attributeProbe();
+            // sol único do sistema: o disco do vanilla segue a mesma direção que ilumina corpos e malha (projetada no plano leste-cima)
+            float[] sun = new float[3];
+            SpaceSun.localAt(event.getLevel(), sample.get().planet(), event.getCamera().position().x,
+                    event.getCamera().position().y, event.getCamera().position().z, 0.0F, sun);
+            sky.sunAngle = (float) Math.atan2(-sun[0], sun[1]);
+            sky.starAngle = SpaceSun.starAngle();
+            sky.moonAngle = (float) Math.PI; // sem lua vanilla (o corpo de verdade é desenhado por client/space)
+            return;
+        }
+        if (sky.skybox != DimensionType.Skybox.OVERWORLD || sky.skyColor == null) {
+            return;
+        }
         double altitude = sample.get().altitude();
         float brightness = (float) model.skyBrightness(altitude);
         if (brightness >= 1.0F) {

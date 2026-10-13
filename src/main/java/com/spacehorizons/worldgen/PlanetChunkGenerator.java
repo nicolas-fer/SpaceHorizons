@@ -32,7 +32,7 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 
 /**
- * Gera colunas a partir de PlanetTerrain: bedrock, pedra, filler, topo, água até o nível do mar.
+ * Gera colunas a partir de PlanetTerrain: bedrock, pedra, filler, topo e, só em planetas com oceano, água até o nível do mar.
  * Sem estruturas nem cavernas por enquanto. Não guarda estado mutável, então é seguro entre threads.
  */
 public final class PlanetChunkGenerator extends ChunkGenerator {
@@ -81,8 +81,8 @@ public final class PlanetChunkGenerator extends ChunkGenerator {
                 int surface = terrain.surfaceHeight(wx, wz);
                 SurfaceType type = terrain.surfaceType(wx, wz);
                 int top = Math.min(surface, topY);
-                // água sobre a coluna quando o terreno fica abaixo do mar
-                int waterTop = Math.max(top, Math.min(sea, topY));
+                // água sobre a coluna quando o terreno fica abaixo do mar (só em planetas com oceano)
+                int waterTop = planet.hasOcean() ? Math.max(top, Math.min(sea, topY)) : top;
                 for (int y = MIN_Y; y <= waterTop; y++) {
                     BlockState state;
                     if (y == MIN_Y) {
@@ -132,7 +132,8 @@ public final class PlanetChunkGenerator extends ChunkGenerator {
     public int getBaseHeight(int x, int z, Heightmap.Types types, LevelHeightAccessor level, RandomState randomState) {
         int h = terrain.surfaceHeight(x, z);
         // OCEAN_FLOOR ignora a água; WORLD_SURFACE enxerga a superfície da água
-        if (types == Heightmap.Types.WORLD_SURFACE || types == Heightmap.Types.WORLD_SURFACE_WG) {
+        if (planet.hasOcean()
+                && (types == Heightmap.Types.WORLD_SURFACE || types == Heightmap.Types.WORLD_SURFACE_WG)) {
             h = Math.max(h, planet.seaLevel());
         }
         return Math.min(h + 1, MIN_Y + HEIGHT);
@@ -149,7 +150,7 @@ public final class PlanetChunkGenerator extends ChunkGenerator {
                 states[i] = Blocks.BEDROCK.defaultBlockState();
             } else if (y <= h) {
                 states[i] = Blocks.STONE.defaultBlockState();
-            } else if (y <= sea) {
+            } else if (planet.hasOcean() && y <= sea) {
                 states[i] = Blocks.WATER.defaultBlockState();
             } else {
                 states[i] = Blocks.AIR.defaultBlockState();

@@ -33,6 +33,8 @@ public final class PlanetMeshGeometry {
     public static final int WATER_ALPHA = 255;
     /** Células menores que isto (blocos) não precisam de supersampling: já são mais finas que o DH. */
     static final double SUPERSAMPLE_MIN_CELL = 24.0;
+    /** O mesmo critério, para a esfera dos corpos vistos de fora (client/space). */
+    public static final double SUPERSAMPLE_MIN_CELL_BLOCKS = SUPERSAMPLE_MIN_CELL;
     /** Raio dos pontos extras do supersampling, em frações do tamanho da célula. */
     private static final double SUPERSAMPLE_RADIUS = 0.35;
     private static final double[] SUPERSAMPLE_COS = {Math.cos(Math.PI / 2), Math.cos(Math.PI * 7 / 6), Math.cos(Math.PI * 11 / 6)};
@@ -316,57 +318,77 @@ public final class PlanetMeshGeometry {
         double sinTheta = Math.max(Math.sin(theta), 1.0e-3);
         double[] dir = new double[3];
         double[] xz = new double[2];
+        double[] extraPoint = new double[2];
+
+        double[] extra = new double[SUPERSAMPLE_COS.length * 2];
+        double[] height = new double[1];
 
         for (int j = 0; j < segments; j++) {
             double phi = 2.0 * Math.PI * j / segments;
             PlanetMeshProjection.terrainPoint(planet, camX, camZ, theta, phi, weight, xz);
-            int worldX = (int) PlanetMath.wrapX(planet, Math.round(xz[0]));
-            long worldZ = Math.round(xz[1]);
-            Column center = column(terrain, worldX, worldZ);
-            // oceano é plano no nível do mar
-            double height = Math.max(center.height, sea);
-
-            int red = 0;
-            int green = 0;
-            int blue = 0;
-            int water = 0;
-            int samples = 1;
-            int centerDepth = Math.max(0, sea - center.height);
-            int shared = columnColor(palette, center, centerDepth);
-            red += shared >> 16 & 0xFF;
-            green += shared >> 8 & 0xFF;
-            blue += shared & 0xFF;
-            water += center.water ? 1 : 0;
+            int extras = 0;
             if (supersample) {
-                samples += SUPERSAMPLE_COS.length;
-                for (int s = 0; s < SUPERSAMPLE_COS.length; s++) {
+                extras = SUPERSAMPLE_COS.length;
+                for (int s = 0; s < extras; s++) {
                     double offRadial = SUPERSAMPLE_RADIUS * cell * SUPERSAMPLE_COS[s];
                     double offTangent = SUPERSAMPLE_RADIUS * cell * SUPERSAMPLE_SIN[s];
                     double t = Math.max(0.0, Math.min(Math.PI, theta + offRadial / radius));
                     double p = phi + offTangent / (radius * sinTheta);
-                    PlanetMeshProjection.terrainPoint(planet, camX, camZ, t, p, weight, xz);
-                    Column extra = columnTypeOnly(terrain, (int) PlanetMath.wrapX(planet, Math.round(xz[0])), Math.round(xz[1]));
-                    int rgb = columnColor(palette, extra, extra.water ? centerDepth : 0);
-                    red += rgb >> 16 & 0xFF;
-                    green += rgb >> 8 & 0xFF;
-                    blue += rgb & 0xFF;
-                    water += extra.water ? 1 : 0;
+                    PlanetMeshProjection.terrainPoint(planet, camX, camZ, t, p, weight, extraPoint);
+                    extra[s * 2] = extraPoint[0];
+                    extra[s * 2 + 1] = extraPoint[1];
                 }
             }
+            int argb = shadeVertex(terrain, palette, xz[0], xz[1], extra, extras, height);
 
             PlanetMeshProjection.direction(theta, phi, dir);
-            double h = height - SINK - sea;
+            double h = height[0] - SINK - sea;
             double shell = radius + h;
             int v = layout.vertexOffset(ring) + j;
             outPos[v * 3] = (float) (shell * dir[0]);
             outPos[v * 3 + 1] = (float) (shell * dir[1] - (radius + camAlt));
             outPos[v * 3 + 2] = (float) (shell * dir[2]);
-            int alpha = (int) Math.round(WATER_ALPHA * water / (double) samples);
-            outColor[v] = alpha << 24
-                    | (int) Math.round(red / (double) samples) << 16
-                    | (int) Math.round(green / (double) samples) << 8
-                    | (int) Math.round(blue / (double) samples);
+            outColor[v] = argb;
         }
+    }
+
+    /**
+     * Altura e cor de um vértice da esfera no ponto (x, z) do mundo, com {@code extras} pontos de supersampling
+     * ({@code extraXZ}: pares x, z). Fonte ÚNICA da altura e da cor de qualquer vértice orbital: a malha do planeta
+     * atual (fillRing) e a esfera do mesmo planeta vista de outro corpo (BodyMeshGeometry) chamam esta função, então
+     * as cores e o relevo são idênticos e não há salto na troca de dimensão.
+     *
+     * @param outHeight [0] = Y efetivo da superfície (planetas com oceano são planos no nível do mar)
+     * @return 0xAARRGGBB; alfa = máscara de água (sempre 0 em planetas sem oceano)
+     */
+    public static int shadeVertex(PlanetTerrain terrain, Palette palette, double x, double z,
+            double[] extraXZ, int extras, double[] outHeight) {
+        PlanetDefinition planet = terrain.planet();
+        int sea = planet.seaLevel();
+        Column center = column(terrain, (int) PlanetMath.wrapX(planet, Math.round(x)), Math.round(z));
+        // oceano é plano no nível do mar
+        outHeight[0] = planet.hasOcean() ? Math.max(center.height, sea) : center.height;
+
+        int centerDepth = Math.max(0, sea - center.height);
+        int shared = columnColor(palette, center, centerDepth);
+        int red = shared >> 16 & 0xFF;
+        int green = shared >> 8 & 0xFF;
+        int blue = shared & 0xFF;
+        int water = center.water ? 1 : 0;
+        for (int s = 0; s < extras; s++) {
+            Column extra = columnTypeOnly(terrain, (int) PlanetMath.wrapX(planet, Math.round(extraXZ[s * 2])), Math.round(extraXZ[s * 2 + 1]));
+            int rgb = columnColor(palette, extra, extra.water ? centerDepth : 0);
+            red += rgb >> 16 & 0xFF;
+            green += rgb >> 8 & 0xFF;
+            blue += rgb & 0xFF;
+            water += extra.water ? 1 : 0;
+        }
+        int samples = 1 + extras;
+        int alpha = (int) Math.round(WATER_ALPHA * water / (double) samples);
+        return alpha << 24
+                | (int) Math.round(red / (double) samples) << 16
+                | (int) Math.round(green / (double) samples) << 8
+                | (int) Math.round(blue / (double) samples);
     }
 
     /** O que a malha precisa saber de uma coluna do terreno. */
@@ -380,8 +402,9 @@ public final class PlanetMeshGeometry {
         boolean cap = worldZ > maxLat || worldZ < -maxLat;
         int sampleZ = (int) Math.max(-maxLat, Math.min(maxLat, worldZ));
         int raw = terrain.surfaceHeight(worldX, sampleZ);
-        SurfaceType type = cap ? SurfaceType.POLAR_ICE : terrain.surfaceType(worldX, sampleZ);
-        boolean water = !cap && (type == SurfaceType.OCEAN || raw < planet.seaLevel());
+        SurfaceType type = capType(terrain, cap, worldX, sampleZ);
+        // água só em planetas com oceano (na Lua uma cratera abaixo do nível de referência continua sendo pó)
+        boolean water = planet.hasOcean() && !cap && (type == SurfaceType.OCEAN || raw < planet.seaLevel());
         return new Column(raw, type, water);
     }
 
@@ -391,8 +414,16 @@ public final class PlanetMeshGeometry {
         int maxLat = planet.maxLatitudeBlocks();
         boolean cap = worldZ > maxLat || worldZ < -maxLat;
         int sampleZ = (int) Math.max(-maxLat, Math.min(maxLat, worldZ));
-        SurfaceType type = cap ? SurfaceType.POLAR_ICE : terrain.surfaceType(worldX, sampleZ);
-        return new Column(planet.seaLevel(), type, !cap && type == SurfaceType.OCEAN);
+        SurfaceType type = capType(terrain, cap, worldX, sampleZ);
+        return new Column(planet.seaLevel(), type, planet.hasOcean() && !cap && type == SurfaceType.OCEAN);
+    }
+
+    /** Tipo da coluna: gelo na calota polar da Terra; em planetas sem oceano a calota segue o tipo do próprio terreno. */
+    private static SurfaceType capType(PlanetTerrain terrain, boolean cap, int worldX, int sampleZ) {
+        if (cap && terrain.planet().hasOcean()) {
+            return SurfaceType.POLAR_ICE;
+        }
+        return terrain.surfaceType(worldX, sampleZ);
     }
 
     private static int columnColor(Palette palette, Column column, int depth) {

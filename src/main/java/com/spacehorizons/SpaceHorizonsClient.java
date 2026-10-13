@@ -8,6 +8,7 @@ import com.spacehorizons.client.planetmesh.PlanetMeshClient;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 
 // Não carrega em servidor dedicado: código de cliente é seguro aqui
@@ -17,6 +18,10 @@ public class SpaceHorizonsClient {
         CurvatureClient.init(modEventBus);
         AtmosphereClient.init(modEventBus);
         PlanetMeshClient.init(modEventBus);
+        // classes do DH só são carregadas se ele estiver presente
+        if (ModList.get().isLoaded("distanthorizons")) {
+            com.spacehorizons.dh.DhCurvatureClient.init();
+        }
         if (Boolean.getBoolean("spacehorizons.autotest")) {
             AutoTest.register();
         }

@@ -1,6 +1,7 @@
 package com.spacehorizons.client.planetmesh;
 
 import com.spacehorizons.planet.PlanetDefinition;
+import com.spacehorizons.planet.Planets;
 
 /**
  * Qual ponto do mundo aparece em cada direção da malha orbital (Java puro, sem Minecraft).
@@ -51,10 +52,25 @@ public final class PlanetMeshProjection {
     public static final double ALTITUDE_START = 3_000.0;
     /** A partir desta altitude a carta fixa (lat/lon) vale por inteiro fora do alcance do DH. */
     public static final double ALTITUDE_FULL = 12_000.0;
+    /**
+     * Raio de referência das altitudes acima (o planeta de teste). Em outros planetas as altitudes escalam com o
+     * raio: o deslizamento relativo depende de altitude/raio, não da altitude absoluta.
+     */
+    public static final double REFERENCE_RADIUS = Planets.EARTH.radius();
     /** Largura da rampa espacial, em frações do raio do planeta, depois do alcance do DH. */
     public static final double RAMP_FRACTION = 0.30;
 
     private PlanetMeshProjection() {
+    }
+
+    /** {@link #ALTITUDE_START} para um planeta de raio {@code radius}. */
+    public static double altitudeStart(double radius) {
+        return ALTITUDE_START * (radius / REFERENCE_RADIUS);
+    }
+
+    /** {@link #ALTITUDE_FULL} para um planeta de raio {@code radius}. */
+    public static double altitudeFull(double radius) {
+        return ALTITUDE_FULL * (radius / REFERENCE_RADIUS);
     }
 
     /**
@@ -62,7 +78,7 @@ public final class PlanetMeshProjection {
      * {@code altitude} blocos do nível do mar e o DH/render distance cobrindo até {@code nearRadius} blocos.
      */
     public static double weight(double radius, double altitude, double arc, double nearRadius) {
-        double byAltitude = smoothstep(ALTITUDE_START, ALTITUDE_FULL, altitude);
+        double byAltitude = smoothstep(altitudeStart(radius), altitudeFull(radius), altitude);
         if (byAltitude <= 0.0) {
             return 0.0;
         }

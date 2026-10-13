@@ -1,3 +1,5 @@
 {
-  "generator.spacehorizons.earth": "Space Horizons (Curved Earth)"
+  "generator.spacehorizons.earth": "Space Horizons (Curved Earth)",
+  "biome.spacehorizons.lunar": "Lunar Surface",
+  "dimension.spacehorizons.moon": "The Moon"
 }

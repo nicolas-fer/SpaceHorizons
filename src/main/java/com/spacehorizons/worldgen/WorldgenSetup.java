@@ -10,6 +10,7 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -34,8 +35,11 @@ public final class WorldgenSetup {
         NeoForge.EVENT_BUS.addListener(LevelTickEvent.Post.class, event -> {
             if (event.getLevel() instanceof ServerLevel level) {
                 PlanetWrap.onLevelTick(level);
+                PlanetGravity.onLevelTick(level);
             }
         });
+        NeoForge.EVENT_BUS.addListener(EntityJoinLevelEvent.class,
+                event -> PlanetGravity.onEntityJoin(event.getLevel(), event.getEntity()));
         NeoForge.EVENT_BUS.addListener(RegisterCommandsEvent.class,
                 event -> PlanetCommands.register(event.getDispatcher()));
     }

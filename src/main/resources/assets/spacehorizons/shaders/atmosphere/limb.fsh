@@ -5,6 +5,7 @@ layout(std140) uniform AtmosphereInfo {
     vec4 PlanetParams;
     vec4 SunParams;
     mat4 InvView;
+    vec4 CenterParams;
 };
 
 layout(location = 0) in vec3 rayDir;
@@ -54,8 +55,9 @@ void main() {
     vec3 sunDir = SunParams.xyz;
 
     vec3 dir = normalize(rayDir);
-    // centro do planeta relativo à câmera: mesmo mapeamento da curvatura (esfera tangente abaixo da câmera)
-    vec3 center = vec3(0.0, -(radius + PlanetParams.y), 0.0);
+    // centro do corpo relativo à câmera (eixos do mundo): para o planeta atual é o mesmo mapeamento da curvatura
+    // (esfera tangente abaixo da câmera); para outro corpo visto de fora, a posição dele no céu
+    vec3 center = CenterParams.xyz;
     float shellRadius = radius + thickness;
 
     // distância mínima do centro ao raio; o produto vetorial evita o cancelamento de dot(L,L) - tca^2 em floats
@@ -74,6 +76,10 @@ void main() {
     if (perp < radius) {
         float tPlanet = tca - sqrt((radius - perp) * (radius + perp));
         if (tPlanet > 0.0) {
+            // CenterParams.w = 1: sem véu sobre o disco (a malha orbital o apagaria; a esfera do corpo tem de ser igual a ela)
+            if (CenterParams.w > 0.5) {
+                discard;
+            }
             tEnd = min(tEnd, tPlanet);
         }
     }

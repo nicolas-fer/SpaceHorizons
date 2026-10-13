@@ -67,6 +67,26 @@ class AtmosphereModelTest {
     }
 
     @Test
+    void moonHasNoAtmosphereAtAnyAltitude() {
+        AtmosphereModel moon = AtmosphereModel.of(Planets.MOON);
+        assertFalse(moon.present());
+        for (double alt : new double[] {-50, 0, 100, 1_000, 40_000}) {
+            assertEquals(0.0, moon.density(alt), 0.0);
+            assertEquals(0.0, moon.skyBrightness(alt), 0.0);
+            assertEquals(1.0, moon.starVisibility(alt), 0.0);
+            assertEquals(0.0, moon.limbVisibility(alt), 0.0);
+            assertEquals(AtmosphereModel.FOG_FAR_FACTOR, moon.fogDistanceFactor(alt), 0.0);
+            assertTrue(moon.isVacuum(alt));
+        }
+    }
+
+    @Test
+    void earthKeepsItsAtmosphere() {
+        assertTrue(model.present());
+        assertFalse(model.isVacuum(0));
+    }
+
+    @Test
     void rejectsInvalidThickness() {
         assertThrows(IllegalArgumentException.class, () -> new AtmosphereModel(100, 100));
         assertThrows(IllegalArgumentException.class, () -> new AtmosphereModel(100, -1));

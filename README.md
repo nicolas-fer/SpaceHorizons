@@ -57,6 +57,47 @@ gradiente suave; a 5.000 se vê a curvatura com halo; a 15.000 e a 40.000 o plan
 com o limbo e sem clarão; entidades invocadas a 50 a 200 blocos ficam apoiadas no terreno curvo;
 nuvens vanilla curvas com o DH ligado.
 
+## Fase 3 (pronta, verificada em jogo)
+
+Dois corpos, a Terra e a Lua, num mesmo referencial (`space/SolarSystem`, `space/SpaceFrame`), e a viagem
+entre eles sem tela de carregamento.
+
+- **A Lua** (`spacehorizons:moon`, no tipo de mundo Space Horizons): circunferência 16384 (raio ≈ 2608),
+  sem água, sem atmosfera, gravidade 0,165 (`worldgen/PlanetGravity`: atributos de gravidade e de dano de queda).
+  Terreno `planet/terrain/MoonTerrain`: crateras em 4 escalas, mares escuros, terras altas e regolito.
+  O dimension_type `moon` tem céu preto com estrelas o tempo todo. Os LODs do DH e a malha orbital
+  funcionam nela (a malha respeita `hasOcean()`).
+- **Corpos no céu** (`client/space/`): de qualquer planeta, os outros corpos são esferas reais nas
+  posições do `SolarSystem` (da Terra, a Lua no zênite do spawn; da Lua, a Terra com halo de atmosfera).
+  A lua vanilla é escondida nos planetas do mod. A esfera de um corpo visto de longe e a malha orbital do
+  mesmo corpo visto de perto usam o mesmo terreno, a mesma paleta e o mesmo sol.
+- **Sol único** (`client/space/SpaceSun`): a direção do sol é uma só no referencial do espaço (o sol do
+  Overworld no spawn da Terra, avançando com o relógio do Overworld). Dentro da atmosfera da Terra vale o sol
+  local do vanilla; no vácuo e na Lua vale o do espaço. Por isso a iluminação não muda na troca de dimensão.
+  Consequência física: com a Terra ao meio-dia a face da Lua voltada para ela está no escuro (lua nova).
+  As estrelas também são fixas no espaço (`mixin/SkyRendererMixin`): o campo do vanilla é girado pela
+  rotação entre o referencial do spawn da Terra e o da câmera, então as mesmas estrelas aparecem no mesmo lugar
+  antes e depois da troca.
+- **Viagem** (`space/travel/`): ao entrar na esfera de influência de outro corpo, o servidor transfere o jogador
+  (`BodyTransfer`: posição, velocidade e olhar convertidos pelo `SpaceFrame`) e o cliente não abre a tela
+  de carregamento (`mixin/travel/ClientPacketListenerMixin`; o aviso do servidor já leva posição e olhar
+  de destino, para o primeiro quadro depois do respawn sair do lugar certo). A velocidade de voo cresce com a altitude.
+
+### Como viajar
+
+Em criativo e como operador, em um mundo do tipo Space Horizons:
+
+| Comando | O que faz |
+| --- | --- |
+| `/spacehorizons fly moon` | piloto automático da Terra à Lua (cerca de 1.000 ticks); a troca de dimensão ocorre sozinha a ~8.400 blocos acima da Lua |
+| `/spacehorizons fly earth` | volta para a Terra |
+| `/spacehorizons fly stop` | cancela o piloto automático |
+| `/spacehorizons goto moon` | teleporta para a superfície da Lua (face voltada para a Terra); mostra a tela de carregamento, de propósito |
+| `/spacehorizons goto earth` | teleporta para a superfície da Terra |
+
+Também dá para voar reto para cima a partir do spawn da Terra: a velocidade sobe com a altitude e, ao chegar à
+esfera de influência da Lua, a troca acontece igual.
+
 ## Como rodar
 
 Requisitos: JDK 25 (o Gradle baixa o toolchain se preciso).
@@ -91,7 +132,11 @@ rm -rf run/saves/SpaceAuto run/screenshots/autotest_*
 ./gradlew runClientTest --console=plain > run-client.log 2>&1
 ```
 
-Leva uns 8 minutos. Cria o mundo `SpaceAuto` com o tipo Space Horizons, sobe a 600, 2.000, 5.000,
+Leva uns 7 minutos. O roteiro principal é o da fase 3: prints do zênite do chão (a Lua como esfera), `/spacehorizons fly moon`
+com prints periódicos e a cada 3 ticks em volta da transferência (o log registra `TROCA DE DIMENSAO` e `TELA ABERTA`, que
+não deve aparecer), chegada na Lua (crateras, horizonte, Terra no céu), pulo no chão lunar (altura máxima no log),
+`/spacehorizons fly earth` e a volta, depois uma regressão curta da fase 2 (2.000 e 30.000 blocos, costura em X). O roteiro
+antigo da fase 2, mais longo, era: cria o mundo `SpaceAuto` com o tipo Space Horizons, sobe a 600, 2.000, 5.000,
 15.000 e 40.000 blocos (horizonte e para baixo), olha o céu a 600 (faixas), compara a malha a
 15.000 em x=0 e x=3000 (continentes), invoca armor stands a 50, 100, 150 e 200 blocos (assentamento
 no chão curvo), tira prints de nuvens, testa costura em X, borda DH/chunks e barreira polar, grava
@@ -109,6 +154,33 @@ Combinações (as flags `-P` ficam no `build.gradle`):
 
 Apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes de cada uma e copie os prints
 antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` no log.
+
+## Limitações da fase 3
+
+- **Verificação**: a viagem Terra para Lua para Terra foi vista em jogo (autoteste, prints a cada 3 ticks em volta das
+  duas trocas): sem tela de carregamento, sem `moved too quickly`, mesma esfera, cor, tamanho e orientação antes e depois.
+  Duas correções finais NÃO foram revistas em jogo por terem sido feitas depois da quinta e última rodada: as estrelas
+  do primeiro quadro depois da ida Terra para Lua (usam agora a posição do jogador, e não a da Camera, que ainda está no
+  mundo antigo) e o teste unitário da orientação vertical (`BodyTransferTest`). Na volta as estrelas já coincidiam.
+- **Lua nova no meio-dia**: pelo sol único, a face da Lua voltada para a Terra fica no escuro quando é meio-dia no spawn
+  da Terra. A iluminação dos chunks e dos LODs na Lua é a do vanilla (dia permanente), então ao descer a malha orbital
+  (escura) e os chunks (claros) não combinam. Falta ligar a luz do chão lunar ao sol do espaço.
+- **Olhar vertical na troca**: o Minecraft não tem rolagem de câmera; olhando a menos de ~1,1° da vertical, o yaw sai do
+  vetor "para cima" da câmera e a direção do olhar pode errar até ~2°. Mais longe da vertical vale a direção exata
+  e a imagem pode girar (o "em cima" de cada corpo é a sua radial).
+- **Quadro da troca**: a esfera do próprio planeta (`client/space/BodyRenderer`, só acima da altitude em que a malha
+  orbital começa) cobre os quadros em que a malha do nível novo ainda está sendo construída. A mão e o item do
+  jogador não aparecem no primeiro quadro depois do respawn.
+- **Pulo**: com gravidade 0,165 o pulo vai a ~5 blocos e dura ~56 ticks (a Terra: ~1,25 e ~12). Não há ajuste de
+  altura de pulo, de velocidade de queda terminal nem de atrito.
+- **Teleporte para dentro de uma esfera de influência**: `/tp` a mais de ~38.000 blocos de altitude na Terra (ou ~10.400
+  na Lua) transfere o jogador na hora.
+- **Tela de carregamento**: `/spacehorizons goto` continua mostrando a tela (de propósito); só a transferência
+  natural e o piloto automático não mostram.
+- **Só Terra e Lua** no `SolarSystem` (corpos estáticos); sem órbitas, sem Sol como corpo, sem outros planetas.
+- **Servidor dedicado** não foi executado; o anti-cheat de movimento rápido é desligado acima de 128 blocos de altitude
+  em planetas por um mixin, mas isso só foi exercitado em singleplayer.
+- **Sodium** continua sem rodar no dev (ver abaixo); a Lua e a viagem foram testadas só com o DH e sem Sodium nem Iris.
 
 ## Limitações conhecidas
 
