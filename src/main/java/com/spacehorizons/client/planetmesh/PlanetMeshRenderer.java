@@ -364,9 +364,9 @@ final class PlanetMeshRenderer {
         float centerY = (float) (-(radius + builtAltitude)) + offY;
         float centerZ = offZ;
 
-        // direção do sol no referencial do mundo: o céu gira (0,1,0) por Y(-90°) e depois X(sunAngle) => (-sin a, cos a, 0)
+        // sol único (SunModel) no ponto da câmera, nos eixos do mundo: a mesma direção do disco, do céu e da luz do chão
         float[] sun = new float[3];
-        SpaceSun.localAt(minecraft.level, planet, camX, camY, camZ, state.skyRenderState.sunAngle, sun);
+        SpaceSun.localAt(minecraft.level, planet, camX, camZ, sun);
         float sunX = sun[0];
         float sunY = sun[1];
         float sunZ = sun[2];

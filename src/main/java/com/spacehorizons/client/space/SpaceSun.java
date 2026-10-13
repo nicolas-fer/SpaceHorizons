@@ -1,67 +1,158 @@
 package com.spacehorizons.client.space;
 
-import com.spacehorizons.client.atmosphere.AtmosphereModel;
+import java.util.Optional;
+
 import com.spacehorizons.planet.PlanetDefinition;
+import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.SpaceFrame;
+import com.spacehorizons.space.SunModel;
 
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.Holder;
+import net.minecraft.world.clock.ClockInstance;
+import net.minecraft.world.clock.WorldClock;
+import net.minecraft.world.clock.WorldClocks;
+import net.minecraft.world.entity.Entity;
 
 /**
- * Direção do sol única para todo o sistema, no referencial do espaço, para que dois lados de uma troca de dimensão
- * (e um corpo visto de outro) sejam iluminados igual. A referência é o relógio do Overworld: no spawn da Terra o sol
- * local é o do vanilla ((-sen a, cos a, 0) em leste/cima/norte); esse vetor, levado ao espaço, vale para todos os corpos.
+ * Ponte do cliente para o {@link SunModel}: o sol único do sistema, nos eixos do Minecraft de quem olha. Tudo o que
+ * mostra o sol ou depende dele (disco, brilho do nascer/pôr, estrelas, céu, luz do chão, malha orbital, corpos vistos
+ * de fora, limbo da atmosfera) parte da mesma direção, a do SunModel no ponto da câmera com o relógio do Overworld.
  *
- * Na Terra, dentro da atmosfera, vale o sol local do vanilla (o céu e a luz do chão dependem dele); só o vácuo usa o
- * sol do espaço (mistura por {@code vacuum}). Corpos sem relógio próprio (a Lua) usam sempre o do espaço.
+ * <ul>
+ *   <li>{@link #localAt}: direção do sol (unitária, x leste, y cima, z norte) num ponto, para os renderers;</li>
+ *   <li>{@link #update}: uma vez por frame (extração do estado do céu), guarda o ângulo e o giro do disco do vanilla e a
+ *       rotação das estrelas, que {@code SkyRendererMixin} aplica no desenho do céu;</li>
+ *   <li>a cor do céu e a luz do chão vêm dos atributos de ambiente do vanilla, avaliados no tick efetivo do ponto
+ *       (ver {@code AttributeTrackSamplerMixin} e {@link #effectiveTicks}).</li>
+ * </ul>
  */
 public final class SpaceSun {
-    private static final double DAY_TICKS = 24000.0;
-    /** Ângulo do sol (rad, 0 = meio-dia) visto na última vez em um planeta com atmosfera, e o relógio nesse instante. */
-    private static float referenceAngle = Float.NaN;
-    private static long referenceClock;
+    /** Ângulo do sol do vanilla (rad, 0 = meio-dia) com a mesma altura do sol local; vai para {@code SkyRenderState.sunAngle}. */
+    private static float skyAngle;
+    /** Giro em torno da vertical (rad) do disco e do brilho do nascer/pôr do sol, para o azimute real. */
+    private static float sunTilt;
+    /** Ângulo do campo de estrelas do vanilla no spawn da Terra (rad); vai para {@code SkyRenderState.starAngle}. */
+    private static float starAngle;
+    /** Rotação do campo de estrelas (eixos do Minecraft da câmera); null = nenhuma (vale o vanilla). */
+    private static Matrix4f starRotation;
 
     private SpaceSun() {
     }
 
-    /** Ângulo do sol de referência (rad) agora; no meio-dia vale 0. */
-    private static float referenceAngle(ClientLevel level, boolean hasOwnSky, float vanillaAngle) {
-        long clock = level.getOverworldClockTime();
-        if (hasOwnSky) {
-            referenceAngle = vanillaAngle;
-            referenceClock = clock;
-            return vanillaAngle;
+    /** Relógio do Overworld agora, em ticks com a parte fracionária (clock + frame), para movimentos suaves entre ticks. */
+    public static double clock(ClientLevel level) {
+        Optional<Holder.Reference<WorldClock>> holder = level.registryAccess().get(WorldClocks.OVERWORLD);
+        if (holder.isEmpty()) {
+            return 0.0;
         }
-        if (Float.isNaN(referenceAngle)) {
-            return (float) (2.0 * Math.PI * ((clock - 6000L) / DAY_TICKS));
+        ClockInstance instance = level.clockManager().getInstance(holder.get());
+        double fraction = instance.partialTick();
+        if (!instance.isPaused()) {
+            fraction += Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false) * instance.rate();
         }
-        return referenceAngle + (float) (2.0 * Math.PI * ((clock - referenceClock) / DAY_TICKS));
+        return instance.totalTicks() + fraction;
     }
 
-    /** Como {@link #local}, deduzindo atmosfera e vácuo do planeta e da altitude da câmera. */
-    public static void localAt(ClientLevel level, PlanetDefinition planet, double camX, double camY, double camZ,
-            float vanillaAngle, float[] out) {
-        AtmosphereModel model = AtmosphereModel.of(planet);
-        double vacuum = model.present() ? 1.0 - model.skyBrightness(camY - planet.seaLevel()) : 1.0;
-        local(level, planet, camX, camZ, model.present(), vanillaAngle, vacuum, out);
+    /**
+     * Direção do sol nos eixos do Minecraft do ponto (camX, camZ) do planeta, unitária. Planeta fora do SolarSystem:
+     * sol a pino.
+     */
+    public static void localAt(ClientLevel level, PlanetDefinition planet, double camX, double camZ, float[] out) {
+        double[] sun = new double[3];
+        if (!local(level, planet, camX, camZ, sun)) {
+            out[0] = 0.0F;
+            out[1] = 1.0F;
+            out[2] = 0.0F;
+            return;
+        }
+        out[0] = (float) sun[0];
+        out[1] = (float) sun[1];
+        out[2] = (float) sun[2];
     }
 
-    // ---- estrelas ----
+    private static boolean local(ClientLevel level, PlanetDefinition planet, double x, double z, double[] out) {
+        SolarSystem.Body body = SolarSystem.bodyOf(planet).orElse(null);
+        if (body == null) {
+            return false;
+        }
+        SunModel.localDirection(body, x, z, clock(level), out);
+        return true;
+    }
 
-    /** Ângulo das estrelas (rad) do relógio da Terra na última vez no planeta com atmosfera, e o relógio nesse instante. */
-    private static float starReference = Float.NaN;
-    private static long starReferenceClock;
-    private static float starAngleForSky;
-    /** Rotação extra do campo de estrelas (eixos do Minecraft da câmera); null = nenhuma (vale o do vanilla). */
-    private static Matrix4f starRotation;
+    /**
+     * Tick do relógio do Overworld que os atributos de ambiente (timelines) devem usar no ponto de vista atual: o horário
+     * efetivo do SunModel, que dá ao vanilla o céu e a luz do chão do sol real do lugar. Só o relógio do Overworld de
+     * um nível do mod muda; qualquer outro relógio ou nível passa direto.
+     */
+    public static long effectiveTicks(ClockInstance instance, long ticks) {
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientLevel level = minecraft.level;
+        Entity viewer = minecraft.getCameraEntity();
+        if (level == null || viewer == null) {
+            return ticks;
+        }
+        Optional<Holder.Reference<WorldClock>> overworld = level.registryAccess().get(WorldClocks.OVERWORLD);
+        if (overworld.isEmpty() || level.clockManager().getInstance(overworld.get()) != instance) {
+            return ticks;
+        }
+        Optional<PlanetDefinition> planet = Planets.forLevel(level);
+        Optional<SolarSystem.Body> body = planet.flatMap(SolarSystem::bodyOf);
+        if (body.isEmpty()) {
+            return ticks;
+        }
+        return Math.round(SunModel.effectiveClock(body.get(), viewer.getX(), viewer.getZ(), ticks));
+    }
 
-    /** Ângulo de estrelas que o céu do mundo atual deve usar quando não tem relógio próprio coerente (a Lua). */
+    /**
+     * Calcula o estado do céu deste frame para o ponto (x, z) do planeta: ângulo e giro do sol e rotação das estrelas.
+     * As estrelas ficam fixas no espaço: o campo do vanilla (Ry(-90) Rx(ângulo), nos eixos do Minecraft do spawn da Terra)
+     * é levado ao espaço e dali aos eixos locais do ponto, em qualquer altitude e planeta; no spawn da Terra a rotação é
+     * a identidade. Assim as mesmas estrelas aparecem no mesmo lugar dos dois lados de uma troca de dimensão.
+     */
+    public static void update(ClientLevel level, PlanetDefinition planet, double x, double z) {
+        SolarSystem.Body body = SolarSystem.bodyOf(planet).orElse(null);
+        if (body == null) {
+            clearView();
+            return;
+        }
+        double clock = clock(level);
+        double[] sun = new double[3];
+        SunModel.localDirection(body, x, z, clock, sun);
+        skyAngle = (float) SunModel.vanillaSkyAngle(sun);
+        sunTilt = (float) SunModel.azimuthTilt(sun);
+        starAngle = (float) SunModel.angle(clock);
+
+        Matrix3f m = new Matrix3f();
+        double[] space = new double[3];
+        double[] local = new double[3];
+        for (int i = 0; i < 3; i++) {
+            SpaceFrame.localToSpace(SolarSystem.EARTH, 0.0, 0.0, i == 0 ? 1.0 : 0.0, i == 1 ? 1.0 : 0.0, i == 2 ? 1.0 : 0.0, space);
+            SpaceFrame.spaceToLocal(body, x, z, space[0], space[1], space[2], local);
+            m.setColumn(i, (float) local[0], (float) local[1], (float) local[2]);
+        }
+        starRotation = new Matrix4f().rotation(new Quaternionf().setFromNormalized(m));
+    }
+
+    /** Ângulo do sol do vanilla (rad) deste frame, para o disco e o brilho do nascer/pôr do sol. */
+    public static float skyAngle() {
+        return skyAngle;
+    }
+
+    /** Giro (rad) em torno da vertical a aplicar ao disco do sol e ao brilho do nascer/pôr deste frame; 0 fora do mod. */
+    public static float sunTilt() {
+        return sunTilt;
+    }
+
+    /** Ângulo do campo de estrelas do vanilla (rad) deste frame. */
     public static float starAngle() {
-        return starAngleForSky;
+        return starAngle;
     }
 
     /** Rotação a aplicar ao campo de estrelas do vanilla neste frame, ou null. Só a thread de render lê e escreve. */
@@ -69,95 +160,14 @@ public final class SpaceSun {
         return starRotation;
     }
 
-    /**
-     * Fixa as estrelas no espaço: o campo do vanilla (Ry(-90) Rx(ângulo), nos eixos do Minecraft do spawn da Terra) é levado
-     * ao espaço e dali aos eixos da câmera. Na Terra mistura com o do vanilla pela falta de atmosfera ({@code vacuum});
-     * na Lua vale sempre. Assim as mesmas estrelas aparecem no mesmo lugar dos dois lados de uma troca de dimensão.
-     */
-    public static void updateStars(ClientLevel level, PlanetDefinition planet, double camX, double camZ, float vanillaStarAngle,
-            double vacuum) {
-        boolean hasOwnSky = AtmosphereModel.of(planet).present();
-        long clock = level.getOverworldClockTime();
-        if (hasOwnSky) {
-            starReference = vanillaStarAngle;
-            starReferenceClock = clock;
-            starAngleForSky = vanillaStarAngle;
-        } else if (Float.isNaN(starReference)) {
-            starAngleForSky = (float) (2.0 * Math.PI * ((clock - 6000L) / DAY_TICKS));
-        } else {
-            starAngleForSky = starReference + (float) (2.0 * Math.PI * ((clock - starReferenceClock) / DAY_TICKS));
-        }
-        SolarSystem.Body body = SolarSystem.bodyOf(planet).orElse(null);
-        double t = hasOwnSky ? Math.max(0.0, Math.min(1.0, vacuum)) : 1.0;
-        if (body == null || t <= 0.0) {
-            starRotation = null;
-            return;
-        }
-        Matrix3f m = new Matrix3f();
-        double[] space = new double[3];
-        double[] local = new double[3];
-        for (int i = 0; i < 3; i++) {
-            SpaceFrame.localToSpace(SolarSystem.EARTH, 0.0, 0.0, i == 0 ? 1.0 : 0.0, i == 1 ? 1.0 : 0.0, i == 2 ? 1.0 : 0.0, space);
-            SpaceFrame.spaceToLocal(body, camX, camZ, space[0], space[1], space[2], local);
-            m.setColumn(i, (float) local[0], (float) local[1], (float) local[2]);
-        }
-        Quaternionf q = new Quaternionf().setFromNormalized(m);
-        if (t < 1.0) {
-            q = new Quaternionf().nlerp(q, (float) t);
-        }
-        starRotation = new Matrix4f().rotation(q);
-    }
-
-    /** Esquece as referências e a rotação das estrelas (saída do mundo ou mundo sem planeta do mod). */
+    /** Esquece o estado do céu (saída do mundo). */
     public static void reset() {
-        referenceAngle = Float.NaN;
-        starReference = Float.NaN;
-        starRotation = null;
+        clearView();
     }
 
-    /** Só apaga a rotação das estrelas, para que um céu que não é do mod fique como o vanilla. */
-    public static void clearStarRotation() {
+    /** Apaga giro e rotação, para que um céu que não é do mod fique como o vanilla. */
+    public static void clearView() {
+        sunTilt = 0.0F;
         starRotation = null;
-    }
-
-    /**
-     * Direção do sol nos eixos do Minecraft da câmera (x leste, y cima, z norte), unitária.
-     *
-     * @param hasOwnSky {@code true} se o planeta atual tem o céu do vanilla coerente com o relógio do Overworld
-     * @param vanillaAngle ângulo do sol do vanilla no planeta atual (só usado se {@code hasOwnSky})
-     * @param vacuum 0 = dentro da atmosfera (sol local do vanilla), 1 = vácuo (sol do espaço)
-     */
-    public static void local(ClientLevel level, PlanetDefinition planet, double camX, double camZ, boolean hasOwnSky,
-            float vanillaAngle, double vacuum, float[] out) {
-        float ref = referenceAngle(level, hasOwnSky, vanillaAngle);
-        float vx = -(float) Math.sin(vanillaAngle);
-        float vy = (float) Math.cos(vanillaAngle);
-        float vz = 0.0F;
-        SolarSystem.Body body = SolarSystem.bodyOf(planet).orElse(null);
-        if (body == null || (hasOwnSky && vacuum <= 0.0)) {
-            out[0] = vx;
-            out[1] = vy;
-            out[2] = vz;
-            return;
-        }
-        // sol do referencial do spawn da Terra, levado ao espaço e de lá aos eixos da câmera
-        double[] space = new double[3];
-        SpaceFrame.localToSpace(SolarSystem.EARTH, 0.0, 0.0, -Math.sin(ref), Math.cos(ref), 0.0, space);
-        double[] local = new double[3];
-        SpaceFrame.spaceToLocal(body, camX, camZ, space[0], space[1], space[2], local);
-        double t = hasOwnSky ? Math.max(0.0, Math.min(1.0, vacuum)) : 1.0;
-        double x = (hasOwnSky ? vx : 0.0) * (1.0 - t) + local[0] * t;
-        double y = (hasOwnSky ? vy : 0.0) * (1.0 - t) + local[1] * t;
-        double z = (hasOwnSky ? vz : 0.0) * (1.0 - t) + local[2] * t;
-        double len = Math.sqrt(x * x + y * y + z * z);
-        if (len < 1.0e-6) {
-            out[0] = (float) local[0];
-            out[1] = (float) local[1];
-            out[2] = (float) local[2];
-            return;
-        }
-        out[0] = (float) (x / len);
-        out[1] = (float) (y / len);
-        out[2] = (float) (z / len);
     }
 }

@@ -5,6 +5,10 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.client.space.SpaceSun;
+import com.spacehorizons.planet.Planets;
+import com.spacehorizons.space.SolarSystem;
+import com.spacehorizons.space.SunModel;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -55,50 +59,103 @@ public final class AutoTest {
     private AutoTest() {
         cmd(0, "gamemode creative");
         cmd(20, "gamerule advance_time false");
-        cmd(20, "time set noon");
+        cmd(20, "time set 6000");
         step(20, mc -> logPos(mc, "spawn (esperado dim=minecraft:overworld com curvatura)"));
         cmd(20, "spacehorizons goto earth");
 
-        // (a) do chão do spawn, olhando para o zênite: a Lua deve ser uma esfera, não a lua vanilla
-        look(300, EAST, -90f);
-        shot(40, "p3_01_ground_zenith");
-        look(20, EAST, -60f);
-        shot(40, "p3_01b_ground_up60");
-        look(20, EAST, 15f);
-        shot(40, "p3_01c_ground_horizon");
+        // (a) Terra, spawn, meio-dia (6000): sol alto, céu azul
+        cmd(300, "time set 6000");
+        lookAtSun(40);
+        shot(60, "s_a_spawn_noon_sun");
+        look(10, EAST, 10f);
+        shot(30, "s_a_spawn_noon_horizon");
+        look(10, EAST, -90f);
+        shot(30, "s_a_spawn_noon_zenith");
+        // (b) antípoda no mesmo horário: noite com estrelas, chão escuro
+        cmd(20, "tp @s 32700 100 0");
+        fly(20);
+        cmd(400, "time set 6000");
+        look(40, EAST, 10f);
+        shot(60, "s_b_antipode_horizon");
+        look(10, EAST, -60f);
+        shot(30, "s_b_antipode_sky");
+        lookAtSun(10);
+        shot(30, "s_b_antipode_sun");
+        // (c) 90 graus a leste: fim de tarde, sol baixo no oeste
+        cmd(20, "tp @s 16384 100 0");
+        fly(20);
+        cmd(400, "time set 6000");
+        lookAtSun(40);
+        shot(60, "s_c_east90_sun");
+        look(10, 90f, 10f);
+        shot(30, "s_c_east90_west_horizon");
+        look(10, EAST, 10f);
+        shot(30, "s_c_east90_east_horizon");
+        // (d) latitude alta: sol mais baixo e fora do plano leste-oeste
+        cmd(20, "tp @s 0 100 10000");
+        fly(20);
+        cmd(400, "time set 6000");
+        lookAtSun(40);
+        shot(60, "s_d_highlat_sun");
+        look(10, SOUTH, 10f);
+        shot(30, "s_d_highlat_south");
+        look(10, 180f, 10f);
+        shot(30, "s_d_highlat_north");
+        // (d2) mesmo ponto, 4 horários: o caminho do sol é inclinado
+        for (int t : new int[] {0, 3000, 9000, 12000}) {
+            cmd(10, "time set " + t);
+            lookAtSun(40);
+            shot(20, "s_d_highlat_t" + t);
+        }
+
+        // (f) Terra à meia-noite do spawn, zênite do spawn: a Lua deve estar cheia; ao meio-dia, escura
+        cmd(20, "spacehorizons goto earth");
+        cmd(300, "time set 18000");
+        look(40, EAST, -90f);
+        shot(60, "s_f_earth_midnight_zenith");
+        look(10, EAST, 10f);
+        shot(30, "s_f_earth_midnight_horizon");
+        cmd(10, "time set 6000");
+        look(40, EAST, -90f);
+        shot(60, "s_f_earth_noon_zenith");
+
         // sobe um pouco para ver a Lua sem o chão no caminho
         cmd(20, "tp @s 0 2000 0");
         fly(20);
         look(20, EAST, -90f);
         shot(300, "p3_02_alt2000_zenith");
 
-        // (b), (c) viagem Terra -> Lua pelo piloto automático, com prints rápidos em volta da transferência
+        // viagem Terra -> Lua pelo piloto automático, ao meio-dia, com prints rápidos em volta da transferência
         cmd(20, "tp @s 0 200 0");
         fly(20);
         look(40, EAST, -90f);
         cmd(5, "spacehorizons fly moon");
         travel("tr_out", "moon", 36000, 6000);
         step(20, mc -> logPos(mc, "chegada na Lua"));
-        // (d) chegada: crateras, horizonte e a Terra no céu
+        // chegada: face voltada para a Terra ao meio-dia do spawn = lua nova, no escuro
         look(300, EAST, 90f);
         shot(60, "p3_10_moon_down");
-        look(20, EAST, 60f);
-        shot(40, "p3_10b_moon_down60");
         look(20, EAST, 5f);
         shot(40, "p3_11_moon_horizon_e");
-        look(20, 90f, 5f);
-        shot(40, "p3_11b_moon_horizon_w");
         look(20, EAST, -90f);
         shot(40, "p3_12_moon_earth_zenith");
-        look(20, EAST, -50f);
-        shot(40, "p3_12b_moon_sky_up50");
 
-        // (e) chão da Lua: pulo e altura máxima (gravidade baixa)
+        // (e) chão da Lua: 6000 = escuro e céu preto; 18000 = iluminado
         cmd(20, "spacehorizons goto moon");
-        look(600, EAST, 15f);
-        shot(60, "p3_20_moon_ground");
-        look(20, EAST, -60f);
-        shot(40, "p3_20b_moon_ground_sky");
+        cmd(600, "time set 6000");
+        look(60, EAST, 15f);
+        shot(60, "s_e_moon_noon_ground");
+        look(10, EAST, -60f);
+        shot(30, "s_e_moon_noon_sky");
+        lookAtSun(10);
+        shot(30, "s_e_moon_noon_sun");
+        cmd(10, "time set 18000");
+        look(80, EAST, 15f);
+        shot(60, "s_e_moon_midnight_ground");
+        look(10, EAST, -60f);
+        shot(30, "s_e_moon_midnight_sky");
+        lookAtSun(10);
+        shot(30, "s_e_moon_midnight_sun");
         look(10, EAST, 10f);
         jumpTest();
         shot(10, "p3_21_after_jump");
@@ -117,6 +174,7 @@ public final class AutoTest {
         look(20, EAST, -90f);
         shot(40, "p3_32_earth_zenith");
 
+        cmd(20, "time set 6000");
         // regressão resumida da fase 2 (altitudes e costura em X); acima de ~38.000 blocos a esfera de influência da Lua assume
         int[] alts = {2000, 30000};
         float[] horizonPitch = {15f, 70f};
@@ -369,9 +427,46 @@ public final class AutoTest {
         pushTicks = ticks;
     }
 
+    /** Olha exatamente para o sol local do SunModel (yaw e pitch a partir da direção nos eixos do Minecraft). */
+    private void lookAtSun(int wait) {
+        step(wait, mc -> {
+            double[] sun = sunHere(mc);
+            if (sun == null) {
+                return;
+            }
+            mc.player.setYRot((float) Math.toDegrees(Math.atan2(-sun[0], sun[2])));
+            mc.player.setXRot((float) -Math.toDegrees(Math.asin(Math.max(-1.0, Math.min(1.0, sun[1])))));
+        });
+    }
+
+    private static double[] sunHere(Minecraft mc) {
+        java.util.Optional<SolarSystem.Body> body = Planets.forLevel(mc.level).flatMap(SolarSystem::bodyOf);
+        if (body.isEmpty()) {
+            return null;
+        }
+        double[] sun = new double[3];
+        SunModel.localDirection(body.get(), mc.player.getX(), mc.player.getZ(), SpaceSun.clock(mc.level), sun);
+        return sun;
+    }
+
+    /** Loga relógio, sol local (eixos do Minecraft), altura e o relógio efetivo que o céu e a luz do chão usam. */
+    private static void logSun(Minecraft mc, String label) {
+        java.util.Optional<SolarSystem.Body> body = Planets.forLevel(mc.level).flatMap(SolarSystem::bodyOf);
+        if (body.isEmpty()) {
+            return;
+        }
+        double clock = SpaceSun.clock(mc.level);
+        double[] sun = sunHere(mc);
+        double eff = SunModel.effectiveClock(body.get(), mc.player.getX(), mc.player.getZ(), clock);
+        SpaceHorizons.LOGGER.info(TAG + "SOL {}: relogio={} efetivo={} (tick do dia {}) sol=({}, {}, {}) altura={} graus", label,
+                f(clock), f(eff), f(Math.floorMod(Math.round(eff), 24000L)), f(sun[0]), f(sun[1]), f(sun[2]),
+                f(Math.toDegrees(Math.asin(sun[1]))));
+    }
+
     private void shot(int wait, String name) {
         step(wait, mc -> {
             logPos(mc, "print " + name);
+            logSun(mc, name);
             grab(mc, name);
         });
     }

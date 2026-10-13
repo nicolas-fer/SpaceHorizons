@@ -1,0 +1,48 @@
+{
+  "clock": "minecraft:overworld",
+  "period_ticks": 24000,
+  "tracks": {
+    "minecraft:visual/sky_light_color": {
+      "keyframes": [
+        {
+          "ticks": 12470,
+          "value": "#ffffff"
+        },
+        {
+          "ticks": 13090,
+          "value": "#7a7aff"
+        },
+        {
+          "ticks": 22910,
+          "value": "#7a7aff"
+        },
+        {
+          "ticks": 23530,
+          "value": "#ffffff"
+        }
+      ],
+      "modifier": "multiply"
+    },
+    "minecraft:visual/sky_light_factor": {
+      "keyframes": [
+        {
+          "ticks": 12470,
+          "value": 1.0
+        },
+        {
+          "ticks": 13090,
+          "value": 0.24
+        },
+        {
+          "ticks": 22910,
+          "value": 0.24
+        },
+        {
+          "ticks": 23530,
+          "value": 1.0
+        }
+      ],
+      "modifier": "multiply"
+    }
+  }
+}

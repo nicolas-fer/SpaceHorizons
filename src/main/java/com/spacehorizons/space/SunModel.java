@@ -4,20 +4,63 @@ package com.spacehorizons.space;
  * Sol único do sistema, no referencial do espaço. Java puro e sem estado.
  *
  * O sol gira no plano equatorial (X–Z do espaço) com o relógio do Overworld, de modo que no spawn da Terra
- * (lat 0, lon 0) ele coincide com o sol do vanilla: nasce no leste no tick 0, meio-dia no 6000, põe no 12000.
+ * (lat 0, lon 0) ele coincide com o sol do vanilla: meio-dia no tick 6000, pondo-se no oeste e nascendo no leste.
+ * O vanilla (26.x) não gira o sol de forma linear: o atributo sun_angle usa uma curva de Bézier cúbica
+ * (0,362; 0,241; 0,638; 0,759) sobre o dia inteiro, que deixa o sol mais lento perto do meio-dia e da meia-noite.
+ * O modelo usa a MESMA curva, então o disco, as cores do céu e a luz do chão (todos presos aos ticks do relógio)
+ * batem com o vanilla no spawn, e o terminador visto do espaço bate com o do chão.
  * Em qualquer outro ponto (outra longitude, outra latitude, outro corpo) a direção local sai de SpaceFrame,
  * e daí o "horário efetivo": o tick do dia em que o sol do vanilla teria a mesma altura no céu.
  */
 public final class SunModel {
     public static final long DAY_TICKS = 24_000L;
     private static final long NOON = 6_000L;
+    /** Pontos de controle da curva do vanilla (a simétrica é 1 - x, 1 - y). */
+    private static final double EASE_X1 = 0.362;
+    private static final double EASE_Y1 = 0.241;
+    private static final double TWO_PI = 2.0 * Math.PI;
 
     private SunModel() {
     }
 
-    /** Ângulo do sol em radianos (0 = meio-dia no spawn da Terra) para um tick do relógio do Overworld. */
+    /** Um eixo da Bézier cúbica de pontos (0, p1, 1 - p1, 1) no parâmetro t. */
+    private static double bezier(double p1, double t) {
+        double u = 1.0 - t;
+        return 3.0 * u * u * t * p1 + 3.0 * u * t * t * (1.0 - p1) + t * t * t;
+    }
+
+    /** Resolve o parâmetro t da curva em que o eixo {@code p1} vale {@code target} (curva monótona, bisseção). */
+    private static double solveBezier(double p1, double target) {
+        double lo = 0.0;
+        double hi = 1.0;
+        for (int i = 0; i < 60; i++) {
+            double mid = 0.5 * (lo + hi);
+            if (bezier(p1, mid) < target) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        return 0.5 * (lo + hi);
+    }
+
+    /** Curva do ângulo do sol: fração do dia (0..1 desde o meio-dia) para fração do giro (0..1). */
+    public static double skyEase(double dayFraction) {
+        double x = Math.max(0.0, Math.min(1.0, dayFraction));
+        return bezier(EASE_Y1, solveBezier(EASE_X1, x));
+    }
+
+    /** Inversa de {@link #skyEase}: fração do giro para fração do dia. */
+    public static double skyEaseInverse(double turnFraction) {
+        double y = Math.max(0.0, Math.min(1.0, turnFraction));
+        return bezier(EASE_X1, solveBezier(EASE_Y1, y));
+    }
+
+    /** Ângulo do sol em radianos [0, 2π) (0 = meio-dia no spawn da Terra) para um tick do relógio do Overworld. */
     public static double angle(double clockTicks) {
-        return 2.0 * Math.PI * ((clockTicks - NOON) / DAY_TICKS);
+        double fraction = (clockTicks - NOON) / DAY_TICKS;
+        fraction -= Math.floor(fraction);
+        return TWO_PI * skyEase(fraction);
     }
 
     /**
@@ -39,17 +82,39 @@ public final class SunModel {
     }
 
     /**
+     * Ângulo do sol do vanilla (rad, 0 = meio-dia, negativo de manhã, em (-π, π]) cujo sol, no plano leste-cima, tem a
+     * mesma altura que o sol local: -acos(up) com o sol a leste, +acos(up) a oeste.
+     */
+    public static double vanillaSkyAngle(double[] localSun) {
+        double up = Math.max(-1.0, Math.min(1.0, localSun[1]));
+        double a = Math.acos(up);
+        // sol a leste (x > 0) = manhã (ângulo negativo antes do meio-dia)
+        return localSun[0] > 0.0 ? -a : a;
+    }
+
+    /**
+     * Giro em torno da vertical (rad, convenção do JOML {@code rotationY}: x' = x cos + z sen, z' = -x sen + z cos) que leva o
+     * sol do vanilla de {@link #vanillaSkyAngle}, (-sen a, cos a, 0), ao sol local. Os dois têm a mesma altura, então o giro
+     * só corrige o azimute: é o que inclina o caminho do sol em latitudes altas. 0 quando o sol está no zênite ou no nadir.
+     */
+    public static double azimuthTilt(double[] localSun) {
+        double horizontal = Math.hypot(localSun[0], localSun[2]);
+        if (horizontal < 1.0e-9) {
+            return 0.0;
+        }
+        double sign = localSun[0] > 0.0 ? 1.0 : -1.0;
+        return Math.atan2(-localSun[2] * sign, localSun[0] * sign);
+    }
+
+    /**
      * Tick do dia (0..24000) em que o sol do vanilla teria a mesma altura que o sol local: de manhã quando o sol
      * está no lado leste do céu, de tarde no lado oeste. Usado para dirigir céu e luz do chão pelo vanilla.
      */
     public static double effectiveTimeOfDay(double[] localSun) {
-        double up = Math.max(-1.0, Math.min(1.0, localSun[1]));
-        double a = Math.acos(up);
-        // sol a leste (x > 0) = manhã (ângulo negativo antes do meio-dia)
-        if (localSun[0] > 0.0) {
-            a = -a;
-        }
-        double t = NOON + a / (2.0 * Math.PI) * DAY_TICKS;
+        double a = vanillaSkyAngle(localSun);
+        double turn = a / TWO_PI;
+        turn -= Math.floor(turn);
+        double t = NOON + skyEaseInverse(turn) * DAY_TICKS;
         return Math.floorMod((long) Math.floor(t), DAY_TICKS) + (t - Math.floor(t));
     }
 

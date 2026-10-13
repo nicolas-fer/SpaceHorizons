@@ -71,13 +71,23 @@ entre eles sem tela de carregamento.
   posições do `SolarSystem` (da Terra, a Lua no zênite do spawn; da Lua, a Terra com halo de atmosfera).
   A lua vanilla é escondida nos planetas do mod. A esfera de um corpo visto de longe e a malha orbital do
   mesmo corpo visto de perto usam o mesmo terreno, a mesma paleta e o mesmo sol.
-- **Sol único** (`client/space/SpaceSun`): a direção do sol é uma só no referencial do espaço (o sol do
-  Overworld no spawn da Terra, avançando com o relógio do Overworld). Dentro da atmosfera da Terra vale o sol
-  local do vanilla; no vácuo e na Lua vale o do espaço. Por isso a iluminação não muda na troca de dimensão.
-  Consequência física: com a Terra ao meio-dia a face da Lua voltada para ela está no escuro (lua nova).
-  As estrelas também são fixas no espaço (`mixin/SkyRendererMixin`): o campo do vanilla é girado pela
-  rotação entre o referencial do spawn da Terra e o da câmera, então as mesmas estrelas aparecem no mesmo lugar
-  antes e depois da troca.
+- **Sol único e posição real** (`space/SunModel`, `client/space/SpaceSun`): há um só sol, no plano equatorial do espaço, que
+  coincide com o do vanilla no spawn da Terra e anda com o relógio do Overworld. Em qualquer ponto de qualquer planeta do mod
+  o sol vem da posição da câmera (`SunModel.localDirection`), não de um relógio global igual no planeta inteiro: ao meio-dia
+  do spawn é meia-noite em x=C/2 da Terra, e nas latitudes altas o sol traça um caminho inclinado. O céu (cor, nascer e pôr),
+  as estrelas, o disco do sol e a luz do chão (lightmap) seguem esse mesmo sol. O ponto de integração é
+  `mixin/AttributeTrackSamplerMixin`, por onde o cliente lê o tick do relógio de toda trilha de timeline (cor do céu, brilho do
+  nascer/pôr, estrelas, `sky_light_factor`/`sky_light_color`): num planeta do mod o relógio do Overworld do cliente é trocado por
+  `SunModel.effectiveClock` (o tick em que o sol do vanilla teria a mesma altura), mantendo o número do dia. Servidor, outros
+  relógios e outras dimensões passam direto. O disco do sol e o brilho do pôr do sol recebem ainda um giro de azimute
+  (`mixin/SkyRendererMixin`), e as estrelas ficam fixas no espaço. A malha orbital, os corpos vistos de fora (`BodyRenderer`),
+  o limbo e o chão usam a mesma direção, então a troca de dimensão não tem salto. A curva do sol do vanilla 26.3 não é linear
+  (Bézier cúbica em `sun_angle`); o `SunModel` usa a mesma.
+- **A Lua tem dia e noite**: o `dimension_type` `moon` deixou de ser `has_fixed_time` e usa o relógio do Overworld; o timeline
+  `spacehorizons:moon_day` só derruba a luz do céu (fator 0,24, tom azulado) quando o sol está abaixo do horizonte, e o céu
+  continua preto com estrelas. Com a Terra ao meio-dia, a face voltada para ela está escura (lua nova, o chão confere com a
+  malha orbital vista do espaço); à meia-noite do spawn, está clara e, vista da Terra, a Lua está cheia no zênite. Ao meio-dia
+  a Lua vista do spawn passa na frente do sol (eclipse), o que é geometricamente correto neste sistema.
 - **Viagem** (`space/travel/`): ao entrar na esfera de influência de outro corpo, o servidor transfere o jogador
   (`BodyTransfer`: posição, velocidade e olhar convertidos pelo `SpaceFrame`) e o cliente não abre a tela
   de carregamento (`mixin/travel/ClientPacketListenerMixin`; o aviso do servidor já leva posição e olhar
@@ -141,7 +151,10 @@ antigo da fase 2, mais longo, era: cria o mundo `SpaceAuto` com o tipo Space Hor
 15.000 em x=0 e x=3000 (continentes), invoca armor stands a 50, 100, 150 e 200 blocos (assentamento
 no chão curvo), tira prints de nuvens, testa costura em X, borda DH/chunks e barreira polar, grava
 `run/screenshots/autotest_*.png` e as linhas `[AUTOTEST]` no log, e fecha na linha `[AUTOTEST] FIM`.
-A regra `advance_time` é desligada e o horário fixado em meio-dia no início.
+A regra `advance_time` é desligada e o horário fixado com `/time set`. Os cenários do sol (prefixo `s_`) fixam 6000 ou 18000, olham
+exatamente para o sol do `SunModel` e logam `SOL ...: relogio, efetivo, direção e altura`: (a) spawn ao meio-dia, (b) x=32700 no
+mesmo horário (noite com estrelas), (c) x=16384 (pôr do sol), (d) z=10000 em 0, 3000, 9000 e 12000 (caminho inclinado), (e) chão da
+Lua em 6000 (escuro) e 18000 (claro), (f) Lua vista da Terra à meia-noite (cheia) e ao meio-dia (nova).
 
 Combinações (as flags `-P` ficam no `build.gradle`):
 
@@ -162,9 +175,11 @@ antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` 
   Duas correções finais NÃO foram revistas em jogo por terem sido feitas depois da quinta e última rodada: as estrelas
   do primeiro quadro depois da ida Terra para Lua (usam agora a posição do jogador, e não a da Camera, que ainda está no
   mundo antigo) e o teste unitário da orientação vertical (`BodyTransferTest`). Na volta as estrelas já coincidiam.
-- **Lua nova no meio-dia**: pelo sol único, a face da Lua voltada para a Terra fica no escuro quando é meio-dia no spawn
-  da Terra. A iluminação dos chunks e dos LODs na Lua é a do vanilla (dia permanente), então ao descer a malha orbital
-  (escura) e os chunks (claros) não combinam. Falta ligar a luz do chão lunar ao sol do espaço.
+- **Servidor no relógio real**: o sol por ponto só vale no cliente (renderização, céu e luz do chão). Spawn de mobs, camas,
+  queimadura de mortos-vivos, `skyDarken` e afins seguem o relógio global do servidor. Na Lua o servidor vê sempre claro
+  (o timeline lunar não mexe no nível de luz do céu do servidor).
+- **Sol por ponto**: o horário efetivo vem só da altura do sol, então perto dos polos o brilho de nascer/pôr pode trocar de
+  lado de repente. Os atributos são amostrados uma vez por tick; numa viagem de milhares de blocos por tick o céu atrasa 1 tick.
 - **Olhar vertical na troca**: o Minecraft não tem rolagem de câmera; olhando a menos de ~1,1° da vertical, o yaw sai do
   vetor "para cima" da câmera e a direção do olhar pode errar até ~2°. Mais longe da vertical vale a direção exata
   e a imagem pode girar (o "em cima" de cada corpo é a sua radial).

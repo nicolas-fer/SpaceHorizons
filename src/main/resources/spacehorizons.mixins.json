@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "AtmosphericFogEnvironmentMixin",
+    "AttributeTrackSamplerMixin",
     "CameraMixin",
     "CloudRendererMixin",
     "DynamicGpuDataMixin",

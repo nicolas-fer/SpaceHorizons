@@ -191,9 +191,9 @@ final class BodyRenderer {
         boolean zZeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
         projection.setPerspective(fovY, m11 / m00, FAR_PLANE, NEAR_PLANE, zZeroToOne);
 
-        // mesma convenção do SkyRenderer: sol em Ry(-90°) * Rx(sunAngle) * (0, 1, 0) = (-sin, cos, 0)
+        // sol único (SunModel) no ponto da câmera, nos eixos do mundo: a mesma direção do disco, do céu e da luz do chão
         float[] sun = new float[3];
-        SpaceSun.localAt(minecraft.level, planet, camX, camY, camZ, state.skyRenderState.sunAngle, sun);
+        SpaceSun.localAt(minecraft.level, planet, camX, camZ, sun);
         float sunX = sun[0];
         float sunY = sun[1];
         float sunZ = sun[2];

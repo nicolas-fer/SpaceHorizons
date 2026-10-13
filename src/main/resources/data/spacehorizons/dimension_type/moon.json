@@ -39,10 +39,9 @@
     "minecraft:visual/star_brightness": 1.0
   },
   "coordinate_scale": 1.0,
-  "default_clock": "minecraft:the_end",
+  "default_clock": "minecraft:overworld",
   "has_ceiling": false,
   "has_ender_dragon_fight": false,
-  "has_fixed_time": true,
   "has_skylight": true,
   "height": 384,
   "infiniburn": "#minecraft:infiniburn_overworld",
@@ -54,5 +53,8 @@
     "max_inclusive": 7,
     "min_inclusive": 0
   },
-  "skybox": "none"
+  "skybox": "none",
+  "timelines": [
+    "spacehorizons:moon_day"
+  ]
 }

@@ -93,10 +93,9 @@ final class AtmosphereLimbRenderer {
         if (visibility < MIN_VISIBILITY) {
             return;
         }
-        // mesma convenção do SkyRenderer: sol em Ry(-90°) * Rx(sunAngle) * (0, 1, 0) = (-sin, cos, 0)
+        // sol único (SunModel) no ponto da câmera, nos eixos do mundo: a mesma direção do disco, do céu e da luz do chão
         float[] sun = new float[3];
-        SpaceSun.localAt(level, sample.get().planet(), camera.pos.x, camera.pos.y, camera.pos.z,
-                levelState.skyRenderState.sunAngle, sun);
+        SpaceSun.localAt(level, sample.get().planet(), camera.pos.x, camera.pos.z, sun);
         Matrix4f invView = new Matrix4f(event.getModelViewMatrix()).invert();
         double radius = sample.get().planet().radius();
         // o planeta atual: centro abaixo da câmera (mesmo mapeamento da curvatura)
