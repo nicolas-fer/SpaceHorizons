@@ -57,6 +57,13 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        // Cliente que entra direto no mundo run/saves/SpaceTest (teste manual/automatizado)
+        clientTest {
+            client()
+            programArguments.addAll '--quickPlaySingleplayer', 'SpaceTest'
+            systemProperty 'spacehorizons.autotest', 'true'
+        }
+
         server {
             server()
             programArgument '--nogui'
@@ -92,7 +99,7 @@ neoForge {
             // Recommended logging level for the console
             // You can set various levels here.
             // Please read: https://stackoverflow.com/questions/2031163/when-to-use-the-different-log-levels
-            logLevel = org.slf4j.event.Level.DEBUG
+            logLevel = org.slf4j.event.Level.INFO
         }
     }
 

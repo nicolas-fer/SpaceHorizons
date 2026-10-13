@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.enums.worldGeneration.EDhApiDistantGeneratorMode;
 import com.seibel.distanthorizons.api.enums.worldGeneration.EDhApiWorldGeneratorReturnType;
+import com.seibel.distanthorizons.api.enums.worldGeneration.EDhApiWorldGenerationStep;
 import com.seibel.distanthorizons.api.interfaces.block.IDhApiBiomeWrapper;
 import com.seibel.distanthorizons.api.interfaces.block.IDhApiBlockStateWrapper;
 import com.seibel.distanthorizons.api.interfaces.override.worldGenerator.IDhApiWorldGenerator;
@@ -41,11 +42,14 @@ import net.minecraft.world.level.block.state.BlockState;
  *
  * Premissas do DH (verificadas no bytecode da 3.3.4-26.3, mas confirmar em runtime):
  *  - a origem do dado é chunkX*16, chunkZ*16 em blocos (o DH passa a posição do chunk, não do setor);
- *  - cada segmento é [bottomYBlockPos, topYBlockPos), e a lista de uma coluna vai de baixo para cima.
+ *  - cada segmento é [bottomYBlockPos, topYBlockPos), com Y SEM SINAL relativo ao minY do level
+ *    (javadoc de DhApiTerrainDataPoint); Y absoluto negativo vira altura gigante;
+ *  - a coluna precisa incluir o ar acima da superfície com luz do céu, senão LODs distantes ficam pretos.
  */
 final class PlanetLodGenerator implements IDhApiWorldGenerator {
     private static final int FILLER_DEPTH = 3;
     private static final int FULL_SKY_LIGHT = 15;
+    private static final int NO_SKY_LIGHT = 0;
 
     private final IDhApiLevelWrapper levelWrapper;
     private final Level level;
@@ -88,7 +92,7 @@ final class PlanetLodGenerator implements IDhApiWorldGenerator {
                 // amostra no centro da coluna; PlanetTerrain já é periódico em X
                 int blockX = originX + i * columnBlocks + half;
                 int blockZ = originZ + j * columnBlocks + half;
-                dataSource.setApiDataPointColumn(i, j, columnPoints(blockX, blockZ, detailLevel));
+                dataSource.setApiDataPointColumn(i, j, EDhApiWorldGenerationStep.SURFACE, columnPoints(blockX, blockZ, detailLevel));
             }
         }
     }
@@ -97,26 +101,35 @@ final class PlanetLodGenerator implements IDhApiWorldGenerator {
         int surfaceY = terrain.surfaceHeight(blockX, blockZ);
         SurfaceType type = terrain.surfaceType(blockX, blockZ);
         int minY = level.getMinY();
+        int maxY = minY + level.getHeight();
         int seaTop = planet.seaLevel() + 1;
+        int solidTop = surfaceY + 1;
+        int columnTop = Math.max(solidTop, surfaceY < planet.seaLevel() ? seaTop : solidTop);
 
         IDhApiBiomeWrapper biome = biomeWrapper(type);
-        List<DhApiTerrainDataPoint> points = new ArrayList<>(4);
-        addSegment(points, detailLevel, minY, surfaceY - FILLER_DEPTH, Blocks.STONE.defaultBlockState(), biome);
-        addSegment(points, detailLevel, surfaceY - FILLER_DEPTH, surfaceY, SurfacePalette.filler(type), biome);
-        addSegment(points, detailLevel, surfaceY, surfaceY + 1, SurfacePalette.top(type), biome);
+        List<DhApiTerrainDataPoint> points = new ArrayList<>(5);
+        addSegment(points, detailLevel, minY, minY, surfaceY - FILLER_DEPTH, NO_SKY_LIGHT,
+                Blocks.STONE.defaultBlockState(), biome);
+        addSegment(points, detailLevel, minY, surfaceY - FILLER_DEPTH, surfaceY, NO_SKY_LIGHT,
+                SurfacePalette.filler(type), biome);
+        addSegment(points, detailLevel, minY, surfaceY, solidTop, NO_SKY_LIGHT, SurfacePalette.top(type), biome);
         if (surfaceY < planet.seaLevel()) {
-            addSegment(points, detailLevel, surfaceY + 1, seaTop, Blocks.WATER.defaultBlockState(), biome);
+            addSegment(points, detailLevel, minY, solidTop, seaTop, FULL_SKY_LIGHT,
+                    Blocks.WATER.defaultBlockState(), biome);
         }
+        addSegment(points, detailLevel, minY, columnTop, maxY, FULL_SKY_LIGHT, Blocks.AIR.defaultBlockState(), biome);
         return points;
     }
 
-    private void addSegment(List<DhApiTerrainDataPoint> points, byte detailLevel, int bottomY, int topY,
-            BlockState state, IDhApiBiomeWrapper biome) {
-        if (topY <= bottomY) {
+    /** Recebe Y absoluto e converte para o Y relativo ao minY que o DH exige, cortando nos limites do mundo. */
+    private void addSegment(List<DhApiTerrainDataPoint> points, byte detailLevel, int minY, int bottomY, int topY,
+            int skyLight, BlockState state, IDhApiBiomeWrapper biome) {
+        int bottom = Math.max(bottomY, minY) - minY;
+        int top = Math.min(topY, minY + level.getHeight()) - minY;
+        if (top <= bottom) {
             return;
         }
-        points.add(DhApiTerrainDataPoint.create(detailLevel, 0, FULL_SKY_LIGHT, bottomY, topY,
-                blockWrapper(state), biome));
+        points.add(DhApiTerrainDataPoint.create(detailLevel, 0, skyLight, bottom, top, blockWrapper(state), biome));
     }
 
     private IDhApiBlockStateWrapper blockWrapper(BlockState state) {

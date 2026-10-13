@@ -1,6 +1,7 @@
 package com.spacehorizons;
 
 import com.spacehorizons.client.curvature.CurvatureClient;
+import com.spacehorizons.client.devtest.AutoTest;
 
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -12,5 +13,8 @@ import net.neoforged.fml.common.Mod;
 public class SpaceHorizonsClient {
     public SpaceHorizonsClient(IEventBus modEventBus, ModContainer container) {
         CurvatureClient.init(modEventBus);
+        if (Boolean.getBoolean("spacehorizons.autotest")) {
+            AutoTest.register();
+        }
     }
 }
