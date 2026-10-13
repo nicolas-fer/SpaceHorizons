@@ -48,7 +48,7 @@ public final class AutoTest {
 
     private AutoTest() {
         cmd(0, "gamemode creative");
-        cmd(20, "gamerule doDaylightCycle false");
+        cmd(20, "gamerule advance_time false");
         cmd(20, "time set noon");
         step(20, mc -> logPos(mc, "spawn (esperado dim=minecraft:overworld com curvatura)"));
         cmd(20, "spacehorizons goto earth");
@@ -76,6 +76,54 @@ public final class AutoTest {
             look(20, EAST, downPitch[i]);
             shot(60, String.format("%02d_alt%d_down", 3 + i * 2, alt));
         }
+
+        // P1: a 600 blocos olhando para o céu (procura faixas concêntricas)
+        cmd(20, "tp @s 0 600 0");
+        fly(20);
+        look(20, EAST, -30f);
+        shot(500, "10_alt600_sky_up");
+        look(20, EAST, -80f);
+        shot(40, "10b_alt600_zenith");
+
+        // P4: "continentes nadando" - mesmo pitch em x=0 e x=+3000, a 15.000 blocos
+        cmd(20, "tp @s 0 15000 0");
+        fly(20);
+        look(20, EAST, 70f);
+        shot(700, "11_p4_alt15000_x0");
+        cmd(20, "tp @s 3000 15000 0");
+        fly(20);
+        look(20, EAST, 70f);
+        shot(500, "11b_p4_alt15000_x3000");
+
+        // P6: armor stands brilhantes no chão a 50, 100, 150 e 200 blocos à frente, vistos de ~40 blocos de altura
+        cmd(20, "tp @s 0 200 0");
+        fly(200);
+        for (int d : new int[] {50, 100, 150, 200}) {
+            cmd(20, "execute positioned " + d + " 0 0 positioned over world_surface run summon minecraft:armor_stand ~ ~ ~ "
+                    + "{Glowing:1b,NoGravity:1b,ShowArms:1b}");
+        }
+        cmd(40, "execute positioned 0 0 0 positioned over world_surface run tp @s ~ ~40 ~");
+        fly(20);
+        look(20, EAST, 12f);
+        shot(200, "12_entities_row_40up");
+        look(20, EAST, 35f);
+        shot(40, "12b_entities_row_down");
+        // um pouco mais perto, para ver o assentamento no chão
+        cmd(20, "execute positioned 90 0 0 positioned over world_surface run tp @s ~ ~12 ~");
+        fly(20);
+        look(20, EAST, 8f);
+        shot(120, "12c_entities_row_low");
+        cmd(20, "kill @e[type=minecraft:armor_stand]");
+
+        // P5: nuvens distantes vistas de baixo e de cima da camada
+        cmd(20, "tp @s 0 120 0");
+        fly(20);
+        look(20, EAST, -12f);
+        shot(300, "13_clouds_low");
+        cmd(20, "tp @s 0 300 0");
+        fly(20);
+        look(20, EAST, 4f);
+        shot(300, "13b_clouds_above");
 
         cmd(20, "tp @s 32740 140 0");
         fly(20);

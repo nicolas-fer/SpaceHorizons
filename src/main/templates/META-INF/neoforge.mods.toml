@@ -47,6 +47,11 @@ Espaço contínuo: planetas curvos, órbita e viagem interplanetária integrados
 [[mixins]]
 config="${mod_id}.mixins.json"
 
+# Curvatura do terreno do Sodium: este config só é carregado se o mod "sodium" estiver presente.
+[[mixins]]
+config="${mod_id}.sodium.mixins.json"
+requiredMods=["sodium"]
+
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
 #[[accessTransformers]]
@@ -92,3 +97,17 @@ config="${mod_id}.mixins.json"
     versionRange="[3.3,)"
     ordering="AFTER"
     side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="sodium"
+    type="optional"
+    versionRange="[0.9,)"
+    ordering="AFTER"
+    side="CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId="iris"
+    type="optional"
+    versionRange="[1.11,)"
+    ordering="AFTER"
+    side="CLIENT"

@@ -29,11 +29,14 @@ void main() {
     float light = mix(SunDirection.w, 1.0, day) * (0.82 + 0.18 * clamp(sunHeight, 0.0, 1.0));
     vec3 color = vertexColor.rgb * light;
 
-    // o alfa do vértice é a máscara de água: brilho do sol refletido no oceano
-    float water = vertexColor.a;
+    // O alfa do vértice é a máscara de água (0..1, fracionária na costa por causa do supersampling).
+    // Brilho do sol no oceano: numa esfera lisa o reflexo é um ponto, não um halo; o expoente alto o mantém pequeno
+    // e a intensidade baixa evita o "clarão" branco que estourava o centro do disco visto da órbita.
+    float water = smoothstep(0.5, 1.0, vertexColor.a);
     vec3 reflected = reflect(-sun, normal);
-    float glint = pow(max(dot(reflected, view), 0.0), 90.0) * day * water;
-    color += vec3(1.0, 0.96, 0.85) * glint * 0.8;
+    float glint = pow(max(dot(reflected, view), 0.0), 600.0) * day * water;
+    color += vec3(1.0, 0.96, 0.85) * glint * 0.30;
+    color = min(color, vec3(1.0));
 
     fragColor = apply_fog(vec4(color, 1.0), sphericalVertexDistance, cylindricalVertexDistance,
             FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, FogColor);

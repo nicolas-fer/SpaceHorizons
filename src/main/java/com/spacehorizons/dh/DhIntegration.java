@@ -30,6 +30,7 @@ public final class DhIntegration {
     public static void init() {
         DhApiEventRegister.on(DhApiLevelLoadEvent.class, new LevelLoad());
         DhApiEventRegister.on(DhApiLevelUnloadEvent.class, new LevelUnload());
+        DhCloudConfig.init();
     }
 
     /** Planeta de um level do Minecraft, pelo tipo de dimensão (ver Planets.forLevel). */

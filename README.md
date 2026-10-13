@@ -26,27 +26,36 @@ Um planeta pequeno e curvo, onde andar reto em X dá a volta:
 - **DH** (`dh/`): integração opcional. Sem o DH instalado o mod carrega normalmente,
   só não há LODs.
 
-## Fase 2 (estado atual): atmosfera, malha orbital e nuvens curvas
-
-Vista em jogo pelo autoteste (5 rodadas de prints entre 0 e 40.000 blocos de altitude):
+## Fase 2 (pronta) e polimento antes da fase 3
 
 - **Atmosfera** (`client/atmosphere/`): `AtmosphereModel` (espessura 1.800 e altitude base 160
   para a Terra) alimenta a neblina vanilla e a do DH (`dh/DhFogConfig`), a cor do céu e o
-  limbo. A neblina some com a altitude, o céu escurece até preto e as estrelas aparecem.
-  O limbo é um brilho azul em volta do planeta, desenhado em tela cheia após o céu.
-- **Malha orbital** (`client/planetmesh/`): grade polar centrada na câmera, gerada em
-  background de `PlanetTerrain`/`SurfacePalette` e posicionada por `CurvatureMath`, o mesmo
-  mapeamento do terreno. Preenche do fim do DH até o horizonte real. Acima de 2.000 blocos
-  de altitude a malha usa o raio interno mínimo e cobre também o centro (o DH e os chunks
-  desenham por cima, então só custa triângulos).
-- **Nuvens curvas** (`mixin/CloudRendererMixin` + patch do `clouds.vsh`): usam a mesma
-  fórmula de curvatura do terreno. Com o DH carregado, as nuvens que se veem são as do próprio
-  DH (planas, fora do nosso mapeamento); por isso `DhFogConfig.updateClouds` as desliga via API
-  acima da base da atmosfera, onde ficariam soltas fora da silhueta do planeta.
+  limbo. O limbo (`shaders/atmosphere/limb.fsh`) amostra só o trecho do raio dentro da atmosfera,
+  com jitter por pixel e dither: as faixas concêntricas a 600 blocos sumiram.
+- **Malha orbital** (`client/planetmesh/`): grade polar adaptativa (célula de ~1,5 pixel, anéis
+  com segmentos dobrando, orçamento de 70.000 vértices), cor por supersampling de 4 amostras,
+  terminando no horizonte da altitude. A mistura para uma carta lat/lon fixa
+  (`PlanetMeshProjection`, entre 3.000 e 12.000 blocos de altitude e fora do alcance do DH)
+  evita que os continentes "nadem" quando a câmera se move em órbita. O brilho especular da
+  água foi reduzido (o clarão branco a 15.000 sumiu). Sem o DH, o raio interno da malha encolhe
+  com a altura, porque o vanilla não desenha seções fora do render distance em 3D.
+- **Nuvens**: num planeta, o mod desliga as nuvens do DH (`dh/DhCloudConfig`, por override da
+  API, restaurado ao sair) e mantém as vanilla curvadas, com alcance mínimo de 128 chunks. O DH
+  grava `cloudStatus=OFF` nas opções do usuário ao iniciar; o `DhCloudConfig` restaura as vanilla
+  (FANCY se estiverem em OFF) uma vez por sessão no planeta.
+- **Entidades, block entities, itens, partículas, texto no mundo, contornos** (`mixin/DynamicTransformMixin`,
+  `ShaderManagerMixin`, `ShaderManagerConfigsMixin`): os floats de raio e altitude entram no bloco
+  `DynamicTransforms` e os vsh de mundo chamam `spaceHorizonsWorldCurve`. Perto da câmera (8 a 48
+  blocos) a curvatura é atenuada para a mão e o jogador em 3ª pessoa não deformarem; GUI
+  (projeção ortográfica) não é curvada.
+- **Sodium** (`client/compat/SodiumCurvature`, `mixin/sodium/`, `spacehorizons.sodium.mixins.json`):
+  patch do `block_layer_opaque` e escrita dos floats no `u_Globals`, só com Sodium 0.9.x. Veja a
+  limitação abaixo: **não foi possível rodar** com o NeoForge atual.
 
-Resultado visto nos prints: a 600 blocos o horizonte já é curvo e o céu azul-escuro; a
-2.000 o céu é preto com estrelas; a 5.000 se vê a curvatura com halo azul; a 15.000 e a
-40.000 o planeta aparece inteiro como esfera com o limbo brilhando.
+Resultado visto nos prints (autoteste, configurações padrão e sem DH): a 600 blocos o céu é um
+gradiente suave; a 5.000 se vê a curvatura com halo; a 15.000 e a 40.000 o planeta aparece inteiro
+com o limbo e sem clarão; entidades invocadas a 50 a 200 blocos ficam apoiadas no terreno curvo;
+nuvens vanilla curvas com o DH ligado.
 
 ## Como rodar
 
@@ -82,42 +91,54 @@ rm -rf run/saves/SpaceAuto run/screenshots/autotest_*
 ./gradlew runClientTest --console=plain > run-client.log 2>&1
 ```
 
-Leva uns 5 a 6 minutos. Cria o mundo `SpaceAuto` com o tipo Space Horizons, sobe a 600,
-2.000, 5.000, 15.000 e 40.000 blocos (prints olhando para o horizonte e para baixo), testa
-nuvens, costura em X, borda DH/chunks e barreira polar, grava `run/screenshots/autotest_*.png`
-e as linhas `[AUTOTEST]` no log, e fecha o jogo na linha `[AUTOTEST] FIM`.
+Leva uns 8 minutos. Cria o mundo `SpaceAuto` com o tipo Space Horizons, sobe a 600, 2.000, 5.000,
+15.000 e 40.000 blocos (horizonte e para baixo), olha o céu a 600 (faixas), compara a malha a
+15.000 em x=0 e x=3000 (continentes), invoca armor stands a 50, 100, 150 e 200 blocos (assentamento
+no chão curvo), tira prints de nuvens, testa costura em X, borda DH/chunks e barreira polar, grava
+`run/screenshots/autotest_*.png` e as linhas `[AUTOTEST]` no log, e fecha na linha `[AUTOTEST] FIM`.
+A regra `advance_time` é desligada e o horário fixado em meio-dia no início.
+
+Combinações (as flags `-P` ficam no `build.gradle`):
+
+| Configuração | Comando |
+| --- | --- |
+| Padrão (DH) | `./gradlew runClientTest --console=plain` |
+| Sem DH | `./gradlew runClientTest -PshDh=false --console=plain` |
+| Sodium | `./gradlew runClientTest -PshSodium=true --console=plain` |
+| Iris, shaders desligados | `./gradlew runClientTest -PshIris=true --console=plain` |
+
+Apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes de cada uma e copie os prints
+antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` no log.
 
 ## Limitações conhecidas
 
-- **Fase 2 (vista nos prints, sem medição de desempenho)**: a malha orbital é mais grossa
-  que os LODs do DH (grade de 384 segmentos) e o terreno amostrado desliza algumas dezenas
-  de blocos entre reconstruções; a costura com o DH não foi examinada de perto. O custo de
-  CPU das reconstruções da malha não foi medido. A iluminação da malha é radial, sem sombra
-  de relevo, e o terminador do limbo vem do ponto sob a câmera. Nuvens não escurecem no espaço
-  e só existem dentro do raio de renderização; entidades continuam sem curvatura. A textura
-  das nuvens tem período 3072, que não divide a circunferência, então pode haver emenda na
-  costura em X. Sodium e Iris não foram testados com a atmosfera e a malha.
-- **Servidor dedicado e carregamento sem DH/Sodium** não foram executados; só o cliente com DH
-  foi exercitado pelo autoteste. Build e testes unitários passam.
+- **Sodium e Iris não rodam no dev com o NeoForge 26.3.0.76**: o Sodium 0.9.2 e o 0.9.3-alpha.1
+  (e portanto o Iris 1.11.7, que o exige) travam no próprio mixin deles
+  (`LevelExtractorMixin`: `extractVisibleBlockEntities(..., Frustum)` não existe nesse NeoForge).
+  É incompatibilidade entre os mods e o NeoForge, não do SpaceHorizons. Nossa curvatura do
+  Sodium (P7) **nunca foi executada**; só foi conferido por leitura que o texto do
+  `block_layer_opaque.vsh/fsh` e do `globals.glsl` do 0.9.2 bate com o que o patch espera.
+  Quando houver Sodium/Iris compatível, rode as linhas Sodium e Iris da tabela. Com shaderpack do
+  Iris ligado, o terreno e as entidades do pack não são curvados.
+- **Sem DH**: roda sem crash e sem erro de shader. O raio interno da malha ao subir sem DH foi
+  corrigido depois da última rodada de jogo (o autoteste mostrava um buraco circular no centro
+  entre 600 e 5.000 blocos) e **não foi reverificado em jogo**.
+- **Desempenho da malha**: a primeira reconstrução levou ~75 ms (com DH) e ~94 ms (sem DH), acima
+  do alvo de 50 ms; as médias seguintes não foram lidas. Reduza `PlanetMeshRenderer.MAX_VERTICES`
+  se houver engasgo. `SphericalTerrain` recalcula o ruído em cada consulta (custo 2x).
+- **Mistura lat/lon (P4)**: a carta fixa encolhe as formas leste-oeste por cos(latitude) fora do
+  equador, e a faixa de transição estica a malha. Nos prints a 15.000, x=0 contra x=3000, as formas
+  se mantêm e o mapa gira de forma coerente. Não foi medida a deriva quantitativamente.
+- **Entidades**: o frustum culling usa posições planas (só o desenho é curvado); `world_border` não
+  é curvada. Perto da câmera (< 48 blocos) a curvatura é atenuada. Os armor stands do autoteste
+  aparecem pequenos e escuros nos prints; o assentamento é conferido a olho.
+- **Nuvens**: acima de ~2.000 blocos somem pela neblina. Se as nuvens vanilla estavam em OFF, o mod
+  as liga (FANCY) enquanto você está no planeta, porque o DH também grava OFF.
+- **Sem normais por vértice** na malha orbital: iluminação radial, sem sombra de relevo.
+- **Servidor dedicado** não foi executado; build e testes unitários passam.
 - **Biomas duplicados**: o mapa `biomes` do datapack (`dimension/earth.json`) deve
   espelhar `SurfacePalette.biome()`. Nada garante isso automaticamente.
-- **Custo**: `surfaceHeight` e `surfaceType` recalculam o ruído. O gerador chama os
-  dois, então gasta cerca de 2x. Uma amostra combinada é a próxima otimização.
-- **Costura só para jogadores**: entidades soltas não atravessam a costura. Veículos
-  não são movidos com o jogador: ao cruzar a costura ou a barreira polar, o jogador
-  pode ser desmontado. Corrigir exige teleportar o veículo raiz junto (próxima fase).
-- **Cliente e costura**: o cliente ainda precisa receber os chunks do outro lado.
-  Os tickets espelhados só garantem geração no servidor.
-- **Curvatura e Sodium**: com Sodium instalado, o terreno é desenhado pelo Sodium
-  e a curvatura não aparece nos chunks. O log avisa, mas os LODs do DH continuam
-  curvos, e a borda entre chunks planos e LODs curvos fica visível.
-- **Curvatura só no terreno**: entidades, block entities, partículas e o céu
-  continuam planos. A 200 blocos a diferença é de cerca de 2 blocos, e a 500 blocos
-  chega a ~12 blocos, então uma vaca fica flutuando sobre o chão curvado.
-- **Quantização do DH**: `earthCurveRatio` é inteiro, então o raio do DH tem erro de
-  até ~0,1% (ratio 615 contra 614,5 no planeta). Medido em teste: erro de solo abaixo
-  de 1 bloco até 4.000 blocos. Não foi verificado no shader do DH em jogo.
-- **Iris**: fora de escopo nesta fase.
+- **Costura só para jogadores**: entidades soltas e veículos não atravessam a costura (veículos
+  desmontam o jogador). Corrigir exige teleportar o veículo raiz junto.
+- **Quantização do DH**: `earthCurveRatio` é inteiro, erro de raio de até ~0,1%.
 - **Ruído**: Perlin 3D clássico, não OpenSimplex2.
-- **Ordem de carga**: o `dimension_type/earth.json` segue o overworld do 26.3,
-  mas ainda não foi validado contra o schema em jogo.

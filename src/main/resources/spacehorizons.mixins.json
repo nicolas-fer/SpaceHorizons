@@ -4,9 +4,13 @@
   "package": "com.spacehorizons.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "AtmosphericFogEnvironmentMixin",
+    "CameraMixin",
     "CloudRendererMixin",
     "DynamicGpuDataMixin",
+    "DynamicTransformMixin",
     "ShaderManagerConfigsMixin",
+    "ShaderManagerMixin",
     "TerrainTransformMixin"
   ],
   "injectors": {

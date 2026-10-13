@@ -53,7 +53,6 @@ public final class AtmosphereClient {
         }
         double density = sample.get().model().density(sample.get().altitude());
         DhFogConfig.update(density);
-        DhFogConfig.updateClouds(density >= 0.999);
     }
 
     private static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {

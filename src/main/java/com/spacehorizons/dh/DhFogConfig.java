@@ -22,8 +22,6 @@ public final class DhFogConfig {
 
     /** Passo atual aplicado (STEPS = sem alteração, 0 = desligada); -1 = nenhum override ativo. */
     private static int appliedStep = -1;
-    /** true enquanto o override que desliga as nuvens do DH está ativo. */
-    private static boolean cloudsOverridden;
 
     private DhFogConfig() {
     }
@@ -66,33 +64,8 @@ public final class DhFogConfig {
         appliedStep = step;
     }
 
-    /**
-     * As nuvens do DH são camadas planas desenhadas pelo próprio DH e não passam pela nossa curvatura: acima da
-     * base da atmosfera elas flutuariam fora da silhueta do planeta. Então são desligadas ali.
-     */
-    public static synchronized void updateClouds(boolean allowed) {
-        if (allowed == !cloudsOverridden) {
-            return;
-        }
-        if (DhApi.Delayed.configs == null) {
-            return;
-        }
-        IDhApiConfigValue<Boolean> clouds = DhApi.Delayed.configs.graphics().genericRendering().cloudRenderingEnabled();
-        if (allowed) {
-            clouds.clearValue();
-            cloudsOverridden = false;
-        } else if (clouds.getCanBeOverrodeByApi()) {
-            clouds.setValue(false, REASON);
-            cloudsOverridden = true;
-        } else {
-            SpaceHorizons.LOGGER.warn("DH não permite override das nuvens pela API; as nuvens planas do DH continuam no espaço");
-            cloudsOverridden = true; // não insiste a cada tick
-        }
-    }
-
-    /** Devolve neblina e nuvens do DH ao valor do usuário (ao sair do planeta ou do mundo). */
+    /** Devolve a neblina do DH ao valor do usuário (ao sair do planeta ou do mundo). */
     public static synchronized void restore() {
-        updateClouds(true);
         if (appliedStep < 0) {
             return;
         }

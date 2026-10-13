@@ -21,4 +21,15 @@ abstract class DynamicGpuDataMixin {
     private int spacehorizons$terrainUboSize() {
         return CurvatureState.TERRAIN_UBO_SIZE;
     }
+
+    /** O buffer do DynamicTransforms (por desenho) precisa caber os dois floats extras. */
+    @Redirect(
+            method = "<init>",
+            at = @At(
+                    value = "FIELD",
+                    target = "Lnet/minecraft/client/renderer/DynamicGpuData;TRANSFORM_UBO_SIZE:I",
+                    opcode = Opcodes.GETSTATIC))
+    private int spacehorizons$transformUboSize() {
+        return CurvatureState.TRANSFORM_UBO_SIZE;
+    }
 }

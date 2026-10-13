@@ -4,6 +4,7 @@ import com.seibel.distanthorizons.api.DhApi;
 import com.seibel.distanthorizons.api.interfaces.config.IDhApiConfigValue;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.client.compat.SodiumCurvature;
 import com.spacehorizons.planet.PlanetDefinition;
 
 import net.neoforged.fml.ModList;
@@ -28,9 +29,9 @@ final class DhCurvatureConfig {
             return;
         }
         int value = DhCurvatureModel.ratioFor(planet.radius(), planet.seaLevel());
-        if (ModList.get().isLoaded("sodium")) {
-            // Sodium desenha os chunks planos; LODs curvos aparecem como degrau na borda do alcance vanilla
-            SpaceHorizons.LOGGER.warn("Sodium carregado: os chunks não são curvados, e a borda entre chunks e LODs do DH fica visível");
+        if (ModList.get().isLoaded("sodium") && !SodiumCurvature.isSupported()) {
+            // versão do Sodium sem patch: os chunks ficam planos e os LODs curvos aparecem como degrau na borda
+            SpaceHorizons.LOGGER.warn("Sodium sem suporte à curvatura: os chunks não são curvados, e a borda entre chunks e LODs do DH fica visível");
         }
         if (!ratio.getCanBeOverrodeByApi()) {
             SpaceHorizons.LOGGER.warn("DH não permite override da curvatura pela API; o planeta ficará sem curvatura certa");

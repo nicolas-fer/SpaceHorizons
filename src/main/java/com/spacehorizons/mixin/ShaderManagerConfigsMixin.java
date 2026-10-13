@@ -26,6 +26,13 @@ abstract class ShaderManagerConfigsMixin {
             }
             return;
         }
+        if (CurvatureShaders.isWorldVertex(id)) {
+            // fsh dessas passagens não projeta nada; o bloco DynamicTransforms vem do include já ajustado
+            if (type == ShaderType.VERTEX) {
+                cir.setReturnValue(CurvatureShaders.patchWorldVertex(source));
+            }
+            return;
+        }
         if (!CurvatureShaders.isTerrainVertex(id)) {
             return;
         }

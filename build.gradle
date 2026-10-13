@@ -125,7 +125,26 @@ configurations {
 dependencies {
     // Distant Horizons: só a API em compile time, para não usar classes internas por engano
     compileOnly "maven.modrinth:distanthorizonsapi:${dh_api_version}"
-    localRuntime "maven.modrinth:distanthorizons:${dh_version}"
+    // Mods de runtime de dev alternáveis por propriedade Gradle (padrão: só o DH):
+    //   -PshDh=false      tira o Distant Horizons do runtime
+    //   -PshSodium=true   adiciona o Sodium
+    //   -PshIris=true     adiciona o Iris (e o Sodium, que ele exige)
+    // Ex.: ./gradlew runClient -PshDh=false -PshSodium=true
+    boolean shDh = (findProperty('shDh') ?: 'true').toString().toBoolean()
+    boolean shIris = (findProperty('shIris') ?: 'false').toString().toBoolean()
+    boolean shSodium = shIris || (findProperty('shSodium') ?: 'false').toString().toBoolean()
+    if (shDh) {
+        localRuntime "maven.modrinth:distanthorizons:${dh_version}"
+    }
+
+    // Sodium e Iris entram só em runtime de dev: os mixins de compat miram o Sodium por nome de classe
+    // (o jar do Sodium é um wrapper jar-in-jar, as classes reais não estão no classpath de compilação).
+    if (shSodium) {
+        localRuntime "maven.modrinth:sodium:${sodium_version}"
+    }
+    if (shIris) {
+        localRuntime "maven.modrinth:iris:${iris_version}"
+    }
 
     testImplementation platform("org.junit:junit-bom:5.11.4")
     testImplementation "org.junit.jupiter:junit-jupiter"

@@ -25,12 +25,35 @@ public final class CurvatureState {
      */
     public static final int CLOUD_UBO_SIZE = 64;
 
+    /**
+     * Tamanho do DynamicTransforms (mat4 + mat4 + vec4 + vec3 = 156 bytes) com os dois floats extras nos
+     * offsets 156 e 160 (std140 empacota o primeiro float nos 4 bytes sobrando do vec3). 176 é o próximo
+     * múltiplo de 16 acima dos 164 usados.
+     */
+    public static final int TRANSFORM_UBO_SIZE = 176;
+
+    /**
+     * Alcance mínimo das nuvens vanilla num planeta, em chunks (128 = 2.048 blocos, o máximo da opção do vanilla
+     * e o valor padrão do atributo cloud_fog_end_distance). Sem as nuvens planas do DH, é o que cobre o céu.
+     */
+    public static final int PLANET_CLOUD_RANGE_CHUNKS = 128;
+
     /** Raio e altitude da câmera sobre o nível do mar. Raio 0 desliga a curvatura no shader. */
     public record Frame(double radius, double cameraAltitude) {
         public static final Frame OFF = new Frame(0.0, 0.0);
     }
 
     private CurvatureState() {
+    }
+
+    /** true quando o level atual é um planeta (a curvatura está ligada). */
+    public static boolean inPlanet() {
+        return current().radius() > 0.0;
+    }
+
+    /** Alcance das nuvens em chunks: o da opção do usuário, ou o mínimo do planeta se estiver num. */
+    public static int cloudRangeChunks(int userRange) {
+        return inPlanet() ? Math.max(userRange, PLANET_CLOUD_RANGE_CHUNKS) : userRange;
     }
 
     public static Frame current() {

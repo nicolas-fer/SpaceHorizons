@@ -43,18 +43,23 @@ import org.lwjgl.system.MemoryStack;
  */
 final class PlanetMeshRenderer {
     // ---- parâmetros ----
-    /** Segmentos de azimute por anel. Mais segmentos = mais detalhe longe, e o custo de reconstrução cresce junto. */
-    static final int SEGMENTS = 384;
-    static final int MAX_RINGS = 320;
+    /**
+     * Orçamento de vértices da grade adaptativa (ver PlanetMeshGeometry.Layout.adaptive). Cada vértice custa
+     * ~2 amostras de terreno (altura + tipo) mais 3 de tipo para o supersampling; o tempo de reconstrução vai no
+     * log (PlanetMeshBuilder.logTiming). Mais vértices = bordas mais finas, e reconstrução mais lenta.
+     * Medido (pool de 3 threads, primeira reconstrução): 70.000 vértices levaram 75 a 94 ms (~1,1 a 1,3 µs por
+     * vértice, mais em CPU fraca). 50.000 ficam em ~55 a 65 ms, fora do render thread de qualquer forma.
+     */
+    static final int MAX_VERTICES = 50_000;
     /** Menor raio interno aceito (blocos), mesmo com render distance minúscula. */
     static final double MIN_INNER_RADIUS = 128.0;
+    /** Raio interno sem DH quando os chunks já não alcançam o chão: a malha cobre o disco quase todo. */
+    static final double NO_DH_INNER_RADIUS = 16.0;
     // Acima disso a malha usa o raio interno mínimo e cobre tudo. O DH e os chunks desenham depois e sobrescrevem
     // a malha, então o único custo é mais triângulos; assim não há altitude em que reapareça o buraco no centro.
     static final double DH_BLIND_ALTITUDE = 2000.0;
     /** Sobreposição com o alcance do DH (blocos): a malha começa um pouco antes para não abrir fresta. */
     static final double MAX_OVERLAP = 256.0;
-    /** Altura de montanha usada para decidir se a malha pode aparecer atrás do horizonte do nível do mar. */
-    static final double HORIZON_MARGIN_HEIGHT = 300.0;
     /** Luz ambiente do lado noturno (fração da cor). */
     static final float NIGHT_AMBIENT = 0.07F;
     static final float NEAR_PLANE = 16.0F;
@@ -76,7 +81,7 @@ final class PlanetMeshRenderer {
 
     /** Malha já na GPU, com a câmera de construção para compensar o movimento desde então. */
     private record Mesh(PlanetDefinition planet, GpuBuffer vertices, int indexCount,
-            double camX, double camY, double camZ, double innerRadius) {
+            double camX, double camY, double camZ, double innerRadius, double outerRadius, double nearRadius, int firstRingSegments) {
     }
 
     private record Retired(GpuBuffer buffer, long frame) {
@@ -93,12 +98,13 @@ final class PlanetMeshRenderer {
     private @Nullable TextureTarget depthTarget;
     private @Nullable GpuBuffer ubo;
     private @Nullable GpuBuffer indexBuffer;
-    private int indexRings;
+    private PlanetMeshGeometry.@Nullable Layout indexLayout;
     private @Nullable Mesh mesh;
     private boolean disabled;
     private boolean warnedPipeline;
     private long frame;
     private long lastBuildStart;
+    private double nearRadius = MIN_INNER_RADIUS;
     private int dhRangeCache = -1;
     private int dhPollCountdown;
 
@@ -167,18 +173,19 @@ final class PlanetMeshRenderer {
         double camZ = camera.pos.z;
         double altitude = camY - planet.seaLevel();
 
-        double outer = PlanetMeshGeometry.outerRadius(planet);
-        double inner = altitude > DH_BLIND_ALTITUDE ? MIN_INNER_RADIUS : innerRadius(minecraft);
+        // só o que pode aparecer sobre o horizonte (com folga para a subida até a próxima reconstrução)
+        double outer = outerRadius(planet, altitude);
+        double inner = innerRadius(minecraft, altitude);
         if (inner >= outer * 0.9) {
             return;
         }
         // Com a câmera baixa tudo além do alcance está atrás do horizonte: nem constrói nem desenha
-        if (horizonDistance(planet.radius(), altitude) <= inner) {
+        if (PlanetMeshGeometry.horizonDistance(planet.radius(), altitude) <= inner) {
             return;
         }
 
         uploadReady();
-        maybeRebuild(planet, camX, camY, camZ, inner, outer);
+        maybeRebuild(planet, camera, camX, camY, camZ, inner, outer);
 
         Mesh current = mesh;
         if (current == null || current.planet() != planet || indexBuffer == null) {
@@ -193,7 +200,11 @@ final class PlanetMeshRenderer {
 
     // ---- raio interno e visibilidade ----
 
-    private double innerRadius(Minecraft minecraft) {
+    /**
+     * Raio interno da malha. Também atualiza {@link #nearRadius}, o alcance de chunks/DH usado para decidir onde a
+     * malha segue a mesma carta deles (PlanetMeshProjection.weight).
+     */
+    private double innerRadius(Minecraft minecraft, double altitude) {
         int range = -1;
         if (ModList.get().isLoaded("distanthorizons")) {
             if (--dhPollCountdown <= 0) {
@@ -205,16 +216,34 @@ final class PlanetMeshRenderer {
         if (range <= 0) {
             range = minecraft.options.renderDistance().get() * 16;
         }
+        nearRadius = range;
+        boolean hasDh = ModList.get().isLoaded("distanthorizons") && dhRangeCache > 0;
+        if (!hasDh && altitude > DH_BLIND_ALTITUDE) {
+            // Sem DH nada além dos chunks 3D desenha o disco central: o buraco do vanilla tem de ficar coberto pela
+            // malha (3 blocos abaixo do terreno, então a sobreposição com os chunks é inofensiva).
+            return NO_DH_INNER_RADIUS;
+        }
+        if (altitude > DH_BLIND_ALTITUDE) {
+            return MIN_INNER_RADIUS;
+        }
+        if (!hasDh) {
+            // Sem DH, o vanilla só desenha seções dentro de render distance em 3D (visto no autoteste: a 600 blocos
+            // o chão não aparece). O alcance horizontal efetivo encolhe com a altura sobre o terreno (~60 blocos).
+            double height = Math.max(0.0, altitude - 60.0);
+            double effective = Math.sqrt(Math.max(0.0, (double) range * range - height * height));
+            if (effective <= MIN_INNER_RADIUS) {
+                return NO_DH_INNER_RADIUS;
+            }
+            range = (int) effective;
+        }
         double overlap = Math.min(MAX_OVERLAP, range * 0.25);
         // múltiplo de 16 para que o raio interno não oscile à toa e dispare reconstruções
         return Math.max(MIN_INNER_RADIUS, Math.floor((range - overlap) / 16.0) * 16.0);
     }
 
-    /** Distância (arco) até o horizonte de uma câmera na altitude dada, mais o horizonte de uma montanha de referência. */
-    static double horizonDistance(double radius, double altitude) {
-        double fromCamera = Math.acos(radius / (radius + Math.max(0.0, altitude)));
-        double fromPeak = Math.acos(radius / (radius + HORIZON_MARGIN_HEIGHT));
-        return radius * (fromCamera + fromPeak);
+    /** Raio externo da malha: horizonte da altitude (com folga), limitado a 0,98·π·R. */
+    static double outerRadius(PlanetDefinition planet, double altitude) {
+        return PlanetMeshGeometry.outerRadius(planet, altitude);
     }
 
     // ---- reconstrução ----
@@ -230,38 +259,45 @@ final class PlanetMeshRenderer {
             PlanetMeshGeometry.Layout layout = request.layout();
             GpuBuffer vertices = device.createBuffer(() -> "SpaceHorizons planet mesh vertices", GpuBuffer.USAGE_VERTEX, built.vertices());
             GpuBuffer oldIndices = indexBuffer;
-            if (oldIndices == null || indexRings != layout.rings() || oldIndices.size() != built.indices().remaining()) {
+            PlanetMeshGeometry.Layout previous = indexLayout;
+            if (oldIndices == null || previous == null || !previous.sameTopology(layout)
+                    || oldIndices.size() != built.indices().remaining()) {
                 if (oldIndices != null) {
                     retire(oldIndices);
                 }
                 indexBuffer = device.createBuffer(() -> "SpaceHorizons planet mesh indices", GpuBuffer.USAGE_INDEX, built.indices());
-                indexRings = layout.rings();
+                indexLayout = layout;
             }
             Mesh old = mesh;
             if (old != null) {
                 retire(old.vertices());
             }
             mesh = new Mesh(request.planet(), vertices, layout.indexCount(),
-                    request.camX(), request.camY(), request.camZ(), layout.rMin());
+                    request.camX(), request.camY(), request.camZ(), layout.rMin(), layout.rMax(), request.nearRadius(), layout.segments(0));
         } finally {
             builder.release();
         }
     }
 
-    private void maybeRebuild(PlanetDefinition planet, double camX, double camY, double camZ, double inner, double outer) {
+    private void maybeRebuild(PlanetDefinition planet, CameraRenderState camera,
+            double camX, double camY, double camZ, double inner, double outer) {
         if (!builder.isIdle() || System.nanoTime() - lastBuildStart < MIN_REBUILD_NANOS) {
             return;
         }
         Mesh current = mesh;
         if (current != null && current.planet() == planet) {
-            double spacing = current.innerRadius() * (2.0 * Math.PI / SEGMENTS);
+            double spacing = current.innerRadius() * (2.0 * Math.PI / current.firstRingSegments());
             double moveThreshold = Math.max(MOVE_MIN, Math.min(MOVE_MAX, spacing * MOVE_FRACTION));
             boolean moved = Math.hypot(camX - current.camX(), camZ - current.camZ()) > moveThreshold;
             double builtAlt = current.camY() - planet.seaLevel();
             double alt = camY - planet.seaLevel();
             boolean altitudeChanged = Math.abs(alt - builtAlt) > Math.max(ALTITUDE_MIN, ALTITUDE_FRACTION * Math.abs(builtAlt));
             boolean innerChanged = Math.abs(inner - current.innerRadius()) > 0.05 * inner + 32.0;
-            if (!moved && !altitudeChanged && !innerChanged) {
+            // a margem de altitude da malha construída acabou: o horizonte já passou do raio externo
+            boolean outerShort = current.outerRadius() < PlanetMeshGeometry.horizonDistance(planet.radius(), Math.max(0.0, alt)) * 1.01
+                    && current.outerRadius() < PlanetMeshGeometry.outerRadius(planet) - 1.0;
+            boolean nearChanged = Math.abs(nearRadius - current.nearRadius()) > 0.1 * nearRadius + 32.0;
+            if (!moved && !altitudeChanged && !innerChanged && !outerShort && !nearChanged) {
                 return;
             }
         }
@@ -270,9 +306,20 @@ final class PlanetMeshRenderer {
             colors = PlanetMeshPalette.create();
             palette = colors;
         }
-        PlanetMeshGeometry.Layout layout = PlanetMeshGeometry.Layout.create(inner, outer, SEGMENTS, MAX_RINGS);
+        PlanetMeshGeometry.Layout layout = PlanetMeshGeometry.Layout.adaptive(planet.radius(),
+                camY - planet.seaLevel(), inner, outer, pixelAngle(camera), MAX_VERTICES);
         lastBuildStart = System.nanoTime();
-        builder.submit(new PlanetMeshBuilder.Request(planet, camX, camY, camZ, layout, colors));
+        builder.submit(new PlanetMeshBuilder.Request(planet, camX, camY, camZ, nearRadius, layout, colors));
+    }
+
+    /** Ângulo (rad) de um pixel no centro da tela: 2·tan(fovY/2) / altura. Zero se ainda não dá para saber. */
+    private static double pixelAngle(CameraRenderState camera) {
+        float m11 = camera.projectionMatrix.m11();
+        int height = Minecraft.getInstance().gameRenderer.mainRenderTarget().height;
+        if (m11 == 0.0F || height <= 0) {
+            return 0.0;
+        }
+        return 2.0 / m11 / height;
     }
 
     // ---- desenho ----

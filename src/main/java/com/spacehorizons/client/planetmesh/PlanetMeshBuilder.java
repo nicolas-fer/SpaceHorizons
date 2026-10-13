@@ -24,8 +24,8 @@ final class PlanetMeshBuilder {
     /** Posição (3 floats) + cor RGBA8 = DefaultVertexFormat.POSITION_COLOR. */
     static final int VERTEX_BYTES = 16;
 
-    /** O que construir: a câmera de construção e o desenho da grade. */
-    record Request(PlanetDefinition planet, double camX, double camY, double camZ,
+    /** O que construir: a câmera de construção, o alcance de chunks/DH (blocos) e o desenho da grade. */
+    record Request(PlanetDefinition planet, double camX, double camY, double camZ, double nearRadius,
             PlanetMeshGeometry.Layout layout, PlanetMeshGeometry.Palette palette) {
     }
 
@@ -42,6 +42,8 @@ final class PlanetMeshBuilder {
     // poucos threads: a reconstrução acontece de tempos em tempos e não pode competir com o jogo
     private final ForkJoinPool pool = new ForkJoinPool(Math.max(1, Math.min(3, Runtime.getRuntime().availableProcessors() / 4)));
 
+    private int builds;
+    private double totalBuildMs;
     private volatile boolean busy;
     private volatile @Nullable Built ready;
 
@@ -79,6 +81,21 @@ final class PlanetMeshBuilder {
         busy = false;
     }
 
+    /** Debug: cada reconstrução; info: a primeira e uma média a cada 50 (alvo: terreno + empacotamento abaixo de ~50 ms). */
+    private void logTiming(Request request, PlanetMeshGeometry.Layout layout, long start, long filled, long end) {
+        double terrainMs = (filled - start) / 1.0e6;
+        double totalMs = (end - start) / 1.0e6;
+        builds++;
+        totalBuildMs += totalMs;
+        double altitude = request.camY() - request.planet().seaLevel();
+        String line = String.format("Malha orbital: %d vértices, %d anéis, alt %.0f, raio %.0f..%.0f, terreno %.1f ms, total %.1f ms",
+                layout.vertexCount(), layout.rings(), altitude, layout.rMin(), layout.rMax(), terrainMs, totalMs);
+        SpaceHorizons.LOGGER.debug(line);
+        if (builds == 1 || builds % 50 == 0) {
+            SpaceHorizons.LOGGER.info("{} (média de {} reconstruções: {} ms)", line, builds, String.format("%.1f", totalBuildMs / builds));
+        }
+    }
+
     private Built build(Request request) {
         PlanetMeshGeometry.Layout layout = request.layout();
         int vertexCount = layout.vertexCount();
@@ -93,8 +110,10 @@ final class PlanetMeshBuilder {
             indexBytes = ByteBuffer.allocateDirect(indexCount * Integer.BYTES).order(ByteOrder.nativeOrder());
         }
 
+        long start = System.nanoTime();
         PlanetMeshGeometry.fill(PlanetTerrains.get(request.planet()), request.palette(), layout,
-                request.camX(), request.camY(), request.camZ(), positions, colors, pool);
+                request.camX(), request.camY(), request.camZ(), request.nearRadius(), positions, colors, pool);
+        long filled = System.nanoTime();
         PlanetMeshGeometry.fillIndices(layout, indexScratch);
 
         vertexBytes.clear();
@@ -108,6 +127,7 @@ final class PlanetMeshBuilder {
         indexBytes.clear();
         indexBytes.asIntBuffer().put(indexScratch, 0, indexCount);
         indexBytes.limit(indexCount * Integer.BYTES);
+        logTiming(request, layout, start, filled, System.nanoTime());
         return new Built(request, vertexBytes, indexBytes);
     }
 }

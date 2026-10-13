@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.spacehorizons.mixin.sodium",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "SodiumGlobalUniformsMixin",
+    "SodiumShaderSourceMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

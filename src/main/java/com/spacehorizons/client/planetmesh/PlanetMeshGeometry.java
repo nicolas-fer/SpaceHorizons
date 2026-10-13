@@ -1,31 +1,42 @@
 package com.spacehorizons.client.planetmesh;
 
+import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.stream.IntStream;
 
-import com.spacehorizons.planet.CurvatureMath;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.PlanetMath;
 import com.spacehorizons.planet.PlanetTerrain;
 import com.spacehorizons.planet.SurfaceType;
 
 /**
- * Geração (Java puro, sem Minecraft) da malha orbital: uma grade polar centrada na câmera, que cobre do
- * fim do alcance do DH até quase o antípoda do planeta.
+ * Geração (Java puro, sem Minecraft) da malha orbital: uma grade polar na esfera, centrada no nadir da câmera,
+ * que cobre do fim do alcance do DH até o horizonte visível (no máximo quase o antípoda do planeta).
  *
- * Cada vértice é um ponto (dx, dz) do plano em anéis de raio r crescente. O terreno é amostrado em
- * (camX + dx, camZ + dz), como nos chunks e nos LODs, e a posição final passa por CurvatureMath.curve com
- * a mesma altitude de câmera, então a malha cai exatamente em cima da esfera que os outros dois desenham.
- * A posição sai relativa à câmera de construção (float), pronta para o vertex buffer.
+ * Cada vértice é uma direção (θ, φ) em torno do nadir, em anéis de raio de arco r = R·θ crescente. A posição é
+ * exatamente (R + h)·direção, relativa à câmera (a mesma esfera que chunks e LODs desenham com CurvatureMath).
+ * O terreno é amostrado no ponto do mundo dado por {@link PlanetMeshProjection#terrainPoint}: igual ao dos
+ * chunks e do DH perto do chão e do nadir, e mais estável (esfera lat/lon fixa) em órbita.
+ *
+ * A grade é adaptativa: a contagem de segmentos de cada anel dobra (48, 96, 192...) conforme o anel cresce, de
+ * modo que as células fiquem com um tamanho de ~1,5 pixel na tela (ver {@link Layout#adaptive}); a costura entre
+ * anéis de contagens diferentes usa triângulos extras, sem fendas. A cor de cada vértice é a média de várias
+ * amostras do terreno (supersampling), o que suaviza as bordas de bioma.
  */
 public final class PlanetMeshGeometry {
     /** Quanto a malha fica abaixo do terreno real, para nunca brigar com o DH na região de sobreposição. */
     public static final double SINK = 3.0;
     /** Fração de π·R do anel externo: perto do antípoda a grade converge para um ponto e vira lixo numérico. */
     public static final double OUTER_FRACTION = 0.98;
-    /** O alfa da cor do vértice é a máscara de água (255 = água, 0 = terra); o shader usa para o brilho do sol. */
+    /** O alfa da cor do vértice é a máscara de água (255 = água, 0 = terra, intermediário = costa); o shader usa para o brilho do sol. */
     public static final int WATER_ALPHA = 255;
+    /** Células menores que isto (blocos) não precisam de supersampling: já são mais finas que o DH. */
+    static final double SUPERSAMPLE_MIN_CELL = 24.0;
+    /** Raio dos pontos extras do supersampling, em frações do tamanho da célula. */
+    private static final double SUPERSAMPLE_RADIUS = 0.35;
+    private static final double[] SUPERSAMPLE_COS = {Math.cos(Math.PI / 2), Math.cos(Math.PI * 7 / 6), Math.cos(Math.PI * 11 / 6)};
+    private static final double[] SUPERSAMPLE_SIN = {Math.sin(Math.PI / 2), Math.sin(Math.PI * 7 / 6), Math.sin(Math.PI * 11 / 6)};
 
     private PlanetMeshGeometry() {
     }
@@ -40,69 +51,243 @@ public final class PlanetMeshGeometry {
     }
 
     /**
-     * Topologia da grade: rings anéis (de rMin a rMax, espaçamento geométrico) com segments vértices cada.
-     * O índice do vértice (anel i, segmento j) é i * segments + j.
+     * Topologia da grade: anéis de raio de arco crescente, cada um com seu número de segmentos. Anéis vizinhos
+     * têm o mesmo número de segmentos ou o dobro (a costura dos índices só trata esses dois casos).
+     * O índice do vértice (anel i, segmento j) é vertexOffset(i) + j.
      */
-    public record Layout(int rings, int segments, double rMin, double rMax) {
-        public Layout {
-            if (rings < 2 || segments < 3) {
-                throw new IllegalArgumentException("grade pequena demais: " + rings + "x" + segments);
+    public static final class Layout {
+        /** Menor número de segmentos de um anel. */
+        public static final int MIN_SEGMENTS = 48;
+        /** Maior número de segmentos de um anel (48 · 2^7). */
+        public static final int MAX_SEGMENTS = MIN_SEGMENTS << 7;
+        /** Tamanho alvo da célula na tela, em pixels. */
+        public static final double TARGET_PIXELS = 1.5;
+        /** Piso do tamanho de célula, em blocos (mais fino que isso o DH já cobre). */
+        public static final double MIN_CELL = 16.0;
+        /** Ângulo de um pixel (rad) assumido quando o chamador não sabe: FOV 70° em 1080p. */
+        public static final double DEFAULT_PIXEL_ANGLE = 2.0 * Math.tan(Math.toRadians(35.0)) / 1080.0;
+
+        private final double[] radii;
+        private final int[] segments;
+        private final int[] offsets;
+
+        public Layout(double[] radii, int[] segments) {
+            if (radii.length < 2 || radii.length != segments.length) {
+                throw new IllegalArgumentException("grade pequena demais ou inconsistente: " + radii.length + " / " + segments.length);
             }
-            if (!(rMin > 0) || !(rMax > rMin)) {
-                throw new IllegalArgumentException("raios inválidos: " + rMin + " .. " + rMax);
+            if (!(radii[0] > 0)) {
+                throw new IllegalArgumentException("raio interno inválido: " + radii[0]);
+            }
+            for (int i = 0; i < radii.length; i++) {
+                if (segments[i] < 3) {
+                    throw new IllegalArgumentException("anel com menos de 3 segmentos: " + i);
+                }
+                if (i > 0) {
+                    if (!(radii[i] > radii[i - 1])) {
+                        throw new IllegalArgumentException("raios devem crescer: anel " + i);
+                    }
+                    if (segments[i] != segments[i - 1] && segments[i] != 2 * segments[i - 1]) {
+                        throw new IllegalArgumentException("anéis vizinhos precisam ter n ou 2n segmentos: anel " + i);
+                    }
+                }
+            }
+            this.radii = radii.clone();
+            this.segments = segments.clone();
+            this.offsets = new int[radii.length + 1];
+            for (int i = 0; i < radii.length; i++) {
+                offsets[i + 1] = offsets[i] + segments[i];
             }
         }
 
         /**
-         * Escolhe o número de anéis para que o espaçamento radial acompanhe o tangencial
-         * (razão entre anéis = 1 + 2π/segments), limitado por maxRings.
+         * Grade uniforme (mesmo número de segmentos em todos os anéis, raios geométricos): escolhe o número de
+         * anéis para que o espaçamento radial acompanhe o tangencial (razão 1 + 2π/segments), limitado por maxRings.
          */
-        public static Layout create(double rMin, double rMax, int segments, int maxRings) {
+        public static Layout uniform(double rMin, double rMax, int segments, int maxRings) {
+            if (!(rMin > 0) || !(rMax > rMin)) {
+                throw new IllegalArgumentException("raios inválidos: " + rMin + " .. " + rMax);
+            }
             double ratio = 1.0 + 2.0 * Math.PI / segments;
             int rings = (int) Math.ceil(Math.log(rMax / rMin) / Math.log(ratio)) + 1;
-            return new Layout(Math.max(2, Math.min(maxRings, rings)), segments, rMin, rMax);
+            rings = Math.max(2, Math.min(maxRings, rings));
+            double[] radii = new double[rings];
+            int[] counts = new int[rings];
+            for (int i = 0; i < rings; i++) {
+                radii[i] = rMin * Math.pow(rMax / rMin, i / (double) (rings - 1));
+                counts[i] = segments;
+            }
+            return new Layout(radii, counts);
         }
 
-        public int vertexCount() {
-            return rings * segments;
+        /**
+         * Grade adaptativa para uma câmera a {@code altitude} blocos do nível do mar: o tamanho da célula de cada
+         * anel é TARGET_PIXELS pixels na tela (distância real da câmera ao anel vezes o ângulo de um pixel),
+         * com piso MIN_CELL e teto de 1/4 do raio do anel; o espaçamento radial é igual ao tangencial. Se passar
+         * de {@code maxVertices} todas as células crescem na mesma proporção até caber.
+         */
+        public static Layout adaptive(double planetRadius, double altitude, double rMin, double rMax,
+                double pixelAngle, int maxVertices) {
+            if (!(rMin > 0) || !(rMax > rMin)) {
+                throw new IllegalArgumentException("raios inválidos: " + rMin + " .. " + rMax);
+            }
+            double angle = pixelAngle > 0 ? pixelAngle : DEFAULT_PIXEL_ANGLE;
+            Layout layout = build(planetRadius, altitude, rMin, rMax, angle, 1.0);
+            if (layout.vertexCount() <= maxVertices) {
+                return layout;
+            }
+            double lo = 1.0;
+            double hi = 256.0;
+            Layout best = build(planetRadius, altitude, rMin, rMax, angle, hi);
+            for (int i = 0; i < 14; i++) {
+                double mid = Math.sqrt(lo * hi);
+                Layout candidate = build(planetRadius, altitude, rMin, rMax, angle, mid);
+                if (candidate.vertexCount() <= maxVertices) {
+                    hi = mid;
+                    best = candidate;
+                } else {
+                    lo = mid;
+                }
+            }
+            return best;
         }
 
-        public int indexCount() {
-            return (rings - 1) * segments * 6;
+        /** Distância da câmera (altitude acima do ponto sob ela) a um ponto da superfície a r blocos de arco. */
+        static double distanceToRing(double planetRadius, double altitude, double r) {
+            double cameraRadius = planetRadius + Math.max(0.0, altitude);
+            double cos = Math.cos(Math.min(Math.PI, r / planetRadius));
+            return Math.sqrt(Math.max(1.0, cameraRadius * cameraRadius + planetRadius * planetRadius
+                    - 2.0 * planetRadius * cameraRadius * cos));
+        }
+
+        /** Tamanho alvo (blocos) da célula num anel de raio r. */
+        static double cellSize(double planetRadius, double altitude, double r, double pixelAngle, double scale) {
+            double raw = TARGET_PIXELS * pixelAngle * distanceToRing(planetRadius, altitude, r) * scale;
+            return Math.min(Math.max(raw, MIN_CELL), 0.25 * r);
+        }
+
+        private static Layout build(double planetRadius, double altitude, double rMin, double rMax,
+                double pixelAngle, double scale) {
+            double[] radii = new double[64];
+            int count = 0;
+            double r = rMin;
+            while (true) {
+                if (count == radii.length) {
+                    radii = Arrays.copyOf(radii, count * 2);
+                }
+                radii[count++] = r;
+                if (r >= rMax) {
+                    break;
+                }
+                double cell = cellSize(planetRadius, altitude, r, pixelAngle, scale);
+                double next = r + cell;
+                // não deixa um último anel colado no penúltimo
+                r = next >= rMax - 0.25 * cell ? rMax : next;
+            }
+            if (count < 2) {
+                radii[count++] = rMax;
+            }
+            int[] counts = new int[count];
+            int level = 0;
+            for (int i = 0; i < count; i++) {
+                double cell = cellSize(planetRadius, altitude, radii[i], pixelAngle, scale);
+                double ideal = 2.0 * Math.PI * radii[i] / cell;
+                int wanted = (int) Math.round(Math.log(Math.max(1.0, ideal / MIN_SEGMENTS)) / Math.log(2.0));
+                // monotônico e no máximo um dobro por anel (a costura só trata n e 2n)
+                level = Math.max(level, Math.min(wanted, i == 0 ? wanted : level + 1));
+                level = Math.min(level, 7);
+                counts[i] = MIN_SEGMENTS << level;
+            }
+            return new Layout(Arrays.copyOf(radii, count), counts);
+        }
+
+        public int rings() {
+            return radii.length;
+        }
+
+        public int segments(int ring) {
+            return segments[ring];
         }
 
         public double ringRadius(int ring) {
-            return rMin * Math.pow(rMax / rMin, ring / (double) (rings - 1));
+            return radii[ring];
+        }
+
+        /** Índice do primeiro vértice do anel. */
+        public int vertexOffset(int ring) {
+            return offsets[ring];
+        }
+
+        public double rMin() {
+            return radii[0];
+        }
+
+        public double rMax() {
+            return radii[radii.length - 1];
+        }
+
+        public int vertexCount() {
+            return offsets[radii.length];
+        }
+
+        public int indexCount() {
+            int triangles = 0;
+            for (int i = 0; i < radii.length - 1; i++) {
+                // mesmo número: 2 triângulos por célula; o dobro: 3 por segmento do anel mais grosso
+                triangles += segments[i + 1] == segments[i] ? 2 * segments[i] : 3 * segments[i];
+            }
+            return triangles * 3;
+        }
+
+        /** Mesmos anéis e segmentos: o buffer de índices de uma serve para a outra. */
+        public boolean sameTopology(Layout other) {
+            return Arrays.equals(segments, other.segments);
         }
     }
 
-    /** Raio externo para um planeta: 0,98·π·R. */
+    /** A malha cobre até o horizonte da altitude atual vezes esta folga (a câmera sobe entre reconstruções) mais a margem. */
+    static final double OUTER_ALTITUDE_HEADROOM = 1.25;
+    static final double OUTER_ALTITUDE_MARGIN = 100.0;
+    static final double OUTER_HORIZON_SLACK = 1.05;
+    /** Altura de montanha usada para decidir quanto além do horizonte do nível do mar a malha ainda pode aparecer. */
+    static final double HORIZON_MARGIN_HEIGHT = 300.0;
+
+    /** Raio externo máximo para um planeta: 0,98·π·R. */
     public static double outerRadius(PlanetDefinition planet) {
         return OUTER_FRACTION * Math.PI * planet.radius();
     }
 
+    /** Distância (arco) até o horizonte de uma câmera na altitude dada, mais o horizonte de uma montanha de referência. */
+    public static double horizonDistance(double radius, double altitude) {
+        double fromCamera = Math.acos(radius / (radius + Math.max(0.0, altitude)));
+        double fromPeak = Math.acos(radius / (radius + HORIZON_MARGIN_HEIGHT));
+        return radius * (fromCamera + fromPeak);
+    }
+
+    /**
+     * Raio externo para uma câmera na altitude dada: só o que pode aparecer sobre o horizonte, com folga para a
+     * subida até a próxima reconstrução, limitado a {@link #outerRadius(PlanetDefinition)}.
+     */
+    public static double outerRadius(PlanetDefinition planet, double altitude) {
+        double headroom = Math.max(0.0, altitude) * OUTER_ALTITUDE_HEADROOM + OUTER_ALTITUDE_MARGIN;
+        double horizon = horizonDistance(planet.radius(), headroom) * OUTER_HORIZON_SLACK;
+        return Math.min(outerRadius(planet), horizon);
+    }
+
     /**
      * Preenche posições (3 floats por vértice, relativas à câmera) e cores (0xAARRGGBB, alfa = máscara de água).
-     * Se pool não for nulo os anéis são calculados em paralelo nele; o terreno é thread-safe.
+     * {@code nearRadius} é até onde chunks/LODs cobrem (alcance do DH): dentro dele a malha usa a mesma carta
+     * deles. Se pool não for nulo os anéis são calculados em paralelo nele; o terreno é thread-safe.
      */
     public static void fill(PlanetTerrain terrain, Palette palette, Layout layout,
-            double camX, double camY, double camZ, float[] outPos, int[] outColor, ForkJoinPool pool) {
+            double camX, double camY, double camZ, double nearRadius, float[] outPos, int[] outColor, ForkJoinPool pool) {
         if (outPos.length < layout.vertexCount() * 3 || outColor.length < layout.vertexCount()) {
             throw new IllegalArgumentException("buffers pequenos para " + layout.vertexCount() + " vértices");
         }
-        double[] cos = new double[layout.segments()];
-        double[] sin = new double[layout.segments()];
-        for (int j = 0; j < layout.segments(); j++) {
-            double phi = 2.0 * Math.PI * j / layout.segments();
-            cos[j] = Math.cos(phi);
-            sin[j] = Math.sin(phi);
-        }
-
         Runnable all = () -> IntStream.range(0, layout.rings()).parallel()
-                .forEach(i -> fillRing(terrain, palette, layout, i, camX, camY, camZ, cos, sin, outPos, outColor));
+                .forEach(i -> fillRing(terrain, palette, layout, i, camX, camY, camZ, nearRadius, outPos, outColor));
         if (pool == null) {
             for (int i = 0; i < layout.rings(); i++) {
-                fillRing(terrain, palette, layout, i, camX, camY, camZ, cos, sin, outPos, outColor);
+                fillRing(terrain, palette, layout, i, camX, camY, camZ, nearRadius, outPos, outColor);
             }
             return;
         }
@@ -117,39 +302,103 @@ public final class PlanetMeshGeometry {
     }
 
     private static void fillRing(PlanetTerrain terrain, Palette palette, Layout layout, int ring,
-            double camX, double camY, double camZ, double[] cos, double[] sin, float[] outPos, int[] outColor) {
+            double camX, double camY, double camZ, double nearRadius, float[] outPos, int[] outColor) {
         PlanetDefinition planet = terrain.planet();
         double radius = planet.radius();
         double camAlt = camY - planet.seaLevel();
-        int maxLat = planet.maxLatitudeBlocks();
         int sea = planet.seaLevel();
         double r = layout.ringRadius(ring);
-        double[] curved = new double[3];
+        double theta = r / radius;
+        int segments = layout.segments(ring);
+        double weight = PlanetMeshProjection.weight(radius, camAlt, r, nearRadius);
+        double cell = 2.0 * Math.PI * r / segments;
+        boolean supersample = cell >= SUPERSAMPLE_MIN_CELL;
+        double sinTheta = Math.max(Math.sin(theta), 1.0e-3);
+        double[] dir = new double[3];
+        double[] xz = new double[2];
 
-        for (int j = 0; j < layout.segments(); j++) {
-            double dx = r * cos[j];
-            double dz = r * sin[j];
-            long worldX = PlanetMath.wrapX(planet, Math.round(camX + dx));
-            long worldZ = Math.round(camZ + dz);
-            // além do limite de latitude o mundo é a calota polar: repete a última coluna e pinta de gelo
-            boolean cap = worldZ > maxLat || worldZ < -maxLat;
-            int sampleZ = (int) Math.max(-maxLat, Math.min(maxLat, worldZ));
-
-            int raw = terrain.surfaceHeight((int) worldX, sampleZ);
-            SurfaceType type = cap ? SurfaceType.POLAR_ICE : terrain.surfaceType((int) worldX, sampleZ);
-            boolean water = !cap && (type == SurfaceType.OCEAN || raw < sea);
+        for (int j = 0; j < segments; j++) {
+            double phi = 2.0 * Math.PI * j / segments;
+            PlanetMeshProjection.terrainPoint(planet, camX, camZ, theta, phi, weight, xz);
+            int worldX = (int) PlanetMath.wrapX(planet, Math.round(xz[0]));
+            long worldZ = Math.round(xz[1]);
+            Column center = column(terrain, worldX, worldZ);
             // oceano é plano no nível do mar
-            double height = Math.max(raw, sea);
+            double height = Math.max(center.height, sea);
 
-            CurvatureMath.curve(radius, camAlt, dx, height - SINK - camY, dz, curved);
-            int v = ring * layout.segments() + j;
-            outPos[v * 3] = (float) curved[0];
-            outPos[v * 3 + 1] = (float) curved[1];
-            outPos[v * 3 + 2] = (float) curved[2];
-            outColor[v] = water
-                    ? waterColor(palette, sea - raw)
-                    : palette.land()[type.ordinal()] & 0xFFFFFF;
+            int red = 0;
+            int green = 0;
+            int blue = 0;
+            int water = 0;
+            int samples = 1;
+            int centerDepth = Math.max(0, sea - center.height);
+            int shared = columnColor(palette, center, centerDepth);
+            red += shared >> 16 & 0xFF;
+            green += shared >> 8 & 0xFF;
+            blue += shared & 0xFF;
+            water += center.water ? 1 : 0;
+            if (supersample) {
+                samples += SUPERSAMPLE_COS.length;
+                for (int s = 0; s < SUPERSAMPLE_COS.length; s++) {
+                    double offRadial = SUPERSAMPLE_RADIUS * cell * SUPERSAMPLE_COS[s];
+                    double offTangent = SUPERSAMPLE_RADIUS * cell * SUPERSAMPLE_SIN[s];
+                    double t = Math.max(0.0, Math.min(Math.PI, theta + offRadial / radius));
+                    double p = phi + offTangent / (radius * sinTheta);
+                    PlanetMeshProjection.terrainPoint(planet, camX, camZ, t, p, weight, xz);
+                    Column extra = columnTypeOnly(terrain, (int) PlanetMath.wrapX(planet, Math.round(xz[0])), Math.round(xz[1]));
+                    int rgb = columnColor(palette, extra, extra.water ? centerDepth : 0);
+                    red += rgb >> 16 & 0xFF;
+                    green += rgb >> 8 & 0xFF;
+                    blue += rgb & 0xFF;
+                    water += extra.water ? 1 : 0;
+                }
+            }
+
+            PlanetMeshProjection.direction(theta, phi, dir);
+            double h = height - SINK - sea;
+            double shell = radius + h;
+            int v = layout.vertexOffset(ring) + j;
+            outPos[v * 3] = (float) (shell * dir[0]);
+            outPos[v * 3 + 1] = (float) (shell * dir[1] - (radius + camAlt));
+            outPos[v * 3 + 2] = (float) (shell * dir[2]);
+            int alpha = (int) Math.round(WATER_ALPHA * water / (double) samples);
+            outColor[v] = alpha << 24
+                    | (int) Math.round(red / (double) samples) << 16
+                    | (int) Math.round(green / (double) samples) << 8
+                    | (int) Math.round(blue / (double) samples);
         }
+    }
+
+    /** O que a malha precisa saber de uma coluna do terreno. */
+    private record Column(int height, SurfaceType type, boolean water) {
+    }
+
+    private static Column column(PlanetTerrain terrain, int worldX, long worldZ) {
+        PlanetDefinition planet = terrain.planet();
+        int maxLat = planet.maxLatitudeBlocks();
+        // além do limite de latitude o mundo é a calota polar: repete a última coluna e pinta de gelo
+        boolean cap = worldZ > maxLat || worldZ < -maxLat;
+        int sampleZ = (int) Math.max(-maxLat, Math.min(maxLat, worldZ));
+        int raw = terrain.surfaceHeight(worldX, sampleZ);
+        SurfaceType type = cap ? SurfaceType.POLAR_ICE : terrain.surfaceType(worldX, sampleZ);
+        boolean water = !cap && (type == SurfaceType.OCEAN || raw < planet.seaLevel());
+        return new Column(raw, type, water);
+    }
+
+    /** Amostra extra do supersampling: só o tipo (a altura vem da amostra central), a metade do custo. */
+    private static Column columnTypeOnly(PlanetTerrain terrain, int worldX, long worldZ) {
+        PlanetDefinition planet = terrain.planet();
+        int maxLat = planet.maxLatitudeBlocks();
+        boolean cap = worldZ > maxLat || worldZ < -maxLat;
+        int sampleZ = (int) Math.max(-maxLat, Math.min(maxLat, worldZ));
+        SurfaceType type = cap ? SurfaceType.POLAR_ICE : terrain.surfaceType(worldX, sampleZ);
+        return new Column(planet.seaLevel(), type, !cap && type == SurfaceType.OCEAN);
+    }
+
+    private static int columnColor(Palette palette, Column column, int depth) {
+        return column.water
+                ? waterColor(palette, depth) & 0xFFFFFF
+                : palette.land()[column.type.ordinal()] & 0xFFFFFF;
     }
 
     /** Água: azul-claro na costa, escurecendo com a profundidade do fundo (satura em 60 blocos). Alfa = máscara de água. */
@@ -166,26 +415,44 @@ public final class PlanetMeshGeometry {
     }
 
     /**
-     * Índices (triângulos) da grade. O segmento seguinte do último é o 0, fechando o anel.
-     * Dois triângulos por célula; a orientação é irrelevante porque o pipeline não faz culling.
+     * Índices (triângulos) da grade. O segmento seguinte do último é o 0, fechando o anel. Entre anéis com o
+     * mesmo número de segmentos são dois triângulos por célula; quando o anel externo tem o dobro, cada segmento
+     * do anel interno liga a três vértices do externo (3 triângulos, sem T-junction). A orientação é irrelevante
+     * porque o pipeline não faz culling.
      */
     public static void fillIndices(Layout layout, int[] out) {
         if (out.length < layout.indexCount()) {
             throw new IllegalArgumentException("array de índices pequeno");
         }
-        int segments = layout.segments();
         int n = 0;
         for (int i = 0; i < layout.rings() - 1; i++) {
-            int row = i * segments;
-            int next = row + segments;
-            for (int j = 0; j < segments; j++) {
-                int j1 = (j + 1) % segments;
-                out[n++] = row + j;
-                out[n++] = next + j;
-                out[n++] = row + j1;
-                out[n++] = row + j1;
-                out[n++] = next + j;
-                out[n++] = next + j1;
+            int inner = layout.segments(i);
+            int outer = layout.segments(i + 1);
+            int innerBase = layout.vertexOffset(i);
+            int outerBase = layout.vertexOffset(i + 1);
+            for (int j = 0; j < inner; j++) {
+                int j1 = (j + 1) % inner;
+                if (outer == inner) {
+                    out[n++] = innerBase + j;
+                    out[n++] = outerBase + j;
+                    out[n++] = innerBase + j1;
+                    out[n++] = innerBase + j1;
+                    out[n++] = outerBase + j;
+                    out[n++] = outerBase + j1;
+                } else {
+                    int f0 = outerBase + 2 * j;
+                    int f1 = f0 + 1;
+                    int f2 = outerBase + (2 * j + 2) % outer;
+                    out[n++] = innerBase + j;
+                    out[n++] = f0;
+                    out[n++] = f1;
+                    out[n++] = innerBase + j;
+                    out[n++] = f1;
+                    out[n++] = innerBase + j1;
+                    out[n++] = innerBase + j1;
+                    out[n++] = f1;
+                    out[n++] = f2;
+                }
             }
         }
     }
