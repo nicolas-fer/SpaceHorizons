@@ -55,19 +55,27 @@ public final class AutoTest {
         look(200, EAST, 15f);
         shot(20, "01_surface_horizon");
 
-        cmd(20, "tp @s 0 600 0");
+        // nuvens vistas do chão, curvando no horizonte
+        cmd(20, "tp @s 0 200 0");
         fly(20);
-        look(20, EAST, 10f);
-        // espera o DH gerar LODs em volta
-        shot(900, "02_alt600_horizon");
-        look(20, EAST, 55f);
-        shot(40, "03_alt600_down");
+        look(20, EAST, -8f);
+        shot(300, "01b_clouds_ground");
 
-        cmd(20, "tp @s 0 2000 0");
-        look(20, EAST, 25f);
-        shot(600, "04_alt2000_horizon");
-        look(20, EAST, 70f);
-        shot(40, "05_alt2000_down");
+        // subida: horizonte (em altitude alta o limbo do planeta fica bem abaixo, por isso o pitch cresce) e para baixo
+        int[] alts = {600, 2000, 5000, 15000, 40000};
+        float[] horizonPitch = {10f, 15f, 25f, 55f, 70f};
+        float[] downPitch = {55f, 70f, 75f, 85f, 90f};
+        int[] waits = {900, 700, 700, 600, 600};
+        for (int i = 0; i < alts.length; i++) {
+            int alt = alts[i];
+            cmd(20, "tp @s 0 " + alt + " 0");
+            fly(20);
+            look(20, EAST, horizonPitch[i]);
+            // espera o DH e a malha orbital carregarem
+            shot(waits[i], String.format("%02d_alt%d_horizon", 2 + i * 2, alt));
+            look(20, EAST, downPitch[i]);
+            shot(60, String.format("%02d_alt%d_down", 3 + i * 2, alt));
+        }
 
         cmd(20, "tp @s 32740 140 0");
         fly(20);

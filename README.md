@@ -4,7 +4,7 @@ Mod NeoForge para Minecraft 26.3 (Java 25) que busca um **espaço contínuo**: p
 curvos e finitos, integrados ao Distant Horizons (DH), e depois órbita e viagem
 interplanetária sem trocar de representação de repente (nada de skybox em PNG).
 
-## Fase 1 (estado atual)
+## Fase 1 (pronta)
 
 Um planeta pequeno e curvo, onde andar reto em X dá a volta:
 
@@ -26,6 +26,28 @@ Um planeta pequeno e curvo, onde andar reto em X dá a volta:
 - **DH** (`dh/`): integração opcional. Sem o DH instalado o mod carrega normalmente,
   só não há LODs.
 
+## Fase 2 (estado atual): atmosfera, malha orbital e nuvens curvas
+
+Vista em jogo pelo autoteste (5 rodadas de prints entre 0 e 40.000 blocos de altitude):
+
+- **Atmosfera** (`client/atmosphere/`): `AtmosphereModel` (espessura 1.800 e altitude base 160
+  para a Terra) alimenta a neblina vanilla e a do DH (`dh/DhFogConfig`), a cor do céu e o
+  limbo. A neblina some com a altitude, o céu escurece até preto e as estrelas aparecem.
+  O limbo é um brilho azul em volta do planeta, desenhado em tela cheia após o céu.
+- **Malha orbital** (`client/planetmesh/`): grade polar centrada na câmera, gerada em
+  background de `PlanetTerrain`/`SurfacePalette` e posicionada por `CurvatureMath`, o mesmo
+  mapeamento do terreno. Preenche do fim do DH até o horizonte real. Acima de 2.000 blocos
+  de altitude a malha usa o raio interno mínimo e cobre também o centro (o DH e os chunks
+  desenham por cima, então só custa triângulos).
+- **Nuvens curvas** (`mixin/CloudRendererMixin` + patch do `clouds.vsh`): usam a mesma
+  fórmula de curvatura do terreno. Com o DH carregado, as nuvens que se veem são as do próprio
+  DH (planas, fora do nosso mapeamento); por isso `DhFogConfig.updateClouds` as desliga via API
+  acima da base da atmosfera, onde ficariam soltas fora da silhueta do planeta.
+
+Resultado visto nos prints: a 600 blocos o horizonte já é curvo e o céu azul-escuro; a
+2.000 o céu é preto com estrelas; a 5.000 se vê a curvatura com halo azul; a 15.000 e a
+40.000 o planeta aparece inteiro como esfera com o limbo brilhando.
+
 ## Como rodar
 
 Requisitos: JDK 25 (o Gradle baixa o toolchain se preciso).
@@ -40,7 +62,7 @@ Requisitos: JDK 25 (o Gradle baixa o toolchain se preciso).
 O `runClient` já traz o Distant Horizons no `localRuntime` do build. Não rode
 os comandos acima sem ter lido a EULA do Minecraft.
 
-## Como testar a fase 1
+## Como testar
 
 1. Entre no mundo como operador (nível 2) e rode `/spacehorizons goto earth`.
    Você nasce na superfície em `(0, 0)` da dimensão `spacehorizons:earth`.
@@ -53,11 +75,30 @@ os comandos acima sem ter lido a EULA do Minecraft.
    devem usar as mesmas cores.
 5. Ande em Z até perto de ±70°: a barreira polar deve empurrar você de volta.
 
+### Autoteste em jogo
+
+```bash
+rm -rf run/saves/SpaceAuto run/screenshots/autotest_*
+./gradlew runClientTest --console=plain > run-client.log 2>&1
+```
+
+Leva uns 5 a 6 minutos. Cria o mundo `SpaceAuto` com o tipo Space Horizons, sobe a 600,
+2.000, 5.000, 15.000 e 40.000 blocos (prints olhando para o horizonte e para baixo), testa
+nuvens, costura em X, borda DH/chunks e barreira polar, grava `run/screenshots/autotest_*.png`
+e as linhas `[AUTOTEST]` no log, e fecha o jogo na linha `[AUTOTEST] FIM`.
+
 ## Limitações conhecidas
 
-- **Nada foi executado no cliente nem no servidor nesta fase** (verificação de
-  runtime pendente). O build, os testes unitários e o carregamento sem DH e sem
-  Sodium foram conferidos só por código e compilação.
+- **Fase 2 (vista nos prints, sem medição de desempenho)**: a malha orbital é mais grossa
+  que os LODs do DH (grade de 384 segmentos) e o terreno amostrado desliza algumas dezenas
+  de blocos entre reconstruções; a costura com o DH não foi examinada de perto. O custo de
+  CPU das reconstruções da malha não foi medido. A iluminação da malha é radial, sem sombra
+  de relevo, e o terminador do limbo vem do ponto sob a câmera. Nuvens não escurecem no espaço
+  e só existem dentro do raio de renderização; entidades continuam sem curvatura. A textura
+  das nuvens tem período 3072, que não divide a circunferência, então pode haver emenda na
+  costura em X. Sodium e Iris não foram testados com a atmosfera e a malha.
+- **Servidor dedicado e carregamento sem DH/Sodium** não foram executados; só o cliente com DH
+  foi exercitado pelo autoteste. Build e testes unitários passam.
 - **Biomas duplicados**: o mapa `biomes` do datapack (`dimension/earth.json`) deve
   espelhar `SurfacePalette.biome()`. Nada garante isso automaticamente.
 - **Custo**: `surfaceHeight` e `surfaceType` recalculam o ruído. O gerador chama os

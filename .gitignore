@@ -41,3 +41,4 @@ repo/
 
 # logs soltos de execuções fora de run/
 logs/
+run-client.log

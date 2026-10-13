@@ -1,5 +1,8 @@
 package com.spacehorizons.client.curvature;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import com.spacehorizons.SpaceHorizons;
 
 import net.minecraft.resources.Identifier;
@@ -35,7 +38,51 @@ public final class CurvatureShaders {
     private static final String TERRAIN_PROJECTION_CURVED =
             "gl_Position = ProjMat * ModelViewMat * vec4(spaceHorizonsCurve(pos), 1.0);";
 
+    static final Identifier CLOUDS_VERTEX = Identifier.fromNamespaceAndPath("minecraft", "core/clouds");
+
+    /** Bloco CloudInfo do vanilla; casado por regex para tolerar espaços e quebras de linha diferentes. */
+    private static final Pattern CLOUD_INFO_BLOCK =
+            Pattern.compile("layout\\(std140\\)\\s*uniform\\s+CloudInfo\\s*\\{[^}]*\\}\\s*;");
+    /** Mesmos membros, na mesma ordem, que o writer (CloudRendererMixin) escreve no bloco. */
+    private static final String CLOUD_INFO_BLOCK_CURVED = """
+            layout(std140) uniform CloudInfo {
+                vec4 CloudColor;
+                vec3 CloudOffset;
+                vec3 CellSize;
+                float SpaceHorizons_PlanetRadius;
+                float SpaceHorizons_CameraAltitude;
+            };
+            #define SPACEHORIZONS_CURVE_UNIFORMS_PROVIDED
+            #include <spacehorizons:curvature.glsl>
+            """;
+    /** pos já está relativo à câmera (célula * CellSize + CloudOffset). */
+    private static final String CLOUD_PROJECTION = "gl_Position = ProjMat * ModelViewMat * vec4(pos, 1.0);";
+    private static final String CLOUD_PROJECTION_CURVED = """
+            vec3 curvedPos = spaceHorizonsCurve(pos);
+                gl_Position = ProjMat * ModelViewMat * vec4(curvedPos, 1.0);""";
+    private static final String CLOUD_FOG_DISTANCE = "vertexDistance = fog_spherical_distance(pos);";
+    private static final String CLOUD_FOG_DISTANCE_CURVED = "vertexDistance = fog_spherical_distance(curvedPos);";
+
     private CurvatureShaders() {
+    }
+
+    public static boolean isCloudsVertex(Identifier id) {
+        return CLOUDS_VERTEX.equals(id);
+    }
+
+    /**
+     * Curva as nuvens com a mesma fórmula do terreno. Se qualquer trecho esperado não bater,
+     * devolve o fonte intacto (as nuvens ficam planas, mas nada quebra).
+     */
+    public static String patchCloudsVertex(String source) {
+        Matcher block = CLOUD_INFO_BLOCK.matcher(source);
+        if (!block.find() || !source.contains(CLOUD_PROJECTION) || !source.contains(CLOUD_FOG_DISTANCE)) {
+            SpaceHorizons.LOGGER.warn("clouds.vsh do vanilla mudou; a curvatura das nuvens não foi aplicada");
+            return source;
+        }
+        String out = block.replaceFirst(Matcher.quoteReplacement(CLOUD_INFO_BLOCK_CURVED));
+        out = out.replace(CLOUD_PROJECTION, CLOUD_PROJECTION_CURVED);
+        return out.replace(CLOUD_FOG_DISTANCE, CLOUD_FOG_DISTANCE_CURVED);
     }
 
     public static boolean isTerrainVertex(Identifier id) {

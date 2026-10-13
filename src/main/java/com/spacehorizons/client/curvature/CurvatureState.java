@@ -19,6 +19,12 @@ public final class CurvatureState {
      */
     public static final int TERRAIN_UBO_SIZE = 80;
 
+    /**
+     * Tamanho do CloudInfo (vec4 + vec3 + vec3 = 44 bytes) com os dois floats extras nos offsets 44 e 48.
+     * 64 cobre os 52 bytes usados e mantém o alinhamento em 16.
+     */
+    public static final int CLOUD_UBO_SIZE = 64;
+
     /** Raio e altitude da câmera sobre o nível do mar. Raio 0 desliga a curvatura no shader. */
     public record Frame(double radius, double cameraAltitude) {
         public static final Frame OFF = new Frame(0.0, 0.0);

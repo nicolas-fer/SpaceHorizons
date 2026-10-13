@@ -4,6 +4,7 @@
   "package": "com.spacehorizons.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "CloudRendererMixin",
     "DynamicGpuDataMixin",
     "ShaderManagerConfigsMixin",
     "TerrainTransformMixin"

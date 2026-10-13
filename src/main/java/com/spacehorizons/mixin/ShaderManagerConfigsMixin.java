@@ -16,7 +16,17 @@ abstract class ShaderManagerConfigsMixin {
     @Inject(method = "getShader", at = @At("RETURN"), cancellable = true)
     private void spacehorizons$curveTerrain(Identifier id, ShaderType type, CallbackInfoReturnable<String> cir) {
         String source = cir.getReturnValue();
-        if (source == null || !CurvatureShaders.isTerrainVertex(id)) {
+        if (source == null) {
+            return;
+        }
+        if (CurvatureShaders.isCloudsVertex(id)) {
+            // O fsh das nuvens não declara CloudInfo, então só o vsh muda.
+            if (type == ShaderType.VERTEX) {
+                cir.setReturnValue(CurvatureShaders.patchCloudsVertex(source));
+            }
+            return;
+        }
+        if (!CurvatureShaders.isTerrainVertex(id)) {
             return;
         }
         if (type == ShaderType.VERTEX) {
