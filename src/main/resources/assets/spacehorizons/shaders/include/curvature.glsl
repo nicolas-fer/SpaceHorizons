@@ -1,7 +1,11 @@
 // Projeção esférica exata. Espelho de com.spacehorizons.planet.CurvatureMath: mudar um exige mudar o outro.
 // pos: posição relativa à câmera (mundo plano). Retorna a posição relativa à câmera no mundo curvo.
+// Quem já tem os valores num bloco de uniform (ex.: TerrainUniform) define SPACEHORIZONS_CURVE_UNIFORMS_PROVIDED
+// antes do include e declara os dois membros por conta própria.
+#ifndef SPACEHORIZONS_CURVE_UNIFORMS_PROVIDED
 uniform float SpaceHorizons_PlanetRadius;    // <= 0 desliga a curvatura
 uniform float SpaceHorizons_CameraAltitude;  // altitude da câmera sobre o nível do mar, em blocos
+#endif
 
 vec3 spaceHorizonsCurve(vec3 pos) {
     if (SpaceHorizons_PlanetRadius <= 0.0) {

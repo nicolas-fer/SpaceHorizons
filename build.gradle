@@ -183,6 +183,11 @@ publishing {
     }
 }
 
+// Testes do planeta usam PlanetDefinition, que depende de Identifier do Minecraft: o teste precisa do classpath do mod.
+dependencies {
+    testImplementation files(sourceSets.main.compileClasspath)
+}
+
 tasks.named('test', Test) {
     useJUnitPlatform()
 }
