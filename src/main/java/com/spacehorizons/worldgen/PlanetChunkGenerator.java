@@ -51,7 +51,7 @@ public final class PlanetChunkGenerator extends ChunkGenerator {
     public PlanetChunkGenerator(PlanetDefinition planet, BiomeSource biomeSource) {
         super(biomeSource);
         this.planet = planet;
-        this.terrain = PlanetTerrains.get(planet);
+        this.terrain = PlanetTerrains.analytic(planet);
     }
 
     static PlanetDefinition planetOf(Identifier id) {

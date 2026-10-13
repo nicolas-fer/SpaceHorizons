@@ -12,6 +12,7 @@ import com.seibel.distanthorizons.api.objects.DhApiResult;
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
+import com.spacehorizons.planet.TerrainStyle;
 
 import net.minecraft.world.level.Level;
 
@@ -19,7 +20,8 @@ import net.minecraft.world.level.Level;
  * Ponte com o Distant Horizons. Só é chamado quando o DH está carregado: classes da API do DH
  * ficam neste pacote para o mod continuar funcionando sem ele.
  *
- * Ao carregar um level que é planeta, registra o gerador de LOD próprio. A curvatura do DH é ajustada
+ * Ao carregar um level que é planeta sem gerador vanilla (a Lua), registra o gerador de LOD próprio; a Terra deixa o
+ * DH gerar pelo gerador do mundo. A curvatura do DH é ajustada
  * no cliente (DhCurvatureClient), pelo planeta que a câmera está vendo.
  */
 public final class DhIntegration {
@@ -39,12 +41,24 @@ public final class DhIntegration {
         return Planets.forLevel(level);
     }
 
+    /**
+     * Só os planetas cujo terreno vem do PlanetTerrain (hoje a Lua) usam o gerador de LOD próprio. Os de estilo
+     * Terra rodam o gerador vanilla completo (PlanetNoiseChunkGenerator), e o DH gera os LODs a partir dele.
+     */
+    static boolean usesLodOverride(PlanetDefinition planet) {
+        return planet.style() != TerrainStyle.EARTH;
+    }
+
     private static final class LevelLoad extends DhApiLevelLoadEvent {
         @Override
         public void onLevelLoad(DhApiEventParam<EventParam> event) {
             IDhApiLevelWrapper wrapper = event.value.levelWrapper;
             Optional<PlanetDefinition> planet = planetOf(wrapper);
             if (planet.isEmpty()) {
+                return;
+            }
+            if (!usesLodOverride(planet.get())) {
+                // Terra: gerador vanilla completo, o DH gera os LODs pelo gerador do mundo como no Overworld normal
                 return;
             }
             Level level = (Level) wrapper.getWrappedMcObject();

@@ -3,22 +3,13 @@
     "minecraft:overworld": {
       "type": "spacehorizons:earth",
       "generator": {
-        "type": "spacehorizons:planet",
+        "type": "spacehorizons:vanilla_planet",
         "planet": "spacehorizons:earth",
         "biome_source": {
-          "type": "spacehorizons:planet",
-          "planet": "spacehorizons:earth",
-          "biomes": {
-            "ocean": "minecraft:ocean",
-            "beach": "minecraft:beach",
-            "plains": "minecraft:plains",
-            "forest": "minecraft:forest",
-            "desert": "minecraft:desert",
-            "mountain": "minecraft:stony_peaks",
-            "snow": "minecraft:snowy_slopes",
-            "polar_ice": "minecraft:ice_spikes"
-          }
-        }
+          "type": "minecraft:multi_noise",
+          "preset": "minecraft:overworld"
+        },
+        "settings": "spacehorizons:earth"
       }
     },
     "spacehorizons:moon": {

@@ -45,10 +45,12 @@ import org.jspecify.annotations.Nullable;
  * Terra com halo vista da Lua), como "fundo" do frame: depois do céu e ANTES da malha orbital, do terreno e do DH
  * (o listener roda com prioridade alta), então o chão do planeta atual cobre o que estiver atrás dele.
  *
- * Posição: o vetor do centro do outro corpo à câmera, no espaço (SpaceFrame.toSpace), vira os eixos locais da câmera
- * com SpaceFrame.spaceToLocal. A esfera é fixa no corpo (BodyMeshCache) e uma matriz de modelo faz o resto:
- * rotação espaço -> eixos locais, escala do scaled space e translação até o centro. O shader é o do terreno orbital
- * (ver BodySky, "por que não há salto").
+ * Posição e orientação: os corpos se movem (a Lua orbita e gira sincronizada), então tudo é calculado no instante do
+ * relógio do Overworld com a parte fracionária do frame (SpaceSun.clock), que dá movimento suave entre ticks. O vetor do
+ * centro do outro corpo à câmera, no espaço (SpaceFrame.toSpace), vira os eixos locais da câmera com
+ * SpaceFrame.spaceToLocal. A esfera é fixa no corpo (BodyMeshCache) e uma matriz de modelo faz o resto: rotação dos
+ * eixos do corpo para os locais da câmera (inclui a orientação dos dois corpos naquele instante, SpaceFrame.meshToLocal),
+ * escala do scaled space e translação até o centro. O shader é o do terreno orbital (ver BodySky, "por que não há salto").
  *
  * Roda no render thread; a geração das esferas é assíncrona (BodyMeshCache). Qualquer falha de render desliga o
  * módulo em vez de derrubar o jogo.
@@ -81,7 +83,7 @@ final class BodyRenderer {
     private final Matrix4f model = new Matrix4f();
     private final Matrix4f rotation = new Matrix4f();
     private final Matrix4f mvp = new Matrix4f();
-    private final double[] basis = new double[9];
+    private final double[] meshBasis = new double[9];
 
     private @Nullable TextureTarget depthTarget;
     private boolean disabled;
@@ -146,8 +148,10 @@ final class BodyRenderer {
         double camZ = camera.pos.z;
         double pixelAngle = 2.0 / m11 / Math.max(1, main.height);
 
+        // os corpos se movem: tudo neste frame é do mesmo instante (relógio do Overworld + parcial do frame)
+        double clock = SpaceSun.clock(level);
         cache.uploadReady();
-        prefetch(current, pixelAngle);
+        prefetch(current, clock, pixelAngle);
 
         Vector3f forward = camera.viewRotationMatrix.getRow(2, new Vector3f()).negate();
         double halfDiagonal = Math.atan(Math.hypot(1.0 / m00, 1.0 / m11));
@@ -158,7 +162,7 @@ final class BodyRenderer {
             if (body == current && camY - current.planet().seaLevel() < PlanetMeshProjection.altitudeStart(current.planet().radius())) {
                 continue;
             }
-            BodySky.Apparent apparent = BodySky.fromDimension(current, camX, camY, camZ, body);
+            BodySky.Apparent apparent = BodySky.fromDimension(current, clock, camX, camY, camZ, body);
             if (apparent.distance() <= body.planet().radius()) {
                 continue; // câmera dentro do corpo
             }
@@ -202,18 +206,13 @@ final class BodyRenderer {
         Matrix4f invView = new Matrix4f(viewMatrix).invert();
         TextureTarget depth = ensureDepthTarget(main.width, main.height);
 
-        SpaceFrame.localBasis(current, camX, camZ, basis);
-        rotation.set((float) basis[0], (float) basis[3], (float) basis[6], 0.0F,
-                (float) basis[1], (float) basis[4], (float) basis[7], 0.0F,
-                (float) basis[2], (float) basis[5], (float) basis[8], 0.0F,
-                0.0F, 0.0F, 0.0F, 1.0F);
-
         int slot = 0;
         for (Candidate candidate : visible) {
             if (slot >= MAX_BODIES) {
                 break;
             }
-            if (draw(candidate, slot, pipeline, main, depth, camera, invView, sunX, sunY, sunZ, (float) fade, pixelAngle)) {
+            if (draw(candidate, slot, pipeline, main, depth, camera, invView, sunX, sunY, sunZ, (float) fade, pixelAngle, current,
+                    clock, camX, camZ)) {
                 slot++;
             }
         }
@@ -224,11 +223,13 @@ final class BodyRenderer {
      * "outro corpo" e a esfera dele precisa estar pronta no mesmo frame. A resolução é a que ele terá visto do
      * corpo mais próximo.
      */
-    private void prefetch(SolarSystem.Body current, double pixelAngle) {
+    private void prefetch(SolarSystem.Body current, double clock, double pixelAngle) {
         double nearest = Double.MAX_VALUE;
+        SolarSystem.Pose here = current.poseAt(clock);
         for (SolarSystem.Body other : SolarSystem.BODIES) {
             if (other != current) {
-                nearest = Math.min(nearest, Math.hypot(Math.hypot(other.x() - current.x(), other.y() - current.y()), other.z() - current.z()));
+                SolarSystem.Pose there = other.poseAt(clock);
+                nearest = Math.min(nearest, Math.hypot(Math.hypot(there.x() - here.x(), there.y() - here.y()), there.z() - here.z()));
             }
         }
         if (nearest == Double.MAX_VALUE) {
@@ -239,7 +240,8 @@ final class BodyRenderer {
     }
 
     private boolean draw(Candidate candidate, int slot, CompiledRenderPipeline pipeline, RenderTarget main, TextureTarget depth,
-            CameraRenderState camera, Matrix4fc invView, float sunX, float sunY, float sunZ, float fade, double pixelAngle) {
+            CameraRenderState camera, Matrix4fc invView, float sunX, float sunY, float sunZ, float fade, double pixelAngle,
+            SolarSystem.Body observer, double clock, double camX, double camZ) {
         PlanetDefinition planet = candidate.body().planet();
         BodySky.Apparent a = candidate.apparent();
 
@@ -257,6 +259,12 @@ final class BodyRenderer {
         double centerX = a.x() * a.distance() * scale;
         double centerY = a.y() * a.distance() * scale;
         double centerZ = a.z() * a.distance() * scale;
+        // eixos do corpo (a malha é desenhada nos eixos fixos no corpo) -> eixos locais da câmera, no instante do frame
+        SpaceFrame.meshToLocal(observer, clock, camX, camZ, candidate.body(), meshBasis);
+        rotation.set((float) meshBasis[0], (float) meshBasis[3], (float) meshBasis[6], 0.0F,
+                (float) meshBasis[1], (float) meshBasis[4], (float) meshBasis[7], 0.0F,
+                (float) meshBasis[2], (float) meshBasis[5], (float) meshBasis[8], 0.0F,
+                0.0F, 0.0F, 0.0F, 1.0F);
         model.translation((float) centerX, (float) centerY, (float) centerZ).scale((float) scale).mul(rotation);
         mvp.set(projection).mul(camera.viewRotationMatrix).mul(model);
 

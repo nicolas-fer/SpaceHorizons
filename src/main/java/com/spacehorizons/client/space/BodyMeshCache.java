@@ -19,6 +19,7 @@ import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.client.planetmesh.PlanetMeshGeometry;
 import com.spacehorizons.client.planetmesh.PlanetMeshPalette;
 import com.spacehorizons.planet.PlanetDefinition;
+import com.spacehorizons.planet.PlanetTerrain;
 import com.spacehorizons.planet.PlanetTerrains;
 
 import org.jspecify.annotations.Nullable;
@@ -57,6 +58,8 @@ final class BodyMeshCache {
     // só o render thread mexe nestes dois
     private final Set<Key> pending = new HashSet<>();
     private final Map<Key, Mesh> meshes = new HashMap<>();
+    /** Versão do mapa do planeta (PlanetTerrains.version) com que cada esfera foi pedida; mapa novo = esfera velha. */
+    private final Map<Key, Integer> requestedVersion = new HashMap<>();
     private PlanetMeshGeometry.@Nullable Palette palette;
 
     /** Pede (se faltar) o nível {@code segments} do planeta, e antes dele o nível pequeno se ainda não há nada. */
@@ -82,9 +85,14 @@ final class BodyMeshCache {
     }
 
     private void request(Key key) {
-        if (meshes.containsKey(key) || !pending.add(key)) {
+        // esfera pronta só vale se foi construída com o mapa atual do planeta; senão reconstrói (a velha segue na tela até lá)
+        int version = PlanetTerrains.version(key.planet());
+        boolean current = meshes.containsKey(key) && requestedVersion.getOrDefault(key, 0) == version;
+        if (current || !pending.add(key)) {
             return;
         }
+        requestedVersion.put(key, version);
+        PlanetTerrain terrain = PlanetTerrains.get(key.planet());
         PlanetMeshGeometry.Palette colors = palette;
         if (colors == null) {
             colors = PlanetMeshPalette.create();
@@ -93,21 +101,21 @@ final class BodyMeshCache {
         PlanetMeshGeometry.Palette usePalette = colors;
         worker.execute(() -> {
             try {
-                ready.add(build(key, usePalette));
+                ready.add(build(key, terrain, usePalette));
             } catch (Throwable t) {
                 SpaceHorizons.LOGGER.error("Falha ao gerar a esfera de {} ({} segmentos)", key.planet().id(), key.segments(), t);
             }
         });
     }
 
-    private Built build(Key key, PlanetMeshGeometry.Palette colors) {
+    private Built build(Key key, PlanetTerrain terrain, PlanetMeshGeometry.Palette colors) {
         int segments = key.segments();
         int vertexCount = BodyMeshGeometry.vertexCount(segments);
         int indexCount = BodyMeshGeometry.indexCount(segments);
         float[] positions = new float[vertexCount * 3];
         int[] argb = new int[vertexCount];
         long start = System.nanoTime();
-        BodyMeshGeometry.fill(PlanetTerrains.get(key.planet()), colors, segments, positions, argb, pool);
+        BodyMeshGeometry.fill(terrain, colors, segments, positions, argb, pool);
         int[] indices = new int[indexCount];
         BodyMeshGeometry.fillIndices(segments, indices);
 
@@ -184,6 +192,7 @@ final class BodyMeshCache {
             mesh.indices().close();
         }
         meshes.clear();
+        requestedVersion.clear();
         ready.clear();
         pending.clear();
     }

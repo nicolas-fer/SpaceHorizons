@@ -8,7 +8,9 @@ import java.util.stream.IntStream;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.PlanetMath;
 import com.spacehorizons.planet.PlanetTerrain;
+import com.spacehorizons.planet.SurfaceColors;
 import com.spacehorizons.planet.SurfaceType;
+import com.spacehorizons.planet.map.PlanetMapTerrain;
 
 /**
  * Geração (Java puro, sem Minecraft) da malha orbital: uma grade polar na esfera, centrada no nadir da câmera,
@@ -391,8 +393,16 @@ public final class PlanetMeshGeometry {
                 | (int) Math.round(blue / (double) samples);
     }
 
-    /** O que a malha precisa saber de uma coluna do terreno. */
-    private record Column(int height, SurfaceType type, boolean water) {
+    /** Marca de "cor não definida": a coluna usa a paleta por tipo de superfície. */
+    private static final int NO_COLOR = -1;
+
+    /** O que a malha precisa saber de uma coluna do terreno. rgb = cor real do mundo (mapa) ou NO_COLOR (paleta). */
+    private record Column(int height, SurfaceType type, boolean water, int rgb) {
+    }
+
+    /** true se o terreno tem o mapa real do mundo: cor, água e tipo vêm dele em vez da paleta por SurfaceType. */
+    private static boolean hasWorldColors(PlanetTerrain terrain) {
+        return terrain instanceof PlanetMapTerrain mapTerrain && mapTerrain.hasMap();
     }
 
     private static Column column(PlanetTerrain terrain, int worldX, long worldZ) {
@@ -403,19 +413,39 @@ public final class PlanetMeshGeometry {
         int sampleZ = (int) Math.max(-maxLat, Math.min(maxLat, worldZ));
         int raw = terrain.surfaceHeight(worldX, sampleZ);
         SurfaceType type = capType(terrain, cap, worldX, sampleZ);
+        if (hasWorldColors(terrain)) {
+            boolean water = !cap && terrain.isWater(worldX, sampleZ);
+            return new Column(raw, type, water, cap ? capColor(terrain, worldX, sampleZ, worldZ, maxLat) : terrain.surfaceColor(worldX, sampleZ));
+        }
         // água só em planetas com oceano (na Lua uma cratera abaixo do nível de referência continua sendo pó)
         boolean water = planet.hasOcean() && !cap && (type == SurfaceType.OCEAN || raw < planet.seaLevel());
-        return new Column(raw, type, water);
+        return new Column(raw, type, water, NO_COLOR);
     }
 
-    /** Amostra extra do supersampling: só o tipo (a altura vem da amostra central), a metade do custo. */
+    /** Amostra extra do supersampling: só o tipo/cor (a altura vem da amostra central), a metade do custo. */
     private static Column columnTypeOnly(PlanetTerrain terrain, int worldX, long worldZ) {
         PlanetDefinition planet = terrain.planet();
         int maxLat = planet.maxLatitudeBlocks();
         boolean cap = worldZ > maxLat || worldZ < -maxLat;
         int sampleZ = (int) Math.max(-maxLat, Math.min(maxLat, worldZ));
+        if (hasWorldColors(terrain)) {
+            boolean water = !cap && terrain.isWater(worldX, sampleZ);
+            int rgb = cap ? capColor(terrain, worldX, sampleZ, worldZ, maxLat) : terrain.surfaceColor(worldX, sampleZ);
+            return new Column(planet.seaLevel(), SurfaceType.PLAINS, water, rgb);
+        }
         SurfaceType type = capType(terrain, cap, worldX, sampleZ);
-        return new Column(planet.seaLevel(), type, planet.hasOcean() && !cap && type == SurfaceType.OCEAN);
+        return new Column(planet.seaLevel(), type, planet.hasOcean() && !cap && type == SurfaceType.OCEAN, NO_COLOR);
+    }
+
+    /** Cor da calota: começa na cor real da última linha do mapa e vira gelo em degradê (~15% de maxLat além do limite). */
+    private static int capColor(PlanetTerrain terrain, int worldX, int sampleZ, long worldZ, int maxLat) {
+        int ice = SurfaceColors.of(SurfaceType.POLAR_ICE) & 0xFFFFFF;
+        int edge = terrain.surfaceColor(worldX, sampleZ) & 0xFFFFFF;
+        double t = Math.min(1.0, (Math.abs((double) worldZ) - maxLat) / (maxLat * 0.15));
+        int r = lerp(edge >> 16 & 0xFF, ice >> 16 & 0xFF, t);
+        int g = lerp(edge >> 8 & 0xFF, ice >> 8 & 0xFF, t);
+        int b = lerp(edge & 0xFF, ice & 0xFF, t);
+        return r << 16 | g << 8 | b;
     }
 
     /** Tipo da coluna: gelo na calota polar da Terra; em planetas sem oceano a calota segue o tipo do próprio terreno. */
@@ -427,9 +457,10 @@ public final class PlanetMeshGeometry {
     }
 
     private static int columnColor(Palette palette, Column column, int depth) {
-        return column.water
-                ? waterColor(palette, depth) & 0xFFFFFF
-                : palette.land()[column.type.ordinal()] & 0xFFFFFF;
+        if (column.water) {
+            return waterColor(palette, depth) & 0xFFFFFF;
+        }
+        return column.rgb != NO_COLOR ? column.rgb & 0xFFFFFF : palette.land()[column.type.ordinal()] & 0xFFFFFF;
     }
 
     /** Água: azul-claro na costa, escurecendo com a profundidade do fundo (satura em 60 blocos). Alfa = máscara de água. */

@@ -48,7 +48,7 @@ public final class PlanetBiomeSource extends BiomeSource {
 
     public PlanetBiomeSource(PlanetDefinition planet, Map<SurfaceType, Holder<Biome>> biomes) {
         this.planet = planet;
-        this.terrain = PlanetTerrains.get(planet);
+        this.terrain = PlanetTerrains.analytic(planet);
         EnumMap<SurfaceType, Holder<Biome>> copy = new EnumMap<>(SurfaceType.class);
         copy.putAll(biomes);
         // só os tipos que o estilo do planeta produz precisam de bioma (a Terra não usa os tipos lunares e vice-versa)

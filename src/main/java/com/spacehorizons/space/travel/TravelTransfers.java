@@ -7,6 +7,7 @@ import java.util.UUID;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
+import com.spacehorizons.space.SpaceClock;
 import com.spacehorizons.space.SpaceFrame;
 
 import net.minecraft.server.MinecraftServer;
@@ -65,15 +66,17 @@ public final class TravelTransfers {
 
     /**
      * Esfera de influência no voo livre: se outro corpo passou a dominar a posição do jogador, transfere. A velocidade
-     * vem do movimento que o cliente reporta (blocos/tick).
+     * vem do movimento que o cliente reporta (blocos/tick, relativa ao chão do corpo atual); a transferência a converte para
+     * o chão do corpo novo (os corpos se movem, ver BodyTransfer).
      */
     static void checkSphereOfInfluence(ServerPlayer player, SolarSystem.Body body) {
         if (!isReady(player)) {
             return;
         }
+        double clock = SpaceClock.ticks(player.level());
         double[] space = new double[3];
-        SpaceFrame.toSpace(body, player.getX(), player.getY(), player.getZ(), space);
-        SolarSystem.Body dominant = SphereOfInfluence.dominant(body, space[0], space[1], space[2]);
+        SpaceFrame.toSpace(body, clock, player.getX(), player.getY(), player.getZ(), space);
+        SolarSystem.Body dominant = SphereOfInfluence.dominant(body, clock, space[0], space[1], space[2]);
         if (dominant == body) {
             return;
         }
@@ -88,7 +91,7 @@ public final class TravelTransfers {
             return;
         }
         Vec3 v = player.getKnownMovement();
-        BodyTransfer transfer = BodyTransfer.compute(body, dominant, player.getX(), player.getY(), player.getZ(),
+        BodyTransfer transfer = BodyTransfer.compute(body, dominant, clock, player.getX(), player.getY(), player.getZ(),
                 v.x, v.y, v.z, player.getYRot(), player.getXRot());
         transfer(player, transfer, toLevel);
     }

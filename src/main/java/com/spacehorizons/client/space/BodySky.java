@@ -44,27 +44,51 @@ public final class BodySky {
     public record Apparent(double x, double y, double z, double distance, double angularRadius) {
     }
 
-    /** Direção, distância e raio angular de {@code target} visto de um ponto do espaço; direção nos eixos do espaço. */
+    /**
+     * Direção, distância e raio angular de {@code target} visto de um ponto do espaço no instante {@code clock} (ticks do
+     * Overworld; os corpos se movem); direção nos eixos do espaço.
+     */
+    public static Apparent fromSpacePoint(SolarSystem.Body target, double clock, double sx, double sy, double sz) {
+        SolarSystem.Pose pose = target.poseAt(clock);
+        return apparent(target, pose.x() - sx, pose.y() - sy, pose.z() - sz, false, null, null, 0, 0);
+    }
+
+    /** Idem, com o alvo na configuração de referência (sem movimento): para contas estáticas e testes. */
     public static Apparent fromSpacePoint(SolarSystem.Body target, double sx, double sy, double sz) {
-        return apparent(target, target.x() - sx, target.y() - sy, target.z() - sz, false, null, 0, 0);
+        SolarSystem.Pose pose = target.referencePose();
+        return apparent(target, pose.x() - sx, pose.y() - sy, pose.z() - sz, false, null, null, 0, 0);
     }
 
     /**
-     * Idem, para uma câmera na posição (x, y, z) da dimensão de {@code observer}; a direção sai nos eixos locais
-     * da câmera (x leste, y para cima, z norte), os mesmos da malha orbital e dos shaders. Se o alvo é o próprio
-     * observador, a direção aponta para o nadir (0, -1, 0).
+     * Idem, para uma câmera na posição (x, y, z) da dimensão de {@code observer} no instante {@code clock}; a direção
+     * sai nos eixos locais da câmera (x leste, y para cima, z norte), os mesmos da malha orbital e dos shaders. Se o
+     * alvo é o próprio observador, a direção aponta para o nadir (0, -1, 0).
      */
-    public static Apparent fromDimension(SolarSystem.Body observer, double x, double y, double z, SolarSystem.Body target) {
+    public static Apparent fromDimension(SolarSystem.Body observer, double clock, double x, double y, double z,
+            SolarSystem.Body target) {
+        SolarSystem.Pose observerPose = observer.poseAt(clock);
+        SolarSystem.Pose targetPose = target.poseAt(clock);
         double[] cam = new double[3];
-        SpaceFrame.toSpace(observer, x, y, z, cam);
-        return apparent(target, target.x() - cam[0], target.y() - cam[1], target.z() - cam[2], true, observer, x, z);
+        SpaceFrame.toSpace(observer, observerPose, x, y, z, cam);
+        return apparent(target, targetPose.x() - cam[0], targetPose.y() - cam[1], targetPose.z() - cam[2], true, observer,
+                observerPose, x, z);
+    }
+
+    /** Idem, com os dois corpos na configuração de referência (sem movimento): para contas estáticas e testes. */
+    public static Apparent fromDimension(SolarSystem.Body observer, double x, double y, double z, SolarSystem.Body target) {
+        SolarSystem.Pose observerPose = observer.referencePose();
+        SolarSystem.Pose targetPose = target.referencePose();
+        double[] cam = new double[3];
+        SpaceFrame.toSpace(observer, observerPose, x, y, z, cam);
+        return apparent(target, targetPose.x() - cam[0], targetPose.y() - cam[1], targetPose.z() - cam[2], true, observer,
+                observerPose, x, z);
     }
 
     private static Apparent apparent(SolarSystem.Body target, double vx, double vy, double vz, boolean local,
-            SolarSystem.Body observer, double camX, double camZ) {
+            SolarSystem.Body observer, SolarSystem.Pose observerPose, double camX, double camZ) {
         double[] v = {vx, vy, vz};
         if (local) {
-            SpaceFrame.spaceToLocal(observer, camX, camZ, vx, vy, vz, v);
+            SpaceFrame.spaceToLocal(observer, observerPose, camX, camZ, vx, vy, vz, v);
         }
         double distance = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
         double radius = target.planet().radius();

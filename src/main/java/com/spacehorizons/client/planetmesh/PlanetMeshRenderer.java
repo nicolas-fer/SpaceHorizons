@@ -22,6 +22,7 @@ import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.client.space.SpaceSun;
 import com.spacehorizons.client.planetmesh.dh.DhRange;
 import com.spacehorizons.planet.PlanetDefinition;
+import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 
 import net.minecraft.client.Minecraft;
@@ -108,6 +109,8 @@ final class PlanetMeshRenderer {
     private double nearRadius = MIN_INNER_RADIUS;
     private int dhRangeCache = -1;
     private int dhPollCountdown;
+    /** Versão do mapa do planeta (PlanetTerrains.version) com que a última malha foi pedida. */
+    private int builtMapVersion;
 
     private PlanetMeshRenderer() {
     }
@@ -286,7 +289,9 @@ final class PlanetMeshRenderer {
             return;
         }
         Mesh current = mesh;
-        if (current != null && current.planet() == planet) {
+        // mapa do mundo novo (ou removido): reconstrói já, sem esperar a câmera andar
+        boolean mapChanged = PlanetTerrains.version(planet) != builtMapVersion;
+        if (current != null && current.planet() == planet && !mapChanged) {
             double spacing = current.innerRadius() * (2.0 * Math.PI / current.firstRingSegments());
             double moveThreshold = Math.max(MOVE_MIN, Math.min(MOVE_MAX, spacing * MOVE_FRACTION));
             boolean moved = Math.hypot(camX - current.camX(), camZ - current.camZ()) > moveThreshold;
@@ -310,6 +315,7 @@ final class PlanetMeshRenderer {
         PlanetMeshGeometry.Layout layout = PlanetMeshGeometry.Layout.adaptive(planet.radius(),
                 camY - planet.seaLevel(), inner, outer, pixelAngle(camera), MAX_VERTICES);
         lastBuildStart = System.nanoTime();
+        builtMapVersion = PlanetTerrains.version(planet);
         builder.submit(new PlanetMeshBuilder.Request(planet, camX, camY, camZ, nearRadius, layout, colors));
     }
 

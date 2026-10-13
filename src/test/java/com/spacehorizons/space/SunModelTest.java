@@ -114,14 +114,85 @@ class SunModelTest {
     }
 
     @Test
-    void moonFaceTowardEarthIsDarkAtEarthNoon() {
-        // a face da Lua voltada para a Terra (lon = π) tem o sol do meio-dia do spawn atrás dela: noite (lua nova)
+    void moonFaceTowardEarthIsLitAtFullMoonAndDarkAtNewMoon() {
+        // a face voltada para a Terra (lon = π): no dia 0 à meia-noite (lua cheia) o sol está a pino sobre ela; quatro dias depois
+        // (lua nova) o sol está atrás da Lua e a face fica na noite. A órbita inclinada deixa o sol ~5° fora da vertical.
         double[] local = new double[3];
-        SunModel.localDirection(SolarSystem.MOON, C_MOON / 2, 0, 6000, local);
-        assertTrue(local[1] < -0.99, "sol deveria estar abaixo do horizonte, up=" + local[1]);
-        // e no meio da noite do spawn (lua cheia vista da Terra) essa face está ao meio-dia
-        SunModel.localDirection(SolarSystem.MOON, C_MOON / 2, 0, 18000, local);
-        assertTrue(local[1] > 0.99, "sol deveria estar a pino, up=" + local[1]);
+        SunModel.localDirection(SolarSystem.MOON, C_MOON / 2, 0, 18_000, local);
+        assertTrue(local[1] > 0.99, "sol deveria estar a pino na lua cheia, up=" + local[1]);
+        SunModel.localDirection(SolarSystem.MOON, C_MOON / 2, 0, 18_000 + 4 * 24_000, local);
+        assertTrue(local[1] < -0.99, "sol deveria estar abaixo do horizonte na lua nova, up=" + local[1]);
+    }
+
+    @Test
+    void theLunarDayLastsEightGameDays() {
+        // o "dia" na Lua (nascer do sol a nascer do sol num ponto) dura o ciclo de fases inteiro: 8 dias do jogo
+        double period = SolarSystem.SYNODIC_PERIOD_TICKS;
+        for (double[] spot : new double[][] {{0, 0}, {C_MOON / 2, 0}, {C_MOON / 4, 2000}, {-C_MOON / 8, -1500}}) {
+            double[] local = new double[3];
+            double[] later = new double[3];
+            // o sol local se repete exatamente a cada ciclo de fases
+            for (double clock : new double[] {0, 7777, 50_000, 123_456}) {
+                SunModel.localDirection(SolarSystem.MOON, spot[0], spot[1], clock, local);
+                SunModel.localDirection(SolarSystem.MOON, spot[0], spot[1], clock + period, later);
+                for (int i = 0; i < 3; i++) {
+                    assertEquals(local[i], later[i], 1e-9);
+                }
+            }
+            // e há um único nascer por ciclo (o sol não "tremeluz" no horizonte)
+            int rises = 0;
+            double firstRise = Double.NaN;
+            double lastRise = Double.NaN;
+            double prevUp = Double.NaN;
+            for (double clock = 0; clock < 4 * period; clock += 50) {
+                SunModel.localDirection(SolarSystem.MOON, spot[0], spot[1], clock, local);
+                if (!Double.isNaN(prevUp) && prevUp <= 0 && local[1] > 0) {
+                    rises++;
+                    if (Double.isNaN(firstRise)) {
+                        firstRise = clock;
+                    }
+                    lastRise = clock;
+                }
+                prevUp = local[1];
+            }
+            assertEquals(4, rises, "nascer do sol em " + spot[0] + "," + spot[1]);
+            assertEquals(3 * period, lastRise - firstRise, 200);
+        }
+    }
+
+    @Test
+    void theLunarDayIsOneEffectiveDayStretchedOverEightRealDays() {
+        // o relógio efetivo na Lua dá uma volta de 24000 ticks (um dia do vanilla) a cada 8 dias reais
+        double total = 0;
+        double prev = SunModel.effectiveClock(SolarSystem.MOON, 0, 0, 40_000);
+        for (double clock = 40_050; clock <= 40_000 + SolarSystem.SYNODIC_PERIOD_TICKS; clock += 50) {
+            double eff = SunModel.effectiveClock(SolarSystem.MOON, 0, 0, clock);
+            total += Math.IEEEremainder(eff - prev, 24_000);
+            prev = eff;
+        }
+        assertEquals(24_000, total, 300);
+    }
+
+    @Test
+    void effectiveClockOnTheMoonGivesTheSameSunHeightAsTheEarthSpawnAtThatTime() {
+        // definição do horário efetivo: o sol do spawn da Terra no tick efetivo tem a mesma altura que o sol local da Lua
+        double[] moonSun = new double[3];
+        double[] earthSun = new double[3];
+        for (double[] spot : new double[][] {{0, 0}, {C_MOON / 2, 0}, {C_MOON / 3, 800}, {-C_MOON / 5, -1900}}) {
+            for (double clock = 0; clock < 2 * SolarSystem.SYNODIC_PERIOD_TICKS; clock += 977) {
+                SunModel.localDirection(SolarSystem.MOON, spot[0], spot[1], clock, moonSun);
+                double eff = SunModel.effectiveClock(SolarSystem.MOON, spot[0], spot[1], clock);
+                SunModel.localDirection(SolarSystem.EARTH, 0, 0, eff, earthSun);
+                assertEquals(moonSun[1], earthSun[1], 1e-6, "altura do sol em " + spot[0] + "," + spot[1] + " no tick " + clock);
+            }
+        }
+    }
+
+    @Test
+    void earthSpawnIsNotAffectedByTheMoonMotion() {
+        for (double clock : new double[] {0, 5000, 18_000, 114_000, 1_000_000.5}) {
+            assertEquals(clock, SunModel.effectiveClock(SolarSystem.EARTH, 0, 0, clock), 1e-6);
+        }
     }
 
     @Test

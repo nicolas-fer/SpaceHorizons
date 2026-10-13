@@ -70,7 +70,9 @@ public final class TravelMath {
 
     /**
      * Ponto (x, z) da superfície do corpo que fica voltado para o corpo mais próximo (a face da Lua para a Terra, o
-     * zênite do spawn na Terra), já em [-C/2, C/2) e no centro do bloco. out = {x, z}.
+     * zênite do spawn na Terra), já em [-C/2, C/2) e no centro do bloco. out = {x, z}. Independe do tempo: a Lua tem
+     * rotação sincronizada (o ponto voltado para a Terra é sempre o mesmo, lon=π) e a Terra, que não gira neste
+     * referencial, usa o spawn como ponto "de casa" (a configuração de referência, com a Lua no zênite dele).
      */
     public static void facingPoint(SolarSystem.Body body, double[] out) {
         SolarSystem.Body nearest = null;

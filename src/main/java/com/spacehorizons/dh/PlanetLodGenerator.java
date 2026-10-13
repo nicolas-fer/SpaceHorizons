@@ -64,7 +64,7 @@ final class PlanetLodGenerator implements IDhApiWorldGenerator {
         this.levelWrapper = levelWrapper;
         this.level = level;
         this.planet = planet;
-        this.terrain = PlanetTerrains.get(planet);
+        this.terrain = PlanetTerrains.analytic(planet);
     }
 
     @Override

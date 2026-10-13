@@ -11,6 +11,8 @@ package com.spacehorizons.space;
  * batem com o vanilla no spawn, e o terminador visto do espaço bate com o do chão.
  * Em qualquer outro ponto (outra longitude, outra latitude, outro corpo) a direção local sai de SpaceFrame,
  * e daí o "horário efetivo": o tick do dia em que o sol do vanilla teria a mesma altura no céu.
+ * Os corpos têm orientação que muda com o tempo (SolarSystem): na Lua, de rotação sincronizada, o sol local percorre o
+ * céu uma vez a cada 8 dias do jogo (o dia lunar, igual ao ciclo de fases visto da Terra).
  */
 public final class SunModel {
     public static final long DAY_TICKS = 24_000L;
@@ -74,11 +76,15 @@ public final class SunModel {
         out[2] = -Math.sin(a);
     }
 
-    /** Direção do sol nos eixos do Minecraft (x leste, y cima, z norte) no ponto (x, z) do corpo. */
+    /**
+     * Direção do sol nos eixos do Minecraft (x leste, y cima, z norte) no ponto (x, z) do corpo no instante dado. Usa a
+     * orientação do corpo naquele instante: a Terra não gira neste referencial (o sol é que dá a volta, uma por dia do
+     * jogo); a Lua gira com a órbita, então o "dia" dela dura um ciclo de fases inteiro (8 dias do jogo).
+     */
     public static void localDirection(SolarSystem.Body body, double x, double z, double clockTicks, double[] out) {
         double[] s = new double[3];
         directionInSpace(clockTicks, s);
-        SpaceFrame.spaceToLocal(body, x, z, s[0], s[1], s[2], out);
+        SpaceFrame.spaceToLocal(body, clockTicks, x, z, s[0], s[1], s[2], out);
     }
 
     /**

@@ -6,12 +6,15 @@ import java.util.function.Consumer;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.client.space.SpaceSun;
+import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
+import com.spacehorizons.space.SpaceFrame;
 import com.spacehorizons.space.SunModel;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -19,6 +22,7 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.LevelSettings;
 import net.minecraft.world.level.WorldDataConfiguration;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.player.LocalPlayer;
@@ -62,144 +66,338 @@ public final class AutoTest {
         cmd(20, "time set 6000");
         step(20, mc -> logPos(mc, "spawn (esperado dim=minecraft:overworld com curvatura)"));
         cmd(20, "spacehorizons goto earth");
-
-        // (a) Terra, spawn, meio-dia (6000): sol alto, céu azul
         cmd(300, "time set 6000");
-        lookAtSun(40);
-        shot(60, "s_a_spawn_noon_sun");
-        look(10, EAST, 10f);
-        shot(30, "s_a_spawn_noon_horizon");
-        look(10, EAST, -90f);
-        shot(30, "s_a_spawn_noon_zenith");
-        // (b) antípoda no mesmo horário: noite com estrelas, chão escuro
-        cmd(20, "tp @s 32700 100 0");
-        fly(20);
-        cmd(400, "time set 6000");
-        look(40, EAST, 10f);
-        shot(60, "s_b_antipode_horizon");
-        look(10, EAST, -60f);
-        shot(30, "s_b_antipode_sky");
-        lookAtSun(10);
-        shot(30, "s_b_antipode_sun");
-        // (c) 90 graus a leste: fim de tarde, sol baixo no oeste
-        cmd(20, "tp @s 16384 100 0");
-        fly(20);
-        cmd(400, "time set 6000");
-        lookAtSun(40);
-        shot(60, "s_c_east90_sun");
-        look(10, 90f, 10f);
-        shot(30, "s_c_east90_west_horizon");
-        look(10, EAST, 10f);
-        shot(30, "s_c_east90_east_horizon");
-        // (d) latitude alta: sol mais baixo e fora do plano leste-oeste
-        cmd(20, "tp @s 0 100 10000");
-        fly(20);
-        cmd(400, "time set 6000");
-        lookAtSun(40);
-        shot(60, "s_d_highlat_sun");
-        look(10, SOUTH, 10f);
-        shot(30, "s_d_highlat_south");
-        look(10, 180f, 10f);
-        shot(30, "s_d_highlat_north");
-        // (d2) mesmo ponto, 4 horários: o caminho do sol é inclinado
-        for (int t : new int[] {0, 3000, 9000, 12000}) {
-            cmd(10, "time set " + t);
-            lookAtSun(40);
-            shot(20, "s_d_highlat_t" + t);
+
+        // (a) Terra vanilla: chão em vários pontos perto do spawn (biomas, árvores, relevo)
+        int[][] spots = {{0, 0}, {1500, 0}, {0, 1500}, {-2500, 1000}, {4000, -3000}, {-6000, -2000}};
+        for (int i = 0; i < spots.length; i++) {
+            surface(spots[i][0], spots[i][1]);
+            look(10, EAST, 8f);
+            shot(60, "a_ground" + i + "_e");
+            look(10, 90f, 8f);
+            shot(30, "a_ground" + i + "_w");
+            if (i == 0) {
+                look(10, SOUTH, 8f);
+                shot(30, "a_ground0_s");
+                look(10, 180f, 8f);
+                shot(30, "a_ground0_n");
+            }
         }
+        // caverna: procura ar sob a superfície nos chunks carregados do spawn
+        surface(0, 0);
+        step(10, AutoTest::caveTp);
+        look(40, EAST, 5f);
+        shot(60, "a_cave_e");
+        look(10, 90f, 5f);
+        shot(30, "a_cave_w");
+        look(10, EAST, -60f);
+        shot(30, "a_cave_up");
+        // abaixo do nível do mar, no meio da pedra
+        cmd(20, "tp @s 0 12 0");
+        fly(20);
+        look(40, EAST, 0f);
+        shot(60, "a_deep_y12");
 
-        // (f) Terra à meia-noite do spawn, zênite do spawn: a Lua deve estar cheia; ao meio-dia, escura
+        // (b) COSTURA em X (circunferência 65536 = x de -32768 a 32768); à meia-noite do spawn é meio-dia na costura
+        cmd(20, "time set 18000");
+        surface(32700, 0);
+        cmd(10, "tp @s ~ ~25 ~");
+        look(10, EAST, 8f);
+        shot(80, "b_seam_32700_east");
+        step(0, mc -> logHeights(mc, "costura lado leste", 32690, 32767, 0));
+        surface(32760, 0);
+        cmd(10, "tp @s ~ ~25 ~");
+        look(10, EAST, 12f);
+        shot(80, "b_seam_32760_east");
+        step(0, mc -> logHeights(mc, "costura, perto", 32740, 32767, 0));
+        step(0, mc -> logHeights(mc, "costura, depois", -32768, -32741, 0));
+        surface(-32760, 0);
+        cmd(10, "tp @s ~ ~25 ~");
+        look(10, EAST, 12f);
+        shot(80, "b_seam_after_east");
+        look(10, 90f, 12f);
+        shot(30, "b_seam_after_west");
+        step(0, mc -> logHeights(mc, "costura lado oeste", -32768, -32690, 0));
+        // atravessando de verdade, voando para leste
+        surface(32700, 0);
+        cmd(10, "tp @s ~ ~25 ~");
+        fly(10);
+        look(10, EAST, 12f);
+        step(0, mc -> push(1.0, 0.0, 100));
+        step(40, mc -> logPos(mc, "no meio da travessia"));
+        shot(10, "b_seam_crossing_mid");
+        step(60, mc -> logPos(mc, "depois de atravessar (esperado x negativo perto de -32768+)"));
+        shot(40, "b_seam_crossing_after");
+
+        cmd(20, "time set 6000");
+        // (c) latitude: equador, médias e perto do polo (barreira em +-70 graus = ~12740 blocos)
+        int[] lats = {0, 8000, 12000};
+        for (int z : lats) {
+            surface(0, z);
+            look(10, EAST, 8f);
+            shot(120, "c_lat" + z + "_e");
+            look(10, SOUTH, 8f);
+            shot(30, "c_lat" + z + "_s");
+        }
+        surface(0, -12000);
+        look(10, EAST, 8f);
+        shot(120, "c_lat_minus12000_e");
+
+        // (e) ÓRBITA: a Lua vista do chão do spawn em vários relógios
         cmd(20, "spacehorizons goto earth");
-        cmd(300, "time set 18000");
-        look(40, EAST, -90f);
-        shot(60, "s_f_earth_midnight_zenith");
-        look(10, EAST, 10f);
-        shot(30, "s_f_earth_midnight_horizon");
-        cmd(10, "time set 6000");
-        look(40, EAST, -90f);
-        shot(60, "s_f_earth_noon_zenith");
+        cmd(300, "gamerule advance_time false");
+        for (int day : new int[] {0, 1, 2, 4, 6}) {
+            // dentro de cada dia, o relógio em que a Lua está mais alta no céu do spawn (quando ela nasce, é visível)
+            step(20, mc -> {
+                long best = moonCulmination(mc, day * 24000L);
+                SpaceHorizons.LOGGER.info(TAG + "ORBITA dia {}: Lua mais alta em relogio={}", day, best);
+                mc.player.connection.sendCommand("time set " + best);
+            });
+            lookAtBody(40, SolarSystem.MOON);
+            shot(40, "e_moon_day" + day);
+        }
+        cmd(20, "time set 18000");
+        look(30, EAST, -35f);
+        shot(30, "e_sky_wide_t18000");
 
-        // sobe um pouco para ver a Lua sem o chão no caminho
-        cmd(20, "tp @s 0 2000 0");
+        // (d) malha orbital com as cores do mapa do planeta; espera o mapa ficar pronto
+        cmd(20, "time set 6000");
+        tickerStep(0, waitForMap(24000));
+        cmd(20, "tp @s 0 5000 0");
         fly(20);
-        look(20, EAST, -90f);
-        shot(300, "p3_02_alt2000_zenith");
+        look(20, EAST, 90f);
+        shot(500, "d_orbit5000_down");
+        look(10, EAST, 40f);
+        shot(60, "d_orbit5000_oblique");
+        cmd(20, "tp @s 0 15000 0");
+        fly(20);
+        look(20, EAST, 90f);
+        shot(500, "d_orbit15000_down");
+        look(10, EAST, 55f);
+        shot(60, "d_orbit15000_limb");
+        cmd(20, "tp @s 16384 15000 4000");
+        fly(20);
+        look(20, EAST, 90f);
+        shot(500, "d_orbit15000_east90_down");
+        cmd(20, "tp @s 0 15000 -9000");
+        fly(20);
+        look(20, 0f, 75f);
+        shot(500, "d_orbit15000_pole");
 
-        // viagem Terra -> Lua pelo piloto automático, ao meio-dia, com prints rápidos em volta da transferência
-        cmd(20, "tp @s 0 200 0");
+        // (f) viagem Terra -> Lua com a Lua em movimento (o tempo corre durante o voo)
+        cmd(20, "spacehorizons goto earth");
+        cmd(300, "time set 6000");
+        cmd(10, "tp @s 0 200 0");
         fly(20);
         look(40, EAST, -90f);
+        cmd(5, "gamerule advance_time true");
         cmd(5, "spacehorizons fly moon");
         travel("tr_out", "moon", 36000, 6000);
-        step(20, mc -> logPos(mc, "chegada na Lua"));
-        // chegada: face voltada para a Terra ao meio-dia do spawn = lua nova, no escuro
-        look(300, EAST, 90f);
-        shot(60, "p3_10_moon_down");
+        cmd(5, "gamerule advance_time false");
+        step(300, mc -> logPos(mc, "chegada na Lua"));
+        step(0, mc -> logArrival(mc, "Lua"));
+        // (g) a Terra no céu da Lua, na direção calculada
+        lookAtBody(300, SolarSystem.EARTH);
+        shot(60, "g_moon_arrival_earth");
+        look(20, EAST, 90f);
+        shot(40, "g_moon_arrival_down");
         look(20, EAST, 5f);
-        shot(40, "p3_11_moon_horizon_e");
-        look(20, EAST, -90f);
-        shot(40, "p3_12_moon_earth_zenith");
+        shot(40, "g_moon_arrival_horizon_e");
 
-        // (e) chão da Lua: 6000 = escuro e céu preto; 18000 = iluminado
         cmd(20, "spacehorizons goto moon");
-        cmd(600, "time set 6000");
+        cmd(300, "time set 6000");
+        for (int t : new int[] {6000, 18000, 6000 + 24000 * 2, 6000 + 24000 * 4}) {
+            cmd(40, "time set " + t);
+            lookAtBody(40, SolarSystem.EARTH);
+            shot(60, "g_moon_earth_t" + t);
+        }
+        cmd(20, "time set 18000");
         look(60, EAST, 15f);
-        shot(60, "s_e_moon_noon_ground");
-        look(10, EAST, -60f);
-        shot(30, "s_e_moon_noon_sky");
+        shot(60, "g_moon_midnight_ground");
         lookAtSun(10);
-        shot(30, "s_e_moon_noon_sun");
-        cmd(10, "time set 18000");
-        look(80, EAST, 15f);
-        shot(60, "s_e_moon_midnight_ground");
-        look(10, EAST, -60f);
-        shot(30, "s_e_moon_midnight_sky");
-        lookAtSun(10);
-        shot(30, "s_e_moon_midnight_sun");
+        shot(30, "g_moon_midnight_sun");
         look(10, EAST, 10f);
         jumpTest();
-        shot(10, "p3_21_after_jump");
+        shot(10, "g_after_jump");
 
-        // (f) volta para a Terra
+        // volta para a Terra, também com o tempo correndo
         cmd(20, "tp @s ~ ~300 ~");
         fly(20);
         look(40, EAST, -90f);
+        cmd(5, "gamerule advance_time true");
         cmd(5, "spacehorizons fly earth");
         travel("tr_back", "overworld", 8500, 6000);
-        step(20, mc -> logPos(mc, "chegada na Terra"));
+        cmd(5, "gamerule advance_time false");
+        cmd(200, "time set 6000");
+        step(100, mc -> logPos(mc, "chegada na Terra"));
+        step(0, mc -> logArrival(mc, "Terra"));
         look(300, EAST, 90f);
-        shot(60, "p3_30_earth_down");
+        shot(60, "h_earth_arrival_down");
         look(20, EAST, 10f);
-        shot(40, "p3_31_earth_horizon");
+        shot(40, "h_earth_arrival_horizon");
         look(20, EAST, -90f);
-        shot(40, "p3_32_earth_zenith");
-
-        cmd(20, "time set 6000");
-        // regressão resumida da fase 2 (altitudes e costura em X); acima de ~38.000 blocos a esfera de influência da Lua assume
-        int[] alts = {2000, 30000};
-        float[] horizonPitch = {15f, 70f};
-        float[] downPitch = {70f, 90f};
-        int[] waits = {700, 600};
-        for (int i = 0; i < alts.length; i++) {
-            int alt = alts[i];
-            cmd(20, "tp @s 0 " + alt + " 0");
-            fly(20);
-            look(20, EAST, horizonPitch[i]);
-            shot(waits[i], String.format("r_alt%d_horizon", alt));
-            look(20, EAST, downPitch[i]);
-            shot(60, String.format("r_alt%d_down", alt));
-        }
-        cmd(20, "tp @s 32740 140 0");
-        fly(20);
-        look(20, EAST, 10f);
-        shot(200, "r_before_seam");
-        step(0, mc -> push(1.0, 0.0, 60));
-        step(80, mc -> logPos(mc, "depois de empurrar 60 ticks para leste (esperado x perto de -32768+)"));
-        shot(100, "r_after_seam");
+        shot(40, "h_earth_arrival_zenith");
 
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
+        });
+    }
+
+    /** Teleporta para a superfície de (x, z): sobe a 250, espera os chunks e ajusta pela altura do mapa de alturas do cliente. */
+    private void surface(int x, int z) {
+        cmd(20, "tp @s " + x + " 250 " + z);
+        fly(10);
+        step(360, mc -> {
+            int h = mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z);
+            if (h <= mc.level.getMinY() + 1) {
+                SpaceHorizons.LOGGER.warn(TAG + "chunk de ({}, {}) sem altura no cliente (h={}), usando y=120", x, z, h);
+                h = 118;
+            }
+            SpaceHorizons.LOGGER.info(TAG + "superfície em ({}, {}): y={}", x, z, h);
+            mc.player.connection.sendCommand("tp @s " + x + " " + (h + 2) + " " + z);
+        });
+        step(60, mc -> {
+        });
+    }
+
+    /** Procura um espaço de ar coberto, bem abaixo da superfície, nos chunks carregados perto do jogador. */
+    private static void caveTp(Minecraft mc) {
+        BlockPos origin = mc.player.blockPosition();
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int bestY = Integer.MAX_VALUE;
+        BlockPos best = null;
+        for (int dx = -48; dx <= 48; dx += 2) {
+            for (int dz = -48; dz <= 48; dz += 2) {
+                int top = mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, origin.getX() + dx, origin.getZ() + dz);
+                for (int y = Math.min(top - 8, 56); y > mc.level.getMinY() + 8; y--) {
+                    pos.set(origin.getX() + dx, y, origin.getZ() + dz);
+                    if (mc.level.getBlockState(pos).isAir() && mc.level.getBlockState(pos.above()).isAir()
+                            && !mc.level.getBlockState(pos.below()).isAir()
+                            && mc.level.getBlockState(pos.below()).getFluidState().isEmpty() && !mc.level.canSeeSky(pos)) {
+                        // uma caverna "grande": ar em volta também
+                        int air = 0;
+                        for (int ax = -2; ax <= 2; ax++) {
+                            for (int az = -2; az <= 2; az++) {
+                                if (mc.level.getBlockState(pos.offset(ax, 1, az)).isAir()) {
+                                    air++;
+                                }
+                            }
+                        }
+                        if (air >= 20 && y < bestY) {
+                            bestY = y;
+                            best = pos.immutable();
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        if (best == null) {
+            SpaceHorizons.LOGGER.warn(TAG + "nenhuma caverna encontrada nos chunks carregados perto do spawn");
+            mc.player.connection.sendCommand("tp @s " + origin.getX() + " 30 " + origin.getZ());
+            return;
+        }
+        SpaceHorizons.LOGGER.info(TAG + "caverna encontrada em {}", best);
+        mc.player.connection.sendCommand("tp @s " + best.getX() + " " + best.getY() + " " + best.getZ());
+    }
+
+    /** Loga a altura da superfície (heightmap do cliente) numa faixa de x, para ver se há penhasco na costura. */
+    private static void logHeights(Minecraft mc, String label, int x0, int x1, int z) {
+        StringBuilder sb = new StringBuilder();
+        int prev = Integer.MIN_VALUE;
+        int maxJump = 0;
+        for (int x = x0; x <= x1; x += 4) {
+            int h = mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z);
+            if (prev != Integer.MIN_VALUE) {
+                maxJump = Math.max(maxJump, Math.abs(h - prev));
+            }
+            prev = h;
+            sb.append(x).append(':').append(h).append(' ');
+        }
+        SpaceHorizons.LOGGER.info(TAG + "ALTURAS {} z={} (salto máximo entre amostras de 4 em 4 blocos={}): {}", label, z, maxJump,
+                sb);
+    }
+
+    /** Espera o mapa do planeta ficar pronto no cliente, logando o progresso. */
+    private Ticker waitForMap(int maxTicks) {
+        return new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                if (PlanetTerrains.map(Planets.EARTH) != null) {
+                    SpaceHorizons.LOGGER.info(TAG + "MAPA do planeta pronto no cliente após {} ticks de espera", n);
+                    return true;
+                }
+                if (n % 600 == 0) {
+                    SpaceHorizons.LOGGER.info(TAG + "MAPA do planeta ainda calculando ({} ticks de espera)", n);
+                }
+                if (n >= maxTicks) {
+                    SpaceHorizons.LOGGER.error(TAG + "MAPA do planeta NÃO ficou pronto em {} ticks", maxTicks);
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    /** Loga a altitude sobre o chão e a velocidade logo após a chegada. */
+    private static void logArrival(Minecraft mc, String where) {
+        LocalPlayer p = mc.player;
+        int h = mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, (int) Math.floor(p.getX()), (int) Math.floor(p.getZ()));
+        SpaceHorizons.LOGGER.info(TAG + "CHEGADA {}: y={} chão={} altitude sobre o chão={} velocidade(deltaMovement)={}", where,
+                f(p.getY()), h, f(p.getY() - h), f(p.getDeltaMovement().length()));
+    }
+
+    /** Relógio dentro de [from, from + 24000) em que a Lua tem a maior elevação vista do jogador. */
+    private static long moonCulmination(Minecraft mc, long from) {
+        SolarSystem.Body observer = Planets.forLevel(mc.level).flatMap(SolarSystem::bodyOf).orElse(SolarSystem.EARTH);
+        double[] cam = new double[3];
+        double[] t = new double[3];
+        double[] local = new double[3];
+        long best = from;
+        double bestElevation = -999;
+        for (long c = from; c < from + 24000; c += 100) {
+            SpaceFrame.toSpace(observer, c, mc.player.getX(), mc.player.getY(), mc.player.getZ(), cam);
+            SolarSystem.MOON.positionAt(c, t);
+            SpaceFrame.spaceToLocal(observer, c, mc.player.getX(), mc.player.getZ(), t[0] - cam[0], t[1] - cam[1], t[2] - cam[2],
+                    local);
+            double elevation = local[1] / Math.sqrt(local[0] * local[0] + local[1] * local[1] + local[2] * local[2]);
+            if (elevation > bestElevation) {
+                bestElevation = elevation;
+                best = c;
+            }
+        }
+        return best;
+    }
+
+    /** Aponta a câmera para o centro de outro corpo (pelo SolarSystem) e loga azimute/elevação e fase. */
+    private void lookAtBody(int wait, SolarSystem.Body target) {
+        step(wait, mc -> {
+            java.util.Optional<SolarSystem.Body> observer = Planets.forLevel(mc.level).flatMap(SolarSystem::bodyOf);
+            if (observer.isEmpty()) {
+                return;
+            }
+            double clock = SpaceSun.clock(mc.level);
+            double[] cam = new double[3];
+            SpaceFrame.toSpace(observer.get(), clock, mc.player.getX(), mc.player.getY(), mc.player.getZ(), cam);
+            double[] t = new double[3];
+            target.positionAt(clock, t);
+            double[] local = new double[3];
+            SpaceFrame.spaceToLocal(observer.get(), clock, mc.player.getX(), mc.player.getZ(), t[0] - cam[0], t[1] - cam[1],
+                    t[2] - cam[2], local);
+            double len = Math.sqrt(local[0] * local[0] + local[1] * local[1] + local[2] * local[2]);
+            double elevation = Math.toDegrees(Math.asin(local[1] / len));
+            float yaw = (float) Math.toDegrees(Math.atan2(-local[0], local[2]));
+            SpaceHorizons.LOGGER.info(TAG + "ORBITA {} visto de {}: relogio={} posição no espaço=({}, {}, {}) distância={} "
+                    + "azimute(yaw)={} elevação={} graus, ângulo orbital da Lua={} graus, iluminada={}",
+                    target.planet().id().getPath(), observer.get().planet().id().getPath(), f(clock), f(t[0]), f(t[1]),
+                    f(t[2]), f(len), f(yaw), f(elevation), f(Math.toDegrees(SolarSystem.moonAngle(clock)) % 360.0),
+                    f(SolarSystem.moonIlluminatedFraction(clock)));
+            mc.player.setYRot(yaw);
+            mc.player.setXRot((float) Math.max(-90.0, Math.min(90.0, -elevation)));
         });
     }
 
@@ -219,18 +417,35 @@ public final class AutoTest {
             boolean fast;
             double lx, ly, lz;
             boolean hasLast;
+            int lastServerTick = -1;
+            double lastSpeed;
 
             @Override
             public boolean tick(Minecraft mc) {
                 LocalPlayer p = mc.player;
                 n++;
                 String dim = mc.level.dimension().identifier().getPath();
-                double speed = hasLast ? Math.sqrt((p.getX() - lx) * (p.getX() - lx) + (p.getY() - ly) * (p.getY() - ly)
-                        + (p.getZ() - lz) * (p.getZ() - lz)) : 0.0;
-                lx = p.getX();
-                ly = p.getY();
-                lz = p.getZ();
-                hasLast = true;
+                // velocidade em blocos por tick DO SERVIDOR (o cliente pode rodar 0, 1 ou 2 ticks de servidor por tick seu);
+                // no tick da troca de dimensão o salto de coordenadas não é movimento e é descartado
+                var server = mc.getSingleplayerServer();
+                int serverTick = server != null ? server.getTickCount() : n;
+                boolean swapped = lastDim != null && !lastDim.equals(dim);
+                double speed = lastSpeed;
+                if (hasLast && serverTick > lastServerTick && !swapped) {
+                    double dist = Math.sqrt((p.getX() - lx) * (p.getX() - lx) + (p.getY() - ly) * (p.getY() - ly)
+                            + (p.getZ() - lz) * (p.getZ() - lz));
+                    speed = dist / (serverTick - lastServerTick);
+                } else if (!hasLast || swapped) {
+                    speed = 0.0;
+                }
+                if (!hasLast || serverTick > lastServerTick || swapped) {
+                    lastServerTick = serverTick;
+                    lastSpeed = speed;
+                    lx = p.getX();
+                    ly = p.getY();
+                    lz = p.getZ();
+                    hasLast = true;
+                }
                 if (lastDim != null && !lastDim.equals(dim)) {
                     changeTick = n;
                     SpaceHorizons.LOGGER.info(TAG + "{} TROCA DE DIMENSAO tick={} {} -> {} pos=({}, {}, {}) velocidade={} blocos/tick "
@@ -259,6 +474,12 @@ public final class AutoTest {
                     p.setXRot(shots % 2 == 0 ? -90f : 90f);
                 } else if (!nearSwap && n % 240 == 140) {
                     grab(mc, String.format("%s_%02d_%s_%s", prefix, shots++, dim, p.getXRot() < 0 ? "up" : "down"));
+                }
+                if (changeTick >= 0 && n - changeTick >= 1 && n - changeTick <= 200 && (n - changeTick) % 10 == 1) {
+                    int ground = mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, (int) Math.floor(p.getX()),
+                            (int) Math.floor(p.getZ()));
+                    SpaceHorizons.LOGGER.info(TAG + "{} pós-troca +{} ticks: velocidade relativa={} blocos/tick altitude={}",
+                            prefix, n - changeTick, f(speed), f(p.getY() - ground));
                 }
                 if (changeTick >= 0 && dim.equals(targetDim) && n - changeTick > 80) {
                     calm = speed < 0.3 ? calm + 1 : 0;

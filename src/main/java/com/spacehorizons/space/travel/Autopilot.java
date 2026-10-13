@@ -8,9 +8,10 @@ import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
-import com.spacehorizons.space.SpaceFrame;
+import com.spacehorizons.space.SpaceClock;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.PositionMoveRotation;
@@ -20,8 +21,10 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Piloto automático de /spacehorizons fly: leva o jogador pelo espaço (trajetória do {@link FlightPlan}) até a
+ * Piloto automático de /spacehorizons fly: leva o jogador pelo espaço (trajetória do {@link FlightGuide}) até a
  * {@link #TARGET_ALTITUDE} sobre a face do corpo de destino, passando pelas transferências de esfera de influência.
+ * Os corpos se movem (a Lua orbita): o guia mira onde o destino estará e, ao entrar na esfera de influência dele, segue no
+ * referencial do corpo, então o jogador chega com a velocidade relativa à superfície e não a do movimento orbital.
  *
  * Em cada tick o servidor manda um teleporte absoluto com a velocidade do passo (a rotação fica livre, relativa a
  * zero): o cliente aplica a posição e segue sem trancos visíveis. Só roda na thread principal do servidor.
@@ -31,14 +34,12 @@ public final class Autopilot {
     public static final double TARGET_ALTITUDE = 300.0;
 
     private static final class Session {
-        final FlightPlan plan;
+        final FlightGuide guide;
         final SolarSystem.Body target;
-        SolarSystem.Body current;
 
-        Session(FlightPlan plan, SolarSystem.Body target, SolarSystem.Body current) {
-            this.plan = plan;
+        Session(FlightGuide guide, SolarSystem.Body target) {
+            this.guide = guide;
             this.target = target;
-            this.current = current;
         }
     }
 
@@ -69,16 +70,15 @@ public final class Autopilot {
         double[] facing = new double[2];
         TravelMath.facingPoint(target, facing);
         int surface = PlanetTerrains.get(target.planet()).surfaceHeight((int) Math.floor(facing[0]), (int) Math.floor(facing[1]));
-        double[] targetSpace = new double[3];
-        SpaceFrame.toSpace(target, facing[0], surface + TARGET_ALTITUDE, facing[1], targetSpace);
-        double[] startSpace = new double[3];
-        SpaceFrame.toSpace(current, player.getX(), player.getY(), player.getZ(), startSpace);
+        MinecraftServer server = level.getServer();
+        FlightGuide guide = new FlightGuide(current, player.getX(), player.getY(), player.getZ(), SpaceClock.ticks(level), target,
+                facing[0], surface + TARGET_ALTITUDE, facing[1], body -> TravelTransfers.findLevel(server, body.planet()) != null);
 
         if (!player.getAbilities().flying) {
             player.getAbilities().flying = true;
             player.onUpdateAbilities();
         }
-        SESSIONS.put(player.getUUID(), new Session(FlightPlan.create(SolarSystem.BODIES, startSpace, targetSpace), target, current));
+        SESSIONS.put(player.getUUID(), new Session(guide, target));
         return null;
     }
 
@@ -104,7 +104,7 @@ public final class Autopilot {
         if (session == null) {
             return false;
         }
-        if (session.current != body) {
+        if (session.guide.body() != body) {
             // trocou de dimensão por outro meio (portal, comando): o plano deixou de valer
             SESSIONS.remove(player.getUUID());
             player.sendSystemMessage(Component.literal("Piloto automático cancelado: dimensão alterada"));
@@ -114,38 +114,23 @@ public final class Autopilot {
             return true;
         }
 
-        boolean arrived = session.plan.advance();
-        double[] space = session.plan.position();
-        double[] step = session.plan.velocity();
-        SolarSystem.Body dominant = SphereOfInfluence.dominant(session.current, space[0], space[1], space[2]);
-        ServerLevel toLevel = dominant == session.current
-                ? null
-                : TravelTransfers.findLevel(player.level().getServer(), dominant.planet());
-
-        double[] local = new double[3];
-        SpaceFrame.fromSpace(session.current, space[0], space[1], space[2], local);
-        double x = TravelMath.normalizeX(session.current, local[0]);
-        double[] v = new double[3];
-        SpaceFrame.spaceToLocal(session.current, x, local[2], step[0], step[1], step[2], v);
-
+        FlightGuide.Step step = session.guide.tick(SpaceClock.ticks(player.level()), player.getYRot(), player.getXRot());
+        BodyTransfer state = step.state();
         player.resetFallDistance();
-        if (toLevel != null) {
-            BodyTransfer transfer = BodyTransfer.compute(session.current, dominant, x, local[1], local[2], v[0], v[1], v[2],
-                    player.getYRot(), player.getXRot());
-            if (TravelTransfers.transfer(player, transfer, toLevel)) {
-                session.current = dominant;
-            } else {
+        if (step.transferred()) {
+            ServerLevel toLevel = TravelTransfers.findLevel(player.level().getServer(), state.target().planet());
+            if (toLevel == null || !TravelTransfers.transfer(player, state, toLevel)) {
                 SESSIONS.remove(player.getUUID());
                 player.sendSystemMessage(Component.literal("Piloto automático cancelado: a transferência foi recusada"));
                 return true;
             }
         } else {
             // rotação relativa a zero = o cliente mantém para onde está olhando
-            player.connection.teleport(new PositionMoveRotation(new Vec3(x, local[1], local[2]), new Vec3(v[0], v[1], v[2]), 0.0F, 0.0F),
-                    Relative.ROTATION);
+            player.connection.teleport(new PositionMoveRotation(new Vec3(state.x(), state.y(), state.z()),
+                    new Vec3(state.vx(), state.vy(), state.vz()), 0.0F, 0.0F), Relative.ROTATION);
         }
 
-        if (arrived) {
+        if (step.arrived()) {
             SESSIONS.remove(player.getUUID());
             player.sendSystemMessage(Component.literal("Piloto automático: chegada a " + session.target.planet().id().getPath()));
         }

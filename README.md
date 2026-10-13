@@ -68,7 +68,7 @@ entre eles sem tela de carregamento.
   O dimension_type `moon` tem céu preto com estrelas o tempo todo. Os LODs do DH e a malha orbital
   funcionam nela (a malha respeita `hasOcean()`).
 - **Corpos no céu** (`client/space/`): de qualquer planeta, os outros corpos são esferas reais nas
-  posições do `SolarSystem` (da Terra, a Lua no zênite do spawn; da Lua, a Terra com halo de atmosfera).
+  posições do `SolarSystem` (da Terra, a Lua em órbita, que só passa pelo zênite do spawn de tempos em tempos; da Lua, a Terra com halo de atmosfera, sempre no zênite da face voltada para ela).
   A lua vanilla é escondida nos planetas do mod. A esfera de um corpo visto de longe e a malha orbital do
   mesmo corpo visto de perto usam o mesmo terreno, a mesma paleta e o mesmo sol.
 - **Sol único e posição real** (`space/SunModel`, `client/space/SpaceSun`): há um só sol, no plano equatorial do espaço, que
@@ -99,7 +99,7 @@ Em criativo e como operador, em um mundo do tipo Space Horizons:
 
 | Comando | O que faz |
 | --- | --- |
-| `/spacehorizons fly moon` | piloto automático da Terra à Lua (cerca de 1.000 ticks); a troca de dimensão ocorre sozinha a ~8.400 blocos acima da Lua |
+| `/spacehorizons fly moon` | piloto automático da Terra à Lua (de 1.000 a 2.700 ticks, conforme onde a Lua está); a troca de dimensão ocorre sozinha a ~8.400 blocos acima da Lua |
 | `/spacehorizons fly earth` | volta para a Terra |
 | `/spacehorizons fly stop` | cancela o piloto automático |
 | `/spacehorizons goto moon` | teleporta para a superfície da Lua (face voltada para a Terra); mostra a tela de carregamento, de propósito |
@@ -107,6 +107,29 @@ Em criativo e como operador, em um mundo do tipo Space Horizons:
 
 Também dá para voar reto para cima a partir do spawn da Terra: a velocidade sobe com a altitude e, ao chegar à
 esfera de influência da Lua, a troca acontece igual.
+
+## Fase 4: Terra idêntica ao Overworld, Lua em órbita
+
+A Terra deixou de ser um terreno simples e passou a usar o gerador completo do Overworld; a Lua passou a orbitar.
+
+- **Terra vanilla** (`worldgen/PlanetNoiseChunkGenerator`, `worldgen/density/`): o gerador de chunks do Overworld
+  (`NoiseBasedChunkGenerator`, com `noise_settings/earth.json`, copiado do Overworld) com biomas `multi_noise` do preset do
+  Overworld, então há os mesmos biomas, rios, cavernas, minérios, árvores e estruturas. Três ajustes:
+  - **Costura em X periódica**: o nó `spacehorizons:periodic_x` reescreve cada folha do roteador de densidade que lê X
+    (ruídos, shifts, `BlendedNoise`, gradiente em X). Fora de ±1.024 blocos da costura o X é embrulhado em [-C/2, C/2); dentro da faixa,
+    mistura de duas amostras (`cos·A + sin·B`, que preserva a variância). Clima, relevo e biomas batem dos dois lados (`SeamMath`, `PeriodicXSampler`).
+  - **Clima por latitude** (`spacehorizons:latitude_cooling`, `LatitudeClimate`): soma ao parâmetro de temperatura `0,12 − 1,82·t²`
+    (t = |z| / latitude máxima): trópicos no equador, neve perto de ±12.000 blocos, gelo no polo.
+  - Estruturas ficam suprimidas a menos de 640 blocos da costura.
+- **Mapa do planeta** (`planet/map/`, `network/`): o servidor amostra o gerador real numa grade de 1024x400 (célula de 64 blocos),
+  em background (~75 s na primeira vez), guarda em `<mundo>/data/spacehorizons/planetmap_earth.bin` e manda ao cliente em pedaços.
+  A malha orbital e as esferas dos corpos usam as cores dos biomas reais desse mapa (`PlanetTerrains.get`); o terreno analítico
+  só vale enquanto o mapa não chega e para a Lua. O DH usa o gerador do mundo (não há mais override de LOD na Terra).
+- **A Lua orbita** (`space/SolarSystem`, `space/SpaceClock`): órbita circular de raio 60.000, inclinada 5°, período sinódico de 8 dias
+  (fases como as do vanilla: cheia à meia-noite do dia 0), no relógio do Overworld (`/time set` move sol e Lua). A Lua tem rotação
+  sincronizada: a mesma face fica voltada para a Terra. `SpaceFrame`, `SunModel`, `BodyRenderer` e `SpaceSun` recebem o relógio.
+- **Viagem com alvo móvel** (`space/travel/FlightGuide`, `FlightPlan`, `BodyTransfer`): o plano mira onde o corpo estará, corrige a
+  cada tick e na troca de dimensão a velocidade vira velocidade relativa ao chão do corpo novo (ver "Autoteste").
 
 ## Como rodar
 
@@ -142,19 +165,23 @@ rm -rf run/saves/SpaceAuto run/screenshots/autotest_*
 ./gradlew runClientTest --console=plain > run-client.log 2>&1
 ```
 
-Leva uns 7 minutos. O roteiro principal é o da fase 3: prints do zênite do chão (a Lua como esfera), `/spacehorizons fly moon`
-com prints periódicos e a cada 3 ticks em volta da transferência (o log registra `TROCA DE DIMENSAO` e `TELA ABERTA`, que
-não deve aparecer), chegada na Lua (crateras, horizonte, Terra no céu), pulo no chão lunar (altura máxima no log),
-`/spacehorizons fly earth` e a volta, depois uma regressão curta da fase 2 (2.000 e 30.000 blocos, costura em X). O roteiro
-antigo da fase 2, mais longo, era: cria o mundo `SpaceAuto` com o tipo Space Horizons, sobe a 600, 2.000, 5.000,
-15.000 e 40.000 blocos (horizonte e para baixo), olha o céu a 600 (faixas), compara a malha a
-15.000 em x=0 e x=3000 (continentes), invoca armor stands a 50, 100, 150 e 200 blocos (assentamento
-no chão curvo), tira prints de nuvens, testa costura em X, borda DH/chunks e barreira polar, grava
-`run/screenshots/autotest_*.png` e as linhas `[AUTOTEST]` no log, e fecha na linha `[AUTOTEST] FIM`.
-A regra `advance_time` é desligada e o horário fixado com `/time set`. Os cenários do sol (prefixo `s_`) fixam 6000 ou 18000, olham
-exatamente para o sol do `SunModel` e logam `SOL ...: relogio, efetivo, direção e altura`: (a) spawn ao meio-dia, (b) x=32700 no
-mesmo horário (noite com estrelas), (c) x=16384 (pôr do sol), (d) z=10000 em 0, 3000, 9000 e 12000 (caminho inclinado), (e) chão da
-Lua em 6000 (escuro) e 18000 (claro), (f) Lua vista da Terra à meia-noite (cheia) e ao meio-dia (nova).
+Leva uns 15 minutos. O roteiro (235+ passos, prefixos dos prints):
+
+- `a_*`: Terra vanilla em 6 pontos (biomas, árvores, relevo), caverna (o teste procura ar coberto sob o spawn) e y=12.
+- `b_*`: costura em x=32700/32760 e -32760 (de dia: é meia-noite no spawn), com o log `ALTURAS` (altura da superfície de 4 em 4
+  blocos, salto máximo) e uma travessia real voando para leste.
+- `c_*`: latitude em z=0, 8000, 12000 e -12000 (trópico, temperado, neve, gelo).
+- `e_*`: a Lua vista do spawn no relógio em que ela está mais alta em cada um de cinco dias (fases 1,00 a 0,06); o log `ORBITA`
+  traz posição no espaço, azimute, elevação, ângulo orbital e fração iluminada.
+- `d_*`: malha orbital a 5.000 e 15.000 blocos (e a 90° de longitude e no polo) depois de esperar o mapa (`MAPA do planeta pronto`).
+- `tr_out_*`, `tr_back_*`: `/spacehorizons fly moon` e `fly earth` com o tempo correndo (a Lua se move durante o voo); prints a cada
+  3 ticks em volta da troca; o log registra `TROCA DE DIMENSAO`, `TELA ABERTA` (não deve aparecer), a velocidade relativa depois da
+  troca e a altitude de chegada (`CHEGADA`).
+- `g_*`: na Lua, a Terra no céu na direção calculada (zênite da face voltada para ela), em quatro relógios (fases opostas às da
+  Lua), pulo e chão à meia-noite. `h_*`: chegada na Terra.
+
+Antes de rodar, `rm -rf run/saves/SpaceAuto run/screenshots/autotest_*`. A regra `advance_time` é desligada e o horário
+fixado com `/time set`, exceto durante os voos.
 
 Combinações (as flags `-P` ficam no `build.gradle`):
 
@@ -167,6 +194,26 @@ Combinações (as flags `-P` ficam no `build.gradle`):
 
 Apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes de cada uma e copie os prints
 antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` no log.
+
+## Limitações da fase 4
+
+- **Decoração perto da costura**: carvers de caverna, árvores e minérios usam sementes por chunk, não são periódicos. Terreno,
+  clima e bioma batem na costura (faixa de mistura de 2.048 blocos), mas árvores e cavernas diferem entre os dois lados.
+  Estruturas são suprimidas a 640 blocos da costura.
+- **Relevo na faixa da costura** é a mistura de dois terrenos independentes, não terreno vanilla puro (~3% da Terra).
+- **Mapa do planeta**: células de 64 blocos (rios estreitos somem), bioma amostrado no ponto exato, cores por tabela
+  aproximada (`BiomeColors`). A calota além de 70° é pintada de gelo e aparece como uma mancha clara de contorno retangular visto
+  de 15.000 blocos sobre o polo. O primeiro cálculo leva ~75 s; depois sai do cache em disco.
+- **Spawn de teste**: `/spacehorizons goto earth` leva a (0, 0), que é oceano tropical com uma ilha de badlands.
+- **Lua em órbita**: o ângulo usa a curva Bézier do sol, então a velocidade orbital oscila (8 a 22 blocos/tick); as fases são
+  exatamente periódicas. O sol da Lua oscila ±5° de declinação por dia terrestre (o eixo da Lua é a normal da órbita).
+  No primeiro quadro depois de uma troca de dimensão, o relógio do cliente novo pode ainda não ter chegado.
+- **Piloto automático**: as velocidades de cruzeiro mudam em degraus (por exemplo 38 para 83 blocos/tick logo depois da troca, e
+  frenagem forte nos últimos ~1.000 blocos); a chegada é parada a 300 blocos sobre o chão.
+- **DH**: um `NullPointerException` interno do DH (`FullDataUpdatePropagatorV2`) aparece no log no carregamento do mundo; não
+  é do mod. Logo depois de um `/tp` longo, o DH pode mostrar por instantes LODs em posição errada até os chunks próximos carregarem.
+- Testes unitários não carregam o `DensityFunction` (precisa do Bootstrap do FML); a reescrita `SeamRewrite` e os JSON só são
+  exercitados em jogo.
 
 ## Limitações da fase 3
 
@@ -192,7 +239,7 @@ antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` 
   na Lua) transfere o jogador na hora.
 - **Tela de carregamento**: `/spacehorizons goto` continua mostrando a tela (de propósito); só a transferência
   natural e o piloto automático não mostram.
-- **Só Terra e Lua** no `SolarSystem` (corpos estáticos); sem órbitas, sem Sol como corpo, sem outros planetas.
+- **Só Terra e Lua** no `SolarSystem` (a Lua orbita desde a fase 4); sem Sol como corpo, sem outros planetas.
 - **Servidor dedicado** não foi executado; o anti-cheat de movimento rápido é desligado acima de 128 blocos de altitude
   em planetas por um mixin, mas isso só foi exercitado em singleplayer.
 - **Sodium** continua sem rodar no dev (ver abaixo); a Lua e a viagem foram testadas só com o DH e sem Sodium nem Iris.

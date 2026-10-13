@@ -5,7 +5,7 @@ import java.util.Set;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.spacehorizons.planet.PlanetDefinition;
-import com.spacehorizons.planet.PlanetTerrains;
+import com.spacehorizons.planet.map.PlanetMapService;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.travel.Autopilot;
 import com.spacehorizons.space.travel.TravelMath;
@@ -59,8 +59,8 @@ final class PlanetCommands {
         }
         double[] facing = new double[2];
         TravelMath.facingPoint(body, facing);
-        // superfície + 2 para não nascer dentro do bloco de topo
-        int y = PlanetTerrains.get(planet).surfaceHeight((int) Math.floor(facing[0]), (int) Math.floor(facing[1])) + 2;
+        // heightmap real do chunk quando carregado, senão o do gerador do nível (nunca o mapa aproximado): fica sobre o chão ou a água
+        int y = PlanetMapService.landingY(level, (int) Math.floor(facing[0]), (int) Math.floor(facing[1]));
         player.teleportTo(level, facing[0], y, facing[1], Set.<Relative>of(), player.getYRot(), player.getXRot(), false);
         Identifier dimension = level.dimension().identifier();
         source.sendSuccess(() -> Component.literal("Teleportado para a superfície de " + name + " em " + dimension + " (y=" + y + ")"), true);

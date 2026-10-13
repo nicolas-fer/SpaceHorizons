@@ -21,7 +21,8 @@ import net.minecraft.world.clock.WorldClocks;
 import net.minecraft.world.entity.Entity;
 
 /**
- * Ponte do cliente para o {@link SunModel}: o sol único do sistema, nos eixos do Minecraft de quem olha. Tudo o que
+ * Ponte do cliente para o {@link SunModel}: o sol único do sistema, nos eixos do Minecraft de quem olha. O tempo é o
+ * relógio do Overworld ({@link #clock}), o mesmo que move as fases e a órbita da Lua (SolarSystem). Tudo o que
  * mostra o sol ou depende dele (disco, brilho do nascer/pôr, estrelas, céu, luz do chão, malha orbital, corpos vistos
  * de fora, limbo da atmosfera) parte da mesma direção, a do SunModel no ponto da câmera com o relógio do Overworld.
  *
@@ -114,7 +115,8 @@ public final class SpaceSun {
      * Calcula o estado do céu deste frame para o ponto (x, z) do planeta: ângulo e giro do sol e rotação das estrelas.
      * As estrelas ficam fixas no espaço: o campo do vanilla (Ry(-90) Rx(ângulo), nos eixos do Minecraft do spawn da Terra)
      * é levado ao espaço e dali aos eixos locais do ponto, em qualquer altitude e planeta; no spawn da Terra a rotação é
-     * a identidade. Assim as mesmas estrelas aparecem no mesmo lugar dos dois lados de uma troca de dimensão.
+     * a identidade. Assim as mesmas estrelas aparecem no mesmo lugar dos dois lados de uma troca de dimensão. Na Lua, que
+     * gira com a órbita, a rotação inclui a orientação dela no instante (o céu estrelado gira devagar sobre o chão lunar).
      */
     public static void update(ClientLevel level, PlanetDefinition planet, double x, double z) {
         SolarSystem.Body body = SolarSystem.bodyOf(planet).orElse(null);
@@ -133,8 +135,8 @@ public final class SpaceSun {
         double[] space = new double[3];
         double[] local = new double[3];
         for (int i = 0; i < 3; i++) {
-            SpaceFrame.localToSpace(SolarSystem.EARTH, 0.0, 0.0, i == 0 ? 1.0 : 0.0, i == 1 ? 1.0 : 0.0, i == 2 ? 1.0 : 0.0, space);
-            SpaceFrame.spaceToLocal(body, x, z, space[0], space[1], space[2], local);
+            SpaceFrame.localToSpace(SolarSystem.EARTH, clock, 0.0, 0.0, i == 0 ? 1.0 : 0.0, i == 1 ? 1.0 : 0.0, i == 2 ? 1.0 : 0.0, space);
+            SpaceFrame.spaceToLocal(body, clock, x, z, space[0], space[1], space[2], local);
             m.setColumn(i, (float) local[0], (float) local[1], (float) local[2]);
         }
         starRotation = new Matrix4f().rotation(new Quaternionf().setFromNormalized(m));

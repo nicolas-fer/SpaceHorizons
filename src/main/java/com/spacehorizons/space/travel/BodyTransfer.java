@@ -5,8 +5,14 @@ import com.spacehorizons.space.SpaceFrame;
 
 /**
  * Resultado de levar o jogador de uma dimensão-planeta para a de outro corpo mantendo o mesmo quadro no espaço:
- * mesma posição no espaço, mesmo vetor de velocidade e mesma direção de olhar, só que expressos na base local
+ * mesma posição no espaço, mesma velocidade no espaço e mesma direção de olhar, só que expressos na base local
  * (east/up/north) do corpo novo.
+ *
+ * As velocidades do Minecraft são sempre relativas ao chão do corpo (o jogador parado na superfície tem velocidade
+ * zero), mas os corpos se movem (a Lua anda ~14 blocos/tick e gira com a órbita). Então a velocidade vira velocidade no
+ * espaço somando a do chão de origem (SpaceFrame#groundVelocity), e no destino subtrai-se a do chão de lá: o jogador
+ * chega com a velocidade relativa ao corpo novo, não com centenas de blocos/s herdados do movimento do outro.
+ * Posição e olhar são do instante {@code clock}.
  *
  * O Minecraft não tem rolagem de câmera, então só a direção do olhar é preservada; perto da vertical o yaw sai
  * do vetor "para cima" da câmera, para a imagem não girar na troca.
@@ -28,36 +34,50 @@ public record BodyTransfer(
     /**
      * @param from corpo atual
      * @param to destino
+     * @param clock relógio do Overworld (ticks) do instante da troca
      * @param x posição x no corpo atual
      * @param y posição y no corpo atual
      * @param z posição z no corpo atual
-     * @param vx velocidade (blocos/tick) nos eixos do Minecraft do corpo atual
+     * @param vx velocidade (blocos/tick, relativa ao chão do corpo atual) nos eixos do Minecraft do corpo atual
      * @param vy idem
      * @param vz idem
      * @param yRot yaw atual em graus
      * @param xRot pitch atual em graus
      */
-    public static BodyTransfer compute(SolarSystem.Body from, SolarSystem.Body to, double x, double y, double z,
+    public static BodyTransfer compute(SolarSystem.Body from, SolarSystem.Body to, double clock, double x, double y, double z,
             double vx, double vy, double vz, float yRot, float xRot) {
         double[] space = new double[3];
-        SpaceFrame.toSpace(from, x, y, z, space);
+        SpaceFrame.toSpace(from, clock, x, y, z, space);
         double[] local = new double[3];
-        SpaceFrame.fromSpace(to, space[0], space[1], space[2], local);
+        SpaceFrame.fromSpace(to, clock, space[0], space[1], space[2], local);
         double nx = TravelMath.normalizeX(to, local[0]);
         double ny = local[1];
         double nz = local[2];
 
-        double[] v = convert(from, to, x, z, nx, nz, vx, vy, vz);
+        // velocidade no espaço = a relativa ao chão de origem + a do chão; no destino, tira-se a do chão de lá
+        double[] vSpace = new double[3];
+        SpaceFrame.localToSpace(from, clock, x, z, vx, vy, vz, vSpace);
+        double[] ground = new double[3];
+        SpaceFrame.groundVelocity(from, clock, space[0], space[1], space[2], ground);
+        for (int i = 0; i < 3; i++) {
+            vSpace[i] += ground[i];
+        }
+        SpaceFrame.groundVelocity(to, clock, space[0], space[1], space[2], ground);
+        for (int i = 0; i < 3; i++) {
+            vSpace[i] -= ground[i];
+        }
+        double[] v = new double[3];
+        SpaceFrame.spaceToLocal(to, clock, nx, nz, vSpace[0], vSpace[1], vSpace[2], v);
 
         double[] look = new double[3];
         TravelMath.lookVector(yRot, xRot, look);
-        double[] newLook = convert(from, to, x, z, nx, nz, look[0], look[1], look[2]);
+        double[] newLook = convert(from, to, clock, x, z, nx, nz, look[0], look[1], look[2]);
 
         // vetor "para cima" da câmera (sem rolagem): perto da vertical é ele, e não o "para frente", que fixa a rotação
         // da imagem (olhando para baixo a tela tem o rumo do yaw em cima; olhando para cima, o oposto)
         double yaw = Math.toRadians(yRot);
         double pitch = Math.toRadians(xRot);
-        double[] up = convert(from, to, x, z, nx, nz,
+        double[] up = convert(from, to, clock, x, z, nx, nz,
                 -Math.sin(yaw) * Math.sin(pitch), Math.cos(pitch), Math.cos(yaw) * Math.sin(pitch));
 
         float newYaw;
@@ -73,13 +93,13 @@ public record BodyTransfer(
         return new BodyTransfer(to, nx, ny, nz, v[0], v[1], v[2], newYaw, newPitch);
     }
 
-    /** Vetor nos eixos do Minecraft de (from, x, z) → mesmo vetor no espaço → eixos do Minecraft de (to, nx, nz). */
-    private static double[] convert(SolarSystem.Body from, SolarSystem.Body to, double x, double z, double nx, double nz,
-            double mx, double my, double mz) {
+    /** Direção nos eixos do Minecraft de (from, x, z) → mesma direção no espaço → eixos do Minecraft de (to, nx, nz). */
+    private static double[] convert(SolarSystem.Body from, SolarSystem.Body to, double clock, double x, double z, double nx,
+            double nz, double mx, double my, double mz) {
         double[] s = new double[3];
-        SpaceFrame.localToSpace(from, x, z, mx, my, mz, s);
+        SpaceFrame.localToSpace(from, clock, x, z, mx, my, mz, s);
         double[] out = new double[3];
-        SpaceFrame.spaceToLocal(to, nx, nz, s[0], s[1], s[2], out);
+        SpaceFrame.spaceToLocal(to, clock, nx, nz, s[0], s[1], s[2], out);
         return out;
     }
 }
