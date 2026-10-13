@@ -32,12 +32,12 @@ public final class DhIntegration {
         DhApiEventRegister.on(DhApiLevelUnloadEvent.class, new LevelUnload());
     }
 
-    /** Planeta de um level do Minecraft, se a dimensão tiver o id de um planeta. */
+    /** Planeta de um level do Minecraft, pelo tipo de dimensão (ver Planets.forLevel). */
     static Optional<PlanetDefinition> planetOf(IDhApiLevelWrapper wrapper) {
         if (!(wrapper.getWrappedMcObject() instanceof Level level)) {
             return Optional.empty();
         }
-        return Planets.byId(level.dimension().identifier());
+        return Planets.forLevel(level);
     }
 
     private static final class LevelLoad extends DhApiLevelLoadEvent {

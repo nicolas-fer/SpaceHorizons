@@ -31,7 +31,7 @@ final class PlanetWrap {
     }
 
     static void onLevelTick(ServerLevel level) {
-        PlanetDefinition planet = Planets.byId(level.dimension().identifier()).orElse(null);
+        PlanetDefinition planet = Planets.forLevel(level).orElse(null);
         if (planet == null) {
             return;
         }

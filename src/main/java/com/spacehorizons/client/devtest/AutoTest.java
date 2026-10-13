@@ -7,6 +7,15 @@ import java.util.function.Consumer;
 import com.spacehorizons.SpaceHorizons;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.LevelSettings;
+import net.minecraft.world.level.WorldDataConfiguration;
+import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.player.LocalPlayer;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -26,7 +35,11 @@ public final class AutoTest {
     private record Step(int waitTicks, Consumer<Minecraft> action) {
     }
 
+    /** Com -Dspacehorizons.autotest.fresh=NOME, cria um mundo novo com o tipo "Space Horizons" a partir do menu. */
+    private static final String FRESH_WORLD = System.getProperty("spacehorizons.autotest.fresh");
+
     private final List<Step> steps = new ArrayList<>();
+    private boolean freshRequested;
     private int index;
     private int countdown = 200;
     private int pushTicks;
@@ -37,6 +50,7 @@ public final class AutoTest {
         cmd(0, "gamemode creative");
         cmd(20, "gamerule doDaylightCycle false");
         cmd(20, "time set noon");
+        step(20, mc -> logPos(mc, "spawn (esperado dim=minecraft:overworld com curvatura)"));
         cmd(20, "spacehorizons goto earth");
         look(200, EAST, 15f);
         shot(20, "01_surface_horizon");
@@ -93,6 +107,11 @@ public final class AutoTest {
 
     private void tick() {
         Minecraft mc = Minecraft.getInstance();
+        if (FRESH_WORLD != null && !freshRequested && mc.level == null && mc.gui.screen() instanceof TitleScreen) {
+            freshRequested = true;
+            createFreshWorld(mc);
+            return;
+        }
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || index >= steps.size()) {
             return;
@@ -111,6 +130,19 @@ public final class AutoTest {
             SpaceHorizons.LOGGER.error(TAG + "passo {} falhou", index, e);
         }
         countdown = index < steps.size() ? Math.max(1, steps.get(index).waitTicks()) : 0;
+    }
+
+    private static void createFreshWorld(Minecraft mc) {
+        SpaceHorizons.LOGGER.info(TAG + "criando mundo novo '{}' com o tipo spacehorizons:earth", FRESH_WORLD);
+        ResourceKey<net.minecraft.world.level.levelgen.presets.WorldPreset> preset = ResourceKey.create(
+                Registries.WORLD_PRESET, Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "earth"));
+        LevelSettings settings = new LevelSettings(FRESH_WORLD, GameType.CREATIVE,
+                new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true,
+                WorldDataConfiguration.DEFAULT);
+        mc.createWorldOpenFlows().createFreshLevel(FRESH_WORLD, settings, new WorldOptions(0x5EAC0FFEEL, false, false),
+                registries -> registries.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(preset).value()
+                        .createWorldDimensions(),
+                mc.gui.screen());
     }
 
     private void step(int wait, Consumer<Minecraft> action) {

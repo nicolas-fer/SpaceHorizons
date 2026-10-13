@@ -6,6 +6,7 @@ import java.util.Optional;
 import com.spacehorizons.SpaceHorizons;
 
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.Level;
 
 /** Catálogo de planetas. Por enquanto fixo em código; vira data-driven depois. */
 public final class Planets {
@@ -28,5 +29,14 @@ public final class Planets {
 
     public static Optional<PlanetDefinition> byId(Identifier id) {
         return Optional.ofNullable(BY_ID.get(id));
+    }
+
+    /**
+     * Planeta de um level, pelo TIPO de dimensão (não pelo id da dimensão): com o tipo de mundo
+     * "Space Horizons" o Overworld usa o tipo spacehorizons:earth. O cliente também conhece o tipo,
+     * então servidor e cliente chegam à mesma resposta sem pacote extra.
+     */
+    public static Optional<PlanetDefinition> forLevel(Level level) {
+        return level.dimensionTypeRegistration().unwrapKey().flatMap(key -> byId(key.identifier()));
     }
 }

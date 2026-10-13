@@ -57,11 +57,12 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
-        // Cliente que entra direto no mundo run/saves/SpaceTest (teste manual/automatizado)
+        // Cliente de autoteste: cria um mundo novo, roda o roteiro de AutoTest e fecha
         clientTest {
             client()
-            programArguments.addAll '--quickPlaySingleplayer', 'SpaceTest'
+            // cria do zero o mundo run/saves/SpaceAuto com o tipo "Space Horizons" (apague a pasta antes de rodar)
             systemProperty 'spacehorizons.autotest', 'true'
+            systemProperty 'spacehorizons.autotest.fresh', 'SpaceAuto'
         }
 
         server {

@@ -1,0 +1,46 @@
+{
+  "dimensions": {
+    "minecraft:overworld": {
+      "type": "spacehorizons:earth",
+      "generator": {
+        "type": "spacehorizons:planet",
+        "planet": "spacehorizons:earth",
+        "biome_source": {
+          "type": "spacehorizons:planet",
+          "planet": "spacehorizons:earth",
+          "biomes": {
+            "ocean": "minecraft:ocean",
+            "beach": "minecraft:beach",
+            "plains": "minecraft:plains",
+            "forest": "minecraft:forest",
+            "desert": "minecraft:desert",
+            "mountain": "minecraft:stony_peaks",
+            "snow": "minecraft:snowy_slopes",
+            "polar_ice": "minecraft:ice_spikes"
+          }
+        }
+      }
+    },
+    "minecraft:the_end": {
+      "type": "minecraft:the_end",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": {
+          "type": "minecraft:the_end"
+        },
+        "settings": "minecraft:end"
+      }
+    },
+    "minecraft:the_nether": {
+      "type": "minecraft:the_nether",
+      "generator": {
+        "type": "minecraft:noise",
+        "biome_source": {
+          "type": "minecraft:multi_noise",
+          "preset": "minecraft:nether"
+        },
+        "settings": "minecraft:nether"
+      }
+    }
+  }
+}

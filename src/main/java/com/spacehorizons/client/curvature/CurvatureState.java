@@ -33,7 +33,7 @@ public final class CurvatureState {
         if (level == null) {
             return Frame.OFF;
         }
-        Optional<PlanetDefinition> planet = Planets.byId(level.dimension().identifier());
+        Optional<PlanetDefinition> planet = Planets.forLevel(level);
         if (planet.isEmpty()) {
             return Frame.OFF;
         }

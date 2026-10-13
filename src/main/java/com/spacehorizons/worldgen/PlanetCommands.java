@@ -12,6 +12,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Relative;
@@ -32,16 +33,23 @@ final class PlanetCommands {
 
     private static int gotoEarth(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
-        ResourceKey<Level> key = ResourceKey.create(Registries.DIMENSION, Planets.EARTH.id());
-        ServerLevel level = source.getServer().getLevel(key);
+        // com o tipo de mundo "Space Horizons" a Terra é o próprio Overworld; procura pelo tipo de dimensão
+        ServerLevel level = null;
+        for (ServerLevel candidate : source.getServer().getAllLevels()) {
+            if (Planets.forLevel(candidate).filter(Planets.EARTH::equals).isPresent()) {
+                level = candidate;
+                break;
+            }
+        }
         if (level == null) {
-            source.sendFailure(Component.literal("Dimensão spacehorizons:earth não carregada (datapack?)"));
+            source.sendFailure(Component.literal("Este mundo não tem a Terra curva: crie um mundo com o tipo \"Space Horizons\""));
             return 0;
         }
         // superfície + 2 para não nascer dentro do bloco de topo
         int y = PlanetTerrains.get(Planets.EARTH).surfaceHeight(0, 0) + 2;
         player.teleportTo(level, 0.5, y, 0.5, Set.<Relative>of(), player.getYRot(), player.getXRot(), false);
-        source.sendSuccess(() -> Component.literal("Teleportado para a superfície de spacehorizons:earth (y=" + y + ")"), true);
+        Identifier dimension = level.dimension().identifier();
+        source.sendSuccess(() -> Component.literal("Teleportado para a superfície da Terra em " + dimension + " (y=" + y + ")"), true);
         return 1;
     }
 }
