@@ -20,9 +20,25 @@ public final class Planets {
             65_536,
             63,
             70.0,
-            96);
+            96,
+            TerrainStyle.EARTH,
+            1.0);
 
-    private static final Map<Identifier, PlanetDefinition> BY_ID = Map.of(EARTH.id(), EARTH);
+    /**
+     * Lua pequena (R ≈ 2.608, um quarto da Terra): curvatura forte, sem água nem atmosfera,
+     * gravidade de ~1/6. seaLevel 63 é só a referência de altitude.
+     */
+    public static final PlanetDefinition MOON = new PlanetDefinition(
+            Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "moon"),
+            0x10A4L,
+            16_384,
+            63,
+            75.0,
+            48,
+            TerrainStyle.MOON,
+            0.165);
+
+    private static final Map<Identifier, PlanetDefinition> BY_ID = Map.of(EARTH.id(), EARTH, MOON.id(), MOON);
 
     private Planets() {
     }
