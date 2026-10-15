@@ -7,6 +7,13 @@ import java.util.function.Consumer;
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.client.oxygen.OxygenHud;
 import com.spacehorizons.client.space.SpaceSun;
+import com.spacehorizons.content.ModDataComponents;
+import com.spacehorizons.content.ModItems;
+import com.spacehorizons.survival.fuel.CanisterFuel;
+import com.spacehorizons.survival.fuel.FuelCanisterItem;
+import com.spacehorizons.survival.fuel.RefineryBlock;
+import com.spacehorizons.survival.fuel.RefineryBlockEntity;
+import com.spacehorizons.survival.fuel.RefineryLogic;
 import com.spacehorizons.survival.oxygen.OxygenMath;
 import com.spacehorizons.survival.oxygen.OxygenSetup;
 import com.spacehorizons.survival.oxygen.OxygenState;
@@ -19,7 +26,19 @@ import com.spacehorizons.space.SunModel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.Difficulty;
@@ -84,6 +103,10 @@ public final class AutoTest {
         }
         if ("content".equals(ONLY)) {
             contentScenario();
+            return;
+        }
+        if ("refinery".equals(ONLY)) {
+            refineryScenario();
             return;
         }
         if ("moonback".equals(ONLY)) {
@@ -336,6 +359,138 @@ public final class AutoTest {
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
+        });
+    }
+
+    private static final BlockPos REFINERY_POS = new BlockPos(3, 120, 0);
+
+    /**
+     * Refinaria: coloca o bloco virado para o jogador, enche os slots por comando (6 carvões, tábuas de combustível e
+     * um galão vazio) e acompanha no log, a cada 50 ticks, tanque, progresso, chama e o galão. No meio abre a tela
+     * (clique direito de verdade) e tira print; no fim testa a capability de item (funil) por cima, pelos lados e por
+     * baixo, sem confirmar as transações.
+     */
+    private void refineryScenario() {
+        cmd(20, "weather clear 1000000");
+        // voando antes do teleporte: sem isso o jogador cai dezenas de blocos e fica fora do alcance do clique
+        fly(10);
+        cmd(20, "tp @s 0 120 0");
+        cmd(20, "setblock 3 120 0 minecraft:air");
+        cmd(5, "setblock 3 120 0 spacehorizons:refinery[facing=west]");
+        look(20, EAST, 8f);
+        shot(30, "rf_a_unlit_empty");
+        cmd(10, "give @s spacehorizons:fuel_canister[spacehorizons:fuel_mb=500]");
+        cmd(10, "give @s spacehorizons:refinery");
+        cmd(10, "item replace block 3 120 0 container.2 with spacehorizons:fuel_canister");
+        cmd(10, "item replace block 3 120 0 container.1 with minecraft:oak_planks 8");
+        cmd(10, "item replace block 3 120 0 container.0 with minecraft:coal 6");
+        step(5, mc -> probeRefinery(mc, "inicio", true));
+        step(0, mc -> {
+            // tooltip do galão pela mesma rota do jogo
+            ItemStack half = mc.player.getInventory().getItem(0);
+            SpaceHorizons.LOGGER.info(TAG + "REFINARIA tooltip do galao na mao: {}", half.getTooltipLines(
+                    net.minecraft.world.item.Item.TooltipContext.of(mc.level), mc.player, net.minecraft.world.item.TooltipFlag.NORMAL)
+                    .stream().map(Component::getString).toList());
+        });
+        tickerStep(0, new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                if (n % 50 == 0) {
+                    probeRefinery(mc, "t=" + n, false);
+                }
+                if (n == 40) {
+                    grab(mc, "rf_b_lit_front");
+                }
+                if (n == 120) {
+                    mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
+                            new BlockHitResult(Vec3.atCenterOf(REFINERY_POS), Direction.WEST, REFINERY_POS, false));
+                }
+                if (n == 150) {
+                    SpaceHorizons.LOGGER.info(TAG + "REFINARIA tela aberta: {}", mc.gui.screen() == null ? "nenhuma"
+                            : mc.gui.screen().getClass().getSimpleName());
+                    probeRefinery(mc, "com a tela aberta t=" + n, false);
+                    grab(mc, "rf_c_screen_t150");
+                }
+                if (n == 160) {
+                    mc.player.closeContainer();
+                }
+                if (n == 300) {
+                    mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
+                            new BlockHitResult(Vec3.atCenterOf(REFINERY_POS), Direction.WEST, REFINERY_POS, false));
+                }
+                if (n == 330) {
+                    grab(mc, "rf_d_screen_t330");
+                }
+                if (n == 340) {
+                    mc.player.closeContainer();
+                }
+                if (n == 450) {
+                    grab(mc, "rf_e_lit_front_t450");
+                }
+                if (n == 700) {
+                    mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
+                            new BlockHitResult(Vec3.atCenterOf(REFINERY_POS), Direction.WEST, REFINERY_POS, false));
+                }
+                if (n == 720) {
+                    grab(mc, "rf_f_screen_end");
+                }
+                if (n == 725) {
+                    probeRefinery(mc, "fim", true);
+                }
+                return n >= 730;
+            }
+        });
+        step(10, mc -> mc.player.closeContainer());
+        step(20, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Loga o estado do block entity da refinaria lido no servidor integrado; com {@code capability} testa também o funil. */
+    private static void probeRefinery(Minecraft mc, String label, boolean capability) {
+        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+        if (server == null) {
+            SpaceHorizons.LOGGER.warn(TAG + "REFINARIA sem servidor integrado");
+            return;
+        }
+        server.execute(() -> {
+            net.minecraft.server.level.ServerLevel level = server.getLevel(mc.level.dimension());
+            if (level == null || !(level.getBlockEntity(REFINERY_POS) instanceof RefineryBlockEntity be)) {
+                SpaceHorizons.LOGGER.warn(TAG + "REFINARIA {}: block entity ausente", label);
+                return;
+            }
+            RefineryLogic l = be.logic();
+            ItemStack canister = be.getItem(RefineryBlockEntity.SLOT_CANISTER);
+            SpaceHorizons.LOGGER.info(TAG + "REFINARIA {}: tanque={} mB queima={}/{} progresso={}/{} aceso(bloco)={} "
+                    + "entrada={}x{} combustivel={}x{} galao={} ({} mB)", label, l.tank(), l.litTime(), l.litTotal(), l.progress(),
+                    l.processTotal(), level.getBlockState(REFINERY_POS).getValue(RefineryBlock.LIT),
+                    be.getItem(RefineryBlockEntity.SLOT_INPUT).getItem(), be.getItem(RefineryBlockEntity.SLOT_INPUT).getCount(),
+                    be.getItem(RefineryBlockEntity.SLOT_FUEL).getItem(), be.getItem(RefineryBlockEntity.SLOT_FUEL).getCount(),
+                    canister.getItem(), FuelCanisterItem.getFuel(canister));
+            if (!capability) {
+                return;
+            }
+            for (Direction side : new Direction[] {Direction.UP, Direction.NORTH, Direction.DOWN}) {
+                ResourceHandler<ItemResource> handler = level.getCapability(Capabilities.Item.BLOCK, REFINERY_POS, side);
+                if (handler == null) {
+                    SpaceHorizons.LOGGER.warn(TAG + "REFINARIA capability de item AUSENTE em {}", side);
+                    continue;
+                }
+                try (Transaction tx = Transaction.openRoot()) {
+                    // nada é confirmado: a transação fecha sem commit e desfaz
+                    SpaceHorizons.LOGGER.info(TAG + "REFINARIA funil {}: slots={} insere(pedra)={} insere(carvao,1)={} "
+                            + "insere(tabua,1)={} insere(galao,1)={} extrai(galao,1)={}", side, handler.size(),
+                            handler.insert(ItemResource.of(Items.STONE), 1, tx), handler.insert(ItemResource.of(Items.COAL), 1, tx),
+                            handler.insert(ItemResource.of(Items.OAK_PLANKS), 1, tx),
+                            handler.insert(ItemResource.of(ModItems.FUEL_CANISTER.get()), 1, tx),
+                            handler.extract(ItemResource.of(ModItems.FUEL_CANISTER.get(), DataComponentPatch.builder()
+                                    .set(ModDataComponents.FUEL_MB.get(), CanisterFuel.CAPACITY).build()), 1, tx));
+                }
+            }
         });
     }
 

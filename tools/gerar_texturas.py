@@ -55,6 +55,7 @@ ITENS = {
     "steel_plate": ("placa", "aco"),
     "forge_hammer": ("martelo", "aco"),
     "basic_circuit": ("circuito", "circuito"),
+    "fuel_canister": ("galao", "combustivel"),
 }
 BLOCOS = {
     "steel_block": ("bloco_metalico", "aco"),

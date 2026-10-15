@@ -16,5 +16,11 @@
   "death.attack.spacehorizons_vacuum.player": "%1$s suffocated in the vacuum of space whilst trying to escape %2$s",
   "hud.spacehorizons.oxygen": "Oxygen",
   "hud.spacehorizons.oxygen.seconds": "Oxygen %s s",
-  "hud.spacehorizons.oxygen.supplied": "Oxygen (supplied)"
+  "hud.spacehorizons.oxygen.supplied": "Oxygen (supplied)",
+  "item.spacehorizons.fuel_canister": "Fuel Canister",
+  "block.spacehorizons.refinery": "Refinery",
+  "container.spacehorizons.refinery": "Refinery",
+  "tooltip.spacehorizons.fuel_canister": "%s / %s mB",
+  "gui.spacehorizons.refinery.tank": "Rocket fuel",
+  "gui.spacehorizons.refinery.tank_amount": "%s / %s mB"
 }

@@ -1,0 +1,6 @@
+{
+  "type": "spacehorizons:refining",
+  "ingredient": "minecraft:charcoal",
+  "fuel_mb": 250,
+  "time": 100
+}

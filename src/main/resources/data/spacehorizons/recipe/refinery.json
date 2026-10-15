@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "G": "minecraft:glass",
+    "F": "minecraft:furnace",
+    "C": "spacehorizons:basic_circuit"
+  },
+  "pattern": [
+    "PPP",
+    "GFG",
+    "PCP"
+  ],
+  "result": {
+    "id": "spacehorizons:refinery"
+  }
+}

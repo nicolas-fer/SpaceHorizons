@@ -19,12 +19,17 @@ public final class ContentIds {
     public static final String STEEL_PLATE = "steel_plate";
     public static final String BASIC_CIRCUIT = "basic_circuit";
 
+    /** Galão de combustível de foguete (guarda mB num data component); receita com placas de aço. */
+    public static final String FUEL_CANISTER = "fuel_canister";
+    /** Refinaria: transforma carvão, biomassa etc. em combustível de foguete; receita com placas de aço e circuito. */
+    public static final String REFINERY = "refinery";
+
     /** Itens que não são BlockItems. */
     public static final List<String> ITEMS = List.of(
-            STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT);
+            STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER);
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
-    public static final List<String> BLOCKS = List.of(STEEL_BLOCK);
+    public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY);
 
     private ContentIds() {
     }

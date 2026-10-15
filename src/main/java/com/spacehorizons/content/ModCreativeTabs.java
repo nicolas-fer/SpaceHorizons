@@ -3,6 +3,7 @@ package com.spacehorizons.content;
 import java.util.function.Supplier;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.survival.fuel.FuelCanisterItem;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -25,6 +26,8 @@ public final class ModCreativeTabs {
                 for (DeferredHolder<Item, ? extends Item> item : ModItems.ITEMS.getEntries()) {
                     output.accept(item.get());
                 }
+                // além do galão vazio (acima), um galão cheio para testes
+                output.accept(FuelCanisterItem.fullStack());
             })
             .build());
 

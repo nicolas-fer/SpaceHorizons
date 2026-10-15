@@ -1,0 +1,6 @@
+{
+  "type": "spacehorizons:refining",
+  "ingredient": "minecraft:dried_kelp",
+  "fuel_mb": 50,
+  "time": 40
+}
