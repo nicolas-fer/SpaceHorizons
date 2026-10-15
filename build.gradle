@@ -32,6 +32,15 @@ repositories {
         url = "https://api.modrinth.com/maven"
         content { includeGroup "maven.modrinth" }
     }
+    maven {
+        // JEI (Just Enough Items): integração opcional
+        name = "BlameJared"
+        url = "https://maven.blamejared.com"
+        content {
+            includeGroup "mezz.jei"
+            includeGroup "net.mezzdev.config"
+        }
+    }
 }
 
 base {
@@ -148,6 +157,15 @@ dependencies {
     }
     if (shIris) {
         localRuntime "maven.modrinth:iris:${iris_version}"
+    }
+
+    // JEI: só a API em compile time (integração opcional); o mod completo no runtime de dev (-PshJei=false tira)
+    // A versão fica aqui e não no gradle.properties, que o .gitignore global do usuário ignora.
+    def jeiVersion = '31.13.0.68'
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jeiVersion}"
+    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jeiVersion}"
+    if ((findProperty('shJei') ?: 'true').toString().toBoolean()) {
+        localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${jeiVersion}"
     }
 
     testImplementation platform("org.junit:junit-bom:5.11.4")
