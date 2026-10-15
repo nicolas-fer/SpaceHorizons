@@ -109,6 +109,10 @@ public final class AutoTest {
             refineryScenario();
             return;
         }
+        if ("advancements".equals(ONLY)) {
+            advancementsScenario();
+            return;
+        }
         if ("moonback".equals(ONLY)) {
             moonBackScenario();
             return;
@@ -359,6 +363,104 @@ public final class AutoTest {
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
+        });
+    }
+
+    /** Conquistas do mod, na ordem da árvore (id sem namespace). */
+    private static final List<String> MOD_ADVANCEMENTS = List.of("root", "steel_blend", "steel_ingot", "forge_hammer",
+            "steel_plate", "basic_circuit", "refinery", "fuel_canister", "fuel_full", "steel_block");
+    /** Receitas que devem aparecer no livro de receitas, em ordem de obtenção dos itens-chave. */
+    private static final List<String> MOD_RECIPES = List.of("steel_blend", "steel_ingot_from_blasting", "steel_nugget",
+            "steel_block", "forge_hammer", "steel_plate", "basic_circuit", "fuel_canister", "refinery",
+            "steel_ingot_from_nuggets", "steel_ingot_from_block");
+
+    /**
+     * Conquistas: em sobrevivência, dá os itens em sequência e, a cada passo, loga no servidor integrado quais
+     * conquistas do mod estão concluídas e quais receitas estão no livro. No fim abre a tela de conquistas na aba do mod.
+     */
+    private void advancementsScenario() {
+        cmd(20, "weather clear 1000000");
+        cmd(20, "tp @s 0 120 0");
+        cmd(20, "gamemode survival");
+        cmd(20, "clear @s");
+        // o mundo do autoteste pode ser reaproveitado: zera o progresso e o livro de receitas (a raiz volta sozinha)
+        cmd(10, "advancement revoke @s everything");
+        cmd(10, "recipe take @s *");
+        step(40, mc -> probeAdvancements(mc, "inicio (so a raiz deve estar feita)"));
+        step(10, mc -> openAdvancementsTab(mc));
+        shot(40, "adv_screen_start");
+        step(10, mc -> mc.gui.setScreen(null));
+        String[][] dar = {
+            {"minecraft:iron_ingot", "lingote de ferro: deve desbloquear so a receita da mistura de aco"},
+            {"spacehorizons:steel_blend", "steel_blend feita; receita do alto-forno"},
+            {"spacehorizons:steel_ingot 4", "steel_ingot feita; receitas de martelo, placa, bloco, pepita"},
+            {"spacehorizons:forge_hammer", "forge_hammer feita"},
+            {"spacehorizons:steel_plate 2", "steel_plate feita; receitas de circuito e galao"},
+            {"spacehorizons:basic_circuit", "basic_circuit feita; receita da refinaria"},
+            {"spacehorizons:refinery", "refinery feita"},
+            {"spacehorizons:fuel_canister", "galao VAZIO: so fuel_canister, nao fuel_full"},
+            {"spacehorizons:fuel_canister[spacehorizons:fuel_mb=1000]", "galao cheio: fuel_full"},
+            {"spacehorizons:steel_block", "steel_block feita"},
+        };
+        for (String[] d : dar) {
+            cmd(10, "give @s " + d[0]);
+            step(30, mc -> probeAdvancements(mc, d[1]));
+        }
+        step(20, mc -> openAdvancementsTab(mc));
+        shot(40, "adv_screen_tab");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(20, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Abre a tela de conquistas na aba "Space Horizons" e arrasta o painel para a raiz aparecer à esquerda. */
+    private static void openAdvancementsTab(Minecraft mc) {
+        net.minecraft.client.gui.screens.advancements.AdvancementsScreen screen =
+                new net.minecraft.client.gui.screens.advancements.AdvancementsScreen(mc.player.connection.getAdvancements());
+        mc.gui.setScreen(screen);
+        net.minecraft.advancements.AdvancementHolder root = mc.player.connection.getAdvancements()
+                .get(Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "root"));
+        SpaceHorizons.LOGGER.info(TAG + "CONQUISTAS holder da raiz no cliente: {}", root == null ? "AUSENTE" : root.id());
+        if (root != null) {
+            mc.player.connection.getAdvancements().setSelectedTab(root, false);
+        }
+        // arrasta o painel (mouseDragged sem botão pressionado ainda move o fundo no teste) para ver o começo da árvore
+        screen.mouseDragged(new net.minecraft.client.input.MouseButtonEvent(0, 0,
+                new net.minecraft.client.input.MouseButtonInfo(0, 0)), 140, 0);
+    }
+
+    private static void probeAdvancements(Minecraft mc, String label) {
+        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+        if (server == null) {
+            SpaceHorizons.LOGGER.warn(TAG + "CONQUISTAS sem servidor integrado");
+            return;
+        }
+        server.execute(() -> {
+            net.minecraft.server.level.ServerPlayer player = server.getPlayerList().getPlayers().get(0);
+            List<String> feitas = new ArrayList<>();
+            List<String> faltam = new ArrayList<>();
+            for (String id : MOD_ADVANCEMENTS) {
+                net.minecraft.advancements.AdvancementHolder h = server.getAdvancements()
+                        .get(Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, id));
+                if (h == null) {
+                    faltam.add(id + "(AUSENTE NO SERVIDOR)");
+                } else if (player.getAdvancements().getOrStartProgress(h).isDone()) {
+                    feitas.add(id);
+                } else {
+                    faltam.add(id);
+                }
+            }
+            List<String> receitas = new ArrayList<>();
+            for (String r : MOD_RECIPES) {
+                if (player.getRecipeBook().contains(ResourceKey.create(Registries.RECIPE,
+                        Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, r)))) {
+                    receitas.add(r);
+                }
+            }
+            SpaceHorizons.LOGGER.info(TAG + "CONQUISTAS [{}] feitas={} faltam={} receitas_no_livro={}", label, feitas, faltam,
+                    receitas);
         });
     }
 

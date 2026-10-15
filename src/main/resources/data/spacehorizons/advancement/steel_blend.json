@@ -1,0 +1,25 @@
+{
+  "parent": "spacehorizons:root",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:steel_blend"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:steel_blend" },
+    "title": { "translate": "advancements.spacehorizons.steel_blend.title" },
+    "description": { "translate": "advancements.spacehorizons.steel_blend.description" }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

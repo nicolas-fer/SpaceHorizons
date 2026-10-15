@@ -1,0 +1,25 @@
+{
+  "parent": "spacehorizons:steel_plate",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:basic_circuit"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:basic_circuit" },
+    "title": { "translate": "advancements.spacehorizons.basic_circuit.title" },
+    "description": { "translate": "advancements.spacehorizons.basic_circuit.description" }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

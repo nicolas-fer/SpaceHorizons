@@ -1,0 +1,25 @@
+{
+  "parent": "spacehorizons:steel_ingot",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:forge_hammer"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:forge_hammer" },
+    "title": { "translate": "advancements.spacehorizons.forge_hammer.title" },
+    "description": { "translate": "advancements.spacehorizons.forge_hammer.description" }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

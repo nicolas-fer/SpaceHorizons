@@ -1,0 +1,25 @@
+{
+  "parent": "spacehorizons:basic_circuit",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:refinery"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:refinery" },
+    "title": { "translate": "advancements.spacehorizons.refinery.title" },
+    "description": { "translate": "advancements.spacehorizons.refinery.description" }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

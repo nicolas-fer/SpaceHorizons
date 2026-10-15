@@ -1,0 +1,25 @@
+{
+  "parent": "spacehorizons:forge_hammer",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:steel_plate"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:steel_plate" },
+    "title": { "translate": "advancements.spacehorizons.steel_plate.title" },
+    "description": { "translate": "advancements.spacehorizons.steel_plate.description" }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

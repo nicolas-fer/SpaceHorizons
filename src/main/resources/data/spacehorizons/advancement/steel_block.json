@@ -1,0 +1,26 @@
+{
+  "parent": "spacehorizons:steel_ingot",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:steel_block"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:steel_block" },
+    "title": { "translate": "advancements.spacehorizons.steel_block.title" },
+    "description": { "translate": "advancements.spacehorizons.steel_block.description" },
+    "frame": "challenge"
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "parent": "spacehorizons:fuel_canister",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:fuel_canister",
+            "components": { "spacehorizons:fuel_mb": 1000 }
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:fuel_canister" },
+    "title": { "translate": "advancements.spacehorizons.fuel_full.title" },
+    "description": { "translate": "advancements.spacehorizons.fuel_full.description" },
+    "frame": "goal"
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

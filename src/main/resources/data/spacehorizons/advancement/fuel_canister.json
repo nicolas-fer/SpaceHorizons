@@ -1,0 +1,25 @@
+{
+  "parent": "spacehorizons:refinery",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:fuel_canister"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:fuel_canister" },
+    "title": { "translate": "advancements.spacehorizons.fuel_canister.title" },
+    "description": { "translate": "advancements.spacehorizons.fuel_canister.description" }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

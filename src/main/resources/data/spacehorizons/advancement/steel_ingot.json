@@ -1,0 +1,25 @@
+{
+  "parent": "spacehorizons:steel_blend",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:steel_ingot"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:steel_ingot" },
+    "title": { "translate": "advancements.spacehorizons.steel_ingot.title" },
+    "description": { "translate": "advancements.spacehorizons.steel_ingot.description" }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

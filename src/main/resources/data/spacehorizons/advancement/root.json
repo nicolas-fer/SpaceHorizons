@@ -1,0 +1,20 @@
+{
+  "criteria": {
+    "entered_world": {
+      "trigger": "minecraft:tick"
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:steel_ingot" },
+    "title": { "translate": "advancements.spacehorizons.root.title" },
+    "description": { "translate": "advancements.spacehorizons.root.description" },
+    "background": "minecraft:gui/advancements/backgrounds/end",
+    "show_toast": false,
+    "announce_to_chat": false
+  },
+  "requirements": [
+    [
+      "entered_world"
+    ]
+  ]
+}
