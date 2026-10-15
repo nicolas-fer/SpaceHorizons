@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "spacehorizons:block/placeholder_block"
+    "all": "spacehorizons:block/steel_block"
   }
 }

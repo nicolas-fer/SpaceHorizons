@@ -316,13 +316,23 @@ public final class AutoTest {
         cmd(20, "weather clear 1000000");
         cmd(20, "tp @s 0 120 0");
         fly(20);
-        cmd(20, "setblock 3 120 0 spacehorizons:placeholder_block");
-        cmd(20, "give @s spacehorizons:placeholder_item 5");
-        cmd(20, "give @s spacehorizons:placeholder_block 3");
-        look(20, EAST, 10f);
+        cmd(20, "setblock 3 120 0 spacehorizons:steel_block");
+        cmd(20, "give @s spacehorizons:steel_block 3");
+        cmd(20, "give @s spacehorizons:steel_ingot 5");
+        cmd(20, "give @s spacehorizons:steel_nugget 9");
+        cmd(20, "give @s spacehorizons:steel_blend 4");
+        cmd(20, "give @s spacehorizons:forge_hammer");
+        cmd(20, "give @s spacehorizons:steel_plate 2");
+        cmd(20, "give @s spacehorizons:basic_circuit 2");
+        // simula receitas no servidor (resultado e sobras vão para o log)
+        step(20, mc -> ContentCraftCheck.run(mc.getSingleplayerServer()));
+        look(20, EAST, 28f);
         shot(60, "ct_block_and_hotbar");
-        step(20, mc -> mc.player.getInventory().setSelectedSlot(0));
+        step(20, mc -> mc.player.getInventory().setSelectedSlot(4));
         shot(40, "ct_item_held");
+        step(20, mc -> mc.gui.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player)));
+        shot(40, "ct_inventory");
+        step(20, mc -> mc.gui.setScreen(null));
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
