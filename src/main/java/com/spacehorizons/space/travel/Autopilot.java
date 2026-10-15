@@ -36,12 +36,29 @@ public final class Autopilot {
     private static final class Session {
         final FlightGuide guide;
         final SolarSystem.Body target;
+        /** Instante (System.nanoTime) do último avanço, para o plano andar pelo tempo real mesmo com o servidor atrasado. */
+        long lastNanos = System.nanoTime();
 
         Session(FlightGuide guide, SolarSystem.Body target) {
             this.guide = guide;
             this.target = target;
         }
     }
+
+    private static final long TICK_NANOS = 50_000_000L;
+    /** No máximo tantos passos por tick do servidor, para um engasgo longo não virar um salto enorme. */
+    private static final int MAX_SUBSTEPS = 8;
+
+    /**
+     * Acima desta altura o chão não importa para quem voa a centenas de blocos por segundo, mas o servidor gera os
+     * chunks de cada ponto novo (e trava esperando-os). Durante o voo, nessa faixa, as distâncias de visão e simulação
+     * caem para {@link #HIGH_DISTANCE}, e voltam ao normal abaixo de {@link #LOW_Y}.
+     */
+    private static final double HIGH_Y = 800.0;
+    private static final double LOW_Y = 500.0;
+    private static final int HIGH_DISTANCE = 2;
+    private static int savedView = -1;
+    private static int savedSimulation = -1;
 
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
 
@@ -84,7 +101,30 @@ public final class Autopilot {
 
     /** Para o piloto automático; devolve false se não estava ativo. */
     public static boolean stop(ServerPlayer player) {
-        return SESSIONS.remove(player.getUUID()) != null;
+        boolean was = SESSIONS.remove(player.getUUID()) != null;
+        restoreDistances(player.level().getServer());
+        return was;
+    }
+
+    /** Reduz ou restaura as distâncias de chunk conforme a altura do voo (com histerese). */
+    private static void adjustDistances(MinecraftServer server, double y) {
+        if (savedView < 0 && y > HIGH_Y) {
+            savedView = server.getPlayerList().getViewDistance();
+            savedSimulation = server.getPlayerList().getSimulationDistance();
+            server.getPlayerList().setViewDistance(Math.min(savedView, HIGH_DISTANCE));
+            server.getPlayerList().setSimulationDistance(Math.min(savedSimulation, HIGH_DISTANCE));
+        } else if (savedView >= 0 && y < LOW_Y) {
+            restoreDistances(server);
+        }
+    }
+
+    private static void restoreDistances(MinecraftServer server) {
+        if (savedView >= 0 && server != null) {
+            server.getPlayerList().setViewDistance(savedView);
+            server.getPlayerList().setSimulationDistance(savedSimulation);
+        }
+        savedView = -1;
+        savedSimulation = -1;
     }
 
     static void forget(UUID id) {
@@ -93,6 +133,8 @@ public final class Autopilot {
 
     static void clear() {
         SESSIONS.clear();
+        savedView = -1;
+        savedSimulation = -1;
     }
 
     /**
@@ -107,6 +149,7 @@ public final class Autopilot {
         if (session.guide.body() != body) {
             // trocou de dimensão por outro meio (portal, comando): o plano deixou de valer
             SESSIONS.remove(player.getUUID());
+            restoreDistances(player.level().getServer());
             player.sendSystemMessage(Component.literal("Piloto automático cancelado: dimensão alterada"));
             return false;
         }
@@ -114,24 +157,40 @@ public final class Autopilot {
             return true;
         }
 
-        FlightGuide.Step step = session.guide.tick(SpaceClock.ticks(player.level()), player.getYRot(), player.getXRot());
+        // o servidor pode estar atrasado (tick > 50 ms): avança um passo por 50 ms de tempo real decorrido, para a velocidade
+        // não depender do tick e o cliente não ficar puxado para trás
+        long now = System.nanoTime();
+        int substeps = (int) Math.max(1, Math.min(MAX_SUBSTEPS, (now - session.lastNanos) / TICK_NANOS));
+        session.lastNanos = now;
+        double clock = SpaceClock.ticks(player.level());
+        FlightGuide.Step step = null;
+        for (int i = 0; i < substeps; i++) {
+            step = session.guide.tick(clock + i, player.getYRot(), player.getXRot());
+            if (step.transferred() || step.arrived()) {
+                break;
+            }
+        }
         BodyTransfer state = step.state();
+        adjustDistances(player.level().getServer(), state.y());
         player.resetFallDistance();
         if (step.transferred()) {
             ServerLevel toLevel = TravelTransfers.findLevel(player.level().getServer(), state.target().planet());
             if (toLevel == null || !TravelTransfers.transfer(player, state, toLevel)) {
                 SESSIONS.remove(player.getUUID());
+                restoreDistances(player.level().getServer());
                 player.sendSystemMessage(Component.literal("Piloto automático cancelado: a transferência foi recusada"));
                 return true;
             }
         } else {
+            // velocidade zero: o cliente não extrapola entre dois teleportes (com o servidor lento isso o fazia ir e voltar);
             // rotação relativa a zero = o cliente mantém para onde está olhando
             player.connection.teleport(new PositionMoveRotation(new Vec3(state.x(), state.y(), state.z()),
-                    new Vec3(state.vx(), state.vy(), state.vz()), 0.0F, 0.0F), Relative.ROTATION);
+                    Vec3.ZERO, 0.0F, 0.0F), Relative.ROTATION);
         }
 
         if (step.arrived()) {
             SESSIONS.remove(player.getUUID());
+            restoreDistances(player.level().getServer());
             player.sendSystemMessage(Component.literal("Piloto automático: chegada a " + session.target.planet().id().getPath()));
         }
         return true;

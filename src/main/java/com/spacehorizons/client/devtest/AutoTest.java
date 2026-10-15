@@ -52,6 +52,8 @@ public final class AutoTest {
     private static final String FRESH_WORLD = System.getProperty("spacehorizons.autotest.fresh");
 
     private final List<Step> steps = new ArrayList<>();
+    /** Com -PshOnly=NOME roda só um trecho do roteiro (hoje: clouds). */
+    private static final String ONLY = System.getProperty("spacehorizons.autotest.only");
     private boolean freshRequested;
     private int index;
     private Ticker active;
@@ -61,12 +63,20 @@ public final class AutoTest {
     private double pushZ;
 
     private AutoTest() {
+        ServerSampler.launch();
         cmd(0, "gamemode creative");
         cmd(20, "gamerule advance_time false");
         cmd(20, "time set 6000");
         step(20, mc -> logPos(mc, "spawn (esperado dim=minecraft:overworld com curvatura)"));
         cmd(20, "spacehorizons goto earth");
         cmd(300, "time set 6000");
+        if ("to_d".equals(ONLY)) {
+            cmd(5, "weather clear 1000000");
+        }
+        if ("clouds".equals(ONLY)) {
+            cloudsScenario();
+            return;
+        }
 
         // (a) Terra vanilla: chão em vários pontos perto do spawn (biomas, árvores, relevo)
         int[][] spots = {{0, 0}, {1500, 0}, {0, 1500}, {-2500, 1000}, {4000, -3000}, {-6000, -2000}};
@@ -184,6 +194,14 @@ public final class AutoTest {
         look(20, 0f, 75f);
         shot(500, "d_orbit15000_pole");
 
+        if ("to_d".equals(ONLY)) {
+            step(40, mc -> {
+                SpaceHorizons.LOGGER.info(TAG + "FIM");
+                mc.stop();
+            });
+            return;
+        }
+
         // (f) viagem Terra -> Lua com a Lua em movimento (o tempo corre durante o voo)
         cmd(20, "spacehorizons goto earth");
         cmd(300, "time set 6000");
@@ -241,6 +259,49 @@ public final class AutoTest {
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
+        });
+    }
+
+    /** As nuvens vistas de várias altitudes, olhando para baixo e de lado. */
+    /**
+     * Procura o que faz as nuvens do vanilla aparecerem gigantes a 5000 de altitude: cada variante faz um trecho do
+     * roteiro completo e depois sobe a 5000 olhando para baixo.
+     */
+    private void cloudsScenario() {
+        cmd(20, "gamerule advance_time false");
+        cmd(20, "weather clear 1000000");
+        cmd(20, "spacehorizons goto earth");
+        cmd(300, "time set 6000");
+        cloudProbe("base");
+        // dentro da pedra, abaixo do nível do mar
+        cmd(20, "tp @s 0 12 0");
+        fly(20);
+        step(80, mc -> {
+        });
+        cloudProbe("deep");
+        // chuva e trovoada
+        cmd(20, "weather rain 1000000");
+        step(100, mc -> {
+        });
+        cloudProbe("rain");
+        cmd(20, "weather thunder 1000000");
+        step(100, mc -> {
+        });
+        cloudProbe("thunder");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    private void cloudProbe(String name) {
+        cmd(20, "tp @s 0 5000 0");
+        fly(20);
+        look(20, EAST, 90f);
+        shot(160, "cl_" + name + "_5000");
+        cmd(20, "tp @s 0 200 0");
+        fly(20);
+        step(60, mc -> {
         });
     }
 

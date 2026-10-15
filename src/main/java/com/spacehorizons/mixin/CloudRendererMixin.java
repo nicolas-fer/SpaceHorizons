@@ -45,6 +45,28 @@ abstract class CloudRendererMixin {
         return effective;
     }
 
+    @Unique
+    private long spacehorizons$lastLog;
+
+    /** DEV: loga a posição da câmera e a altura que o prepare recebe (só com o autoteste), para achar nuvens fora do lugar. */
+    @org.spongepowered.asm.mixin.injection.Inject(
+            method = "prepare(ILnet/minecraft/client/CloudStatus;FILnet/minecraft/world/phys/Vec3;JF)V",
+            at = @At("HEAD"))
+    private void spacehorizons$debug(int color, net.minecraft.client.CloudStatus status, float height, int range,
+            net.minecraft.world.phys.Vec3 cameraPos, long gameTime, float partialTick,
+            org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (System.getProperty("spacehorizons.autotest") == null) {
+            return;
+        }
+        long now = System.nanoTime();
+        if (now - this.spacehorizons$lastLog > 1_000_000_000L) {
+            this.spacehorizons$lastLog = now;
+            CurvatureState.Frame frame = CurvatureState.current();
+            com.spacehorizons.SpaceHorizons.LOGGER.info("[CLOUDDBG] camY={} height={} range={} status={} gameTime={} frameR={} frameAlt={}",
+                    cameraPos.y, height, range, status, gameTime, frame.radius(), frame.cameraAltitude());
+        }
+    }
+
     /** O buffer precisa caber os dois floats extras; troca só o tamanho usado no construtor. */
     @Redirect(
             method = "<init>",

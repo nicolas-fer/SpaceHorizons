@@ -46,7 +46,7 @@ final class AtmosphereFog {
             fog.environmentalEnd = Float.MAX_VALUE;
             fog.renderDistanceStart = Float.MAX_VALUE;
             fog.renderDistanceEnd = Float.MAX_VALUE;
-            fog.cloudEnd = Float.MAX_VALUE;
+            // cloudEnd fica como veio: sem fade as nuvens vanilla (camada a milhares de blocos) apareceriam no espaço
             return;
         }
         float factor = (float) model.fogDistanceFactor(altitude);

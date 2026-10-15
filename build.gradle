@@ -63,6 +63,10 @@ neoForge {
             // cria do zero o mundo run/saves/SpaceAuto com o tipo "Space Horizons" (apague a pasta antes de rodar)
             systemProperty 'spacehorizons.autotest', 'true'
             systemProperty 'spacehorizons.autotest.fresh', 'SpaceAuto'
+            // -PshOnly=clouds roda só um trecho do roteiro (ver AutoTest)
+            if (project.hasProperty('shOnly')) {
+                systemProperty 'spacehorizons.autotest.only', project.property('shOnly').toString()
+            }
         }
 
         server {
