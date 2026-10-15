@@ -3,6 +3,7 @@ package com.spacehorizons;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
+import com.spacehorizons.content.Content;
 import com.spacehorizons.dh.DhIntegration;
 import com.spacehorizons.worldgen.WorldgenSetup;
 
@@ -17,6 +18,7 @@ public class SpaceHorizons {
     public static final Logger LOGGER = LogUtils.getLogger();
 
     public SpaceHorizons(IEventBus modEventBus, ModContainer modContainer) {
+        Content.init(modEventBus);
         WorldgenSetup.init(modEventBus);
         // DH é opcional: sem ele o mod funciona, só sem LODs
         if (ModList.get().isLoaded("distanthorizons")) {

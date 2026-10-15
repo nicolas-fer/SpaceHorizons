@@ -1,5 +1,8 @@
 {
   "generator.spacehorizons.earth": "Space Horizons (Curved Earth)",
   "biome.spacehorizons.lunar": "Lunar Surface",
-  "dimension.spacehorizons.moon": "The Moon"
+  "dimension.spacehorizons.moon": "The Moon",
+  "itemGroup.spacehorizons.main": "Space Horizons",
+  "item.spacehorizons.placeholder_item": "Placeholder Item",
+  "block.spacehorizons.placeholder_block": "Placeholder Block"
 }

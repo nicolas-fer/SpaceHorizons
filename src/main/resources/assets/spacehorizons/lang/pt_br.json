@@ -1,5 +1,8 @@
 {
   "generator.spacehorizons.earth": "Space Horizons (Terra curva)",
   "biome.spacehorizons.lunar": "Superfície lunar",
-  "dimension.spacehorizons.moon": "A Lua"
+  "dimension.spacehorizons.moon": "A Lua",
+  "itemGroup.spacehorizons.main": "Space Horizons",
+  "item.spacehorizons.placeholder_item": "Item Provisório",
+  "block.spacehorizons.placeholder_block": "Bloco Provisório"
 }
