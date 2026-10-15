@@ -41,6 +41,11 @@ final class DhCloudConfig {
 
     /** true entre o load e o unload de um level que é planeta. */
     private static volatile boolean active;
+    /**
+     * Level (planeta) carregado mais recentemente. Numa viagem o DH carrega o planeta novo e só depois descarrega o antigo:
+     * sem isto, o unload do antigo desligava o override do novo e as nuvens planas do DH voltavam (visto ao voltar da Lua).
+     */
+    private static volatile Object currentLevel;
     /** O DH já executou pelo menos um frame neste planeta (e, portanto, já fez o override das opções). */
     private static volatile boolean dhRendered;
     /** Valor das nuvens vanilla ao entrar no planeta (null = ainda não lido; lido no primeiro tick). */
@@ -148,6 +153,7 @@ final class DhCloudConfig {
         @Override
         public void onLevelLoad(DhApiEventParam<EventParam> event) {
             if (DhIntegration.planetOf(event.value.levelWrapper).isPresent()) {
+                currentLevel = event.value.levelWrapper;
                 enter();
             }
         }
@@ -156,7 +162,10 @@ final class DhCloudConfig {
     private static final class LevelUnload extends DhApiLevelUnloadEvent {
         @Override
         public void onLevelUnload(DhApiEventParam<EventParam> event) {
-            if (DhIntegration.planetOf(event.value.levelWrapper).isPresent()) {
+            if (DhIntegration.planetOf(event.value.levelWrapper).isPresent()
+                    && java.util.Objects.equals(currentLevel, event.value.levelWrapper)) {
+                // só sai do planeta se o descarregado é o atual; o descarregamento do anterior (depois do load do novo) é ignorado
+                currentLevel = null;
                 leave();
             }
         }

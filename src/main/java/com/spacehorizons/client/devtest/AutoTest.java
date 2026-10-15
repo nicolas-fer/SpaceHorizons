@@ -77,6 +77,10 @@ public final class AutoTest {
             cloudsScenario();
             return;
         }
+        if ("moonback".equals(ONLY)) {
+            moonBackScenario();
+            return;
+        }
 
         // (a) Terra vanilla: chão em vários pontos perto do spawn (biomas, árvores, relevo)
         int[][] spots = {{0, 0}, {1500, 0}, {0, 1500}, {-2500, 1000}, {4000, -3000}, {-6000, -2000}};
@@ -288,6 +292,24 @@ public final class AutoTest {
         step(100, mc -> {
         });
         cloudProbe("thunder");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Ida à Lua e volta por teleporte entre dimensões; depois sobe a 5000 para ver se as nuvens planas do DH reaparecem. */
+    private void moonBackScenario() {
+        cmd(20, "gamerule advance_time false");
+        cmd(20, "weather clear 1000000");
+        cmd(20, "spacehorizons goto earth");
+        cmd(300, "time set 6000");
+        cloudProbe("before_moon");
+        cmd(20, "spacehorizons goto moon");
+        cmd(300, "time set 6000");
+        cmd(20, "spacehorizons goto earth");
+        cmd(400, "time set 6000");
+        cloudProbe("after_moon");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
