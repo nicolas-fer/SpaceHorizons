@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
@@ -14,6 +15,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.phys.Vec3;
@@ -38,6 +41,10 @@ public final class Autopilot {
         final SolarSystem.Body target;
         /** Instante (System.nanoTime) do último avanço, para o plano andar pelo tempo real mesmo com o servidor atrasado. */
         long lastNanos = System.nanoTime();
+        /** Último estado enviado ao jogador (null antes do primeiro tick e após uma transferência). */
+        BodyTransfer last;
+        /** Ticks seguidos segurando o voo à espera de chunks. */
+        int heldTicks;
 
         Session(FlightGuide guide, SolarSystem.Body target) {
             this.guide = guide;
@@ -45,6 +52,12 @@ public final class Autopilot {
         }
     }
 
+    /** Passos à frente (em ticks) cujos chunks precisam estar carregados antes de o voo andar. */
+    private static final int[] GATE_STEPS = {1, 2, 4};
+    /** Passos à frente cujos chunks só são pedidos, para a geração (em paralelo) ficar na frente do jogador. */
+    private static final int[] REQUEST_STEPS = {8, 16, 32, 64};
+    /** Depois de tantos ticks segurado, o voo segue assim mesmo (chunk que nunca carrega não pode prender o jogador). */
+    private static final int MAX_HELD_TICKS = 200;
     private static final long TICK_NANOS = 50_000_000L;
     /** No máximo tantos passos por tick do servidor, para um engasgo longo não virar um salto enorme. */
     private static final int MAX_SUBSTEPS = 8;
@@ -106,6 +119,44 @@ public final class Autopilot {
         return was;
     }
 
+    /**
+     * Pede os chunks à frente do voo (extrapolando a última velocidade) e devolve true se algum dos próximos passos cai
+     * num chunk ainda não carregado. Os tickets PORTAL expiram sozinhos.
+     */
+    private static boolean holdForChunks(ServerLevel level, Session session, SolarSystem.Body body) {
+        BodyTransfer last = session.last;
+        boolean missing = false;
+        for (int k : GATE_STEPS) {
+            missing |= requestIfMissing(level, body, last.x() + last.vx() * k, last.z() + last.vz() * k);
+        }
+        for (int k : REQUEST_STEPS) {
+            requestIfMissing(level, body, last.x() + last.vx() * k, last.z() + last.vz() * k);
+        }
+        if (!missing) {
+            session.heldTicks = 0;
+            return false;
+        }
+        if (++session.heldTicks > MAX_HELD_TICKS) {
+            if (session.heldTicks == MAX_HELD_TICKS + 1) {
+                SpaceHorizons.LOGGER.warn("Piloto automático: chunks à frente não carregaram em {} ticks; seguindo mesmo assim",
+                        MAX_HELD_TICKS);
+            }
+            return false;
+        }
+        return true;
+    }
+
+    /** true se o chunk de (x, z) não está carregado (e pede o carregamento). */
+    private static boolean requestIfMissing(ServerLevel level, SolarSystem.Body body, double x, double z) {
+        int cx = (int) Math.floor(TravelMath.normalizeX(body, x)) >> 4;
+        int cz = (int) Math.floor(z) >> 4;
+        if (level.hasChunk(cx, cz)) {
+            return false;
+        }
+        level.getChunkSource().addTicketWithRadius(TicketType.PORTAL, new ChunkPos(cx, cz), 0);
+        return true;
+    }
+
     /** Reduz ou restaura as distâncias de chunk conforme a altura do voo (com histerese). */
     private static void adjustDistances(MinecraftServer server, double y) {
         if (savedView < 0 && y > HIGH_Y) {
@@ -157,6 +208,14 @@ public final class Autopilot {
             return true;
         }
 
+        // nunca põe o jogador num chunk que ainda não existe: o servidor trava esperando-o (o jogador voa a centenas de
+        // blocos por segundo sobre terreno que o gerador vanilla ainda não produziu). Pede os chunks à frente (a geração roda
+        // em threads paralelos) e segura o voo até os próximos estarem prontos.
+        if (session.last != null && holdForChunks(player.level(), session, body)) {
+            session.lastNanos = System.nanoTime();
+            return true;
+        }
+
         // o servidor pode estar atrasado (tick > 50 ms): avança um passo por 50 ms de tempo real decorrido, para a velocidade
         // não depender do tick e o cliente não ficar puxado para trás
         long now = System.nanoTime();
@@ -171,6 +230,7 @@ public final class Autopilot {
             }
         }
         BodyTransfer state = step.state();
+        session.last = step.transferred() ? null : state;
         adjustDistances(player.level().getServer(), state.y());
         player.resetFallDistance();
         if (step.transferred()) {
