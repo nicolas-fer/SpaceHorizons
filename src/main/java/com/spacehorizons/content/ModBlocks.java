@@ -7,6 +7,7 @@ import com.spacehorizons.SpaceHorizons;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.MapColor;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -14,12 +15,9 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class ModBlocks {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(SpaceHorizons.MODID);
 
-    /**
-     * PROVISÓRIO: bloco de teste da fundação de conteúdo (etapa 0).
-     * Será removido/substituído pelos blocos reais na etapa 1.
-     */
-    public static final DeferredBlock<Block> PLACEHOLDER_BLOCK = registerWithItem(ContentIds.PLACEHOLDER_BLOCK,
-            props -> props.strength(1.5F, 6.0F).sound(SoundType.STONE));
+    /** Bloco de aço: dureza de bloco de ferro; só dropa com picareta de ferro ou melhor (ver tags em data/minecraft/tags/block). */
+    public static final DeferredBlock<Block> STEEL_BLOCK = registerWithItem(ContentIds.STEEL_BLOCK,
+            props -> props.mapColor(MapColor.METAL).strength(5.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops());
 
     private ModBlocks() {
     }

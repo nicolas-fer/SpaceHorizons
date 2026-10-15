@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "#": "spacehorizons:steel_ingot",
+    "S": "minecraft:stick"
+  },
+  "pattern": [
+    "## ",
+    "##S",
+    "  S"
+  ],
+  "result": {
+    "id": "spacehorizons:forge_hammer"
+  }
+}

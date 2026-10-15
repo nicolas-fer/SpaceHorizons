@@ -8,11 +8,11 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "spacehorizons:placeholder_block"
+          "name": "spacehorizons:steel_block"
         }
       ],
       "rolls": 1
     }
   ],
-  "random_sequence": "spacehorizons:blocks/placeholder_block"
+  "random_sequence": "spacehorizons:blocks/steel_block"
 }

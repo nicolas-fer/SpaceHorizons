@@ -20,7 +20,7 @@ public final class ModCreativeTabs {
     /** Aba "Space Horizons": lista automaticamente todos os itens registrados em {@link ModItems}. */
     public static final Supplier<CreativeModeTab> MAIN = TABS.register("main", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup." + SpaceHorizons.MODID + ".main"))
-            .icon(() -> new ItemStack(ModItems.PLACEHOLDER_ITEM.get()))
+            .icon(() -> new ItemStack(ModItems.STEEL_INGOT.get()))
             .displayItems((parameters, output) -> {
                 for (DeferredHolder<Item, ? extends Item> item : ModItems.ITEMS.getEntries()) {
                     output.accept(item.get());

@@ -13,11 +13,15 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class ModItems {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(SpaceHorizons.MODID);
 
-    /**
-     * PROVISÓRIO: item de teste da fundação de conteúdo (etapa 0).
-     * Será removido/substituído pelos itens reais na etapa 1.
-     */
-    public static final DeferredItem<Item> PLACEHOLDER_ITEM = ITEMS.registerSimpleItem(ContentIds.PLACEHOLDER_ITEM);
+    public static final DeferredItem<Item> STEEL_BLEND = ITEMS.registerSimpleItem(ContentIds.STEEL_BLEND);
+    public static final DeferredItem<Item> STEEL_INGOT = ITEMS.registerSimpleItem(ContentIds.STEEL_INGOT);
+    public static final DeferredItem<Item> STEEL_NUGGET = ITEMS.registerSimpleItem(ContentIds.STEEL_NUGGET);
+    public static final DeferredItem<Item> STEEL_PLATE = ITEMS.registerSimpleItem(ContentIds.STEEL_PLATE);
+    public static final DeferredItem<Item> BASIC_CIRCUIT = ITEMS.registerSimpleItem(ContentIds.BASIC_CIRCUIT);
+
+    /** Martelo de forja: 64 usos (cada receita que o usa gasta 1). */
+    public static final DeferredItem<ForgeHammerItem> FORGE_HAMMER = ITEMS.registerItem(ContentIds.FORGE_HAMMER,
+            ForgeHammerItem::new, props -> props.durability(64));
 
     private ModItems() {
     }

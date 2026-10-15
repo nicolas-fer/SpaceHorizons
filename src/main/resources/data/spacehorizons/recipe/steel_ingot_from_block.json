@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "spacehorizons:steel_block"
+  ],
+  "result": {
+    "id": "spacehorizons:steel_ingot",
+    "count": 9
+  }
+}
