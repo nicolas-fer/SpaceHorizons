@@ -21,7 +21,7 @@ import com.mojang.renderpearl.api.pipeline.CompiledRenderPipeline;
 import com.mojang.renderpearl.api.pipeline.IndexType;
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.client.atmosphere.AtmosphereClient;
-import com.spacehorizons.client.atmosphere.AtmosphereModel;
+import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.client.planetmesh.PlanetMeshProjection;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;

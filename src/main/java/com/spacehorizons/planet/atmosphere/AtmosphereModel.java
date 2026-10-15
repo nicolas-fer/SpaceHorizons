@@ -1,4 +1,4 @@
-package com.spacehorizons.client.atmosphere;
+package com.spacehorizons.planet.atmosphere;
 
 import java.util.Map;
 
