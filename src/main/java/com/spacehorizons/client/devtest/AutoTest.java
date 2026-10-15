@@ -82,6 +82,10 @@ public final class AutoTest {
             cloudsScenario();
             return;
         }
+        if ("content".equals(ONLY)) {
+            contentScenario();
+            return;
+        }
         if ("moonback".equals(ONLY)) {
             moonBackScenario();
             return;
@@ -301,6 +305,24 @@ public final class AutoTest {
         step(100, mc -> {
         });
         cloudProbe("thunder");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Itens e blocos do mod no jogo: dá os itens, coloca o bloco à frente e tira prints (modelo, textura, nome). */
+    private void contentScenario() {
+        cmd(20, "weather clear 1000000");
+        cmd(20, "tp @s 0 120 0");
+        fly(20);
+        cmd(20, "setblock 3 120 0 spacehorizons:placeholder_block");
+        cmd(20, "give @s spacehorizons:placeholder_item 5");
+        cmd(20, "give @s spacehorizons:placeholder_block 3");
+        look(20, EAST, 10f);
+        shot(60, "ct_block_and_hotbar");
+        step(20, mc -> mc.player.getInventory().setSelectedSlot(0));
+        shot(40, "ct_item_held");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
