@@ -11,5 +11,11 @@
   "death.attack.spacehorizons_vacuum.player": "%1$s sufocou no vácuo do espaço ao tentar escapar de %2$s",
   "hud.spacehorizons.oxygen": "Oxigênio",
   "hud.spacehorizons.oxygen.seconds": "Oxigênio %s s",
-  "hud.spacehorizons.oxygen.supplied": "Oxigênio (abastecido)"
+  "hud.spacehorizons.oxygen.supplied": "Oxigênio (abastecido)",
+  "item.spacehorizons.fuel_canister": "Galão de Combustível",
+  "block.spacehorizons.refinery": "Refinaria",
+  "container.spacehorizons.refinery": "Refinaria",
+  "tooltip.spacehorizons.fuel_canister": "%s / %s mB",
+  "gui.spacehorizons.refinery.tank": "Combustível de foguete",
+  "gui.spacehorizons.refinery.tank_amount": "%s / %s mB"
 }

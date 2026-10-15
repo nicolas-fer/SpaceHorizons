@@ -1,0 +1,6 @@
+{
+  "type": "spacehorizons:refining",
+  "ingredient": "minecraft:sugar_cane",
+  "fuel_mb": 50,
+  "time": 40
+}

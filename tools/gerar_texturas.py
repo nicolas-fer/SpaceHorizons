@@ -21,7 +21,7 @@ import zlib
 from pathlib import Path
 
 # ids com textura provisória (adicione aqui)
-ITENS = ["placeholder_item"]
+ITENS = ["placeholder_item", "fuel_canister"]
 BLOCOS = ["placeholder_block"]
 
 TAMANHO = 16

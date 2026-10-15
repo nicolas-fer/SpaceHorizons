@@ -1,0 +1,6 @@
+{
+  "type": "spacehorizons:refining",
+  "ingredient": "minecraft:blaze_powder",
+  "fuel_mb": 500,
+  "time": 100
+}
