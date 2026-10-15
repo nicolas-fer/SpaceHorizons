@@ -2,6 +2,7 @@ package com.spacehorizons.client.atmosphere;
 
 import java.util.Optional;
 
+import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.client.space.SpaceSun;
 
 import net.minecraft.client.Camera;

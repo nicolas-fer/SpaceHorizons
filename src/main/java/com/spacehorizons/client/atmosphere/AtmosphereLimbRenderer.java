@@ -16,8 +16,11 @@ import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.pipeline.UniformType;
 import com.mojang.renderpearl.api.textures.GpuTextureView;
+import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.client.planetmesh.PlanetMeshProjection;
+import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.client.space.SpaceSun;
 
 import net.minecraft.client.Minecraft;

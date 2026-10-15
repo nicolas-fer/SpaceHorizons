@@ -5,7 +5,11 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.client.oxygen.OxygenHud;
 import com.spacehorizons.client.space.SpaceSun;
+import com.spacehorizons.survival.oxygen.OxygenMath;
+import com.spacehorizons.survival.oxygen.OxygenSetup;
+import com.spacehorizons.survival.oxygen.OxygenState;
 import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
@@ -55,6 +59,7 @@ public final class AutoTest {
     /** Com -PshOnly=NOME roda só um trecho do roteiro (hoje: clouds). */
     private static final String ONLY = System.getProperty("spacehorizons.autotest.only");
     private boolean freshRequested;
+    private int menuTicks;
     private int index;
     private Ticker active;
     private int countdown = 200;
@@ -79,6 +84,10 @@ public final class AutoTest {
         }
         if ("moonback".equals(ONLY)) {
             moonBackScenario();
+            return;
+        }
+        if ("vacuum".equals(ONLY)) {
+            vacuumScenario();
             return;
         }
 
@@ -314,6 +323,91 @@ public final class AutoTest {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });
+    }
+
+    /**
+     * Vácuo e oxigênio em sobrevivência: Terra no ar (HUD escondido), Terra acima da atmosfera (reserva cai, depois
+     * o dano), volta ao ar (recarrega), Lua (cai), fonte de teste (recarrega no vácuo), criativo (isento) e a regra
+     * de jogo desligada. O jogador flutua (gravidade 0) para não morrer de queda ao testar a Terra a 2.700.
+     */
+    private void vacuumScenario() {
+        cmd(20, "weather clear 1000000");
+        cmd(20, "difficulty normal");
+        cmd(20, "gamemode survival");
+        cmd(20, "attribute @s minecraft:gravity base set 0");
+        step(40, mc -> logOxygen(mc, "A Terra no ar, sobrevivência (esperado: cheia, HUD escondida)"));
+        shot(10, "vac_a_earth_air");
+
+        // B: Terra acima do topo da atmosfera (63 + 1.800 = 1.863)
+        cmd(20, "tp @s 0 2700 0");
+        oxygenTicker("B Terra y=2700", 700, 50, 40, 300, 540, 640);
+
+        // C: de volta ao ar da Terra, a reserva recarrega
+        cmd(20, "tp @s 0 200 0");
+        oxygenTicker("C Terra no ar (recarga)", 120, 20, 15, 100);
+
+        // D: Lua, vácuo em qualquer altitude
+        cmd(20, "spacehorizons goto moon");
+        cmd(300, "gamemode survival");
+        cmd(20, "attribute @s minecraft:gravity base reset");
+        cmd(20, "effect give @s minecraft:instant_health 1 5");
+        oxygenTicker("D Lua (cai)", 260, 40, 30, 200);
+
+        // E: fonte de teste abastece no vácuo
+        cmd(5, "spacehorizons oxygen supply true");
+        oxygenTicker("E Lua com fonte de teste", 80, 20, 60);
+        cmd(5, "spacehorizons oxygen supply false");
+        oxygenTicker("E2 Lua, fonte desligada", 40, 20);
+        cmd(5, "spacehorizons oxygen status");
+
+        // F: criativo no vácuo é isento: reserva cheia e HUD escondida
+        cmd(10, "gamemode creative");
+        oxygenTicker("F Lua, criativo (isento)", 60, 20, 50);
+
+        // G: regra de jogo desligada: sobrevivência no vácuo sem consumo nem HUD
+        cmd(10, "gamemode survival");
+        cmd(5, "gamerule spacehorizons:vacuum_damage false");
+        oxygenTicker("G Lua, regra desligada", 80, 20, 70);
+        cmd(5, "gamerule spacehorizons:vacuum_damage true");
+        oxygenTicker("G2 Lua, regra religada", 60, 20);
+
+        cmd(5, "gamemode creative");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Loga a cada {@code every} ticks o estado de oxigênio do cliente e tira prints nos ticks indicados. */
+    private void oxygenTicker(String label, int ticks, int every, int... shotAt) {
+        tickerStep(0, new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                if (n == 1 || n % every == 0) {
+                    logOxygen(mc, label + " tick=" + n);
+                }
+                for (int at : shotAt) {
+                    if (n == at) {
+                        logOxygen(mc, label + " PRINT tick=" + n);
+                        grab(mc, "vac_" + label.split(" ")[0].toLowerCase() + "_t" + n);
+                    }
+                }
+                return n >= ticks;
+            }
+        });
+    }
+
+    private static void logOxygen(Minecraft mc, String label) {
+        LocalPlayer p = mc.player;
+        OxygenState s = p.getData(OxygenSetup.OXYGEN);
+        boolean vacuum = Planets.forLevel(mc.level).map(planet -> OxygenMath.isVacuum(planet, p.getEyeY())).orElse(false);
+        SpaceHorizons.LOGGER.info(TAG + "OXIGENIO {}: reserva={}/{} ({}s) fonte={} sistema={} vacuo={} hudVisivel={} vida={} "
+                + "criativo={} dim={} y={}", label, s.reserve(), OxygenMath.MAX_RESERVE, f(s.secondsLeft()), s.supplied(),
+                s.enabled(), vacuum, OxygenHud.isVisible(mc), f(p.getHealth()), p.isCreative(),
+                mc.level.dimension().identifier().getPath(), f(p.getY()));
     }
 
     private void cloudProbe(String name) {
@@ -643,6 +737,11 @@ public final class AutoTest {
             freshRequested = true;
             createFreshWorld(mc);
             return;
+        }
+        if (FRESH_WORLD != null && !freshRequested && mc.level == null && ++menuTicks % 200 == 0) {
+            // diagnóstico: o que está na frente do menu inicial (telas de aviso, de integração etc.)
+            SpaceHorizons.LOGGER.info(TAG + "aguardando o menu inicial; tela atual: {}",
+                    mc.gui.screen() == null ? "nenhuma" : mc.gui.screen().getClass().getName());
         }
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null || index >= steps.size()) {

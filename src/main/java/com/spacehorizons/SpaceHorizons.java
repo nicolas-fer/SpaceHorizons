@@ -18,6 +18,7 @@ public class SpaceHorizons {
 
     public SpaceHorizons(IEventBus modEventBus, ModContainer modContainer) {
         WorldgenSetup.init(modEventBus);
+        com.spacehorizons.survival.oxygen.OxygenSetup.init(modEventBus);
         // DH é opcional: sem ele o mod funciona, só sem LODs
         if (ModList.get().isLoaded("distanthorizons")) {
             DhIntegration.init();

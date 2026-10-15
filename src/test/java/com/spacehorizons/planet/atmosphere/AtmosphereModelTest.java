@@ -1,4 +1,4 @@
-package com.spacehorizons.client.atmosphere;
+package com.spacehorizons.planet.atmosphere;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

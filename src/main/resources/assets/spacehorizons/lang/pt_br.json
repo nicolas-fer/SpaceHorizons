@@ -1,5 +1,12 @@
 {
   "generator.spacehorizons.earth": "Space Horizons (Terra curva)",
   "biome.spacehorizons.lunar": "Superfície lunar",
-  "dimension.spacehorizons.moon": "A Lua"
+  "dimension.spacehorizons.moon": "A Lua",
+  "gamerule.spacehorizons.vacuum_damage": "Vácuo e oxigênio",
+  "gamerule.spacehorizons.vacuum_damage.description": "Jogadores sufocam no vácuo (planetas sem atmosfera e acima da atmosfera) quando o oxigênio acaba",
+  "death.attack.spacehorizons_vacuum": "%1$s sufocou no vácuo do espaço",
+  "death.attack.spacehorizons_vacuum.player": "%1$s sufocou no vácuo do espaço ao tentar escapar de %2$s",
+  "hud.spacehorizons.oxygen": "Oxigênio",
+  "hud.spacehorizons.oxygen.seconds": "Oxigênio %s s",
+  "hud.spacehorizons.oxygen.supplied": "Oxigênio (abastecido)"
 }

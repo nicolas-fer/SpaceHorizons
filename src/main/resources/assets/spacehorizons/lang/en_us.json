@@ -1,5 +1,12 @@
 {
   "generator.spacehorizons.earth": "Space Horizons (Curved Earth)",
   "biome.spacehorizons.lunar": "Lunar Surface",
-  "dimension.spacehorizons.moon": "The Moon"
+  "dimension.spacehorizons.moon": "The Moon",
+  "gamerule.spacehorizons.vacuum_damage": "Vacuum and oxygen",
+  "gamerule.spacehorizons.vacuum_damage.description": "Players suffocate in a vacuum (airless planets and above the atmosphere) when their oxygen runs out",
+  "death.attack.spacehorizons_vacuum": "%1$s suffocated in the vacuum of space",
+  "death.attack.spacehorizons_vacuum.player": "%1$s suffocated in the vacuum of space whilst trying to escape %2$s",
+  "hud.spacehorizons.oxygen": "Oxygen",
+  "hud.spacehorizons.oxygen.seconds": "Oxygen %s s",
+  "hud.spacehorizons.oxygen.supplied": "Oxygen (supplied)"
 }
