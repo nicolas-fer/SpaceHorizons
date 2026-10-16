@@ -1,0 +1,22 @@
+{
+  "values": [
+    "#minecraft:base_stone_overworld",
+    "#minecraft:base_stone_nether",
+    "#minecraft:dirt",
+    "#minecraft:sand",
+    "#minecraft:terracotta",
+    "#minecraft:snow",
+    "#minecraft:ice",
+    "#minecraft:leaves",
+    "#minecraft:logs",
+    "minecraft:gravel",
+    "minecraft:clay",
+    "minecraft:sandstone",
+    "minecraft:red_sandstone",
+    "minecraft:smooth_basalt",
+    "minecraft:basalt",
+    "minecraft:calcite",
+    "minecraft:dripstone_block",
+    "minecraft:light_gray_concrete_powder"
+  ]
+}

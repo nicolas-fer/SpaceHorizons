@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "spacehorizons:block/rocket_cockpit",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "spacehorizons:block/rocket_cockpit"
+    },
+    "facing=south": {
+      "model": "spacehorizons:block/rocket_cockpit",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "spacehorizons:block/rocket_cockpit",
+      "y": 270
+    }
+  }
+}

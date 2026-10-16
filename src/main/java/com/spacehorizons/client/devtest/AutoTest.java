@@ -144,6 +144,10 @@ public final class AutoTest {
             suitScenario();
             return;
         }
+        if ("rocket".equals(ONLY)) {
+            rocketScenario();
+            return;
+        }
 
         // (a) Terra vanilla: chão em vários pontos perto do spawn (biomas, árvores, relevo)
         int[][] spots = {{0, 0}, {1500, 0}, {0, 1500}, {-2500, 1000}, {4000, -3000}, {-6000, -2000}};
@@ -1731,6 +1735,139 @@ public final class AutoTest {
                 }
                 return false;
             }
+        });
+    }
+
+    /** Clique direito de verdade num bloco, pela face dada (o servidor valida o alcance como no jogo). */
+    private static void useOnBlock(Minecraft mc, BlockPos pos, Direction face) {
+        mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atCenterOf(pos), face, pos, false));
+    }
+
+    /** Ponto de vista de fora do foguete: teleporta, voa e olha na direção dada. */
+    private void rocketView(String name, double x, double y, double z, float yaw, float pitch) {
+        cmd(10, "tp @s " + x + " " + y + " " + z);
+        fly(5);
+        look(10, yaw, pitch);
+        shot(40, name);
+    }
+
+    /**
+     * Foguete de blocos, protótipo 3a-1 (docs/DESIGN_FOGUETE.md): constrói por comandos um foguete pequeno sobre uma plataforma
+     * 3x3 no ar (motor, tanque, cockpit, cascos, pernas, e uma fornalha e um baú para testar block entities), abastece o tanque
+     * com galões de verdade, monta com a mão vazia (clique no cockpit), confere que os blocos sumiram e a entidade existe,
+     * tira prints de vários ângulos, senta o jogador (terceira e primeira pessoa), move a entidade 10 blocos para cima e
+     * devolve, desmonta e compara o mundo com o de antes, recusa a montagem encostada em terreno, e repete com yaw de 90 graus
+     * para conferir a rotação dos estados. Também salva e recarrega a entidade em NBT e lê o pacote de spawn.
+     */
+    private void rocketScenario() {
+        BlockPos tank = RocketDevtest.at(new BlockPos(0, 2, 0));
+        BlockPos cockpit = RocketDevtest.at(new BlockPos(0, 4, 0));
+        double bx = RocketDevtest.BASE.getX() + 0.5;
+        double by = RocketDevtest.BASE.getY();
+        double bz = RocketDevtest.BASE.getZ() + 0.5;
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        fly(10);
+        cmd(10, "tp @s " + (bx + 2.7) + " " + (by + 0.88) + " " + bz);
+        fly(10);
+        cmd(10, "clear @s");
+        step(10, mc -> ContentCraftCheck.run(mc.getSingleplayerServer()));
+        cmd(10, RocketDevtest.clearCommand());
+        for (String command : RocketDevtest.buildCommands()) {
+            cmd(4, command);
+        }
+        // de pé a leste do foguete, olhando para oeste: o raio da mira bate no lado do tanque (nada no caminho)
+        look(30, 90f, 0f);
+        shot(30, "rk_a_blocks_built");
+        step(0, mc -> RocketDevtest.tankDisplay(mc, "vazio"));
+
+        // abastece com dois galões cheios (clique direito de verdade no tanque)
+        cmd(5, "give @s spacehorizons:fuel_canister[spacehorizons:fuel_mb=1000]");
+        cmd(5, "give @s spacehorizons:fuel_canister[spacehorizons:fuel_mb=1000]");
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(0);
+            useOnBlock(mc, tank, Direction.EAST);
+        });
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(1);
+            useOnBlock(mc, tank, Direction.EAST);
+        });
+        step(15, mc -> RocketDevtest.tankDisplay(mc, "com 2000 mB"));
+        shot(5, "rk_b_tank_hud");
+        step(5, RocketDevtest::tankBreakAndReplace);
+        step(30, RocketDevtest::snapshot);
+
+        // monta com a mão vazia: clique direito no cockpit
+        step(20, mc -> mc.player.getInventory().setSelectedSlot(8));
+        step(10, mc -> useOnBlock(mc, cockpit, Direction.EAST));
+        step(25, mc -> RocketDevtest.afterAssemble(mc, "montado"));
+        step(5, mc -> RocketDevtest.clientView(mc, "montado"));
+        shot(30, "rk_c_assembled_same_spot");
+        rocketView("rk_d_assembled_south", bx, by + 2.5, bz + 8.0, 180f, 6f);
+        rocketView("rk_d_assembled_east", bx + 9.0, by + 2.5, bz, 90f, 6f);
+        rocketView("rk_d_assembled_north", bx, by + 2.5, bz - 8.0, 0f, 6f);
+        rocketView("rk_d_assembled_west", bx - 9.0, by + 2.5, bz, -90f, 6f);
+        rocketView("rk_d_assembled_oblique_high", bx + 7.0, by + 11.0, bz + 7.0, 135f, 33f);
+        rocketView("rk_d_assembled_close_up", bx + 3.5, by + 3.5, bz + 3.5, 135f, 12f);
+
+        // senta o piloto (clique direito de verdade na entidade) e olha em terceira e primeira pessoa
+        cmd(10, "tp @s " + (bx + 2.7) + " " + (by + 0.88) + " " + bz);
+        fly(5);
+        look(10, 90f, 0f);
+        step(10, RocketDevtest::clickRocket);
+        step(20, mc -> RocketDevtest.seatCheck(mc, "sentado"));
+        step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK));
+        shot(20, "rk_e_seated_third_person");
+        step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
+        shot(20, "rk_e_seated_first_person");
+        step(0, mc -> RocketDevtest.clientView(mc, "sentado"));
+        // move a entidade 10 blocos para cima com o piloto: o retrato fora do chão, o piloto vai junto
+        cmd(10, "spacehorizons rocket nudge 0 10 0");
+        step(25, mc -> RocketDevtest.seatCheck(mc, "sentado 10 blocos acima"));
+        step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK));
+        shot(20, "rk_f_nudged_up_seated_third_person");
+        step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
+        // desembarca (o mesmo caminho do Shift) e olha de fora para o foguete no ar
+        step(5, RocketDevtest::dismount);
+        rocketView("rk_g_floating_east", bx + 12.0, by + 8.0, bz, 90f, -17f);
+        rocketView("rk_g_floating_south", bx, by + 8.0, bz + 12.0, 180f, -17f);
+        step(0, mc -> RocketDevtest.clientView(mc, "no ar"));
+        // devolve ao lugar
+        cmd(10, "spacehorizons rocket nudge 0 -10 0");
+        step(25, mc -> RocketDevtest.afterAssemble(mc, "devolvido"));
+        // desmonta: os blocos voltam iguais
+        cmd(10, "spacehorizons rocket disassemble");
+        step(25, mc -> RocketDevtest.afterLand(mc, "pousou (yaw 0)", 0));
+        step(5, mc -> RocketDevtest.clientView(mc, "depois de pousar"));
+        rocketView("rk_h_landed_east", bx + 9.0, by + 2.5, bz, 90f, 6f);
+        rocketView("rk_h_landed_oblique", bx + 7.0, by + 11.0, bz + 7.0, 135f, 33f);
+
+        // recusa: pedra (terreno) encostada no casco
+        cmd(10, RocketDevtest.terrainBlockCommand(true));
+        cmd(10, "tp @s " + (bx + 2.7) + " " + (by + 0.88) + " " + (bz + 1.0));
+        fly(5);
+        look(10, 90f, 0f);
+        step(10, mc -> useOnBlock(mc, cockpit, Direction.EAST));
+        step(25, mc -> RocketDevtest.afterAssemble(mc, "depois do clique com terreno encostado"));
+        step(5, mc -> RocketDevtest.assembleExpectingRefusal(mc, "terreno encostado"));
+        shot(20, "rk_i_terrain_refusal");
+        cmd(10, RocketDevtest.terrainBlockCommand(false));
+
+        // monta de novo, grava e recarrega a entidade, gira 90 graus e pousa: os estados giram com ela
+        step(10, mc -> useOnBlock(mc, cockpit, Direction.EAST));
+        step(25, mc -> RocketDevtest.afterAssemble(mc, "remontado"));
+        step(5, RocketDevtest::saveLoadRoundTrip);
+        cmd(5, "spacehorizons rocket yaw 90");
+        cmd(10, "spacehorizons rocket info");
+        rocketView("rk_j_yaw90_east", bx + 9.0, by + 2.5, bz, 90f, 6f);
+        rocketView("rk_j_yaw90_south", bx, by + 2.5, bz + 9.0, 180f, 6f);
+        cmd(10, "spacehorizons rocket disassemble");
+        step(25, mc -> RocketDevtest.afterLand(mc, "pousou com yaw 90", 1));
+        rocketView("rk_k_landed_rotated_east", bx + 9.0, by + 2.5, bz, 90f, 6f);
+        rocketView("rk_k_landed_rotated_south", bx, by + 2.5, bz + 9.0, 180f, 6f);
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
         });
     }
 

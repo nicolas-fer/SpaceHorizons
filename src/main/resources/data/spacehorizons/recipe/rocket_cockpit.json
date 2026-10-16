@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "G": "minecraft:glass",
+    "C": "spacehorizons:basic_circuit"
+  },
+  "pattern": [
+    "PGP",
+    "CPC",
+    "PPP"
+  ],
+  "result": {
+    "id": "spacehorizons:rocket_cockpit"
+  }
+}

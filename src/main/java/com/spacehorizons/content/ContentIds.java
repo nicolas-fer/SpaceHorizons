@@ -42,6 +42,18 @@ public final class ContentIds {
     /** Botas: 4 placas de aço. */
     public static final String SPACE_BOOTS = "space_boots";
 
+    // --- Foguete de blocos (etapa 3a): peças montadas pelo clique no cockpit (ver com.spacehorizons.rocket) ---
+    /** Plataforma de lançamento: o foguete se monta sobre ela e a deixa para trás. */
+    public static final String LAUNCH_PAD = "launch_pad";
+    /** Cockpit: o assento do piloto; clicar nele com a mão vazia monta o foguete. */
+    public static final String ROCKET_COCKPIT = "rocket_cockpit";
+    public static final String ROCKET_ENGINE = "rocket_engine";
+    /** Tanque de combustível: guarda mB (4.000 no máximo); clicar com um galão cheio transfere para ele. */
+    public static final String ROCKET_FUEL_TANK = "rocket_fuel_tank";
+    public static final String ROCKET_PARACHUTE = "rocket_parachute";
+    public static final String ROCKET_LANDING_LEG = "rocket_landing_leg";
+    public static final String ROCKET_HULL = "rocket_hull";
+
     /** Itens que não são BlockItems. */
     public static final List<String> ITEMS = List.of(
             STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER,
@@ -49,7 +61,8 @@ public final class ContentIds {
             SPACE_HELMET, SPACE_CHESTPLATE, SPACE_LEGGINGS, SPACE_BOOTS);
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
-    public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR);
+    public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR,
+            LAUNCH_PAD, ROCKET_COCKPIT, ROCKET_ENGINE, ROCKET_FUEL_TANK, ROCKET_PARACHUTE, ROCKET_LANDING_LEG, ROCKET_HULL);
 
     private ContentIds() {
     }

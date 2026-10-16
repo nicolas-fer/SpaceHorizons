@@ -72,6 +72,20 @@ final class ContentCraftCheck {
             craft(level, "botas do traje", 3, 2, placa, vazio, placa, placa, vazio, placa);
             craft(level, "capacete sem vidro (invalido)", 3, 2, placa, circuito, placa, placa, vazio, placa);
 
+            // foguete de blocos (etapa 3a): receitas das peças
+            ItemStack altoForno = new ItemStack(Items.BLAST_FURNACE);
+            ItemStack balde = new ItemStack(Items.BUCKET);
+            ItemStack la = new ItemStack(Items.WOOL.pick(net.minecraft.world.item.DyeColor.WHITE));
+            ItemStack fio = new ItemStack(Items.STRING);
+            craft(level, "casco de foguete (4 placas)", 2, 2, placa, placa, placa, placa);
+            craft(level, "plataforma de lançamento (3 placas e 3 lingotes)", 3, 2, placa, placa, placa, aco, aco, aco);
+            craft(level, "motor de foguete", 3, 3, placa, circuito, placa, placa, altoForno, placa, aco, vazio, aco);
+            craft(level, "cockpit de foguete", 3, 3, placa, vidro, placa, circuito, placa, circuito, placa, placa, placa);
+            craft(level, "tanque de foguete", 3, 3, placa, vazio, placa, placa, balde, placa, placa, placa, placa);
+            craft(level, "paraquedas de foguete", 3, 3, la, la, la, fio, vazio, fio, vazio, placa, vazio);
+            craft(level, "pernas de pouso (2)", 1, 3, placa, placa, aco);
+            craft(level, "cockpit sem circuitos (invalido)", 3, 3, placa, vidro, placa, vazio, placa, vazio, placa, placa, placa);
+
             ItemStack mistura = new ItemStack(ModItems.STEEL_BLEND.get());
             var receitas = server.getRecipeManager();
             var alto = receitas.getRecipeFor(RecipeType.BLASTING, new SingleRecipeInput(mistura), level);

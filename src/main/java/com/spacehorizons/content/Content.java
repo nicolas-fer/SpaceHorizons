@@ -13,6 +13,7 @@ public final class Content {
         ModItems.ITEMS.register(modEventBus);
         ModDataComponents.COMPONENTS.register(modEventBus);
         ModBlockEntities.TYPES.register(modEventBus);
+        ModEntities.TYPES.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);
         ModRecipes.TYPES.register(modEventBus);
         ModRecipes.SERIALIZERS.register(modEventBus);

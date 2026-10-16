@@ -3,6 +3,7 @@ package com.spacehorizons.content;
 import java.util.Set;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
 import com.spacehorizons.survival.compressor.OxygenCompressorBlockEntity;
 import com.spacehorizons.survival.fuel.RefineryBlockEntity;
 
@@ -22,6 +23,10 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<OxygenCompressorBlockEntity>> OXYGEN_COMPRESSOR =
             TYPES.register(ContentIds.OXYGEN_COMPRESSOR,
                     () -> new BlockEntityType<>(OxygenCompressorBlockEntity::new, Set.of(ModBlocks.OXYGEN_COMPRESSOR.get())));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RocketFuelTankBlockEntity>> ROCKET_FUEL_TANK =
+            TYPES.register(ContentIds.ROCKET_FUEL_TANK,
+                    () -> new BlockEntityType<>(RocketFuelTankBlockEntity::new, Set.of(ModBlocks.ROCKET_FUEL_TANK.get())));
 
     private ModBlockEntities() {
     }

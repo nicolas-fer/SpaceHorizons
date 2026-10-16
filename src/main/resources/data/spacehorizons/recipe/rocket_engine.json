@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "B": "spacehorizons:basic_circuit",
+    "F": "minecraft:blast_furnace",
+    "S": "spacehorizons:steel_ingot"
+  },
+  "pattern": [
+    "PBP",
+    "PFP",
+    "S S"
+  ],
+  "result": {
+    "id": "spacehorizons:rocket_engine"
+  }
+}

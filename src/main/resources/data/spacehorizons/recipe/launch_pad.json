@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "S": "spacehorizons:steel_ingot"
+  },
+  "pattern": [
+    "PPP",
+    "SSS"
+  ],
+  "result": {
+    "id": "spacehorizons:launch_pad",
+    "count": 3
+  }
+}

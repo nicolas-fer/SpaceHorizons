@@ -3,6 +3,7 @@ package com.spacehorizons.content;
 import java.util.function.Supplier;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.rocket.RocketFuelTankItem;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 import com.spacehorizons.survival.oxygen.OxygenTankItem;
 
@@ -32,6 +33,8 @@ public final class ModCreativeTabs {
                 // idem para os tanques de oxigênio: o vazio vem da lista acima, o cheio daqui
                 output.accept(OxygenTankItem.fullStack(ModItems.OXYGEN_TANK_SMALL.get()));
                 output.accept(OxygenTankItem.fullStack(ModItems.OXYGEN_TANK_LARGE.get()));
+                // e o tanque de foguete: o vazio vem da lista acima, o cheio (4.000 mB) daqui
+                output.accept(RocketFuelTankItem.fullStack());
             })
             .build());
 
