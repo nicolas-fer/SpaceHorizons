@@ -25,6 +25,8 @@ import net.minecraft.world.level.gamerules.GameRule;
 import net.minecraft.world.level.gamerules.GameRuleCategory;
 import net.minecraft.world.level.gamerules.GameRuleType;
 import net.minecraft.world.level.gamerules.GameRuleTypeVisitor;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.attachment.AttachmentType;
 import net.neoforged.neoforge.common.NeoForge;
@@ -55,7 +57,7 @@ public final class OxygenSetup {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<OxygenState>> OXYGEN = ATTACHMENTS.register("oxygen",
             () -> AttachmentType.builder((Supplier<OxygenState>) () -> OxygenState.FULL)
                     .serialize(OxygenState.CODEC)
-                    .sync(OxygenState.STREAM_CODEC)
+                    .sync((holder, to) -> holder == to, OxygenState.STREAM_CODEC)
                     .build());
 
     /** Liga/desliga o sistema inteiro (reserva, HUD e dano). */
@@ -73,6 +75,9 @@ public final class OxygenSetup {
         ATTACHMENTS.register(modEventBus);
         GAME_RULES.register(modEventBus);
         OxygenSources.register(new OxygenDevSource());
+        NeoForge.EVENT_BUS.addListener(PlayerEvent.PlayerLoggedOutEvent.class,
+                event -> OxygenDevSource.forget(event.getEntity().getUUID()));
+        NeoForge.EVENT_BUS.addListener(ServerStoppedEvent.class, event -> OxygenDevSource.clear());
         NeoForge.EVENT_BUS.addListener(PlayerTickEvent.Post.class, event -> {
             if (event.getEntity() instanceof ServerPlayer player) {
                 tick(player);

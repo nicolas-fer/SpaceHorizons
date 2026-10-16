@@ -8,7 +8,14 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "spacehorizons:refinery"
+          "name": "spacehorizons:refinery",
+          "modifier": {
+            "type": "minecraft:copy_components",
+            "include": [
+              "spacehorizons:refinery_tank_mb"
+            ],
+            "source": "block_entity"
+          }
         }
       ],
       "rolls": 1

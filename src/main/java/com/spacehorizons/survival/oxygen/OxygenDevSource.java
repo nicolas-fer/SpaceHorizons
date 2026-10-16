@@ -8,7 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Fonte de teste, ligada por jogador pelo comando /spacehorizons oxygen supply on|off. Abastece o consumo todo
- * enquanto estiver ligada (simula um tanque infinito). Não é salva: desliga ao reiniciar o servidor.
+ * enquanto estiver ligada (simula um tanque infinito). Não é salva: desliga no logout do jogador e quando o servidor para.
  */
 final class OxygenDevSource implements OxygenSource {
     private static final Set<UUID> ENABLED = ConcurrentHashMap.newKeySet();
@@ -19,6 +19,16 @@ final class OxygenDevSource implements OxygenSource {
         } else {
             ENABLED.remove(player.getUUID());
         }
+    }
+
+    /** Esquece o jogador (logout): a fonte não fica ligada para uma próxima sessão. */
+    static void forget(UUID player) {
+        ENABLED.remove(player);
+    }
+
+    /** Desliga tudo (servidor parou; no singleplayer o próximo mundo começa limpo). */
+    static void clear() {
+        ENABLED.clear();
     }
 
     @Override

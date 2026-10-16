@@ -1,11 +1,14 @@
 package com.spacehorizons.survival.fuel;
 
 import com.spacehorizons.content.ModBlockEntities;
+import com.spacehorizons.content.ModDataComponents;
 import com.spacehorizons.content.ModRecipes;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponentGetter;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -53,7 +56,8 @@ public class RefineryBlockEntity extends BaseContainerBlockEntity implements Wor
 
     private static final Component DEFAULT_NAME = Component.translatable("container.spacehorizons.refinery");
     private static final int[] SLOTS_UP = {SLOT_INPUT};
-    private static final int[] SLOTS_DOWN = {SLOT_CANISTER};
+    /** Por baixo saem o galão cheio e o resto do combustível (balde vazio da lava), como o slot 1 da fornalha. */
+    private static final int[] SLOTS_DOWN = {SLOT_CANISTER, SLOT_FUEL};
     private static final int[] SLOTS_SIDES = {SLOT_FUEL, SLOT_CANISTER};
 
     private NonNullList<ItemStack> items = NonNullList.withSize(SLOT_COUNT, ItemStack.EMPTY);
@@ -124,6 +128,25 @@ public class RefineryBlockEntity extends BaseContainerBlockEntity implements Wor
         output.putInt("lit_total", logic.litTotal());
         output.putInt("progress", logic.progress());
         output.putInt("process_total", logic.processTotal());
+    }
+
+    /** O tanque vai para o item do bloco ao quebrar (loot com copy_components), para o combustível não se perder. */
+    @Override
+    protected void collectImplicitComponents(DataComponentMap.Builder components) {
+        super.collectImplicitComponents(components);
+        if (logic.tank() > 0) {
+            components.set(ModDataComponents.REFINERY_TANK_MB.get(), logic.tank());
+        }
+    }
+
+    /** Ao colocar uma refinaria que guardava combustível, ele volta ao tanque. */
+    @Override
+    protected void applyImplicitComponents(DataComponentGetter components) {
+        super.applyImplicitComponents(components);
+        Integer stored = components.get(ModDataComponents.REFINERY_TANK_MB.get());
+        if (stored != null) {
+            logic.load(stored, logic.litTime(), logic.litTotal(), logic.progress(), logic.processTotal());
+        }
     }
 
     public static void serverTick(ServerLevel level, BlockPos pos, BlockState state, RefineryBlockEntity entity) {

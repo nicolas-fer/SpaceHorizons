@@ -613,9 +613,60 @@ public final class AutoTest {
             }
         });
         step(10, mc -> mc.player.closeContainer());
-        step(20, mc -> {
+        // correções da revisão: o tanque vai para o item ao quebrar e volta ao colocar; o balde vazio da lava sai por baixo
+        step(10, AutoTest::refineryBreakAndBucketCheck);
+        step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
+        });
+    }
+
+    /** Quebra a refinaria (com combustível no tanque), recoloca com o item que caiu e testa o balde vazio pela face de baixo. */
+    private static void refineryBreakAndBucketCheck(Minecraft mc) {
+        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        server.execute(() -> {
+            net.minecraft.server.level.ServerLevel level = server.getLevel(mc.level.dimension());
+            if (level == null || !(level.getBlockEntity(REFINERY_POS) instanceof RefineryBlockEntity before)) {
+                SpaceHorizons.LOGGER.warn(TAG + "REFINARIA quebra: block entity ausente");
+                return;
+            }
+            // estado conhecido: sem galão (o tanque não esvazia) e com 1500 mB no tanque
+            before.setItem(RefineryBlockEntity.SLOT_CANISTER, ItemStack.EMPTY);
+            before.logic().drain(RefineryLogic.TANK_CAPACITY);
+            before.logic().fill(1500);
+            int tankBefore = before.logic().tank();
+            net.minecraft.world.level.block.state.BlockState state = level.getBlockState(REFINERY_POS);
+            level.destroyBlock(REFINERY_POS, true);
+            ItemStack dropped = ItemStack.EMPTY;
+            for (net.minecraft.world.entity.item.ItemEntity e : level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                    new net.minecraft.world.phys.AABB(REFINERY_POS).inflate(2.0))) {
+                if (e.getItem().is(com.spacehorizons.content.ModBlocks.REFINERY.get().asItem())) {
+                    dropped = e.getItem().copy();
+                    e.discard();
+                }
+            }
+            Integer stored = dropped.get(com.spacehorizons.content.ModDataComponents.REFINERY_TANK_MB.get());
+            level.setBlock(REFINERY_POS, state.setValue(RefineryBlock.LIT, false), 3);
+            int tankAfter = -1;
+            if (level.getBlockEntity(REFINERY_POS) instanceof RefineryBlockEntity placed) {
+                placed.applyComponentsFromItemStack(dropped);
+                tankAfter = placed.logic().tank();
+                placed.setItem(RefineryBlockEntity.SLOT_FUEL, new ItemStack(net.minecraft.world.item.Items.BUCKET));
+                boolean exposed = java.util.Arrays.stream(placed.getSlotsForFace(Direction.DOWN))
+                        .anyMatch(i -> i == RefineryBlockEntity.SLOT_FUEL);
+                boolean bucketOut = placed.canTakeItemThroughFace(RefineryBlockEntity.SLOT_FUEL,
+                        placed.getItem(RefineryBlockEntity.SLOT_FUEL), Direction.DOWN);
+                boolean coalOut = placed.canTakeItemThroughFace(RefineryBlockEntity.SLOT_FUEL,
+                        new ItemStack(net.minecraft.world.item.Items.COAL), Direction.DOWN);
+                SpaceHorizons.LOGGER.info(TAG + "REFINARIA balde por baixo: slot exposto={} balde sai={} carvao sai={} (esperado true true false)",
+                        exposed, bucketOut, coalOut);
+                placed.setItem(RefineryBlockEntity.SLOT_FUEL, ItemStack.EMPTY);
+            }
+            SpaceHorizons.LOGGER.info(TAG + "REFINARIA quebra: tanque antes={} mB, item caiu={} componente={} mB, tanque ao recolocar={} mB",
+                    tankBefore, !dropped.isEmpty(), stored, tankAfter);
         });
     }
 
