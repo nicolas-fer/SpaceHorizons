@@ -182,6 +182,24 @@ Limitações da dimensão de espaço:
 - **Lua e clima**: `moon.json` tem `has_ceiling` falso, então a chuva do Overworld escurece o céu da Lua; no espaço `has_ceiling`
   verdadeiro evita isso. Não alterei a Lua.
 
+## Sobrevivência e foguete
+
+Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguete em `docs/DESIGN_FOGUETE.md`.
+
+- **Materiais e refinaria** (`content/`, `survival/fuel/`): minérios, placas e a refinaria que enche galões de combustível.
+- **Oxigênio** (`survival/oxygen/`, `survival/suit/`, `survival/compressor/`): vácuo no espaço e na Lua, traje com tanque, compressor
+  que enche tanques; o ar da cabine do foguete conta como fonte antes do traje.
+- **JEI** (`compat/jei/`) e conquistas (`data/spacehorizons/advancement/`).
+- **Foguete de blocos** (`rocket/`): monte cockpit, motores, tanques, cascos, paraquedas e pernas sobre uma plataforma de lançamento;
+  clique com a mão vazia no cockpit e a estrutura vira uma entidade que sobe inteira. Voo pilotável no estilo KSP simplificado
+  (gravidade real, SAS, apoastro e periastro no painel), travessia para a dimensão de espaço com o piloto sentado, paraquedas,
+  pouso suave e batida que destrói o foguete.
+
+Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
+(estabilizar, prógrado, retrógrado), P paraquedas, V câmera, G desmontar (pousado).
+
+Autoteste do voo: `./gradlew runClientTest -PshOnly=flight` (salto suborbital, batida e órbita completa com reentrada).
+
 ## Como rodar
 
 Requisitos: JDK 25 (o Gradle baixa o toolchain se preciso).
