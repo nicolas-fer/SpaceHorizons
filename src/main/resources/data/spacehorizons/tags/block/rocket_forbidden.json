@@ -1,0 +1,10 @@
+{
+  "values": [
+    "#minecraft:wither_immune",
+    "minecraft:spawner",
+    "minecraft:trial_spawner",
+    "minecraft:vault",
+    "minecraft:piston_head",
+    "minecraft:nether_portal"
+  ]
+}

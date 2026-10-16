@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "spacehorizons:block/rocket_fuel_tank_top",
+    "side": "spacehorizons:block/rocket_fuel_tank"
+  }
+}

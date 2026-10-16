@@ -1,6 +1,7 @@
 package com.spacehorizons.content;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.rocket.RocketFuelTankItem;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 import com.spacehorizons.survival.oxygen.OxygenAmounts;
 import com.spacehorizons.survival.oxygen.OxygenTankItem;
@@ -56,6 +57,13 @@ public final class ModItems {
             Item::new, props -> props.humanoidArmor(SpaceSuit.material(), ArmorType.LEGGINGS));
     public static final DeferredItem<Item> SPACE_BOOTS = ITEMS.registerItem(ContentIds.SPACE_BOOTS,
             Item::new, props -> props.humanoidArmor(SpaceSuit.material(), ArmorType.BOOTS));
+
+    /**
+     * BlockItem do tanque de foguete, com tooltip da carga. Registrado aqui (e não em ModBlocks, que registra os
+     * BlockItems simples): carregar ModBlocks, que vem antes na ordem de registro, não depende deste campo.
+     */
+    public static final DeferredItem<RocketFuelTankItem> ROCKET_FUEL_TANK = ITEMS.registerItem(ContentIds.ROCKET_FUEL_TANK,
+            props -> new RocketFuelTankItem(ModBlocks.ROCKET_FUEL_TANK.get(), props), () -> new Item.Properties().useBlockDescriptionPrefix());
 
     private ModItems() {
     }

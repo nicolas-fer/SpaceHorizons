@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "spacehorizons:block/rocket_parachute_top",
+    "side": "spacehorizons:block/rocket_parachute",
+    "bottom": "spacehorizons:block/rocket_parachute"
+  }
+}

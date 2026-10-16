@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "B": "minecraft:bucket"
+  },
+  "pattern": [
+    "P P",
+    "PBP",
+    "PPP"
+  ],
+  "result": {
+    "id": "spacehorizons:rocket_fuel_tank"
+  }
+}

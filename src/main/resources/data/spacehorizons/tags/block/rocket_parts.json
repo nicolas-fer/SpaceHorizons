@@ -1,0 +1,11 @@
+{
+  "values": [
+    "spacehorizons:launch_pad",
+    "spacehorizons:rocket_cockpit",
+    "spacehorizons:rocket_engine",
+    "spacehorizons:rocket_fuel_tank",
+    "spacehorizons:rocket_parachute",
+    "spacehorizons:rocket_landing_leg",
+    "spacehorizons:rocket_hull"
+  ]
+}

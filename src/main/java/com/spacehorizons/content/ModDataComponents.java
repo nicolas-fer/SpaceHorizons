@@ -2,6 +2,7 @@ package com.spacehorizons.content;
 
 import com.spacehorizons.SpaceHorizons;
 import com.mojang.serialization.Codec;
+import com.spacehorizons.rocket.RocketSpecs;
 import com.spacehorizons.survival.fuel.CanisterFuel;
 import com.spacehorizons.survival.fuel.RefineryLogic;
 import com.spacehorizons.survival.oxygen.OxygenStorage;
@@ -48,6 +49,15 @@ public final class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> OXYGEN_CAPACITY =
             COMPONENTS.registerComponentType("oxygen_capacity", builder -> builder
                     .persistent(Codec.intRange(1, Integer.MAX_VALUE))
+                    .networkSynchronized(ByteBufCodecs.VAR_INT));
+
+    /**
+     * Combustível que estava num tanque de foguete quebrado, em mB (0 a {@link RocketSpecs#TANK_CAPACITY_MB}); fica no
+     * item do bloco e volta ao tanque quando ele é colocado.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> ROCKET_TANK_MB =
+            COMPONENTS.registerComponentType("rocket_tank_mb", builder -> builder
+                    .persistent(Codec.intRange(0, RocketSpecs.TANK_CAPACITY_MB))
                     .networkSynchronized(ByteBufCodecs.VAR_INT));
 
     private ModDataComponents() {

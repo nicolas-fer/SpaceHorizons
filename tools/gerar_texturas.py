@@ -22,6 +22,9 @@ Máquina (MAQUINAS): gera 4 texturas por id (frente desligada = <id>.png, frente
 lateral e topo); o blockstate escolhe a frente pelo estado ligado/desligado (ex.: propriedade LIT).
 Modelos de máquina (MODELOS_MAQUINA): fornalha (janela com brasa; é o padrão se a entrada for só o
 material) e compressor (janela redonda com hélice, ar azulado quando ligada).
+Peças do foguete de blocos (PECAS_FOGUETE, id -> (modelo, material)): cada modelo de MODELOS_PECA (plataforma, casco,
+cockpit, motor, tanque, paraquedas, perna) devolve várias texturas: <id>.png (a do id; a frente do cockpit, o lado das
+demais), <id>_side.png, <id>_top.png e <id>_bottom.png, conforme o modelo do bloco precisar.
 Peças de armadura (também em ITENS): capacete, peitoral, calcas e botas desenham o ícone 16x16.
 CAMADAS_ARMADURA: id do equipment asset (assets/<mod>/equipment/<id>.json) -> material; gera as
 camadas vestidas 64x32 em textures/entity/equipment/humanoid/<id>.png (capacete, peitoral, braços
@@ -53,7 +56,13 @@ MATERIAIS = {
     "oxigenio": (96, 168, 232),     # azul claro (tanque de oxigênio pequeno)
     "oxigenio_grande": (62, 128, 206),  # azul mais fundo (tanque de oxigênio grande)
     "traje": (228, 232, 240),       # branco gelo do traje espacial
+    "casco": (222, 226, 234),       # casco do foguete: tinta branca
+    "plataforma": (84, 90, 102),    # concreto escuro da plataforma de lançamento
+    "motor": (96, 104, 120),        # metal escuro do motor
+    "tanque": (232, 232, 226),      # tanque de combustível: branco, com a faixa laranja desenhada à parte
 }
+PERIGO_AMARELO = (240, 200, 70)
+PERIGO_PRETO = (30, 32, 38)
 OURO_TRILHA = (232, 190, 70)
 MADEIRA = (150, 108, 62)
 CARVAO = (36, 36, 42)
@@ -81,6 +90,16 @@ BLOCOS = {
 # (tem o próprio script, tools/gerar_texturas_refinaria.py).
 MAQUINAS = {
     "oxygen_compressor": ("compressor", "aco"),
+}
+# peças do foguete de blocos: id -> (modelo de MODELOS_PECA, material); cada uma gera várias texturas (ver PEÇAS DO FOGUETE)
+PECAS_FOGUETE = {
+    "launch_pad": ("plataforma", "plataforma"),
+    "rocket_hull": ("casco", "casco"),
+    "rocket_cockpit": ("cockpit", "casco"),
+    "rocket_engine": ("motor", "motor"),
+    "rocket_fuel_tank": ("tanque", "tanque"),
+    "rocket_parachute": ("paraquedas", "casco"),
+    "rocket_landing_leg": ("perna", "aco"),
 }
 # id do equipment asset -> material (camadas vestidas 64x32 da armadura)
 CAMADAS_ARMADURA = {
@@ -726,6 +745,183 @@ MODELOS_MAQUINA = {
 }
 
 
+# ---------------------------------------------------------------- PEÇAS DO FOGUETE (blocos com várias texturas)
+# Cada modelo devolve {sufixo: imagem}: o sufixo "" é a textura do id (<id>.png, a que o ContentResourcesTest exige) e os
+# outros viram <id>_<sufixo>.png (lateral, topo, fundo), escolhidas pelo modelo do bloco em assets/.../models/block.
+def _faixas_perigo(img, x0, y0, x1, y1, largura=2):
+    """Faixas diagonais amarelas e pretas (aviso de plataforma de lançamento) num retângulo."""
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            img[y][x] = (tuple(PERIGO_AMARELO) if ((x + y) // largura) % 2 == 0 else tuple(PERIGO_PRETO)) + (255,)
+
+
+def _disco(img, cx, cy, raio, cor, raio_interno=0.0):
+    """Disco (ou anel, com raio_interno) de pixels opacos."""
+    for y in range(TAMANHO):
+        for x in range(TAMANHO):
+            d = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
+            if raio_interno <= d < raio:
+                img[y][x] = tuple(cor) + (255,)
+
+
+def _placa_casco(base, semente, rebites=True):
+    """Chapa de casco: moldura escura, bisel, juntas em cruz e rebites."""
+    c = paleta(base)
+    img = vazia()
+    for y in range(TAMANHO):
+        for x in range(TAMANHO):
+            if x in (0, 15) or y in (0, 15):
+                cor = c["o"]
+            elif x == 1 or y == 1:
+                cor = c["h"]
+            elif x == 14 or y == 14:
+                cor = c["d"]
+            else:
+                cor = c["b"]
+                if x in (7, 8) or y in (7, 8):          # juntas das quatro chapas
+                    cor = c["d"]
+                elif ruido(x, y, semente) > 92:
+                    cor = c["l"]
+            img[y][x] = tuple(cor) + (255,)
+    if rebites:
+        for (x, y) in ((3, 3), (12, 3), (3, 12), (12, 12)):
+            img[y][x] = tuple(c["o"]) + (255,)
+            img[y - 1][x - 1] = tuple(c["h"]) + (255,)
+    return img
+
+
+def peca_plataforma(base):
+    topo = vazia()
+    cp = paleta(base)
+    for y in range(TAMANHO):
+        for x in range(TAMANHO):
+            topo[y][x] = tuple(cp["d"] if ruido(x, y, 7) > 86 else cp["b"]) + (255,)
+    # borda de aviso e marcação circular com um H no meio
+    _faixas_perigo(topo, 0, 0, 15, 1)
+    _faixas_perigo(topo, 0, 14, 15, 15)
+    _faixas_perigo(topo, 0, 2, 1, 13)
+    _faixas_perigo(topo, 14, 2, 15, 13)
+    _disco(topo, 7.5, 7.5, 5.6, (214, 216, 222), 4.4)
+    _ret(topo, 6, 5, 6, 10, (214, 216, 222))
+    _ret(topo, 9, 5, 9, 10, (214, 216, 222))
+    _ret(topo, 6, 7, 9, 8, (214, 216, 222))
+    lado = _chapa(base, 11)
+    _faixas_perigo(lado, 1, 1, 14, 2)
+    return {"": topo, "side": lado}
+
+
+def peca_casco(base):
+    return {"": _placa_casco(base, 13)}
+
+
+def peca_cockpit(base):
+    c = paleta(base)
+    frente = _placa_casco(base, 17, rebites=False)
+    # janela: céu azul que escurece para baixo, com um reflexo na diagonal
+    for y in range(3, 10):
+        for x in range(3, 13):
+            borda = x in (3, 12) or y in (3, 9)
+            if borda:
+                cor = (38, 44, 58)
+            else:
+                t = (y - 4) / 4.0
+                cor = (int(150 - 80 * t), int(206 - 70 * t), int(250 - 60 * t))
+                if (x - y) in (0, 1) and 5 <= x <= 9:
+                    cor = (232, 246, 255)
+            frente[y][x] = tuple(cor) + (255,)
+    for x, cor in ((4, (222, 64, 58)), (7, (240, 200, 70)), (10, (96, 230, 126))):   # luzes do painel
+        frente[12][x] = tuple(cor) + (255,)
+        frente[12][x + 1] = tuple(cor) + (255,)
+    lado = _placa_casco(base, 19, rebites=False)
+    _ret(lado, 3, 6, 12, 8, tuple(c["d"]))
+    topo = _placa_casco(base, 23, rebites=False)
+    _ret(topo, 4, 4, 11, 11, tuple(c["d"]))      # escotilha
+    _ret(topo, 5, 5, 10, 10, tuple(c["l"]))
+    _disco(topo, 7.5, 7.5, 1.6, (60, 66, 78))
+    return {"": frente, "side": lado, "top": topo}
+
+
+def peca_motor(base):
+    c = paleta(base)
+    lado = _chapa(base, 29)
+    for x in (4, 5, 10, 11):     # dois canos verticais
+        for y in range(2, 14):
+            lado[y][x] = tuple(c["l"] if x in (4, 10) else c["d"]) + (255,)
+    _ret(lado, 2, 7, 13, 8, tuple(c["o"]))        # braçadeira
+    topo = _chapa(base, 31)
+    _disco(topo, 7.5, 7.5, 5.5, tuple(c["d"]), 4.0)
+    _disco(topo, 7.5, 7.5, 2.5, tuple(c["o"]))
+    fundo = _chapa(base, 37)
+    _disco(fundo, 7.5, 7.5, 6.5, tuple(c["o"]))   # sino do bocal: aro, câmara escura e brasa no centro
+    _disco(fundo, 7.5, 7.5, 5.0, (36, 38, 46))
+    _disco(fundo, 7.5, 7.5, 3.0, (255, 150, 50))
+    _disco(fundo, 7.5, 7.5, 1.4, (255, 226, 150))
+    return {"": lado, "top": topo, "bottom": fundo}
+
+
+def peca_tanque(base):
+    c = paleta(base)
+    lado = vazia()
+    for y in range(TAMANHO):
+        for x in range(TAMANHO):
+            cor = c["b"]
+            if x in (0, 15):
+                cor = c["o"]
+            elif x in (1, 2):
+                cor = c["h"]
+            elif x in (13, 14):
+                cor = c["d"]
+            elif ruido(x, y, 41) > 94:
+                cor = c["l"]
+            lado[y][x] = tuple(cor) + (255,)
+    for y in range(5, 11):                        # faixa de combustível
+        for x in range(0, 16):
+            cor = (214, 84, 52) if 0 < x < 15 else paleta((214, 84, 52))["o"]
+            lado[y][x] = tuple(cor) + (255,)
+    for y in (2, 4, 11, 13):                      # marcas de nível
+        _ret(lado, 4, y, 6, y, tuple(c["d"]))
+    topo = _chapa(base, 43)
+    _disco(topo, 7.5, 7.5, 6.0, tuple(c["d"]), 4.8)
+    _disco(topo, 7.5, 7.5, 2.4, (52, 54, 60))        # válvula
+    _ret(topo, 7, 3, 8, 12, (52, 54, 60))
+    return {"": lado, "top": topo}
+
+
+def peca_paraquedas(base):
+    lado = vazia()
+    for y in range(TAMANHO):
+        for x in range(TAMANHO):
+            cor = (206, 52, 52) if (x // 2) % 2 == 0 else (240, 240, 236)
+            if x in (0, 15) or y in (0, 15):
+                cor = (70, 36, 36)
+            lado[y][x] = tuple(cor) + (255,)
+    _ret(lado, 0, 7, 15, 8, (52, 54, 60))             # cinta do pacote
+    topo = vazia()
+    _ret(topo, 0, 0, 15, 15, (240, 240, 236))
+    for raio, cor in ((8.0, (206, 52, 52)), (6.0, (240, 240, 236)), (4.0, (206, 52, 52)), (2.0, (52, 54, 60))):
+        _disco(topo, 7.5, 7.5, raio, cor)
+    return {"": lado, "top": topo}
+
+
+def peca_perna(base):
+    c = paleta(base)
+    lado = _chapa(base, 47)
+    for i in range(12):                                # escora diagonal
+        x, y = 2 + i, 13 - i
+        lado[y][x] = tuple(c["l"]) + (255,)
+        lado[y][x + 1] = tuple(c["o"]) + (255,)
+    _ret(lado, 2, 13, 13, 14, (40, 42, 48))          # sapata de borracha
+    topo = _chapa(base, 53)
+    _disco(topo, 7.5, 7.5, 3.0, tuple(c["d"]))
+    return {"": lado, "top": topo}
+
+
+MODELOS_PECA = {
+    "plataforma": peca_plataforma, "casco": peca_casco, "cockpit": peca_cockpit, "motor": peca_motor,
+    "tanque": peca_tanque, "paraquedas": peca_paraquedas, "perna": peca_perna,
+}
+
+
 # ---------------------------------------------------------------- PNG
 def codifica_png(linhas):
     """PNG RGBA 8 bits sem entrelaçamento, escrito à mão com zlib."""
@@ -765,8 +961,16 @@ def gera_tudo(saida):
     for id_, entrada in MAQUINAS.items():
         modelo, material = ("fornalha", entrada) if isinstance(entrada, str) else entrada
         gera_maquina(saida / "block", id_, MATERIAIS[material], modelo)
+    for id_, (modelo, material) in PECAS_FOGUETE.items():
+        gera_peca(saida / "block", id_, MATERIAIS[material], modelo)
     for id_, material in CAMADAS_ARMADURA.items():
         gera_camadas_armadura(saida / "entity" / "equipment", id_, MATERIAIS[material])
+
+
+def gera_peca(destino, id_, base, modelo):
+    """Uma textura por sufixo do modelo: <id>.png e <id>_<sufixo>.png."""
+    for sufixo, img in MODELOS_PECA[modelo](base).items():
+        grava(destino, id_ + ("_" + sufixo if sufixo else ""), img)
 
 
 def gera_camadas_armadura(destino, id_, base):
@@ -795,6 +999,8 @@ def gera_amostras(pasta):
         grava(pasta, "bloco_" + nome, funcao(MATERIAIS["aco"]))
     for modelo in MODELOS_MAQUINA:
         gera_maquina(pasta, "maquina_" + modelo, MATERIAIS["aco"], modelo)
+    for modelo in MODELOS_PECA:
+        gera_peca(pasta, "peca_" + modelo, MATERIAIS["casco"], modelo)
     gera_camadas_armadura(pasta, "armadura", MATERIAIS["traje"])
 
 
