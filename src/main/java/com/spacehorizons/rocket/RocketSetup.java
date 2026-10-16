@@ -29,6 +29,8 @@ public final class RocketSetup {
                 rocket.applyControl(payload);
             }
         });
+        // telemetria do voo para o piloto (o handler do cliente fica em client/rocket: RegisterClientPayloadHandlersEvent)
+        event.registrar("1").playToClient(RocketTelemetryPayload.TYPE, RocketTelemetryPayload.CODEC);
     }
 
     @SubscribeEvent
