@@ -43,7 +43,8 @@ import org.jspecify.annotations.Nullable;
  * combustível, modo de voo, modo do SAS e aquecimento. O retrato vai no pacote de spawn ({@link IEntityWithComplexSpawn})
  * e a entidade é salva inteira, porque a troca de dimensão a recria a partir do NBT.
  *
- * Nesta fase (3a-1) não há voo: {@link #flight()} é um stub que mantém o modo {@link FlightMode#LANDED}.
+ * O voo (fase B1) roda no servidor a cada tick, em {@link RocketFlight#tick}: ele move a entidade, sincroniza os dados e
+ * troca de dimensão com o piloto.
  */
 public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     private static final EntityDataAccessor<Quaternionfc> ATTITUDE = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.QUATERNION);
@@ -100,7 +101,7 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
 
     // ---------------------------------------------------------------- API do contrato
 
-    /** Estado de voo e controle no servidor (stub nesta fase). */
+    /** Estado de voo e controle no servidor. */
     public RocketFlight flight() {
         return this.flight;
     }
@@ -115,7 +116,7 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         return this.stats;
     }
 
-    /** Guarda o último comando do piloto (a física de voo o lê na etapa 3b). */
+    /** Guarda o último comando do piloto (o voo o lê a cada tick do servidor). */
     public void applyControl(RocketControlPayload payload) {
         this.flight.applyControl(payload, this.level().getGameTime());
     }
@@ -161,6 +162,13 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
 
     public byte sasMode() {
         return this.entityData.get(SAS_MODE);
+    }
+
+    /** Sincroniza o modo de voo, o modo do SAS e o aquecimento (servidor). */
+    void syncFlightData(FlightMode mode, byte sasMode, float heat) {
+        this.entityData.set(FLIGHT_MODE, mode.id());
+        this.entityData.set(SAS_MODE, sasMode);
+        this.entityData.set(HEAT, heat);
     }
 
     public float heat() {
@@ -246,7 +254,6 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
             this.attitudeCur.set(this.attitudeTarget);
         } else {
             this.flight.tick(this);
-            this.setDeltaMovement(Vec3.ZERO);
             this.entityData.set(FLIGHT_MODE, this.flight.mode().id());
         }
     }
@@ -267,14 +274,26 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     /** O piloto fica no cockpit (girado pela atitude); o ponto de assento é o do bloco do cockpit menos a altura do quadril. */
     @Override
     protected void positionRider(Entity passenger, Entity.MoveFunction moveFunction) {
-        Vec3 seat = this.cockpitWorldPosition().add(0.0, -0.2, 0.0);
-        Vec3 offset = passenger.getVehicleAttachmentPoint(this);
-        moveFunction.accept(passenger, seat.x - offset.x, seat.y - offset.y, seat.z - offset.z);
+        Vec3 at = this.passengerPositionAt(this.position(), this.level().isClientSide() ? this.attitudeCur : this.attitude, passenger);
+        moveFunction.accept(passenger, at.x, at.y, at.z);
     }
 
-    /** Em pé no chão ao lado do foguete; sem chão por perto (foguete no ar), onde o passageiro já está. */
+    /** Onde o passageiro fica (posição da entidade dele) com o foguete em {@code center} e a atitude local {@code attitude}. */
+    public Vec3 passengerPositionAt(Vec3 center, Quaternionfc attitude, Entity passenger) {
+        Vector3f local = new Vector3f(this.portrait.cockpit().getX() + 0.5F, this.portrait.cockpit().getY() + 0.5F,
+                this.portrait.cockpit().getZ() + 0.5F).sub(this.pivotLocal());
+        attitude.transform(local);
+        Vec3 seat = center.add(local.x(), local.y() - 0.2, local.z());
+        Vec3 offset = passenger.getVehicleAttachmentPoint(this);
+        return new Vec3(seat.x - offset.x, seat.y - offset.y, seat.z - offset.z);
+    }
+
+    /** Pousado: em pé no chão ao lado do foguete. Em voo (inclusive na troca de dimensão), onde o passageiro já está. */
     @Override
     public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
+        if (this.flight.mode() != FlightMode.LANDED) {
+            return passenger.position();
+        }
         Vec3 spot = RocketDismount.find(this.level(), this.getBoundingBox(), passenger.getType());
         return spot != null ? spot : passenger.position();
     }
@@ -408,6 +427,7 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         output.putByte("SasMode", this.sasMode());
         output.putFloat("Heat", this.heat());
         output.store("Attitude", QUATERNION_CODEC, List.of(this.attitude.x, this.attitude.y, this.attitude.z, this.attitude.w));
+        this.flight.save(output);
     }
 
     @Override
@@ -425,5 +445,6 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         this.entityData.set(SAS_MODE, input.getByteOr("SasMode", (byte) 0));
         this.entityData.set(HEAT, input.getFloatOr("Heat", 0.0F));
         input.read("Attitude", QUATERNION_CODEC).ifPresent(q -> this.setAttitude(new Quaternionf(q.get(0), q.get(1), q.get(2), q.get(3))));
+        this.flight.load(input);
     }
 }

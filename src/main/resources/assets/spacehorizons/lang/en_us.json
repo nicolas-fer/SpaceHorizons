@@ -106,5 +106,7 @@
   "message.spacehorizons.rocket.not_upright": "The rocket is tilted too much (%s degrees) to be taken apart.",
   "message.spacehorizons.rocket.not_landed": "The rocket has to be landed to be taken apart.",
   "message.spacehorizons.rocket.no_rocket": "There is no rocket nearby.",
-  "message.spacehorizons.rocket.not_allowed": "You are not allowed to change the blocks at %s, %s, %s."
+  "message.spacehorizons.rocket.not_allowed": "You are not allowed to change the blocks at %s, %s, %s.",
+  "message.spacehorizons.rocket.chunks_slow": "The terrain ahead is taking too long to load; the rocket keeps flying anyway.",
+  "message.spacehorizons.rocket.no_space_dimension": "This world has no open-space dimension (it was created before it existed): the rocket stays in the planet's dimension."
 }

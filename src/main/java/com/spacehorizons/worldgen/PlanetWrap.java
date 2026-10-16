@@ -18,7 +18,8 @@ import net.minecraft.world.phys.Vec3;
  *
  * Limitação restante: o salto é um teleporte no servidor. O cliente ainda precisa receber os chunks
  * do lado novo; os tickets abaixo tentam garantir que eles já estejam gerados no servidor.
- * Só jogadores são movidos. Entidades soltas ainda não atravessam a costura.
+ * Só jogadores são movidos (o piloto de um foguete não: o foguete faz o próprio wrap e leva o passageiro). Entidades soltas
+ * ainda não atravessam a costura.
  */
 final class PlanetWrap {
     /** Quantos ticks esperar entre renovações dos tickets espelhados. */
@@ -38,6 +39,9 @@ final class PlanetWrap {
         boolean mirror = level.getGameTime() % MIRROR_INTERVAL == 0;
         int viewChunks = level.getServer().getPlayerList().getViewDistance() + 2;
         for (ServerPlayer player : level.players()) {
+            if (player.getVehicle() instanceof com.spacehorizons.rocket.RocketEntity) {
+                continue; // o foguete faz o próprio wrap em X (o teleporte na mesma dimensão leva o passageiro)
+            }
             enforcePole(player, planet);
             wrapX(player, planet);
             if (mirror) {

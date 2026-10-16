@@ -156,6 +156,11 @@ public final class AutoTest {
             rocketScenario();
             return;
         }
+        if (ONLY != null && ONLY.startsWith("flight")) {
+            // flight = voos A, B e C; flightb, flightc, flightbc... = só os voos citados (depuração)
+            flightScenario(ONLY.length() == 6 ? "abc" : ONLY.substring(6));
+            return;
+        }
 
         // (a) Terra vanilla: chão em vários pontos perto do spawn (biomas, árvores, relevo)
         int[][] spots = {{0, 0}, {1500, 0}, {0, 1500}, {-2500, 1000}, {4000, -3000}, {-6000, -2000}};
@@ -2203,6 +2208,110 @@ public final class AutoTest {
         step(25, mc -> RocketDevtest.afterLand(mc, "pousou com yaw 90", 1));
         rocketView("rk_k_landed_rotated_east", bx + 9.0, by + 2.5, bz, 90f, 6f);
         rocketView("rk_k_landed_rotated_south", bx, by + 2.5, bz + 9.0, 180f, 6f);
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+
+    /** Espera um marco do piloto de teste do voo (servidor); o tempo esgotado só é logado (o roteiro segue). */
+    private Ticker waitFor(String milestone, int maxTicks) {
+        int[] waited = {0};
+        return mc -> {
+            if (FlightDevtest.reached(milestone)) {
+                return true;
+            }
+            if (mc.gui.screen() != null && waited[0] % 20 == 0) {
+                SpaceHorizons.LOGGER.warn(TAG + "tela aberta durante o voo (esperando '{}'): {}", milestone, mc.gui.screen().getClass().getSimpleName());
+            }
+            if (++waited[0] > maxTicks) {
+                SpaceHorizons.LOGGER.error(TAG + "tempo esgotado esperando o marco '{}'", milestone);
+                return true;
+            }
+            return false;
+        };
+    }
+
+    private void thirdPerson() {
+        step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK));
+    }
+
+    private void firstPerson() {
+        step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
+    }
+
+    /**
+     * Voo no servidor (fase B1): um "piloto de teste" no servidor injeta comandos e o autoteste espera os marcos e tira os
+     * prints. Voo A: salto suborbital pela dimensão de espaço com pouso suave; B: batida de propósito; C: órbita.
+     */
+    private void flightScenario(String parts) {
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        fly(10);
+        if (parts.contains("a")) {
+        step(10, mc -> FlightDevtest.build(mc, 'A'));
+        tickerStep(10, waitFor("built_a", 200));
+        thirdPerson();
+        step(5, mc -> FlightDevtest.clientCheck(mc, "A na plataforma"));
+        shot(40, "fl_a1_pad_third_person");
+        step(0, FlightDevtest::go);
+        tickerStep(0, waitFor("liftoff_a", 400));
+        shot(25, "fl_a2_liftoff_third_person");
+        shot(25, "fl_a2b_ascending");
+        tickerStep(0, waitFor("climb_a", 800));
+        shot(2, "fl_a3_climb_1000");
+        tickerStep(0, waitFor("space_a", 2000));
+        step(30, mc -> FlightDevtest.clientCheck(mc, "A no espaço (30 ticks depois)"));
+        shot(10, "fl_a4_space_third_person");
+        firstPerson();
+        shot(10, "fl_a5_space_first_person");
+        thirdPerson();
+        tickerStep(0, waitFor("apogee_a", 3000));
+        shot(20, "fl_a5b_apogee");
+        tickerStep(0, waitFor("reentry_a", 3000));
+        step(20, mc -> FlightDevtest.clientCheck(mc, "A voltou à Terra"));
+        shot(10, "fl_a6_reentry");
+        tickerStep(0, waitFor("chute_a", 4000));
+        shot(20, "fl_a7_parachute");
+        tickerStep(0, waitFor("end_a", 4000));
+        step(20, mc -> FlightDevtest.clientCheck(mc, "A pousado"));
+        shot(20, "fl_a8_landed_third_person");
+        }
+        if (parts.contains("b")) {
+
+        // voo B: bate de propósito (em sobrevivência, para o dano valer)
+        cmd(20, "gamemode survival");
+        cmd(10, "effect give @s minecraft:instant_health 1 10");
+        step(20, mc -> FlightDevtest.build(mc, 'B'));
+        tickerStep(10, waitFor("built_b", 200));
+        thirdPerson();
+        shot(30, "fl_b1_pad");
+        step(0, FlightDevtest::go);
+        tickerStep(0, waitFor("crashed_b", 1500));
+        shot(15, "fl_b2_crashed");
+        cmd(5, "gamemode creative");
+        step(5, mc -> mc.player.getAbilities().flying = false);
+        }
+
+        // voo C: órbita
+        if (parts.contains("c")) {
+        step(20, mc -> FlightDevtest.build(mc, 'C'));
+        tickerStep(10, waitFor("built_c", 200));
+        thirdPerson();
+        step(0, FlightDevtest::go);
+        tickerStep(0, waitFor("space_c", 3000));
+        tickerStep(0, waitFor("orbit_c", 4000));
+        shot(30, "fl_c1_orbit_third_person");
+        firstPerson();
+        shot(5, "fl_c2_orbit_first_person");
+        tickerStep(0, waitFor("reentry_c", 9000));
+        step(10, mc -> FlightDevtest.clientCheck(mc, "C voltou à Terra"));
+        shot(5, "fl_c3_reentry");
+        tickerStep(0, waitFor("end_c", 6000));
+        shot(30, "fl_c4_landed");
+        step(5, mc -> FlightDevtest.clientCheck(mc, "C em órbita"));
+        }
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();

@@ -1,6 +1,7 @@
 package com.spacehorizons.space.travel;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.rocket.RocketEntity;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
@@ -34,6 +35,13 @@ public final class TravelServer {
     @SubscribeEvent
     static void onPlayerTick(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        if (player.getVehicle() instanceof RocketEntity) {
+            // o piloto de um foguete é levado pelo foguete (física, zonas e troca de dimensão são dele): sem piloto automático,
+            // voo acelerado nem esfera de influência do jogador, que o ejetariam do assento
+            Autopilot.forget(player.getUUID());
+            FlightBoost.restore(player);
             return;
         }
         PlanetDefinition planet = Planets.forLevel(player.level()).orElse(null);

@@ -106,5 +106,7 @@
   "message.spacehorizons.rocket.not_upright": "O foguete está inclinado demais (%s graus) para ser desmontado.",
   "message.spacehorizons.rocket.not_landed": "O foguete precisa estar pousado para ser desmontado.",
   "message.spacehorizons.rocket.no_rocket": "Não há foguete por perto.",
-  "message.spacehorizons.rocket.not_allowed": "Você não tem permissão para mudar os blocos em %s, %s, %s."
+  "message.spacehorizons.rocket.not_allowed": "Você não tem permissão para mudar os blocos em %s, %s, %s.",
+  "message.spacehorizons.rocket.chunks_slow": "O terreno à frente está demorando demais para carregar; o foguete segue voando assim mesmo.",
+  "message.spacehorizons.rocket.no_space_dimension": "Este mundo não tem a dimensão de espaço aberto (foi criado antes dela existir): o foguete fica na dimensão do planeta."
 }

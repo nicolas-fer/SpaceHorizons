@@ -85,6 +85,9 @@ public final class Autopilot {
 
     /** Inicia o voo até o corpo. Devolve a mensagem de erro, ou null se começou. */
     public static @Nullable Component start(ServerPlayer player, SolarSystem.Body target) {
+        if (player.getVehicle() instanceof com.spacehorizons.rocket.RocketEntity) {
+            return Component.literal("O piloto automático não funciona dentro de um foguete (o foguete é pilotado de verdade)");
+        }
         ServerLevel level = player.level();
         PlanetDefinition planet = Planets.forLevel(level).orElse(null);
         SolarSystem.Body current = planet == null ? null : SolarSystem.bodyOf(planet).orElse(null);
