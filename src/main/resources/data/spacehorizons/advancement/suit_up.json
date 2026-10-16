@@ -1,0 +1,40 @@
+{
+  "parent": "spacehorizons:basic_circuit",
+  "criteria": {
+    "suit_complete": {
+      "trigger": "minecraft:tick",
+      "conditions": {
+        "player": {
+          "type": "minecraft:entity_properties",
+          "entity": "this",
+          "predicate": {
+            "minecraft:equipment": {
+              "head": {
+                "items": "spacehorizons:space_helmet"
+              },
+              "chest": {
+                "items": "spacehorizons:space_chestplate"
+              },
+              "legs": {
+                "items": "spacehorizons:space_leggings"
+              },
+              "feet": {
+                "items": "spacehorizons:space_boots"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:space_helmet" },
+    "title": { "translate": "advancements.spacehorizons.suit_up.title" },
+    "description": { "translate": "advancements.spacehorizons.suit_up.description" }
+  },
+  "requirements": [
+    [
+      "suit_complete"
+    ]
+  ]
+}

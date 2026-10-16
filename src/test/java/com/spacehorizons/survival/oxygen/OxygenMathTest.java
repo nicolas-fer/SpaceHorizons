@@ -142,6 +142,39 @@ class OxygenMathTest {
         assertEquals(Integer.MAX_VALUE, OxygenMath.totalSupply(sources));
     }
 
+    /** Fonte que conta quantas vezes foi consultada (para provar que as seguintes não gastam estoque à toa). */
+    private static IntSupplier counting(int[] calls, int supply) {
+        return () -> {
+            calls[0]++;
+            return supply;
+        };
+    }
+
+    @Test
+    void untilCoveredStopsAskingOnceTheConsumptionIsMet() {
+        int[] first = {0};
+        int[] second = {0};
+        // a primeira fonte (gratuita) já cobre o consumo: a segunda (que gasta tanque) não é consultada
+        int total = OxygenMath.totalSupplyUntilCovered(List.of(
+                counting(first, OxygenMath.CONSUMPTION_PER_TICK), counting(second, OxygenMath.CONSUMPTION_PER_TICK)));
+        assertEquals(OxygenMath.CONSUMPTION_PER_TICK, total);
+        assertEquals(1, first[0]);
+        assertEquals(0, second[0]);
+    }
+
+    @Test
+    void untilCoveredAsksTheNextSourceWhenTheFirstIsNotEnough() {
+        int[] first = {0};
+        int[] second = {0};
+        assertEquals(OxygenMath.CONSUMPTION_PER_TICK, OxygenMath.totalSupplyUntilCovered(List.of(
+                counting(first, 0), counting(second, OxygenMath.CONSUMPTION_PER_TICK))));
+        assertEquals(1, first[0]);
+        assertEquals(1, second[0]);
+        // fontes negativas valem zero e a lista vazia dá zero
+        assertEquals(0, OxygenMath.totalSupplyUntilCovered(List.of(() -> -3)));
+        assertEquals(0, OxygenMath.totalSupplyUntilCovered(List.of()));
+    }
+
     // ---- dano ----
 
     @Test

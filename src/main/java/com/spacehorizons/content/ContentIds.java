@@ -24,9 +24,20 @@ public final class ContentIds {
     /** Refinaria: transforma carvão, biomassa etc. em combustível de foguete; receita com placas de aço e circuito. */
     public static final String REFINERY = "refinery";
 
+    // --- Traje espacial (etapa 2A): armadura que respira dos recipientes de oxigênio e isola do frio do vácuo ---
+    /** Capacete: 4 placas de aço, 1 circuito, 1 vidro (a viseira). */
+    public static final String SPACE_HELMET = "space_helmet";
+    /** Peitoral: 7 placas de aço e 1 circuito. */
+    public static final String SPACE_CHESTPLATE = "space_chestplate";
+    /** Calças: 7 placas de aço. */
+    public static final String SPACE_LEGGINGS = "space_leggings";
+    /** Botas: 4 placas de aço. */
+    public static final String SPACE_BOOTS = "space_boots";
+
     /** Itens que não são BlockItems. */
     public static final List<String> ITEMS = List.of(
-            STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER);
+            STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER,
+            SPACE_HELMET, SPACE_CHESTPLATE, SPACE_LEGGINGS, SPACE_BOOTS);
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
     public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY);

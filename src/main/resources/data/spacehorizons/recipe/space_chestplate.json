@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "C": "spacehorizons:basic_circuit",
+    "P": "spacehorizons:steel_plate"
+  },
+  "pattern": [
+    "P P",
+    "PCP",
+    "PPP"
+  ],
+  "result": {
+    "id": "spacehorizons:space_chestplate"
+  }
+}

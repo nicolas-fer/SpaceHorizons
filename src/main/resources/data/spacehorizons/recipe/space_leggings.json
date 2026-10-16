@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "P": "spacehorizons:steel_plate"
+  },
+  "pattern": [
+    "PPP",
+    "P P",
+    "P P"
+  ],
+  "result": {
+    "id": "spacehorizons:space_leggings"
+  }
+}

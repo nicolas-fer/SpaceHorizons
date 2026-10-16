@@ -46,6 +46,22 @@ public final class OxygenMath {
     }
 
     /**
+     * Soma as fontes na ordem, mas para de consultá-las assim que o consumo de um tick já está coberto: uma fonte que
+     * gasta o próprio estoque (o tanque do traje) não é chamada quando as anteriores (uma sala selada, a fonte de
+     * teste) já bastam. A ordem da lista é a prioridade: fontes gratuitas primeiro, consumíveis por último.
+     */
+    public static int totalSupplyUntilCovered(Iterable<? extends IntSupplier> sources) {
+        long total = 0;
+        for (IntSupplier source : sources) {
+            if (total >= CONSUMPTION_PER_TICK) {
+                break;
+            }
+            total += Math.max(0, source.getAsInt());
+        }
+        return (int) Math.min(total, Integer.MAX_VALUE);
+    }
+
+    /**
      * Um tick do sistema para um jogador.
      *
      * @param enabled   regra de jogo ligada
