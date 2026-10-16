@@ -109,6 +109,10 @@ public final class AutoTest {
             refineryScenario();
             return;
         }
+        if ("jei".equals(ONLY)) {
+            jeiScenario();
+            return;
+        }
         if ("moonback".equals(ONLY)) {
             moonBackScenario();
             return;
@@ -363,6 +367,69 @@ public final class AutoTest {
     }
 
     private static final BlockPos REFINERY_POS = new BlockPos(3, 120, 0);
+
+    /**
+     * Integração com o JEI: espera o runtime do JEI iniciar, abre pela API a categoria Refinaria (foco na refinaria
+     * como estação, no carvão como entrada), as receitas do lingote de aço (alto-forno), a informação do galão e do
+     * martelo, e por fim a tela da refinaria com a tela de receitas do JEI aberta por cima (aparece o "+").
+     * Só roda com o JEI no classpath (padrão em dev; -PshJei=false o tira).
+     */
+    private void jeiScenario() {
+        cmd(20, "weather clear 1000000");
+        fly(10);
+        cmd(20, "tp @s 0 120 0");
+        cmd(20, "setblock 3 120 0 minecraft:air");
+        cmd(5, "setblock 3 120 0 spacehorizons:refinery[facing=west]");
+        look(20, EAST, 8f);
+        cmd(10, "give @s minecraft:coal 16");
+        tickerStep(0, new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                if (com.spacehorizons.compat.jei.JeiDevtest.ready()) {
+                    SpaceHorizons.LOGGER.info(TAG + "JEI pronto apos {} ticks", n);
+                    return true;
+                }
+                if (n > 1200) {
+                    SpaceHorizons.LOGGER.error(TAG + "JEI NAO INICIOU em 1200 ticks");
+                    return true;
+                }
+                return false;
+            }
+        });
+        step(20, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("station", com.spacehorizons.compat.jei.JeiDevtest.refinery()));
+        shot(40, "jei_a_refinery_station");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(10, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("input", com.spacehorizons.compat.jei.JeiDevtest.coal()));
+        shot(40, "jei_b_coal_uses");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(10, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("output", com.spacehorizons.compat.jei.JeiDevtest.steelIngot()));
+        shot(40, "jei_c_steel_ingot");
+        step(10, mc -> mc.gui.setScreen(null));
+        // mistura de aço como entrada: a receita do alto-forno (a categoria de blasting do JEI)
+        step(10, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("input", com.spacehorizons.compat.jei.JeiDevtest.steelBlend()));
+        shot(40, "jei_c2_steel_blend_blast_furnace");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(10, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("input", com.spacehorizons.compat.jei.JeiDevtest.canister()));
+        shot(40, "jei_d_canister_info");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(10, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("input", com.spacehorizons.compat.jei.JeiDevtest.hammer()));
+        shot(40, "jei_e_hammer_info");
+        step(10, mc -> mc.gui.setScreen(null));
+        // tela da refinaria aberta de verdade, com a tela de receitas do JEI por cima ("+" para preencher a entrada)
+        step(10, mc -> mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
+                new BlockHitResult(Vec3.atCenterOf(REFINERY_POS), Direction.WEST, REFINERY_POS, false)));
+        shot(40, "jei_f_refinery_screen");
+        step(10, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("station", com.spacehorizons.compat.jei.JeiDevtest.refinery()));
+        shot(40, "jei_g_recipes_over_refinery");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(20, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
 
     /**
      * Refinaria: coloca o bloco virado para o jogador, enche os slots por comando (6 carvões, tábuas de combustível e
