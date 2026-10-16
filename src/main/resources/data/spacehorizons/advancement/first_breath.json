@@ -1,0 +1,24 @@
+{
+  "parent": "spacehorizons:suit_up",
+  "criteria": {
+    "breathed": {
+      "trigger": "spacehorizons:suit_breathing",
+      "conditions": {
+        "seconds": {
+          "min": 30
+        }
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:space_chestplate" },
+    "title": { "translate": "advancements.spacehorizons.first_breath.title" },
+    "description": { "translate": "advancements.spacehorizons.first_breath.description" },
+    "frame": "goal"
+  },
+  "requirements": [
+    [
+      "breathed"
+    ]
+  ]
+}

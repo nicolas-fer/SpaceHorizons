@@ -4,8 +4,10 @@ import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 import com.spacehorizons.survival.oxygen.OxygenAmounts;
 import com.spacehorizons.survival.oxygen.OxygenTankItem;
+import com.spacehorizons.survival.suit.SpaceSuit;
 
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.equipment.ArmorType;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -44,6 +46,16 @@ public final class ModItems {
     public static final DeferredItem<Item> OXYGEN_TANK_LARGE = ITEMS.registerItem(ContentIds.OXYGEN_TANK_LARGE,
             OxygenTankItem::new, props -> props.stacksTo(1)
                     .component(ModDataComponents.OXYGEN_CAPACITY.get(), OxygenAmounts.LARGE_TANK_CAPACITY));
+
+    // Traje espacial: material próprio (SpaceSuit); a lógica de respirar e do frio está em survival.suit.SuitSetup
+    public static final DeferredItem<Item> SPACE_HELMET = ITEMS.registerItem(ContentIds.SPACE_HELMET,
+            Item::new, props -> props.humanoidArmor(SpaceSuit.material(), ArmorType.HELMET));
+    public static final DeferredItem<Item> SPACE_CHESTPLATE = ITEMS.registerItem(ContentIds.SPACE_CHESTPLATE,
+            Item::new, props -> props.humanoidArmor(SpaceSuit.material(), ArmorType.CHESTPLATE));
+    public static final DeferredItem<Item> SPACE_LEGGINGS = ITEMS.registerItem(ContentIds.SPACE_LEGGINGS,
+            Item::new, props -> props.humanoidArmor(SpaceSuit.material(), ArmorType.LEGGINGS));
+    public static final DeferredItem<Item> SPACE_BOOTS = ITEMS.registerItem(ContentIds.SPACE_BOOTS,
+            Item::new, props -> props.humanoidArmor(SpaceSuit.material(), ArmorType.BOOTS));
 
     private ModItems() {
     }

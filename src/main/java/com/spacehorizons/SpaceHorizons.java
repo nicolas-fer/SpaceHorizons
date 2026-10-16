@@ -21,6 +21,8 @@ public class SpaceHorizons {
         Content.init(modEventBus);
         WorldgenSetup.init(modEventBus);
         com.spacehorizons.survival.oxygen.OxygenSetup.init(modEventBus);
+        // depois do oxigênio: a fonte do traje se registra depois das fontes gratuitas (a ordem é a prioridade)
+        com.spacehorizons.survival.suit.SuitSetup.init(modEventBus);
         // DH é opcional: sem ele o mod funciona, só sem LODs
         if (ModList.get().isLoaded("distanthorizons")) {
             DhIntegration.init();

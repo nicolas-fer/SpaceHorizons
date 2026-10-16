@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "P": "spacehorizons:steel_plate"
+  },
+  "pattern": [
+    "P P",
+    "P P"
+  ],
+  "result": {
+    "id": "spacehorizons:space_boots"
+  }
+}

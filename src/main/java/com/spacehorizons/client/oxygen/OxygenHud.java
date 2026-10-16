@@ -7,6 +7,8 @@ import com.spacehorizons.planet.Planets;
 import com.spacehorizons.survival.oxygen.OxygenMath;
 import com.spacehorizons.survival.oxygen.OxygenSetup;
 import com.spacehorizons.survival.oxygen.OxygenState;
+import com.spacehorizons.survival.suit.SuitGear;
+import com.spacehorizons.survival.suit.TankMath;
 
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -24,6 +26,7 @@ import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
  * Barra de oxigênio do HUD, acima da fome (a mesma faixa das bolhas de ar do vanilla, uma linha acima delas para
  * não sobrepor ao mergulhar). Aparece só quando o jogador está no vácuo ou com a reserva abaixo do máximo, e nunca
  * em criativo/espectador nem com o sistema desligado pela regra de jogo. Lê o Data Attachment sincronizado.
+ * Com o traje respirando dos recipientes de oxigênio, o texto mostra a carga total deles (ver {@link #label}).
  */
 @EventBusSubscriber(modid = SpaceHorizons.MODID, value = Dist.CLIENT)
 public final class OxygenHud {
@@ -58,8 +61,31 @@ public final class OxygenHud {
         if (!state.enabled()) {
             return false;
         }
-        boolean vacuum = Planets.forLevel(mc.level).map(planet -> OxygenMath.isVacuum(planet, player.getEyeY())).orElse(false);
-        return vacuum || !state.isFull();
+        return isVacuum(mc) || !state.isFull();
+    }
+
+    private static boolean isVacuum(Minecraft mc) {
+        LocalPlayer player = mc.player;
+        return Planets.forLevel(mc.level).map(planet -> OxygenMath.isVacuum(planet, player.getEyeY())).orElse(false);
+    }
+
+    /**
+     * Texto acima da barra. Com o traje respirando dos recipientes de oxigênio mostra a carga total deles ("Tanques
+     * 1:45"); com o traje no vácuo e os recipientes vazios, a reserva do corpo e o aviso; senão, como sempre.
+     * Público para o autoteste logar exatamente o que o jogador vê.
+     */
+    public static Component label(Minecraft mc, OxygenState state) {
+        LocalPlayer player = mc.player;
+        boolean suitBreathes = SuitGear.piecesOf(player).canBreathe();
+        if (state.supplied()) {
+            int tanks = suitBreathes ? SuitGear.totalOxygen(player) : 0;
+            return tanks > 0
+                    ? Component.translatable("hud.spacehorizons.oxygen.tanks", TankMath.formatClock(tanks))
+                    : Component.translatable("hud.spacehorizons.oxygen.supplied");
+        }
+        String seconds = String.format(Locale.ROOT, "%.0f", state.secondsLeft());
+        return Component.translatable(
+                suitBreathes && isVacuum(mc) ? "hud.spacehorizons.oxygen.seconds_no_tanks" : "hud.spacehorizons.oxygen.seconds", seconds);
     }
 
     private static void render(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
@@ -86,9 +112,6 @@ public final class OxygenHud {
             graphics.fill(x, y, x + filled, y + BAR_HEIGHT, fillColor);
         }
 
-        Component label = state.supplied()
-                ? Component.translatable("hud.spacehorizons.oxygen.supplied")
-                : Component.translatable("hud.spacehorizons.oxygen.seconds", String.format(Locale.ROOT, "%.0f", state.secondsLeft()));
-        graphics.text(mc.font, label, x, y - 10, COLOR_TEXT);
+        graphics.text(mc.font, label(mc, state), x, y - 10, COLOR_TEXT);
     }
 }

@@ -63,6 +63,15 @@ final class ContentCraftCheck {
                     pepita);
             craft(level, "9 lingotes do bloco", 1, 1, new ItemStack(ModBlocks.STEEL_BLOCK.get()));
 
+            // traje espacial: placas de aço, circuito e vidro (a viseira)
+            ItemStack circuito = new ItemStack(ModItems.BASIC_CIRCUIT.get());
+            ItemStack vidro = new ItemStack(Items.GLASS);
+            craft(level, "capacete do traje", 3, 2, placa, circuito, placa, placa, vidro, placa);
+            craft(level, "peitoral do traje", 3, 3, placa, vazio, placa, placa, circuito, placa, placa, placa, placa);
+            craft(level, "calças do traje", 3, 3, placa, placa, placa, placa, vazio, placa, placa, vazio, placa);
+            craft(level, "botas do traje", 3, 2, placa, vazio, placa, placa, vazio, placa);
+            craft(level, "capacete sem vidro (invalido)", 3, 2, placa, circuito, placa, placa, vazio, placa);
+
             ItemStack mistura = new ItemStack(ModItems.STEEL_BLEND.get());
             var receitas = server.getRecipeManager();
             var alto = receitas.getRecipeFor(RecipeType.BLASTING, new SingleRecipeInput(mistura), level);

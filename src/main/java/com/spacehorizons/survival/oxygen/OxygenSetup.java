@@ -86,12 +86,26 @@ public final class OxygenSetup {
         NeoForge.EVENT_BUS.addListener(RegisterCommandsEvent.class, event -> registerCommands(event.getDispatcher()));
     }
 
-    /** Pontos de respiração: os olhos do jogador, não os pés. */
+    /** O sistema de vácuo e oxigênio está ligado neste mundo (regra {@code spacehorizons:vacuum_damage})? */
+    public static boolean isEnabled(ServerLevel level) {
+        return level.getGameRules().get(VACUUM_DAMAGE_RULE.get());
+    }
+
+    /** Isento de tudo (reserva sempre cheia, sem dano, sem frio): criativo, espectador ou morto. */
+    public static boolean isExempt(ServerPlayer player) {
+        return player.isCreative() || player.isSpectator() || !player.isAlive();
+    }
+
+    /** O jogador está no vácuo? Pontos de respiração: os olhos do jogador, não os pés. */
+    public static boolean isInVacuum(ServerPlayer player) {
+        return Planets.forLevel(player.level()).map(planet -> OxygenMath.isVacuum(planet, player.getEyeY())).orElse(false);
+    }
+
     private static void tick(ServerPlayer player) {
         ServerLevel level = player.level();
-        boolean enabled = level.getGameRules().get(VACUUM_DAMAGE_RULE.get());
-        boolean exempt = player.isCreative() || player.isSpectator() || !player.isAlive();
-        boolean vacuum = Planets.forLevel(level).map(planet -> OxygenMath.isVacuum(planet, player.getEyeY())).orElse(false);
+        boolean enabled = isEnabled(level);
+        boolean exempt = isExempt(player);
+        boolean vacuum = isInVacuum(player);
         // as fontes só são consultadas no vácuo e quando o jogador precisa delas (elas gastam o próprio estoque)
         int supply = enabled && !exempt && vacuum ? OxygenSources.total(player) : 0;
 

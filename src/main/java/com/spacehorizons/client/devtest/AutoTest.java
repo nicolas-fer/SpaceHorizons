@@ -25,6 +25,8 @@ import com.spacehorizons.survival.oxygen.OxygenSetup;
 import com.spacehorizons.survival.oxygen.OxygenState;
 import com.spacehorizons.survival.oxygen.OxygenStorage;
 import com.spacehorizons.survival.oxygen.OxygenTankItem;
+import com.spacehorizons.survival.suit.SuitGear;
+import com.spacehorizons.survival.suit.SuitPieces;
 import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
@@ -136,6 +138,10 @@ public final class AutoTest {
         }
         if ("vacuum".equals(ONLY)) {
             vacuumScenario();
+            return;
+        }
+        if ("suit".equals(ONLY)) {
+            suitScenario();
             return;
         }
 
@@ -386,11 +392,12 @@ public final class AutoTest {
     /** Conquistas do mod, na ordem da árvore (id sem namespace). */
     private static final List<String> MOD_ADVANCEMENTS = List.of("root", "steel_blend", "steel_ingot", "forge_hammer",
             "steel_plate", "basic_circuit", "refinery", "fuel_canister", "fuel_full", "oxygen_compressor", "oxygen_full",
-            "steel_block");
+            "steel_block", "suit_up", "first_breath");
     /** Receitas que devem aparecer no livro de receitas, em ordem de obtenção dos itens-chave. */
     private static final List<String> MOD_RECIPES = List.of("steel_blend", "steel_ingot_from_blasting", "steel_nugget",
             "steel_block", "forge_hammer", "steel_plate", "basic_circuit", "fuel_canister", "refinery",
-            "oxygen_tank_small", "oxygen_tank_large", "oxygen_compressor", "steel_ingot_from_nuggets", "steel_ingot_from_block");
+            "oxygen_tank_small", "oxygen_tank_large", "oxygen_compressor", "steel_ingot_from_nuggets", "steel_ingot_from_block",
+            "space_helmet", "space_chestplate", "space_leggings", "space_boots");
 
     /**
      * Conquistas: em sobrevivência, dá os itens em sequência e, a cada passo, loga no servidor integrado quais
@@ -413,8 +420,8 @@ public final class AutoTest {
             {"spacehorizons:steel_blend", "steel_blend feita; receita do alto-forno"},
             {"spacehorizons:steel_ingot 4", "steel_ingot feita; receitas de martelo, placa, bloco, pepita"},
             {"spacehorizons:forge_hammer", "forge_hammer feita"},
-            {"spacehorizons:steel_plate 2", "steel_plate feita; receitas de circuito e galao"},
-            {"spacehorizons:basic_circuit", "basic_circuit feita; receita da refinaria"},
+            {"spacehorizons:steel_plate 2", "steel_plate feita; receitas de circuito, galao, calcas e botas do traje"},
+            {"spacehorizons:basic_circuit", "basic_circuit feita; receitas da refinaria, do capacete e do peitoral do traje"},
             {"spacehorizons:refinery", "refinery feita"},
             {"spacehorizons:fuel_canister", "galao VAZIO: so fuel_canister, nao fuel_full"},
             {"spacehorizons:fuel_canister[spacehorizons:fuel_mb=1000]", "galao cheio: fuel_full"},
@@ -434,6 +441,13 @@ public final class AutoTest {
         step(30, mc -> probeAdvancements(mc, "oxygen_full revogada, sem tanque cheio no inventario"));
         cmd(10, "give @s spacehorizons:oxygen_tank_large[spacehorizons:oxygen=7200]");
         step(30, mc -> probeAdvancements(mc, "tanque GRANDE cheio: oxygen_full de novo"));
+        // vestindo as quatro peças do traje (a conquista suit_up olha o equipamento; first_breath é do cenário suit)
+        cmd(10, "item replace entity @s armor.head with spacehorizons:space_helmet");
+        cmd(10, "item replace entity @s armor.chest with spacehorizons:space_chestplate");
+        cmd(10, "item replace entity @s armor.legs with spacehorizons:space_leggings");
+        step(30, mc -> probeAdvancements(mc, "3 pecas do traje vestidas: suit_up ainda nao"));
+        cmd(10, "item replace entity @s armor.feet with spacehorizons:space_boots");
+        step(30, mc -> probeAdvancements(mc, "4 pecas do traje vestidas: suit_up feita"));
         step(20, mc -> openAdvancementsTab(mc));
         shot(40, "adv_screen_tab");
         step(10, mc -> mc.gui.setScreen(null));
@@ -1143,6 +1157,261 @@ public final class AutoTest {
                 + "criativo={} dim={} y={}", label, s.reserve(), OxygenMath.MAX_RESERVE, f(s.secondsLeft()), s.supplied(),
                 s.enabled(), vacuum, OxygenHud.isVisible(mc), f(p.getHealth()), p.isCreative(),
                 mc.level.dimension().identifier().getPath(), f(p.getY()));
+    }
+
+    /** Recipiente de teste do contrato de oxigênio: um item qualquer com os componentes aplicados por comando. */
+    private static String tank(int capacity, int oxygen) {
+        return "minecraft:iron_ingot[spacehorizons:oxygen_capacity=" + capacity + ",spacehorizons:oxygen=" + oxygen + "]";
+    }
+
+    /** Foto do estado do traje no cliente (o que o jogador vê), para comparar o começo e o fim de um trecho. */
+    private record SuitProbe(int reserve, int frozen, float health, int tank, boolean supplied, int pieces, List<Integer> tanks) {
+    }
+
+    /** Um trecho medido: fotos a cada {@code every} ticks (a primeira no tick 1), a menor vida vista e o intervalo. */
+    private record SuitRun(List<SuitProbe> samples, int every, float minHealth) {
+        SuitProbe start() {
+            return samples.get(0);
+        }
+
+        SuitProbe end() {
+            return samples.get(samples.size() - 1);
+        }
+
+        /** Foto do tick {@code tick} (múltiplo do intervalo). */
+        SuitProbe at(int tick) {
+            return samples.get(tick / every);
+        }
+    }
+
+    private static SuitProbe suitProbe(Minecraft mc) {
+        LocalPlayer p = mc.player;
+        OxygenState s = p.getData(OxygenSetup.OXYGEN);
+        List<Integer> tanks = new ArrayList<>();
+        for (ItemStack stack : SuitGear.containers(p)) {
+            tanks.add(OxygenStorage.get(stack));
+        }
+        return new SuitProbe(s.reserve(), p.getTicksFrozen(), p.getHealth(), SuitGear.totalOxygen(p), s.supplied(),
+                SuitGear.piecesOf(p).count(), tanks);
+    }
+
+    /**
+     * Traje espacial e frio do vácuo, em sobrevivência na Lua: (A) sem traje congela em ~7 s, a reserva cai e o frio
+     * machuca; (A2) sem a regeneração natural, o dano de frio é 1 a cada 2 s; (B) capacete e peitoral com um recipiente
+     * cheio: reserva cheia, recipiente gasta 1 por tick e ainda congela (só 2 peças); (D) 4 peças: continua respirando
+     * e descongela; conquistas do traje; (E) recipientes de cargas diferentes acabam (o mais vazio primeiro) e a
+     * reserva volta a cair; (H) só o capacete não respira; (F) regra desligada e (G) criativo não congelam nem
+     * gastam o recipiente. Cada trecho loga "SUIT RESULTADO ... OK/FALHA" e tira prints.
+     */
+    private void suitScenario() {
+        cmd(20, "weather clear 1000000");
+        cmd(20, "difficulty normal");
+        cmd(5, "gamerule spacehorizons:vacuum_damage true");
+        cmd(5, "gamerule natural_health_regeneration true");
+        // sem as mensagens de comando no chat, os prints mostram o HUD limpo
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(20, "spacehorizons goto moon");
+        cmd(300, "time set 6000");
+        // ainda em criativo: zera conquistas e livro de receitas, simula as receitas e confere o ponto de partida
+        cmd(10, "clear @s");
+        cmd(10, "advancement revoke @s everything");
+        cmd(10, "recipe take @s *");
+        step(10, mc -> ContentCraftCheck.run(mc.getSingleplayerServer()));
+        look(20, EAST, 10f);
+        step(60, mc -> probeAdvancements(mc, "inicio do cenario suit"));
+        cmd(5, "gamemode survival");
+        cmd(5, "effect give @s minecraft:instant_health 1 5");
+
+        // A: sem traje, a partir do zero: a reserva cai 1 por tick e o congelamento sobe ~1 por tick (7 s para 140)
+        suitTicker("A sem traje", 260, 20, new int[] {100, 230}, run -> {
+            if (run.start().frozen() > 30) {
+                return "devia comecar quase descongelado, frozen=" + run.start().frozen();
+            }
+            // taxa: o saldo é de 1 por tick, então do tick 20 ao 60 o congelamento sobe ~40
+            int rose = run.at(60).frozen() - run.at(20).frozen();
+            if (rose < 36 || rose > 44) {
+                return "do tick 20 ao 60 o congelamento devia subir ~40 (1 por tick), subiu " + rose;
+            }
+            if (run.at(140).frozen() < 138) {
+                return "no tick 140 devia estar totalmente congelado, frozen=" + run.at(140).frozen();
+            }
+            if (run.end().reserve() >= run.start().reserve() - 200) {
+                return "a reserva devia cair ~1 por tick, de " + run.start().reserve() + " para " + run.end().reserve();
+            }
+            return run.minHealth() < 20.0F ? null : "devia ter levado dano de frio (a vida nunca saiu de 20)";
+        });
+
+        // A2: o mesmo, sem a regeneração natural: o dano de frio fica visível (1 a cada 40 ticks = 5 em 200 ticks)
+        cmd(5, "gamerule natural_health_regeneration false");
+        cmd(5, "effect give @s minecraft:instant_health 1 5");
+        cmd(5, "spacehorizons oxygen set 600");
+        suitTicker("A2 sem traje e sem regeneracao", 200, 40, new int[] {190}, run -> {
+            float lost = run.start().health() - run.end().health();
+            return lost >= 4.0F && lost <= 6.0F ? null : "devia perder ~5 de vida em 200 ticks (1 a cada 40), perdeu " + lost;
+        });
+        cmd(5, "gamerule natural_health_regeneration true");
+
+        // B: capacete e peitoral com um recipiente de 2400 (ainda sem calças e botas)
+        cmd(5, "effect give @s minecraft:instant_health 1 5");
+        cmd(5, "item replace entity @s armor.head with spacehorizons:space_helmet");
+        cmd(5, "item replace entity @s armor.chest with spacehorizons:space_chestplate");
+        cmd(5, "item replace entity @s hotbar.0 with " + tank(2400, 2400));
+        suitTicker("B capacete e peitoral com recipiente", 300, 30, new int[] {60, 280}, run -> {
+            int spent = run.start().tank() - run.end().tank();
+            if (run.end().reserve() != OxygenMath.MAX_RESERVE) {
+                return "reserva devia estar cheia, " + run.end().reserve();
+            }
+            if (Math.abs(spent - 299) > 3) {
+                return "recipiente devia gastar ~299 em 300 ticks (1 por tick), gastou " + spent;
+            }
+            if (run.minHealth() >= 20.0F) {
+                return "com so 2 pecas devia haver dano de frio";
+            }
+            return run.end().frozen() >= 138 ? null : "com so 2 pecas devia estar congelado, frozen=" + run.end().frozen();
+        });
+
+        // D: traje completo (terceira pessoa de frente, depois primeira pessoa e a tela do inventário)
+        cmd(5, "effect give @s minecraft:instant_health 1 5");
+        cmd(5, "item replace entity @s armor.legs with spacehorizons:space_leggings");
+        cmd(5, "item replace entity @s armor.feet with spacehorizons:space_boots");
+        step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_FRONT));
+        suitTicker("D1 traje completo em terceira pessoa", 60, 20, new int[] {50}, null);
+        step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
+        suitTicker("D2 traje completo", 260, 30, new int[] {250}, run -> {
+            int spent = run.start().tank() - run.end().tank();
+            if (run.end().frozen() != 0) {
+                return "com 4 pecas devia ter descongelado, frozen=" + run.end().frozen();
+            }
+            if (run.end().reserve() != OxygenMath.MAX_RESERVE) {
+                return "reserva devia estar cheia, " + run.end().reserve();
+            }
+            return Math.abs(spent - 259) > 3 ? "recipiente devia gastar ~259, gastou " + spent : null;
+        });
+        step(30, mc -> probeAdvancements(mc, "traje completo ha 600+ ticks respirando: suit_up e first_breath devem estar feitas"));
+        step(10, mc -> mc.gui.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player)));
+        shot(40, "suit_inventory");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(10, mc -> openAdvancementsTab(mc));
+        shot(40, "suit_advancements");
+        step(10, mc -> mc.gui.setScreen(null));
+
+        // E: quatro recipientes de cargas diferentes (barra de atalhos, mochila e mão secundária): sai do MAIS VAZIO,
+        // seja qual for o lugar. Ordem de varredura: hotbar.0=120, hotbar.1=60, inventory.3=90, mão secundária=30.
+        cmd(5, "item replace entity @s hotbar.0 with " + tank(2400, 120));
+        cmd(5, "item replace entity @s hotbar.1 with " + tank(2400, 60));
+        cmd(5, "item replace entity @s inventory.3 with " + tank(2400, 90));
+        cmd(5, "item replace entity @s weapon.offhand with " + tank(2400, 30));
+        suitTicker("E recipientes acabam", 380, 20, new int[] {30, 100, 160, 360}, run -> {
+            // aos 100 ticks: a mão secundária e o hotbar.1 (os mais vazios) esgotaram, o inventory.3 gastou o que faltou
+            // (~99 ticks de consumo menos o que os dois deram) e o hotbar.0 (o mais cheio) está intacto
+            List<Integer> first = run.start().tanks();
+            List<Integer> at100 = run.at(100).tanks();
+            int expectedInventory = first.get(2) - (99 - first.get(1) - first.get(3));
+            boolean order = first.size() == 4 && at100.size() == 4 && Math.abs(at100.get(0) - first.get(0)) <= 1
+                    && at100.get(1) == 0 && at100.get(3) == 0 && Math.abs(at100.get(2) - expectedInventory) <= 4;
+            if (!order) {
+                return "no tick 100 esperado [" + first.get(0) + ", 0, ~" + expectedInventory + ", 0] (o mais vazio primeiro), veio "
+                        + at100 + " (inicio " + first + ")";
+            }
+            if (run.end().tank() != 0) {
+                return "os recipientes deviam ter acabado, sobrou " + run.end().tank();
+            }
+            return run.end().reserve() < OxygenMath.MAX_RESERVE - 40 ? null : "a reserva devia estar caindo, " + run.end().reserve();
+        });
+
+        // H: só o capacete, com recipiente cheio: não respira (só capacete + peitoral respiram)
+        cmd(5, "effect give @s minecraft:instant_health 1 5");
+        cmd(5, "spacehorizons oxygen set 600");
+        cmd(5, "clear @s");
+        cmd(5, "item replace entity @s armor.head with spacehorizons:space_helmet");
+        cmd(5, "item replace entity @s hotbar.0 with " + tank(2400, 2400));
+        suitTicker("H so o capacete", 100, 20, new int[] {90}, run -> {
+            if (run.end().tank() != 2400) {
+                return "o recipiente nao devia ser tocado, " + run.end().tank();
+            }
+            return run.end().reserve() < run.start().reserve() - 80 ? null
+                    : "sem peitoral a reserva devia cair, " + run.start().reserve() + " -> " + run.end().reserve();
+        });
+
+        // F: regra de jogo desligada, com capacete, peitoral e recipiente (do trecho H): sem frio e sem gastar o recipiente
+        cmd(5, "item replace entity @s armor.chest with spacehorizons:space_chestplate");
+        cmd(5, "gamerule spacehorizons:vacuum_damage false");
+        suitTicker("F regra desligada", 100, 20, new int[] {90}, run -> run.end().frozen() == 0
+                && run.end().reserve() == OxygenMath.MAX_RESERVE && run.end().tank() == run.start().tank() ? null
+                : "sem a regra nao devia haver frio nem consumo: frozen=" + run.end().frozen() + " reserva=" + run.end().reserve()
+                + " recipiente=" + run.end().tank());
+        cmd(5, "gamerule spacehorizons:vacuum_damage true");
+
+        // G: criativo no vácuo, ainda com capacete, peitoral e recipiente: isento do frio e não gasta o recipiente
+        cmd(5, "gamemode creative");
+        suitTicker("G criativo", 100, 20, new int[] {90}, run -> run.end().frozen() == 0
+                && run.end().reserve() == OxygenMath.MAX_RESERVE && run.end().tank() == run.start().tank() ? null
+                : "criativo devia ser isento: frozen=" + run.end().frozen() + " reserva=" + run.end().reserve()
+                + " recipiente=" + run.end().tank());
+
+        cmd(5, "gamerule send_command_feedback true");
+        cmd(5, "gamerule show_advancement_messages true");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /**
+     * Loga a cada {@code every} ticks o estado do traje, tira prints nos ticks indicados e, no último tick, entrega o
+     * trecho medido a {@code check} (devolve null se estiver certo, ou o motivo da falha).
+     */
+    private void suitTicker(String label, int ticks, int every, int[] shotAt, java.util.function.Function<SuitRun, String> check) {
+        tickerStep(0, new Ticker() {
+            int n;
+            final List<SuitProbe> samples = new ArrayList<>();
+            float minHealth = Float.MAX_VALUE;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                minHealth = Math.min(minHealth, mc.player.getHealth());
+                if (n == 1 || n % every == 0) {
+                    samples.add(suitProbe(mc));
+                    logSuit(mc, label + " tick=" + n);
+                }
+                for (int at : shotAt) {
+                    if (n == at) {
+                        logSuit(mc, label + " PRINT tick=" + n);
+                        grab(mc, "suit_" + label.split(" ")[0].toLowerCase() + "_t" + n);
+                    }
+                }
+                if (n >= ticks) {
+                    if (n % every != 0) {
+                        samples.add(suitProbe(mc));
+                    }
+                    SuitRun run = new SuitRun(samples, every, minHealth);
+                    String problem = check == null ? null : check.apply(run);
+                    SpaceHorizons.LOGGER.info(TAG + "SUIT RESULTADO {}: {} (inicio={} fim={} menorVida={})", label,
+                            check == null ? "sem verificacao automatica" : problem == null ? "OK" : "FALHA: " + problem,
+                            run.start(), run.end(), f(minHealth));
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    private static void logSuit(Minecraft mc, String label) {
+        LocalPlayer p = mc.player;
+        OxygenState s = p.getData(OxygenSetup.OXYGEN);
+        SuitPieces pieces = SuitGear.piecesOf(p);
+        List<Integer> tanks = new ArrayList<>();
+        for (ItemStack stack : SuitGear.containers(p)) {
+            tanks.add(OxygenStorage.get(stack));
+        }
+        SpaceHorizons.LOGGER.info(TAG + "SUIT {}: pecas={} (capacete={} peitoral={} calcas={} botas={}) respira={} frio_protegido={} "
+                + "reserva={} fonte={} congelado={}/{} cheio={} vida={} recipientes={} total={} hud='{}' hudVisivel={} dim={} criativo={}",
+                label, pieces.count(), pieces.helmet(), pieces.chestplate(), pieces.leggings(), pieces.boots(), pieces.canBreathe(),
+                pieces.protectsFromCold(), s.reserve(), s.supplied(), p.getTicksFrozen(), p.getTicksRequiredToFreeze(),
+                p.isFullyFrozen(), f(p.getHealth()), tanks, SuitGear.totalOxygen(p), OxygenHud.label(mc, s).getString(),
+                OxygenHud.isVisible(mc), mc.level.dimension().identifier().getPath(), p.isCreative());
     }
 
     private void cloudProbe(String name) {

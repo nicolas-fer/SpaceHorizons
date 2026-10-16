@@ -32,10 +32,21 @@ public final class ContentIds {
     /** Compressor de oxigênio: enche tanques com o ar do ambiente (só onde há ar respirável), queimando combustível de fornalha. */
     public static final String OXYGEN_COMPRESSOR = "oxygen_compressor";
 
+    // --- Traje espacial (etapa 2A): armadura que respira dos recipientes de oxigênio e isola do frio do vácuo ---
+    /** Capacete: 4 placas de aço, 1 circuito, 1 vidro (a viseira). */
+    public static final String SPACE_HELMET = "space_helmet";
+    /** Peitoral: 7 placas de aço e 1 circuito. */
+    public static final String SPACE_CHESTPLATE = "space_chestplate";
+    /** Calças: 7 placas de aço. */
+    public static final String SPACE_LEGGINGS = "space_leggings";
+    /** Botas: 4 placas de aço. */
+    public static final String SPACE_BOOTS = "space_boots";
+
     /** Itens que não são BlockItems. */
     public static final List<String> ITEMS = List.of(
             STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER,
-            OXYGEN_TANK_SMALL, OXYGEN_TANK_LARGE);
+            OXYGEN_TANK_SMALL, OXYGEN_TANK_LARGE,
+            SPACE_HELMET, SPACE_CHESTPLATE, SPACE_LEGGINGS, SPACE_BOOTS);
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
     public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR);
