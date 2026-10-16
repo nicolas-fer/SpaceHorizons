@@ -1,14 +1,20 @@
 package com.spacehorizons.compat.jei;
 
+import java.util.List;
+
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.client.compressor.CompressorScreen;
 import com.spacehorizons.client.refinery.ClientRefiningRecipes;
 import com.spacehorizons.client.refinery.RefineryScreen;
 import com.spacehorizons.content.ModBlocks;
 import com.spacehorizons.content.ModDataComponents;
 import com.spacehorizons.content.ModItems;
 import com.spacehorizons.content.ModMenus;
+import com.spacehorizons.survival.compressor.CompressorMenu;
+import com.spacehorizons.survival.compressor.OxygenCompressorBlockEntity;
 import com.spacehorizons.survival.fuel.RefineryBlockEntity;
 import com.spacehorizons.survival.fuel.RefineryMenu;
+import com.spacehorizons.survival.oxygen.OxygenTankItem;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
@@ -21,6 +27,8 @@ import mezz.jei.api.registration.ISubtypeRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -30,7 +38,9 @@ import org.jspecify.annotations.Nullable;
  *
  * Registra a categoria "Refinaria" (uma entrada por receita {@code spacehorizons:refining}), a refinaria como
  * catalisador, o "+" do JEI preenchendo o slot de entrada, a seta da tela da refinaria como atalho para a categoria e
- * as informações do galão de combustível e do martelo de forja.
+ * as informações do galão de combustível e do martelo de forja. Idem para o compressor de oxigênio: categoria
+ * "tanque vazio para tanque cheio" (uma entrada por tamanho de tanque), catalisador, "+" para o slot do tanque, seta
+ * da tela e a informação dos tanques.
  */
 @JeiPlugin
 public class SpaceHorizonsJeiPlugin implements IModPlugin {
@@ -46,11 +56,15 @@ public class SpaceHorizonsJeiPlugin implements IModPlugin {
     @Override
     public void registerItemSubtypes(ISubtypeRegistration registration) {
         registration.registerFromDataComponentTypes(ModItems.FUEL_CANISTER.get(), ModDataComponents.FUEL_MB.get());
+        // idem para os tanques de oxigênio: vazio e cheio (aba criativa) são subtipos diferentes
+        registration.registerFromDataComponentTypes(ModItems.OXYGEN_TANK_SMALL.get(), ModDataComponents.OXYGEN.get());
+        registration.registerFromDataComponentTypes(ModItems.OXYGEN_TANK_LARGE.get(), ModDataComponents.OXYGEN.get());
     }
 
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
-        registration.addRecipeCategories(new RefiningCategory(registration.getJeiHelpers().getGuiHelper()));
+        registration.addRecipeCategories(new RefiningCategory(registration.getJeiHelpers().getGuiHelper()),
+                new CompressionCategory(registration.getJeiHelpers().getGuiHelper()));
     }
 
     /**
@@ -65,11 +79,23 @@ public class SpaceHorizonsJeiPlugin implements IModPlugin {
                 Component.translatable("jei.spacehorizons.info.fuel_canister"));
         registration.addIngredientInfo(ModItems.FORGE_HAMMER.get(),
                 Component.translatable("jei.spacehorizons.info.forge_hammer"));
+
+        // compressor: um tanque vazio virando um cheio, por tamanho de tanque; e a informação curta dos tanques
+        Item small = ModItems.OXYGEN_TANK_SMALL.get();
+        Item large = ModItems.OXYGEN_TANK_LARGE.get();
+        registration.addRecipes(CompressionCategory.RECIPE_TYPE,
+                List.of(CompressionCategory.Entry.of(small), CompressionCategory.Entry.of(large)));
+        // a informação vale para o tanque vazio e para o cheio (são subtipos diferentes para o JEI)
+        registration.addItemStackInfo(List.of(new ItemStack(small), OxygenTankItem.fullStack(small)),
+                Component.translatable("jei.spacehorizons.info.oxygen_tank_small"));
+        registration.addItemStackInfo(List.of(new ItemStack(large), OxygenTankItem.fullStack(large)),
+                Component.translatable("jei.spacehorizons.info.oxygen_tank_large"));
     }
 
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         registration.addCraftingStation(RefiningCategory.RECIPE_TYPE, ModBlocks.REFINERY.get());
+        registration.addCraftingStation(CompressionCategory.RECIPE_TYPE, ModBlocks.OXYGEN_COMPRESSOR.get());
     }
 
     /**
@@ -80,13 +106,18 @@ public class SpaceHorizonsJeiPlugin implements IModPlugin {
     public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
         registration.addRecipeTransferHandler(RefineryMenu.class, ModMenus.REFINERY.get(), RefiningCategory.RECIPE_TYPE,
                 RefineryBlockEntity.SLOT_INPUT, 1, RefineryBlockEntity.SLOT_COUNT, 36);
+        // "+" na categoria do compressor: leva um tanque vazio do inventário para o slot do tanque
+        registration.addRecipeTransferHandler(CompressorMenu.class, ModMenus.OXYGEN_COMPRESSOR.get(), CompressionCategory.RECIPE_TYPE,
+                OxygenCompressorBlockEntity.SLOT_TANK, 1, OxygenCompressorBlockEntity.SLOT_COUNT, 36);
     }
 
-    /** Clicar na seta de progresso da tela da refinaria abre a categoria. */
+    /** Clicar na seta de progresso da tela da refinaria (ou do compressor) abre a categoria. */
     @Override
     public void registerGuiHandlers(IGuiHandlerRegistration registration) {
         registration.addRecipeClickArea(RefineryScreen.class, RefineryScreen.ARROW_X, RefineryScreen.ARROW_Y,
                 RefineryScreen.ARROW_W, RefineryScreen.ARROW_H, RefiningCategory.RECIPE_TYPE);
+        registration.addRecipeClickArea(CompressorScreen.class, CompressorScreen.ARROW_X, CompressorScreen.ARROW_Y,
+                CompressorScreen.ARROW_W, CompressorScreen.ARROW_H, CompressionCategory.RECIPE_TYPE);
     }
 
     @Override

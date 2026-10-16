@@ -67,4 +67,12 @@ public final class JeiDevtest {
     public static ItemLike hammer() {
         return ModItems.FORGE_HAMMER.get();
     }
+
+    public static ItemLike compressor() {
+        return ModBlocks.OXYGEN_COMPRESSOR.get();
+    }
+
+    public static ItemLike smallTank() {
+        return ModItems.OXYGEN_TANK_SMALL.get();
+    }
 }

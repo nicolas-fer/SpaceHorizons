@@ -24,12 +24,21 @@ public final class ContentIds {
     /** Refinaria: transforma carvão, biomassa etc. em combustível de foguete; receita com placas de aço e circuito. */
     public static final String REFINERY = "refinery";
 
+    // --- Tanques e compressor de oxigênio (etapa 2) ---
+    /** Tanque de oxigênio pequeno (2.400 ticks de respiração = 2 min); receita com placas de aço, cobre e vidro. */
+    public static final String OXYGEN_TANK_SMALL = "oxygen_tank_small";
+    /** Tanque de oxigênio grande (7.200 ticks = 6 min). */
+    public static final String OXYGEN_TANK_LARGE = "oxygen_tank_large";
+    /** Compressor de oxigênio: enche tanques com o ar do ambiente (só onde há ar respirável), queimando combustível de fornalha. */
+    public static final String OXYGEN_COMPRESSOR = "oxygen_compressor";
+
     /** Itens que não são BlockItems. */
     public static final List<String> ITEMS = List.of(
-            STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER);
+            STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER,
+            OXYGEN_TANK_SMALL, OXYGEN_TANK_LARGE);
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
-    public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY);
+    public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR);
 
     private ContentIds() {
     }

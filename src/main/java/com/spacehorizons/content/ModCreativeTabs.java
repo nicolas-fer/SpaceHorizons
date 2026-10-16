@@ -4,6 +4,7 @@ import java.util.function.Supplier;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
+import com.spacehorizons.survival.oxygen.OxygenTankItem;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -28,6 +29,9 @@ public final class ModCreativeTabs {
                 }
                 // além do galão vazio (acima), um galão cheio para testes
                 output.accept(FuelCanisterItem.fullStack());
+                // idem para os tanques de oxigênio: o vazio vem da lista acima, o cheio daqui
+                output.accept(OxygenTankItem.fullStack(ModItems.OXYGEN_TANK_SMALL.get()));
+                output.accept(OxygenTankItem.fullStack(ModItems.OXYGEN_TANK_LARGE.get()));
             })
             .build());
 

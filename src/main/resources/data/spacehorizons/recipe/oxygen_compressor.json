@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "C": "minecraft:copper_ingot",
+    "S": "minecraft:piston",
+    "B": "spacehorizons:basic_circuit"
+  },
+  "pattern": [
+    "PPP",
+    "CSC",
+    "PBP"
+  ],
+  "result": {
+    "id": "spacehorizons:oxygen_compressor"
+  }
+}

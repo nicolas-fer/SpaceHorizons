@@ -11,14 +11,17 @@ com.spacehorizons.content). Cada entrada diz qual MODELO desenha o id e de qual 
 
     ITENS   = {"steel_ingot": ("lingote", "aco"), ...}     # -> textures/item/<id>.png
     BLOCOS  = {"steel_block": ("bloco_metalico", "aco")}   # -> textures/block/<id>.png
-    MAQUINAS = {"refinery": "aco"}                         # -> textures/block/<id>_{side,top,front,front_on}.png
+    MAQUINAS = {"oxygen_compressor": ("compressor", "aco")}  # -> textures/block/<id>{,_on,_side,_top}.png
 
 Modelos de item (MODELOS_ITEM): lingote, pepita, placa, po (pó/mistura; aceita pontos=cor para
 salpicos, ex.: carvão na mistura de aço), circuito (placa verde com trilhas douradas), martelo
-(cabeça do material + cabo de madeira), galao (galão com bico; o material é a cor do líquido/lata).
+(cabeça do material + cabo de madeira), galao (galão com bico; o material é a cor do líquido/lata),
+tanque e tanque_grande (cilindro de gás com válvula e faixas; o material é a cor do corpo).
 Modelos de bloco (MODELOS_BLOCO): bloco_metalico (borda, brilho, rebites), generico (xadrez).
-Máquina (MAQUINAS): gera 4 texturas por id (lateral, topo, frente desligada, frente ligada); o
-blockstate escolhe a frente pelo estado ligado/desligado (ex.: propriedade LIT).
+Máquina (MAQUINAS): gera 4 texturas por id (frente desligada = <id>.png, frente ligada = <id>_on.png,
+lateral e topo); o blockstate escolhe a frente pelo estado ligado/desligado (ex.: propriedade LIT).
+Modelos de máquina (MODELOS_MAQUINA): fornalha (janela com brasa; é o padrão se a entrada for só o
+material) e compressor (janela redonda com hélice, ar azulado quando ligada).
 As cores vêm de MATERIAIS (aço = cinza azulado). Um id fora das tabelas não é gerado.
 Ids com textura própria (pintada à mão): não os coloque nas tabelas; o script sobrescreve o
 que gera.
@@ -42,6 +45,8 @@ MATERIAIS = {
     "combustivel": (214, 84, 52),   # vermelho-alaranjado (galão de combustível)
     "mistura": (150, 156, 166),     # pó cinza claro
     "circuito": (46, 140, 78),      # placa verde
+    "oxigenio": (96, 168, 232),     # azul claro (tanque de oxigênio pequeno)
+    "oxigenio_grande": (62, 128, 206),  # azul mais fundo (tanque de oxigênio grande)
 }
 OURO_TRILHA = (232, 190, 70)
 MADEIRA = (150, 108, 62)
@@ -56,12 +61,17 @@ ITENS = {
     "forge_hammer": ("martelo", "aco"),
     "basic_circuit": ("circuito", "circuito"),
     "fuel_canister": ("galao", "combustivel"),
+    "oxygen_tank_small": ("tanque", "oxigenio"),
+    "oxygen_tank_large": ("tanque_grande", "oxigenio_grande"),
 }
 BLOCOS = {
     "steel_block": ("bloco_metalico", "aco"),
 }
-# id da máquina -> material. Sem entradas por enquanto (o modelo está pronto para a refinaria).
-MAQUINAS = {}
+# id da máquina -> (modelo, material); só o material (str) vale como modelo "fornalha". A refinaria não está aqui
+# (tem o próprio script, tools/gerar_texturas_refinaria.py).
+MAQUINAS = {
+    "oxygen_compressor": ("compressor", "aco"),
+}
 
 
 # ---------------------------------------------------------------- utilidades de cor
@@ -277,9 +287,60 @@ def m_galao(base, **_):
     ], cores)
 
 
+def m_tanque(base, **_):
+    """Cilindro de gás em pé, estreito (tanque pequeno): válvula no topo e uma faixa clara no meio."""
+    cores = paleta(base)
+    cores["k"] = (52, 54, 60)      # válvula
+    cores["w"] = (232, 232, 224)   # faixa
+    return arte([
+        "................",
+        "......oooo......",
+        "......okko......",
+        ".......kk.......",
+        "....oooooooo....",
+        "....ohhlbbdo....",
+        "....ohlbbbdo....",
+        "....owwwwwwo....",
+        "....owwwwwwo....",
+        "....olbbbbdo....",
+        "....olbbbbdo....",
+        "....olbbbddo....",
+        "....olbbbddo....",
+        "....oddddddo....",
+        "....oooooooo....",
+        "................",
+    ], cores)
+
+
+def m_tanque_grande(base, **_):
+    """Cilindro mais largo (tanque grande): válvula no topo e duas faixas claras."""
+    cores = paleta(base)
+    cores["k"] = (52, 54, 60)      # válvula
+    cores["w"] = (232, 232, 224)   # faixas
+    return arte([
+        "......oooo......",
+        "......okko......",
+        ".......kk.......",
+        "...oooooooooo...",
+        "...ohhhllllbo...",
+        "...ohllbbbbdo...",
+        "...ohlbbbbbdo...",
+        "...owwwwwwwwo...",
+        "...olbbbbbbdo...",
+        "...olbbbbbbdo...",
+        "...olbbbbbddo...",
+        "...owwwwwwwwo...",
+        "...olbbbbbddo...",
+        "...oddddddddo...",
+        "...oooooooooo...",
+        "................",
+    ], cores)
+
+
 MODELOS_ITEM = {
     "lingote": m_lingote, "pepita": m_pepita, "placa": m_placa, "po": m_po,
     "circuito": m_circuito, "martelo": m_martelo, "galao": m_galao,
+    "tanque": m_tanque, "tanque_grande": m_tanque_grande,
 }
 
 
@@ -400,6 +461,48 @@ def maquina_frente_ligada(base):
     return _frente(base, True)
 
 
+def _frente_compressor(base, ligada):
+    """Frente do compressor: janela redonda com uma hélice (escura quando desligada, ar azulado quando ligada),
+    entradas de ar embaixo e lâmpada indicadora."""
+    img = _chapa(base, 6)
+    c = paleta(base)
+    cx, cy = 7.5, 6.0
+    for y in range(TAMANHO):
+        for x in range(TAMANHO):
+            d = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
+            if 4.5 <= d < 5.5:                        # aro da janela
+                cor = c["o"]
+            elif d < 4.5:
+                helice = abs(x - cx) < 0.9 or abs(y - cy) < 0.9
+                if ligada:
+                    cor = (232, 246, 255) if helice else ((150, 214, 255) if (x + y) % 3 else (96, 172, 236))
+                else:
+                    cor = (62, 66, 74) if helice else (30, 32, 38)
+            else:
+                continue
+            img[y][x] = tuple(cor) + (255,)
+    for y in (12, 14):                                # entradas de ar
+        for x in range(3, 10):
+            img[y][x] = tuple(c["d"]) + (255,)
+    img[13][12] = ((90, 255, 110) if ligada else (110, 40, 36)) + (255,)   # lâmpada
+    return img
+
+
+def maquina_compressor_frente(base):
+    return _frente_compressor(base, False)
+
+
+def maquina_compressor_frente_ligada(base):
+    return _frente_compressor(base, True)
+
+
+# modelo de máquina -> (lateral, topo, frente desligada, frente ligada)
+MODELOS_MAQUINA = {
+    "fornalha": (maquina_lateral, maquina_topo, maquina_frente, maquina_frente_ligada),
+    "compressor": (maquina_lateral, maquina_topo, maquina_compressor_frente, maquina_compressor_frente_ligada),
+}
+
+
 # ---------------------------------------------------------------- PNG
 def codifica_png(linhas):
     """PNG RGBA 8 bits sem entrelaçamento, escrito à mão com zlib."""
@@ -435,15 +538,19 @@ def gera_tudo(saida):
         grava(saida / "item", id_, desenha_item(entrada))
     for id_, (modelo, material) in BLOCOS.items():
         grava(saida / "block", id_, MODELOS_BLOCO[modelo](MATERIAIS[material]))
-    for id_, material in MAQUINAS.items():
-        gera_maquina(saida / "block", id_, MATERIAIS[material])
+    for id_, entrada in MAQUINAS.items():
+        modelo, material = ("fornalha", entrada) if isinstance(entrada, str) else entrada
+        gera_maquina(saida / "block", id_, MATERIAIS[material], modelo)
 
 
-def gera_maquina(destino, id_, base):
-    grava(destino, id_ + "_side", maquina_lateral(base))
-    grava(destino, id_ + "_top", maquina_topo(base))
-    grava(destino, id_ + "_front", maquina_frente(base))
-    grava(destino, id_ + "_front_on", maquina_frente_ligada(base))
+def gera_maquina(destino, id_, base, modelo="fornalha"):
+    """Quatro texturas: <id>.png (frente desligada, a "textura do id" que o ContentResourcesTest exige),
+    <id>_on.png (frente ligada), <id>_side.png e <id>_top.png (como as da refinaria)."""
+    lateral, topo, frente, frente_ligada = MODELOS_MAQUINA[modelo]
+    grava(destino, id_ + "_side", lateral(base))
+    grava(destino, id_ + "_top", topo(base))
+    grava(destino, id_, frente(base))
+    grava(destino, id_ + "_on", frente_ligada(base))
 
 
 def gera_amostras(pasta):
@@ -454,7 +561,8 @@ def gera_amostras(pasta):
         grava(pasta, "item_" + nome, funcao(base))
     for nome, funcao in MODELOS_BLOCO.items():
         grava(pasta, "bloco_" + nome, funcao(MATERIAIS["aco"]))
-    gera_maquina(pasta, "maquina", MATERIAIS["aco"])
+    for modelo in MODELOS_MAQUINA:
+        gera_maquina(pasta, "maquina_" + modelo, MATERIAIS["aco"], modelo)
 
 
 if __name__ == "__main__":

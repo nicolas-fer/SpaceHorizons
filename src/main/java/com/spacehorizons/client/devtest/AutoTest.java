@@ -7,16 +7,24 @@ import java.util.function.Consumer;
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.client.oxygen.OxygenHud;
 import com.spacehorizons.client.space.SpaceSun;
+import com.spacehorizons.content.ModBlocks;
 import com.spacehorizons.content.ModDataComponents;
 import com.spacehorizons.content.ModItems;
+import com.spacehorizons.survival.compressor.CompressorLogic;
+import com.spacehorizons.survival.compressor.CompressorMenu;
+import com.spacehorizons.survival.compressor.OxygenCompressorBlock;
+import com.spacehorizons.survival.compressor.OxygenCompressorBlockEntity;
 import com.spacehorizons.survival.fuel.CanisterFuel;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 import com.spacehorizons.survival.fuel.RefineryBlock;
 import com.spacehorizons.survival.fuel.RefineryBlockEntity;
 import com.spacehorizons.survival.fuel.RefineryLogic;
+import com.spacehorizons.survival.oxygen.OxygenAmounts;
 import com.spacehorizons.survival.oxygen.OxygenMath;
 import com.spacehorizons.survival.oxygen.OxygenSetup;
 import com.spacehorizons.survival.oxygen.OxygenState;
+import com.spacehorizons.survival.oxygen.OxygenStorage;
+import com.spacehorizons.survival.oxygen.OxygenTankItem;
 import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
@@ -31,6 +39,7 @@ import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.BlockHitResult;
@@ -107,6 +116,10 @@ public final class AutoTest {
         }
         if ("refinery".equals(ONLY)) {
             refineryScenario();
+            return;
+        }
+        if ("compressor".equals(ONLY)) {
+            compressorScenario();
             return;
         }
         if ("advancements".equals(ONLY)) {
@@ -372,11 +385,12 @@ public final class AutoTest {
 
     /** Conquistas do mod, na ordem da árvore (id sem namespace). */
     private static final List<String> MOD_ADVANCEMENTS = List.of("root", "steel_blend", "steel_ingot", "forge_hammer",
-            "steel_plate", "basic_circuit", "refinery", "fuel_canister", "fuel_full", "steel_block");
+            "steel_plate", "basic_circuit", "refinery", "fuel_canister", "fuel_full", "oxygen_compressor", "oxygen_full",
+            "steel_block");
     /** Receitas que devem aparecer no livro de receitas, em ordem de obtenção dos itens-chave. */
     private static final List<String> MOD_RECIPES = List.of("steel_blend", "steel_ingot_from_blasting", "steel_nugget",
             "steel_block", "forge_hammer", "steel_plate", "basic_circuit", "fuel_canister", "refinery",
-            "steel_ingot_from_nuggets", "steel_ingot_from_block");
+            "oxygen_tank_small", "oxygen_tank_large", "oxygen_compressor", "steel_ingot_from_nuggets", "steel_ingot_from_block");
 
     /**
      * Conquistas: em sobrevivência, dá os itens em sequência e, a cada passo, loga no servidor integrado quais
@@ -404,12 +418,22 @@ public final class AutoTest {
             {"spacehorizons:refinery", "refinery feita"},
             {"spacehorizons:fuel_canister", "galao VAZIO: so fuel_canister, nao fuel_full"},
             {"spacehorizons:fuel_canister[spacehorizons:fuel_mb=1000]", "galao cheio: fuel_full"},
+            {"spacehorizons:oxygen_compressor", "compressor: oxygen_compressor (filha do circuito); ainda nao oxygen_full"},
+            {"spacehorizons:oxygen_tank_small", "tanque pequeno VAZIO: nada novo (oxygen_full ainda nao)"},
+            {"spacehorizons:oxygen_tank_small[spacehorizons:oxygen=1200]", "tanque pequeno pela METADE: oxygen_full ainda nao"},
+            {"spacehorizons:oxygen_tank_small[spacehorizons:oxygen=2400]", "tanque pequeno CHEIO: oxygen_full"},
             {"spacehorizons:steel_block", "steel_block feita"},
         };
         for (String[] d : dar) {
             cmd(10, "give @s " + d[0]);
             step(30, mc -> probeAdvancements(mc, d[1]));
         }
+        // o outro ramo do "ou": revoga a conquista e conclui com o tanque GRANDE cheio
+        cmd(10, "advancement revoke @s only spacehorizons:oxygen_full");
+        cmd(10, "clear @s spacehorizons:oxygen_tank_small");
+        step(30, mc -> probeAdvancements(mc, "oxygen_full revogada, sem tanque cheio no inventario"));
+        cmd(10, "give @s spacehorizons:oxygen_tank_large[spacehorizons:oxygen=7200]");
+        step(30, mc -> probeAdvancements(mc, "tanque GRANDE cheio: oxygen_full de novo"));
         step(20, mc -> openAdvancementsTab(mc));
         shot(40, "adv_screen_tab");
         step(10, mc -> mc.gui.setScreen(null));
@@ -526,6 +550,26 @@ public final class AutoTest {
         shot(40, "jei_f_refinery_screen");
         step(10, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("station", com.spacehorizons.compat.jei.JeiDevtest.refinery()));
         shot(40, "jei_g_recipes_over_refinery");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(10, mc -> mc.player.closeContainer());
+        // compressor de oxigênio: categoria (estação e entrada), a receita do tanque, e a tela do compressor com o "+"
+        cmd(10, "setblock 3 120 -3 minecraft:air");
+        cmd(5, "setblock 3 120 -3 spacehorizons:oxygen_compressor[facing=west]");
+        cmd(10, "give @s spacehorizons:oxygen_tank_small");
+        step(20, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("station", com.spacehorizons.compat.jei.JeiDevtest.compressor()));
+        shot(40, "jei_h_compressor_station");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(10, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("input", com.spacehorizons.compat.jei.JeiDevtest.smallTank()));
+        shot(40, "jei_i_small_tank_uses");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(10, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("output", com.spacehorizons.compat.jei.JeiDevtest.smallTank()));
+        shot(40, "jei_j_small_tank_craft");
+        step(10, mc -> mc.gui.setScreen(null));
+        step(10, mc -> mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND,
+                new BlockHitResult(Vec3.atCenterOf(new BlockPos(3, 120, -3)), Direction.WEST, new BlockPos(3, 120, -3), false)));
+        shot(40, "jei_k_compressor_screen");
+        step(10, mc -> com.spacehorizons.compat.jei.JeiDevtest.show("station", com.spacehorizons.compat.jei.JeiDevtest.compressor()));
+        shot(40, "jei_l_recipes_over_compressor");
         step(10, mc -> mc.gui.setScreen(null));
         step(20, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
@@ -667,6 +711,290 @@ public final class AutoTest {
             }
             SpaceHorizons.LOGGER.info(TAG + "REFINARIA quebra: tanque antes={} mB, item caiu={} componente={} mB, tanque ao recolocar={} mB",
                     tankBefore, !dropped.isEmpty(), stored, tankAfter);
+        });
+    }
+
+    private static final BlockPos COMPRESSOR_POS = new BlockPos(3, 120, 0);
+    /** Compressor da Lua: escolhido ao chegar (3 blocos a leste do jogador, no chão). */
+    private BlockPos moonCompressor;
+
+    /**
+     * Compressor de oxigênio. Na Terra (ar respirável): hotbar com tanques cheios e vazios (barras e tooltips), compressor
+     * com um tanque pequeno e carvão enchendo (log da carga ao longo do tempo, telas durante e depois), funil por face,
+     * ferramenta de quebra e o que cai ao quebrar com tanque dentro. Depois o mesmo compressor na Lua (sem ar): não enche,
+     * e a tela avisa.
+     */
+    private void compressorScenario() {
+        cmd(20, "weather clear 1000000");
+        // voando antes do teleporte: sem isso o jogador cai dezenas de blocos e fica fora do alcance do clique
+        fly(10);
+        cmd(20, "tp @s 0 120 0");
+        cmd(20, "setblock 3 120 0 minecraft:air");
+        cmd(5, "setblock 3 120 0 spacehorizons:oxygen_compressor[facing=west]");
+        look(20, EAST, 8f);
+        shot(30, "cp_a_unlit_empty");
+        // hotbar: pequeno vazio, meio e cheio; grande meio e cheio; e o compressor
+        cmd(10, "give @s spacehorizons:oxygen_tank_small");
+        cmd(10, "give @s spacehorizons:oxygen_tank_small[spacehorizons:oxygen=1200]");
+        cmd(10, "give @s spacehorizons:oxygen_tank_small[spacehorizons:oxygen=2400]");
+        cmd(10, "give @s spacehorizons:oxygen_tank_large[spacehorizons:oxygen=3600]");
+        cmd(10, "give @s spacehorizons:oxygen_tank_large[spacehorizons:oxygen=7200]");
+        cmd(10, "give @s spacehorizons:oxygen_compressor");
+        step(20, AutoTest::logTankTooltips);
+        shot(20, "cp_b_hotbar");
+        step(5, AutoTest::compressorToolCheck);
+
+        // Terra, ar respirável: tanque pequeno vazio e 4 carvões
+        cmd(10, "item replace block 3 120 0 container.0 with spacehorizons:oxygen_tank_small");
+        cmd(10, "item replace block 3 120 0 container.1 with minecraft:coal 4");
+        step(5, mc -> probeCompressor(mc, "inicio", COMPRESSOR_POS));
+        tickerStep(0, new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                if (n % 25 == 0) {
+                    probeCompressor(mc, "t=" + n, COMPRESSOR_POS);
+                }
+                if (n == 20) {
+                    grab(mc, "cp_c_working_front");
+                }
+                if (n == 40 || n == 150 || n == 235) {
+                    openMachine(mc, COMPRESSOR_POS);
+                }
+                if (n == 70 || n == 175 || n == 260) {
+                    logCompressorScreen(mc, "t=" + n);
+                    grab(mc, n == 70 ? "cp_d_screen_working" : n == 175 ? "cp_e_screen_t175" : "cp_f_screen_full");
+                }
+                if (n == 80 || n == 185 || n == 270) {
+                    mc.player.closeContainer();
+                }
+                if (n == 290) {
+                    grab(mc, "cp_g_front_unlit_after");
+                    probeCompressor(mc, "fim do enchimento", COMPRESSOR_POS);
+                }
+                return n >= 295;
+            }
+        });
+        step(10, mc -> compressorCapabilityCheck(mc));
+        step(30, mc -> compressorBreakCheck(mc));
+
+        // Lua: vácuo em qualquer altitude. (Na Terra não dá para testar o vácuo com um bloco: o mundo termina em y=319,
+        // bem abaixo do topo da atmosfera, 1.863; esse limite é coberto pelo teste unitário.)
+        cmd(20, "spacehorizons goto moon");
+        cmd(300, "gamemode creative");
+        fly(10);
+        // o compressor vai no chão, 3 blocos a leste de onde o jogador chegou (a altura vem do mapa de alturas do cliente,
+        // porque o jogador ainda está descendo logo depois da chegada); o jogador é posto ao lado, na mesma altura
+        step(20, mc -> {
+            int x = mc.player.blockPosition().getX() + 3;
+            int z = mc.player.blockPosition().getZ();
+            int y = mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z);
+            moonCompressor = new BlockPos(x, y, z);
+            mc.player.connection.sendCommand("tp @s " + (x - 2) + ".5 " + y + " " + z + ".5");
+        });
+        fly(40);
+        look(10, EAST, 8f);
+        step(10, mc -> mc.player.connection.sendCommand("setblock " + moonCompressor.getX() + " " + moonCompressor.getY() + " "
+                + moonCompressor.getZ() + " spacehorizons:oxygen_compressor[facing=west]"));
+        step(10, mc -> mc.player.connection.sendCommand("item replace block " + moonCompressor.getX() + " "
+                + moonCompressor.getY() + " " + moonCompressor.getZ() + " container.0 with spacehorizons:oxygen_tank_small"));
+        step(10, mc -> mc.player.connection.sendCommand("item replace block " + moonCompressor.getX() + " "
+                + moonCompressor.getY() + " " + moonCompressor.getZ() + " container.1 with minecraft:coal 4"));
+        tickerStep(0, new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                if (n == 1 || n % 25 == 0) {
+                    probeCompressor(mc, "Lua t=" + n, moonCompressor);
+                }
+                if (n == 40) {
+                    openMachine(mc, moonCompressor);
+                }
+                if (n == 70) {
+                    logCompressorScreen(mc, "Lua t=" + n);
+                    grab(mc, "cp_h_moon_screen");
+                }
+                if (n == 80) {
+                    mc.player.closeContainer();
+                }
+                if (n == 100) {
+                    grab(mc, "cp_i_moon_front");
+                }
+                return n >= 110;
+            }
+        });
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Clique direito de verdade no bloco (abre a tela), pela face que olha para o jogador (oeste). */
+    private static void openMachine(Minecraft mc, BlockPos pos) {
+        mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atCenterOf(pos), Direction.WEST, pos, false));
+    }
+
+    /** Loga o que o cliente vê na tela do compressor (a situação que a tela mostra e o quanto o tanque está cheio). */
+    private static void logCompressorScreen(Minecraft mc, String label) {
+        if (mc.player.containerMenu instanceof CompressorMenu menu) {
+            ItemStack tank = menu.getTank();
+            SpaceHorizons.LOGGER.info(TAG + "COMPRESSOR tela {}: classe={} situacao={} tanque={} ({} de {}) fracao={} chama={}", label,
+                    mc.gui.screen() == null ? "nenhuma" : mc.gui.screen().getClass().getSimpleName(), menu.getStatus(), tank.getItem(),
+                    OxygenStorage.get(tank), OxygenStorage.capacity(tank), f(menu.getTankFraction()), menu.hasFlame());
+        } else {
+            SpaceHorizons.LOGGER.warn(TAG + "COMPRESSOR tela {}: menu aberto NAO e o do compressor ({})", label,
+                    mc.player.containerMenu.getClass().getSimpleName());
+        }
+    }
+
+    /** Nomes e tooltips (pela mesma rota do jogo) dos itens da hotbar: os tanques e o compressor. */
+    private static void logTankTooltips(Minecraft mc) {
+        for (int slot = 0; slot < 6; slot++) {
+            ItemStack stack = mc.player.getInventory().getItem(slot);
+            SpaceHorizons.LOGGER.info(TAG + "TANQUE hotbar {}: {} oxigenio={}/{} barra={} visivel={} tooltip={}", slot, stack.getItem(),
+                    OxygenStorage.get(stack), OxygenStorage.capacity(stack), stack.getBarWidth(), stack.isBarVisible(),
+                    stack.getTooltipLines(net.minecraft.world.item.Item.TooltipContext.of(mc.level), mc.player,
+                            net.minecraft.world.item.TooltipFlag.NORMAL).stream().map(Component::getString).toList());
+        }
+    }
+
+    /** Minerar: precisa de picareta (tag e ferramenta certa). */
+    private static void compressorToolCheck(Minecraft mc) {
+        net.minecraft.world.level.block.state.BlockState state = ModBlocks.OXYGEN_COMPRESSOR.get().defaultBlockState();
+        SpaceHorizons.LOGGER.info(TAG + "COMPRESSOR minerar: tag picareta={} exige ferramenta certa={} madeira={} pedra={} ferro={} mao={} dureza={}",
+                state.is(net.minecraft.tags.BlockTags.MINEABLE_WITH_PICKAXE), state.requiresCorrectToolForDrops(),
+                new ItemStack(Items.WOODEN_PICKAXE).isCorrectToolForDrops(state), new ItemStack(Items.STONE_PICKAXE).isCorrectToolForDrops(state),
+                new ItemStack(Items.IRON_PICKAXE).isCorrectToolForDrops(state), ItemStack.EMPTY.isCorrectToolForDrops(state),
+                f(state.getDestroySpeed(mc.level, COMPRESSOR_POS)));
+    }
+
+    /** Estado do block entity do compressor lido no servidor integrado: tanque, combustível, situação, queima e ar. */
+    private static void probeCompressor(Minecraft mc, String label, BlockPos pos) {
+        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+        if (server == null) {
+            SpaceHorizons.LOGGER.warn(TAG + "COMPRESSOR sem servidor integrado");
+            return;
+        }
+        ResourceKey<net.minecraft.world.level.Level> dimension = mc.level.dimension();
+        server.execute(() -> {
+            net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+            if (level == null || !(level.getBlockEntity(pos) instanceof OxygenCompressorBlockEntity be)) {
+                SpaceHorizons.LOGGER.warn(TAG + "COMPRESSOR {}: block entity ausente em {}", label, pos);
+                return;
+            }
+            ItemStack tank = be.getItem(OxygenCompressorBlockEntity.SLOT_TANK);
+            ItemStack fuel = be.getItem(OxygenCompressorBlockEntity.SLOT_FUEL);
+            CompressorLogic l = be.logic();
+            SpaceHorizons.LOGGER.info(TAG + "COMPRESSOR {}: situacao={} oxigenio={}/{} ({} de {}) combustivel={}x{} queima={}/{} "
+                    + "aceso(bloco)={} ar respiravel={} y={} dim={}", label, l.status(), OxygenStorage.get(tank), OxygenStorage.capacity(tank),
+                    OxygenAmounts.formatTime(OxygenStorage.get(tank)), OxygenAmounts.formatTime(OxygenStorage.capacity(tank)),
+                    fuel.getItem(), fuel.getCount(), l.litTime(), l.litTotal(),
+                    level.getBlockState(pos).getValue(OxygenCompressorBlock.LIT),
+                    CompressorLogic.isBreathable(Planets.forLevel(level), pos.getY()), pos.getY(), dimension.identifier().getPath());
+        });
+    }
+
+    /** Funil por face (capability de item), sem confirmar as transações: o que entra por cima, pelos lados e o que sai por baixo. */
+    private static void compressorCapabilityCheck(Minecraft mc) {
+        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        ResourceKey<net.minecraft.world.level.Level> dimension = mc.level.dimension();
+        server.execute(() -> {
+            net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+            if (level == null || !(level.getBlockEntity(COMPRESSOR_POS) instanceof OxygenCompressorBlockEntity be)) {
+                SpaceHorizons.LOGGER.warn(TAG + "COMPRESSOR funil: block entity ausente");
+                return;
+            }
+            Item small = ModItems.OXYGEN_TANK_SMALL.get();
+            ItemResource empty = ItemResource.of(small);
+            ItemResource half = ItemResource.of(small, DataComponentPatch.builder().set(ModDataComponents.OXYGEN.get(), 1200).build());
+            ItemResource full = ItemResource.of(small, DataComponentPatch.builder()
+                    .set(ModDataComponents.OXYGEN.get(), OxygenAmounts.SMALL_TANK_CAPACITY).build());
+            ItemResource coal = ItemResource.of(Items.COAL);
+            ItemResource bucket = ItemResource.of(Items.BUCKET);
+
+            // A: slot do tanque livre, 3 carvões no combustível: o que entra por cima, lados e baixo
+            be.setItem(OxygenCompressorBlockEntity.SLOT_TANK, ItemStack.EMPTY);
+            be.setItem(OxygenCompressorBlockEntity.SLOT_FUEL, new ItemStack(Items.COAL, 3));
+            for (Direction side : new Direction[] {Direction.UP, Direction.NORTH, Direction.DOWN}) {
+                ResourceHandler<ItemResource> handler = level.getCapability(Capabilities.Item.BLOCK, COMPRESSOR_POS, side);
+                if (handler == null) {
+                    SpaceHorizons.LOGGER.warn(TAG + "COMPRESSOR capability de item AUSENTE em {}", side);
+                    continue;
+                }
+                try (Transaction tx = Transaction.openRoot()) {
+                    SpaceHorizons.LOGGER.info(TAG + "COMPRESSOR funil {} (slot do tanque livre): slots={} insere(tanque vazio)={} "
+                            + "insere(tanque meio)={} insere(tanque cheio)={} insere(pedra)={} insere(carvao)={} extrai(carvao)={}",
+                            side, handler.size(), handler.insert(empty, 1, tx), handler.insert(half, 1, tx), handler.insert(full, 1, tx),
+                            handler.insert(ItemResource.of(Items.STONE), 1, tx), handler.insert(coal, 1, tx), handler.extract(coal, 1, tx));
+                }
+            }
+            // B: tanque cheio no slot: só sai por baixo
+            be.setItem(OxygenCompressorBlockEntity.SLOT_TANK, OxygenTankItem.fullStack(small));
+            for (Direction side : new Direction[] {Direction.UP, Direction.NORTH, Direction.DOWN}) {
+                ResourceHandler<ItemResource> handler = level.getCapability(Capabilities.Item.BLOCK, COMPRESSOR_POS, side);
+                if (handler != null) {
+                    try (Transaction tx = Transaction.openRoot()) {
+                        SpaceHorizons.LOGGER.info(TAG + "COMPRESSOR funil {} (tanque cheio no slot): extrai(tanque cheio)={} (esperado 1 so por baixo)",
+                                side, handler.extract(full, 1, tx));
+                    }
+                }
+            }
+            // C: tanque pela metade: nao sai nem por baixo; e o resto do combustivel (balde vazio) sai por baixo, o carvao nao
+            be.setItem(OxygenCompressorBlockEntity.SLOT_TANK, OxygenTankItem.fullStack(small));
+            OxygenStorage.set(be.getItem(OxygenCompressorBlockEntity.SLOT_TANK), 1200);
+            be.setItem(OxygenCompressorBlockEntity.SLOT_FUEL, new ItemStack(Items.BUCKET));
+            ResourceHandler<ItemResource> down = level.getCapability(Capabilities.Item.BLOCK, COMPRESSOR_POS, Direction.DOWN);
+            if (down != null) {
+                try (Transaction tx = Transaction.openRoot()) {
+                    SpaceHorizons.LOGGER.info(TAG + "COMPRESSOR funil DOWN (tanque meio, balde no combustivel): extrai(tanque meio)={} "
+                            + "extrai(balde)={} (esperado 0 e 1)", down.extract(half, 1, tx), down.extract(bucket, 1, tx));
+                }
+            }
+            be.setItem(OxygenCompressorBlockEntity.SLOT_FUEL, new ItemStack(Items.COAL, 3));
+            if (down != null) {
+                try (Transaction tx = Transaction.openRoot()) {
+                    SpaceHorizons.LOGGER.info(TAG + "COMPRESSOR funil DOWN (carvao no combustivel): extrai(carvao)={} (esperado 0)",
+                            down.extract(coal, 1, tx));
+                }
+            }
+        });
+    }
+
+    /** Quebra o compressor com um tanque pela metade e 3 carvões dentro e confere o que cai (o bloco, o tanque com a mesma carga, o carvão). */
+    private static void compressorBreakCheck(Minecraft mc) {
+        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+        if (server == null) {
+            return;
+        }
+        ResourceKey<net.minecraft.world.level.Level> dimension = mc.level.dimension();
+        server.execute(() -> {
+            net.minecraft.server.level.ServerLevel level = server.getLevel(dimension);
+            if (level == null || !(level.getBlockEntity(COMPRESSOR_POS) instanceof OxygenCompressorBlockEntity be)) {
+                SpaceHorizons.LOGGER.warn(TAG + "COMPRESSOR quebra: block entity ausente");
+                return;
+            }
+            ItemStack tank = OxygenTankItem.fullStack(ModItems.OXYGEN_TANK_LARGE.get());
+            OxygenStorage.set(tank, 4321);
+            be.setItem(OxygenCompressorBlockEntity.SLOT_TANK, tank);
+            be.setItem(OxygenCompressorBlockEntity.SLOT_FUEL, new ItemStack(Items.COAL, 3));
+            level.destroyBlock(COMPRESSOR_POS, true);
+            List<String> drops = new ArrayList<>();
+            for (net.minecraft.world.entity.item.ItemEntity e : level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                    new net.minecraft.world.phys.AABB(COMPRESSOR_POS).inflate(2.0))) {
+                ItemStack s = e.getItem();
+                drops.add(s.getItem() + "x" + s.getCount() + (OxygenStorage.isContainer(s) ? "[oxigenio=" + OxygenStorage.get(s) + "/"
+                        + OxygenStorage.capacity(s) + "]" : ""));
+                e.discard();
+            }
+            SpaceHorizons.LOGGER.info(TAG + "COMPRESSOR quebra: bloco agora={} drops={} (esperado: o compressor, o tanque grande com 4321, 3 carvoes)",
+                    level.getBlockState(COMPRESSOR_POS).getBlock(), drops);
         });
     }
 

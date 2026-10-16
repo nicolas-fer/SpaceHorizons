@@ -2,6 +2,8 @@ package com.spacehorizons.content;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
+import com.spacehorizons.survival.oxygen.OxygenAmounts;
+import com.spacehorizons.survival.oxygen.OxygenTankItem;
 
 import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -31,6 +33,17 @@ public final class ModItems {
      */
     public static final DeferredItem<Item> FUEL_CANISTER = ITEMS.registerItem(ContentIds.FUEL_CANISTER,
             FuelCanisterItem::new, props -> props.stacksTo(1));
+
+    /**
+     * Tanques de oxigênio: recipientes pelo contrato de {@code OxygenStorage}, com a capacidade como componente padrão
+     * (2.400 ticks = 2 min; 7.200 = 6 min). Não empilham: cada tanque tem a sua carga (o mesmo motivo do galão).
+     */
+    public static final DeferredItem<Item> OXYGEN_TANK_SMALL = ITEMS.registerItem(ContentIds.OXYGEN_TANK_SMALL,
+            OxygenTankItem::new, props -> props.stacksTo(1)
+                    .component(ModDataComponents.OXYGEN_CAPACITY.get(), OxygenAmounts.SMALL_TANK_CAPACITY));
+    public static final DeferredItem<Item> OXYGEN_TANK_LARGE = ITEMS.registerItem(ContentIds.OXYGEN_TANK_LARGE,
+            OxygenTankItem::new, props -> props.stacksTo(1)
+                    .component(ModDataComponents.OXYGEN_CAPACITY.get(), OxygenAmounts.LARGE_TANK_CAPACITY));
 
     private ModItems() {
     }

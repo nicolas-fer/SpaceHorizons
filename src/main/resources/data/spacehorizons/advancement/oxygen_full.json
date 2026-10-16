@@ -1,0 +1,39 @@
+{
+  "parent": "spacehorizons:oxygen_compressor",
+  "criteria": {
+    "small_full": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:oxygen_tank_small",
+            "components": { "spacehorizons:oxygen": 2400 }
+          }
+        ]
+      }
+    },
+    "large_full": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:oxygen_tank_large",
+            "components": { "spacehorizons:oxygen": 7200 }
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:oxygen_tank_small" },
+    "title": { "translate": "advancements.spacehorizons.oxygen_full.title" },
+    "description": { "translate": "advancements.spacehorizons.oxygen_full.description" },
+    "frame": "goal"
+  },
+  "requirements": [
+    [
+      "small_full",
+      "large_full"
+    ]
+  ]
+}

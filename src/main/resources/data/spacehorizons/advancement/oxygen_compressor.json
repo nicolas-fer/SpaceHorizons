@@ -1,0 +1,25 @@
+{
+  "parent": "spacehorizons:basic_circuit",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:oxygen_compressor"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": { "id": "spacehorizons:oxygen_compressor" },
+    "title": { "translate": "advancements.spacehorizons.oxygen_compressor.title" },
+    "description": { "translate": "advancements.spacehorizons.oxygen_compressor.description" }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

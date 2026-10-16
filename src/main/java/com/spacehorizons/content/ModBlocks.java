@@ -4,6 +4,7 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.survival.compressor.OxygenCompressorBlock;
 import com.spacehorizons.survival.fuel.RefineryBlock;
 
 import net.minecraft.world.level.block.Block;
@@ -25,6 +26,10 @@ public final class ModBlocks {
     public static final DeferredBlock<RefineryBlock> REFINERY = registerBlockWithItem(ContentIds.REFINERY, RefineryBlock::new,
             props -> props.strength(3.5F).sound(SoundType.METAL).requiresCorrectToolForDrops()
                     .lightLevel(state -> state.getValue(RefineryBlock.LIT) ? 13 : 0));
+
+    /** Compressor de oxigênio: precisa de picareta; mesma dureza da refinaria. */
+    public static final DeferredBlock<OxygenCompressorBlock> OXYGEN_COMPRESSOR = registerBlockWithItem(ContentIds.OXYGEN_COMPRESSOR,
+            OxygenCompressorBlock::new, props -> props.strength(3.5F).sound(SoundType.METAL).requiresCorrectToolForDrops());
 
     private ModBlocks() {
     }

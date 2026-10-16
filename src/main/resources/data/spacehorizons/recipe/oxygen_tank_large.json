@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "C": "minecraft:copper_ingot",
+    "G": "minecraft:glass_pane"
+  },
+  "pattern": [
+    "PCP",
+    "PGP",
+    "PPP"
+  ],
+  "result": {
+    "id": "spacehorizons:oxygen_tank_large"
+  }
+}
