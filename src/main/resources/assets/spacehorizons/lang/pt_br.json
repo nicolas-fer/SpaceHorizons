@@ -157,5 +157,7 @@
   "hud.spacehorizons.rocket.sas.retrograde": "Retrógrado",
   "hud.spacehorizons.rocket.mode.landed": "Pousado",
   "hud.spacehorizons.rocket.mode.flight": "Em voo",
-  "hud.spacehorizons.rocket.mode.parachute": "Paraquedas"
+  "hud.spacehorizons.rocket.mode.parachute": "Paraquedas",
+  "message.spacehorizons.rocket.chunks_slow": "O terreno à frente está demorando demais para carregar; o foguete segue voando assim mesmo.",
+  "message.spacehorizons.rocket.no_space_dimension": "Este mundo não tem a dimensão de espaço aberto (foi criado antes dela existir): o foguete fica na dimensão do planeta."
 }

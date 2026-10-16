@@ -157,5 +157,7 @@
   "hud.spacehorizons.rocket.sas.retrograde": "Retrograde",
   "hud.spacehorizons.rocket.mode.landed": "Landed",
   "hud.spacehorizons.rocket.mode.flight": "In flight",
-  "hud.spacehorizons.rocket.mode.parachute": "Parachute"
+  "hud.spacehorizons.rocket.mode.parachute": "Parachute",
+  "message.spacehorizons.rocket.chunks_slow": "The terrain ahead is taking too long to load; the rocket keeps flying anyway.",
+  "message.spacehorizons.rocket.no_space_dimension": "This world has no open-space dimension (it was created before it existed): the rocket stays in the planet's dimension."
 }
