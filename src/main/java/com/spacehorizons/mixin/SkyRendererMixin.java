@@ -12,6 +12,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.spacehorizons.client.space.SpaceSun;
 
 import net.minecraft.client.renderer.SkyRenderer;
+import net.minecraft.world.level.MoonPhase;
 
 /**
  * Ajustes do céu vanilla para o sol real (ver {@link SpaceSun}):
@@ -30,6 +31,19 @@ abstract class SkyRendererMixin {
         Matrix4f rotation = SpaceSun.starRotation();
         if (rotation != null) {
             poseStack.last().pose().mulLocal(rotation);
+        }
+    }
+
+    /**
+     * Lua do vanilla: no espaço aberto não há chão para escondê-la (nos planetas ela vai para o nadir e o chão a cobre), e a
+     * Lua de verdade é a esfera do BodyRenderer. O brilho da chuva é o alfa do sol e da lua juntos, então zerá-lo
+     * esconderia o sol também: o desenho da lua é que é cancelado.
+     */
+    @Inject(method = "renderMoon", at = @At("HEAD"), cancellable = true)
+    private void spacehorizons$noMoonInSpace(RenderPass renderPass, MoonPhase moonPhase, float rainBrightness, PoseStack poseStack,
+            CallbackInfo ci) {
+        if (SpaceSun.inSpace()) {
+            ci.cancel();
         }
     }
 

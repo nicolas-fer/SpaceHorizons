@@ -25,6 +25,8 @@ public final class BodyClient {
         NeoForge.EVENT_BUS.addListener(EventPriority.HIGH, BodyClient::onAfterSky);
         NeoForge.EVENT_BUS.addListener(BodyClient::onExtractRenderState);
         NeoForge.EVENT_BUS.addListener(BodyClient::onLoggingOut);
+        // o céu de dentro da dimensão de espaço aberto (sol, estrelas, sem lua do vanilla, sem névoa)
+        SpaceSkyClient.init();
     }
 
     private static void onAfterSky(RenderLevelStageEvent.AfterSky event) {

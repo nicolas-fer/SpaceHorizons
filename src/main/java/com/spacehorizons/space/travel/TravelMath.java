@@ -37,6 +37,43 @@ public final class TravelMath {
         return Math.max(1.0, Math.round(raw / BOOST_STEP) * BOOST_STEP);
     }
 
+    /** Altitude (blocos sobre o nível do mar do corpo) até a qual uma nave no espaço aberto "pertence" ao corpo: a de saída da dimensão dele. */
+    public static final double EXIT_ALTITUDE_EARTH = 5_000.0;
+
+    /**
+     * Altitude de saída da dimensão de um corpo para o espaço aberto: {@link #EXIT_ALTITUDE_EARTH} escalada pelo raio, como
+     * as altitudes da malha orbital (Terra 5.000, Lua 1.250): o que importa é a altitude em relação ao raio.
+     */
+    public static double exitAltitude(SolarSystem.Body body) {
+        return EXIT_ALTITUDE_EARTH * body.planet().radius() / SolarSystem.EARTH.planet().radius();
+    }
+
+    /**
+     * Altitude (blocos) do ponto do espaço (sx, sy, sz) sobre a superfície do corpo, no instante {@code clock}: a distância
+     * ao centro menos o raio (negativa dentro do corpo).
+     */
+    public static double altitudeOver(SolarSystem.Body body, double clock, double sx, double sy, double sz) {
+        SolarSystem.Pose pose = body.poseAt(clock);
+        double dx = sx - pose.x();
+        double dy = sy - pose.y();
+        double dz = sz - pose.z();
+        return Math.sqrt(dx * dx + dy * dy + dz * dz) - body.planet().radius();
+    }
+
+    /** Corpo de superfície mais próxima do ponto do espaço (sx, sy, sz) no instante {@code clock}. */
+    public static SolarSystem.Body nearestBody(double clock, double sx, double sy, double sz) {
+        SolarSystem.Body best = SolarSystem.BODIES.get(0);
+        double bestAltitude = Double.MAX_VALUE;
+        for (SolarSystem.Body body : SolarSystem.BODIES) {
+            double altitude = altitudeOver(body, clock, sx, sy, sz);
+            if (altitude < bestAltitude) {
+                bestAltitude = altitude;
+                best = body;
+            }
+        }
+        return best;
+    }
+
     /** Vetor unitário de olhar (eixos do Minecraft: x=east, y=up, z=north) para yaw/pitch em graus. */
     public static void lookVector(float yRot, float xRot, double[] out) {
         double yaw = Math.toRadians(yRot);

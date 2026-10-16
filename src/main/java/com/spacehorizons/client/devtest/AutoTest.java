@@ -6,6 +6,8 @@ import java.util.function.Consumer;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.client.oxygen.OxygenHud;
+import com.spacehorizons.client.space.BodySky;
+import com.spacehorizons.client.space.SkyObserver;
 import com.spacehorizons.client.space.SpaceSun;
 import com.spacehorizons.content.ModBlocks;
 import com.spacehorizons.content.ModDataComponents;
@@ -30,8 +32,10 @@ import com.spacehorizons.survival.suit.SuitPieces;
 import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
+import com.spacehorizons.space.SpaceDimension;
 import com.spacehorizons.space.SpaceFrame;
 import com.spacehorizons.space.SunModel;
+import com.spacehorizons.space.travel.TravelMath;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -134,6 +138,10 @@ public final class AutoTest {
         }
         if ("moonback".equals(ONLY)) {
             moonBackScenario();
+            return;
+        }
+        if ("space".equals(ONLY)) {
+            spaceScenario();
             return;
         }
         if ("vacuum".equals(ONLY)) {
@@ -912,7 +920,8 @@ public final class AutoTest {
                     OxygenAmounts.formatTime(OxygenStorage.get(tank)), OxygenAmounts.formatTime(OxygenStorage.capacity(tank)),
                     fuel.getItem(), fuel.getCount(), l.litTime(), l.litTotal(),
                     level.getBlockState(pos).getValue(OxygenCompressorBlock.LIT),
-                    CompressorLogic.isBreathable(Planets.forLevel(level), pos.getY()), pos.getY(), dimension.identifier().getPath());
+                    !SpaceDimension.is(level) && CompressorLogic.isBreathable(Planets.forLevel(level), pos.getY()), pos.getY(),
+                    dimension.identifier().getPath());
         });
     }
 
@@ -1156,7 +1165,7 @@ public final class AutoTest {
     private static void logOxygen(Minecraft mc, String label) {
         LocalPlayer p = mc.player;
         OxygenState s = p.getData(OxygenSetup.OXYGEN);
-        boolean vacuum = Planets.forLevel(mc.level).map(planet -> OxygenMath.isVacuum(planet, p.getEyeY())).orElse(false);
+        boolean vacuum = OxygenSetup.isVacuumAt(mc.level, p.getEyeY());
         SpaceHorizons.LOGGER.info(TAG + "OXIGENIO {}: reserva={}/{} ({}s) fonte={} sistema={} vacuo={} hudVisivel={} vida={} "
                 + "criativo={} dim={} y={}", label, s.reserve(), OxygenMath.MAX_RESERVE, f(s.secondsLeft()), s.supplied(),
                 s.enabled(), vacuum, OxygenHud.isVisible(mc), f(p.getHealth()), p.isCreative(),
@@ -1425,6 +1434,335 @@ public final class AutoTest {
                 pieces.protectsFromCold(), s.reserve(), s.supplied(), p.getTicksFrozen(), p.getTicksRequiredToFreeze(),
                 p.isFullyFrozen(), f(p.getHealth()), tanks, SuitGear.totalOxygen(p), OxygenHud.label(mc, s).getString(),
                 OxygenHud.isVisible(mc), mc.level.dimension().identifier().getPath(), p.isCreative());
+    }
+
+    // ======================================================================= dimensão de espaço aberto (frente A3)
+
+    /** Ponto do espaço: a Lua no relógio atual do mundo. */
+    private static double[] moonSpace(Minecraft mc) {
+        double[] m = new double[3];
+        SolarSystem.MOON.positionAt(SpaceSun.clock(mc.level), m);
+        return m;
+    }
+
+    /** Ponto do espaço a {@code altitude} blocos sobre a superfície da Lua, do lado voltado para a Terra. */
+    private static double[] nearMoon(Minecraft mc, double altitude) {
+        double[] m = moonSpace(mc);
+        double len = Math.sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
+        double d = SolarSystem.MOON.planet().radius() + altitude;
+        return new double[] {m[0] - m[0] / len * d, m[1] - m[1] / len * d, m[2] - m[2] / len * d};
+    }
+
+    /**
+     * Relógio dentro dos próximos 8 dias (um ciclo lunar) em que a Lua está mais a +X (cima da dimensão, Y positivo) ou mais a -X
+     * (Y negativo) do espaço: a faixa de Y que o contrato de SpaceDimension produz perto da Lua.
+     */
+    private static long moonClock(Minecraft mc, boolean plusX) {
+        long from = (long) Math.floor(SpaceSun.clock(mc.level) / 24000.0) * 24000L;
+        long best = from;
+        double bestX = plusX ? -1.0e18 : 1.0e18;
+        double[] m = new double[3];
+        for (long c = from; c < from + 8 * 24000L; c += 100) {
+            SolarSystem.MOON.positionAt(c, m);
+            if (plusX ? m[0] > bestX : m[0] < bestX) {
+                bestX = m[0];
+                best = c;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * {@code /spacehorizons goto space x y z} para um ponto dado em coordenadas do ESPAÇO do SolarSystem (convertido para as da
+     * dimensão na hora, com o relógio do mundo): de um planeta é a travessia contínua, do espaço é um teleporte.
+     */
+    private void gotoSpacePoint(int wait, java.util.function.Function<Minecraft, double[]> spacePoint, String label) {
+        step(wait, mc -> {
+            double[] s = spacePoint.apply(mc);
+            double[] d = new double[3];
+            SpaceDimension.fromSpace(s[0], s[1], s[2], d);
+            String command = String.format(java.util.Locale.ROOT, "spacehorizons goto space %.3f %.3f %.3f", d[0], d[1], d[2]);
+            SpaceHorizons.LOGGER.info(TAG + "{}: /{}", label, command);
+            mc.player.connection.sendCommand(command);
+        });
+    }
+
+    /**
+     * Manda o comando e fica {@code ticks} ticks de olho numa travessia contínua: loga a troca de dimensão (tick, posição) e toda tela aberta (a de
+     * carregamento não pode aparecer), e no fim o resultado.
+     */
+    private void transferWatch(String prefix, String command, int ticks) {
+        tickerStep(0, new Ticker() {
+            int n;
+            int screens;
+            String firstDim;
+            String lastDim;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                String dim = mc.level.dimension().identifier().getPath();
+                if (firstDim == null) {
+                    firstDim = dim;
+                }
+                // o comando sai com o observador já ligado: a troca e uma tela de carregamento não passam despercebidas
+                if (n == 3) {
+                    SpaceHorizons.LOGGER.info(TAG + "{} /{}", prefix, command);
+                    mc.player.connection.sendCommand(command);
+                }
+                if (lastDim != null && !lastDim.equals(dim)) {
+                    SpaceHorizons.LOGGER.info(TAG + "{} TROCA DE DIMENSAO tick={} {} -> {} pos=({}, {}, {}) yaw={} pitch={}", prefix, n,
+                            lastDim, dim, f(mc.player.getX()), f(mc.player.getY()), f(mc.player.getZ()), f(mc.player.getYRot()),
+                            f(mc.player.getXRot()));
+                }
+                lastDim = dim;
+                if (mc.gui.screen() != null) {
+                    screens++;
+                    if (screens <= 3) {
+                        SpaceHorizons.LOGGER.info(TAG + "{} TELA ABERTA tick={} {}", prefix, n, mc.gui.screen().getClass().getName());
+                    }
+                }
+                if (n >= ticks) {
+                    SpaceHorizons.LOGGER.info(TAG + "{} RESULTADO: dimensao {} -> {}, ticks com tela aberta={} de {} ({})", prefix, firstDim,
+                            dim, screens, n, screens == 0 ? "SEM tela de carregamento" : "COM tela");
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    /** Olha para o centro de um corpo visto de dentro da dimensão de espaço (pelo SkyObserver) e loga azimute/elevação. */
+    private static void lookInSpace(Minecraft mc, SolarSystem.Body target) {
+        double clock = SpaceSun.clock(mc.level);
+        SkyObserver observer = SkyObserver.forSpace(clock, mc.player.getX(), mc.player.getY(), mc.player.getZ());
+        BodySky.Apparent a = observer.apparent(target);
+        double elevation = Math.toDegrees(Math.asin(Math.max(-1.0, Math.min(1.0, a.y()))));
+        float yaw = (float) Math.toDegrees(Math.atan2(-a.x(), a.z()));
+        SpaceHorizons.LOGGER.info(TAG + "ESPACO olhando para {}: relogio={} distancia={} raio angular={} graus azimute(yaw)={} elevacao={} graus",
+                target.planet().id().getPath(), f(clock), f(a.distance()), f(Math.toDegrees(a.angularRadius())), f(yaw), f(elevation));
+        mc.player.setYRot(yaw);
+        mc.player.setXRot((float) Math.max(-90.0, Math.min(90.0, -elevation)));
+    }
+
+    /**
+     * Estado do jogador no espaço (ou no planeta): dimensão, posição, posição no espaço, corpo mais próximo e altitude, a gravidade
+     * (cliente e servidor), o clima e o oxigênio. Vale em qualquer dimensão.
+     */
+    private static void logSpace(Minecraft mc, String label) {
+        LocalPlayer p = mc.player;
+        double clock = SpaceSun.clock(mc.level);
+        double[] s = new double[3];
+        String where;
+        if (SpaceDimension.is(mc.level)) {
+            SpaceDimension.toSpace(p.getX(), p.getY(), p.getZ(), s);
+            SolarSystem.Body nearest = TravelMath.nearestBody(clock, s[0], s[1], s[2]);
+            where = nearest.planet().id().getPath() + " altitude=" + f(TravelMath.altitudeOver(nearest, clock, s[0], s[1], s[2]));
+        } else {
+            java.util.Optional<SolarSystem.Body> body = Planets.forLevel(mc.level).flatMap(SolarSystem::bodyOf);
+            if (body.isPresent()) {
+                SpaceFrame.toSpace(body.get(), clock, p.getX(), p.getY(), p.getZ(), s);
+                where = body.get().planet().id().getPath() + " altitude=" + f(p.getY() - body.get().planet().seaLevel());
+            } else {
+                where = "fora do sistema";
+            }
+        }
+        net.minecraft.server.MinecraftServer server = mc.getSingleplayerServer();
+        net.minecraft.server.level.ServerPlayer sp = server == null ? null : server.getPlayerList().getPlayer(p.getUUID());
+        double serverGravity = sp == null ? Double.NaN : sp.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY);
+        OxygenState oxygen = p.getData(OxygenSetup.OXYGEN);
+        SpaceHorizons.LOGGER.info(TAG + "ESPACO {}: dim={} tipo={} noEspaco={} pos=({}, {}, {}) espaco=({}, {}, {}) {} gravidade(cliente)={} "
+                + "gravidade(servidor)={} podeTerClima={} chuva={} trovoada={} vivo={} vida={} vacuo={} oxigenio={}/{} hudVisivel={} criativo={}",
+                label, mc.level.dimension().identifier().getPath(), mc.level.dimensionTypeRegistration().unwrapKey().map(k -> k.identifier().toString())
+                        .orElse("?"), SpaceSun.inSpace(), f(p.getX()), f(p.getY()), f(p.getZ()), f(s[0]), f(s[1]), f(s[2]), where,
+                f(p.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY)), f(serverGravity), mc.level.canHaveWeather(),
+                f(mc.level.getRainLevel(1.0F)), f(mc.level.getThunderLevel(1.0F)), p.isAlive(), f(p.getHealth()),
+                OxygenSetup.isVacuumAt(mc.level, p.getEyeY()), oxygen.reserve(), OxygenMath.MAX_RESERVE, OxygenHud.isVisible(mc), p.isCreative());
+    }
+
+    /**
+     * Voo em linha reta no espaço aberto empurrado pelo servidor (ver {@link SpaceFlightProbe}): começa no ponto atual, espera o fim,
+     * tira um print no meio e deixa o resultado (tempo de trabalho do tick, ticks lentos, passos segurados) no log.
+     */
+    private void flightLeg(String label, double blocksPerSecond, double dirX, double dirZ, int ticks, boolean tickets, int distance) {
+        double perTick = blocksPerSecond / 20.0;
+        double norm = Math.hypot(dirX, dirZ);
+        Vec3 velocity = new Vec3(dirX / norm * perTick, 0.0, dirZ / norm * perTick);
+        step(5, mc -> SpaceFlightProbe.start(mc.getSingleplayerServer(), mc.player.getUUID(), label, velocity, ticks, tickets, distance));
+        tickerStep(0, new Ticker() {
+            int n;
+            boolean shot;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                if (!shot && n == 40) {
+                    shot = true;
+                    logSpace(mc, "voo " + label + " tick=" + n);
+                    grab(mc, "sp_fly_" + label);
+                }
+                if (SpaceFlightProbe.isDone() && n > 5) {
+                    return true;
+                }
+                if (n > ticks * 12 + 1200) {
+                    SpaceHorizons.LOGGER.error(TAG + "VOO {} nao terminou em {} ticks do cliente", label, n);
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    /**
+     * Dimensão de espaço aberto e o céu visto de dentro dela. A: a Terra a 4.900 de altitude (antes da troca); B: a travessia
+     * contínua para o espaço no mesmo ponto, sem tela de carregamento; C: sol, estrelas e a Lua perto da Terra; D: sobrevivência
+     * (gravidade 0, vácuo, oxigênio, compressor); E: meio do caminho; F: perto da Lua com a Lua em Y negativo (o vácuo do mundo
+     * desligado); G: a Lua em Y positivo; H: voos em linha reta medindo o custo dos chunks da dimensão vazia; I: a volta à Terra e à
+     * Lua pelo comando (contínua dentro da zona do corpo, teleporte à superfície fora dela).
+     */
+    private void spaceScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "difficulty normal");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+
+        // A. a Terra a 4.900 de altitude (a vista de antes da troca) olhando para baixo e de lado
+        tickerStep(0, waitForMap(24000));
+        cmd(20, "tp @s 0 4963 0");
+        fly(20);
+        look(20, EAST, 90f);
+        shot(450, "sp_a_earth_4900_down");
+        look(10, EAST, 40f);
+        shot(60, "sp_a_earth_4900_oblique");
+        look(10, EAST, 90f);
+        step(5, mc -> logSpace(mc, "A Terra a 4.900, antes da troca"));
+
+        // B. a travessia contínua para o espaço, no mesmo ponto e com o mesmo olhar: o mesmo print do outro lado
+        transferWatch("sp_b", "spacehorizons goto space", 90);
+        step(5, mc -> logSpace(mc, "B no espaco, mesmo ponto"));
+        shot(300, "sp_b_space_4900_down");
+        look(10, EAST, 40f);
+        shot(60, "sp_b_space_4900_oblique");
+
+        // C. o céu do espaço perto da Terra: a Lua, o sol a pino (relógio 6000) e as estrelas
+        step(5, mc -> lookInSpace(mc, SolarSystem.MOON));
+        shot(60, "sp_c_near_earth_moon");
+        look(10, EAST, -90f);
+        shot(30, "sp_c_near_earth_sun_zenith");
+        look(10, 135f, 0f);
+        shot(30, "sp_c_near_earth_stars");
+        step(5, mc -> lookInSpace(mc, SolarSystem.EARTH));
+        shot(30, "sp_c_near_earth_earth");
+
+        // D. sobrevivência no espaço: gravidade 0, vácuo (a reserva cai) e o compressor sem ar
+        cmd(5, "gamemode survival");
+        cmd(5, "effect give @s minecraft:instant_health 1 5");
+        step(20, mc -> logSpace(mc, "D1 sobrevivencia no espaco (esperado: gravidade 0 nos dois lados, vacuo, HUD visivel)"));
+        oxygenTicker("S espaco (a reserva cai)", 160, 40, 150);
+        step(5, mc -> logSpace(mc, "D2 sobrevivencia depois de 160 ticks"));
+        cmd(5, "gamemode creative");
+        fly(10);
+        cmd(5, "setblock 0 8 0 spacehorizons:oxygen_compressor");
+        cmd(5, "item replace block 0 8 0 container.0 with spacehorizons:oxygen_tank_small");
+        cmd(5, "item replace block 0 8 0 container.1 with minecraft:coal 4");
+        step(40, mc -> probeCompressor(mc, "espaco t=40 (esperado NO_AIR)", new BlockPos(0, 8, 0)));
+        step(60, mc -> probeCompressor(mc, "espaco t=100 (esperado NO_AIR)", new BlockPos(0, 8, 0)));
+        cmd(5, "setblock 0 8 0 minecraft:air");
+
+        // E. meio do caminho entre a Terra e a Lua (a Terra e a Lua, as duas, vistas do espaço aberto)
+        gotoSpacePoint(10, mc -> {
+            double[] m = moonSpace(mc);
+            return new double[] {m[0] * 0.5, m[1] * 0.5, m[2] * 0.5};
+        }, "E meio do caminho");
+        step(40, mc -> logSpace(mc, "E meio do caminho"));
+        step(5, mc -> lookInSpace(mc, SolarSystem.EARTH));
+        shot(150, "sp_e_mid_earth");
+        step(5, mc -> lookInSpace(mc, SolarSystem.MOON));
+        shot(150, "sp_e_mid_moon");
+        look(10, 60f, 20f);
+        shot(30, "sp_e_mid_stars");
+
+        // F. perto da Lua (1.000 de altitude), com a Lua em Y negativo no espaço (relógio 6000): o vácuo do mundo desligado
+        gotoSpacePoint(10, mc -> nearMoon(mc, 1000.0), "F perto da Lua");
+        step(60, mc -> logSpace(mc, "F perto da Lua, Y negativo"));
+        step(5, mc -> lookInSpace(mc, SolarSystem.EARTH));
+        shot(150, "sp_f_moon_earth");
+        step(5, mc -> lookInSpace(mc, SolarSystem.MOON));
+        shot(150, "sp_f_moon_moon");
+        look(10, 0f, 0f);
+        shot(30, "sp_f_moon_horizon");
+        step(100, mc -> logSpace(mc, "F depois de 5 s em Y negativo (esperado: vivo)"));
+
+        // G. a Lua em Y positivo (a outra metade do mês lunar)
+        step(5, mc -> mc.player.connection.sendCommand("time set " + moonClock(mc, true)));
+        gotoSpacePoint(40, mc -> nearMoon(mc, 1000.0), "G perto da Lua, Y positivo");
+        step(60, mc -> logSpace(mc, "G perto da Lua, Y positivo"));
+        step(5, mc -> lookInSpace(mc, SolarSystem.EARTH));
+        shot(150, "sp_g_moon_plusy_earth");
+        step(5, mc -> lookInSpace(mc, SolarSystem.MOON));
+        shot(150, "sp_g_moon_plusy_moon");
+        cmd(5, "time set 6000");
+
+        // H. voos em linha reta no espaço vazio, empurrados pelo servidor: o custo dos chunks da dimensão de altura 16
+        int k = 0;
+        for (Object[] leg : new Object[][] {
+                {"300bps", 300.0, 1.0, 0.0, 200, true, 0},
+                {"600bps", 600.0, 1.0, 0.0, 200, true, 0},
+                {"1200bps", 1200.0, 1.0, 0.0, 200, true, 0},
+                {"600bps_sem_tickets", 600.0, 1.0, 0.0, 200, false, 0},
+                {"600bps_diagonal", 600.0, 1.0, 1.0, 200, true, 0},
+                {"600bps_dist2", 600.0, 1.0, 0.0, 200, true, 2},
+                {"1200bps_dist2", 1200.0, 1.0, 0.0, 200, true, 2},
+        }) {
+            // um ponto novo (chunks nunca vistos) a 25.000 acima do centro da Terra, longe dos corpos
+            double startX = 40_000.0 * (++k);
+            cmd(10, String.format(java.util.Locale.ROOT, "spacehorizons goto space %.1f 45000 %.1f", startX, -startX));
+            step(120, mc -> logSpace(mc, "H inicio do voo " + leg[0]));
+            flightLeg((String) leg[0], (Double) leg[1], (Double) leg[2], (Double) leg[3], (Integer) leg[4], (Boolean) leg[5], (Integer) leg[6]);
+            step(60, mc -> {
+            });
+        }
+
+        // I. a volta pelo comando: dentro da zona do corpo é a travessia contínua; fora dela, o teleporte à superfície
+        cmd(10, "time set 6000");
+        cmd(20, "spacehorizons goto space 0 35330 0");
+        look(60, EAST, 90f);
+        step(5, mc -> logSpace(mc, "I1 no espaco sobre a Terra, antes da volta"));
+        transferWatch("sp_i1", "spacehorizons goto earth", 90);
+        step(5, mc -> logSpace(mc, "I1 depois do goto earth (esperado: dim=overworld, mesmo ponto)"));
+        shot(450, "sp_i1_back_earth_4900_down");
+        look(10, EAST, 40f);
+        shot(60, "sp_i1_back_earth_4900_oblique");
+
+        gotoSpacePoint(10, mc -> nearMoon(mc, 1000.0), "I2 perto da Lua");
+        step(60, mc -> logSpace(mc, "I2 perto da Lua, antes da volta"));
+        step(5, mc -> lookInSpace(mc, SolarSystem.MOON));
+        transferWatch("sp_i2", "spacehorizons goto moon", 90);
+        step(5, mc -> logSpace(mc, "I2 depois do goto moon (esperado: dim=moon, altitude ~1000)"));
+        shot(300, "sp_i2_back_moon_down");
+
+        // fora das zonas: teleporte à superfície (com tela de carregamento)
+        gotoSpacePoint(10, mc -> {
+            double[] m = moonSpace(mc);
+            return new double[] {m[0] * 0.5, m[1] * 0.5, m[2] * 0.5};
+        }, "I3 meio do caminho");
+        step(60, mc -> logSpace(mc, "I3 meio do caminho, antes de goto earth"));
+        cmd(10, "spacehorizons goto earth");
+        step(300, mc -> logSpace(mc, "I3 depois do goto earth fora da zona (esperado: overworld na superficie)"));
+        shot(60, "sp_i3_earth_surface");
+        cmd(20, "spacehorizons goto space 0 45000 0");
+        step(60, mc -> logSpace(mc, "I4 de volta ao espaco"));
+        cmd(10, "spacehorizons goto moon");
+        step(300, mc -> logSpace(mc, "I4 depois do goto moon fora da zona (esperado: moon na superficie)"));
+        shot(60, "sp_i4_moon_surface");
+
+        cmd(5, "gamerule send_command_feedback true");
+        cmd(5, "gamerule show_advancement_messages true");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
     }
 
     private void cloudProbe(String name) {
@@ -2006,6 +2344,14 @@ public final class AutoTest {
     private static void logSun(Minecraft mc, String label) {
         java.util.Optional<SolarSystem.Body> body = Planets.forLevel(mc.level).flatMap(SolarSystem::bodyOf);
         if (body.isEmpty()) {
+            if (SpaceDimension.is(mc.level)) {
+                // no espaço aberto o sol local sai do SkyObserver (os eixos da dimensão são os do spawn da Terra)
+                double clock = SpaceSun.clock(mc.level);
+                double[] sun = new double[3];
+                SkyObserver.forSpace(clock, mc.player.getX(), mc.player.getY(), mc.player.getZ()).sun(sun);
+                SpaceHorizons.LOGGER.info(TAG + "SOL {} (espaco): relogio={} sol=({}, {}, {}) altura={} graus", label, f(clock), f(sun[0]),
+                        f(sun[1]), f(sun[2]), f(Math.toDegrees(Math.asin(sun[1]))));
+            }
             return;
         }
         double clock = SpaceSun.clock(mc.level);

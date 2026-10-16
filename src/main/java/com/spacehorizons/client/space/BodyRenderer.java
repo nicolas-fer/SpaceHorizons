@@ -24,9 +24,7 @@ import com.spacehorizons.client.atmosphere.AtmosphereClient;
 import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.client.planetmesh.PlanetMeshProjection;
 import com.spacehorizons.planet.PlanetDefinition;
-import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
-import com.spacehorizons.space.SpaceFrame;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -41,16 +39,18 @@ import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Desenha os outros corpos do SolarSystem como esferas reais no céu de qualquer planeta (a Lua vista da Terra, a
- * Terra com halo vista da Lua), como "fundo" do frame: depois do céu e ANTES da malha orbital, do terreno e do DH
- * (o listener roda com prioridade alta), então o chão do planeta atual cobre o que estiver atrás dele.
+ * Desenha os corpos do SolarSystem como esferas reais no céu de qualquer planeta (a Lua vista da Terra, a Terra com
+ * halo vista da Lua) e do espaço aberto (a Terra e a Lua, as duas, vistas de dentro da dimensão de espaço), como "fundo"
+ * do frame: depois do céu e ANTES da malha orbital, do terreno e do DH (o listener roda com prioridade alta), então o
+ * chão do planeta atual cobre o que estiver atrás dele.
  *
  * Posição e orientação: os corpos se movem (a Lua orbita e gira sincronizada), então tudo é calculado no instante do
- * relógio do Overworld com a parte fracionária do frame (SpaceSun.clock), que dá movimento suave entre ticks. O vetor do
- * centro do outro corpo à câmera, no espaço (SpaceFrame.toSpace), vira os eixos locais da câmera com
- * SpaceFrame.spaceToLocal. A esfera é fixa no corpo (BodyMeshCache) e uma matriz de modelo faz o resto: rotação dos
- * eixos do corpo para os locais da câmera (inclui a orientação dos dois corpos naquele instante, SpaceFrame.meshToLocal),
- * escala do scaled space e translação até o centro. O shader é o do terreno orbital (ver BodySky, "por que não há salto").
+ * relógio do Overworld com a parte fracionária do frame (SpaceSun.clock), que dá movimento suave entre ticks. De onde se
+ * olha (o chão de um planeta ou o espaço aberto) vem do {@link SkyObserver}: ele leva o vetor do centro do outro corpo à
+ * câmera, no espaço, para os eixos locais da câmera, e dá a matriz que leva os eixos fixos de cada esfera aos locais. A
+ * esfera é fixa no corpo (BodyMeshCache) e uma matriz de modelo faz o resto: rotação dos eixos do corpo para os locais da
+ * câmera (inclui a orientação dos dois corpos naquele instante), escala do scaled space e translação até o centro. O
+ * shader é o do terreno orbital (ver BodySky, "por que não há salto").
  *
  * Roda no render thread; a geração das esferas é assíncrona (BodyMeshCache). Qualquer falha de render desliga o
  * módulo em vez de derrubar o jogo.
@@ -126,16 +126,6 @@ final class BodyRenderer {
         if (level == null) {
             return;
         }
-        Optional<PlanetDefinition> found = Planets.forLevel(level);
-        if (found.isEmpty()) {
-            return;
-        }
-        PlanetDefinition planet = found.get();
-        Optional<SolarSystem.Body> currentBody = SolarSystem.bodyOf(planet);
-        if (currentBody.isEmpty()) {
-            return;
-        }
-        SolarSystem.Body current = currentBody.get();
         CameraRenderState camera = state.cameraRenderState;
         float m00 = camera.projectionMatrix.m00();
         float m11 = camera.projectionMatrix.m11();
@@ -150,19 +140,26 @@ final class BodyRenderer {
 
         // os corpos se movem: tudo neste frame é do mesmo instante (relógio do Overworld + parcial do frame)
         double clock = SpaceSun.clock(level);
+        // de onde se olha: o chão/altitude de um planeta do mod ou o espaço aberto; nos outros mundos não há o que desenhar
+        SkyObserver observer = SkyObserver.of(level, camX, camY, camZ, clock).orElse(null);
+        if (observer == null) {
+            return;
+        }
         cache.uploadReady();
-        prefetch(current, clock, pixelAngle);
+        prefetch(observer, pixelAngle);
 
         Vector3f forward = camera.viewRotationMatrix.getRow(2, new Vector3f()).negate();
         double halfDiagonal = Math.atan(Math.hypot(1.0 / m00, 1.0 / m11));
         List<Candidate> visible = new ArrayList<>();
+        SolarSystem.Body home = observer.home();
         for (SolarSystem.Body body : SolarSystem.BODIES) {
             // o próprio planeta só entra de longe: no primeiro quadro depois de uma troca de dimensão a malha orbital
-            // do nível novo ainda está sendo construída, e a esfera (mesma geometria, cor e luz) cobre esse vão
-            if (body == current && camY - current.planet().seaLevel() < PlanetMeshProjection.altitudeStart(current.planet().radius())) {
+            // do nível novo ainda está sendo construída, e a esfera (mesma geometria, cor e luz) cobre esse vão.
+            // No espaço aberto (home == null) todos os corpos são "outros" e entram sempre
+            if (body == home && camY - home.planet().seaLevel() < PlanetMeshProjection.altitudeStart(home.planet().radius())) {
                 continue;
             }
-            BodySky.Apparent apparent = BodySky.fromDimension(current, clock, camX, camY, camZ, body);
+            BodySky.Apparent apparent = observer.apparent(body);
             if (apparent.distance() <= body.planet().radius()) {
                 continue; // câmera dentro do corpo
             }
@@ -173,7 +170,7 @@ final class BodyRenderer {
                     halfDiagonal, apparent.angularRadius())) {
                 continue;
             }
-            visible.add(new Candidate(body, apparent, body == current));
+            visible.add(new Candidate(body, apparent, body == home));
         }
         if (visible.isEmpty()) {
             return;
@@ -196,13 +193,16 @@ final class BodyRenderer {
         projection.setPerspective(fovY, m11 / m00, FAR_PLANE, NEAR_PLANE, zZeroToOne);
 
         // sol único (SunModel) no ponto da câmera, nos eixos do mundo: a mesma direção do disco, do céu e da luz do chão
-        float[] sun = new float[3];
-        SpaceSun.localAt(minecraft.level, planet, camX, camZ, sun);
-        float sunX = sun[0];
-        float sunY = sun[1];
-        float sunZ = sun[2];
-        AtmosphereModel here = AtmosphereModel.of(planet);
-        double fade = BodySky.daylightFade(here.skyBrightness(camY - planet.seaLevel()), sunY);
+        double[] sun = new double[3];
+        observer.sun(sun);
+        float sunX = (float) sun[0];
+        float sunY = (float) sun[1];
+        float sunZ = (float) sun[2];
+        // o céu claro de dia apaga os corpos vistos de dentro de uma atmosfera; no espaço aberto não há céu a apagar
+        double fade = 1.0;
+        if (home != null) {
+            fade = BodySky.daylightFade(AtmosphereModel.of(home.planet()).skyBrightness(camY - home.planet().seaLevel()), sunY);
+        }
         Matrix4f invView = new Matrix4f(viewMatrix).invert();
         TextureTarget depth = ensureDepthTarget(main.width, main.height);
 
@@ -211,37 +211,49 @@ final class BodyRenderer {
             if (slot >= MAX_BODIES) {
                 break;
             }
-            if (draw(candidate, slot, pipeline, main, depth, camera, invView, sunX, sunY, sunZ, (float) fade, pixelAngle, current,
-                    clock, camX, camZ)) {
+            if (draw(candidate, slot, pipeline, main, depth, camera, invView, sunX, sunY, sunZ, (float) fade, pixelAngle, observer)) {
                 slot++;
             }
         }
     }
 
     /**
-     * Antecipa a esfera do corpo ATUAL: quando o jogador trocar de dimensão, o planeta de onde veio passa a ser
-     * "outro corpo" e a esfera dele precisa estar pronta no mesmo frame. A resolução é a que ele terá visto do
-     * corpo mais próximo.
+     * Antecipa as esferas para a próxima troca de dimensão.
+     * <ul>
+     *   <li>Num planeta: a esfera do corpo ATUAL. Quando o jogador trocar de dimensão, o planeta de onde veio passa a ser
+     *       "outro corpo" e a esfera dele precisa estar pronta no mesmo frame. A resolução é a que ele terá visto do
+     *       corpo mais próximo.</li>
+     *   <li>No espaço aberto: a de todos os corpos, na resolução da distância real a cada um. Quem olha para o outro lado
+     *       encontra a esfera pronta ao virar, e a Terra e a Lua já estão na GPU na volta a um planeta.</li>
+     * </ul>
      */
-    private void prefetch(SolarSystem.Body current, double clock, double pixelAngle) {
+    private void prefetch(SkyObserver observer, double pixelAngle) {
+        SolarSystem.Body home = observer.home();
+        if (home == null) {
+            for (SolarSystem.Body body : SolarSystem.BODIES) {
+                double required = BodySky.requiredSegments(body.planet().radius(), observer.apparent(body).distance(), pixelAngle);
+                cache.ensure(body.planet(), BodySky.chooseSegments(lastSegments.getOrDefault(body.planet().id(), 0), required));
+            }
+            return;
+        }
         double nearest = Double.MAX_VALUE;
-        SolarSystem.Pose here = current.poseAt(clock);
+        SolarSystem.Pose here = home.poseAt(observer.clock());
         for (SolarSystem.Body other : SolarSystem.BODIES) {
-            if (other != current) {
-                SolarSystem.Pose there = other.poseAt(clock);
+            if (other != home) {
+                SolarSystem.Pose there = other.poseAt(observer.clock());
                 nearest = Math.min(nearest, Math.hypot(Math.hypot(there.x() - here.x(), there.y() - here.y()), there.z() - here.z()));
             }
         }
         if (nearest == Double.MAX_VALUE) {
             return;
         }
-        double required = BodySky.requiredSegments(current.planet().radius(), nearest, pixelAngle);
-        cache.ensure(current.planet(), BodySky.chooseSegments(0, required));
+        double required = BodySky.requiredSegments(home.planet().radius(), nearest, pixelAngle);
+        cache.ensure(home.planet(), BodySky.chooseSegments(0, required));
     }
 
     private boolean draw(Candidate candidate, int slot, CompiledRenderPipeline pipeline, RenderTarget main, TextureTarget depth,
             CameraRenderState camera, Matrix4fc invView, float sunX, float sunY, float sunZ, float fade, double pixelAngle,
-            SolarSystem.Body observer, double clock, double camX, double camZ) {
+            SkyObserver observer) {
         PlanetDefinition planet = candidate.body().planet();
         BodySky.Apparent a = candidate.apparent();
 
@@ -260,7 +272,7 @@ final class BodyRenderer {
         double centerY = a.y() * a.distance() * scale;
         double centerZ = a.z() * a.distance() * scale;
         // eixos do corpo (a malha é desenhada nos eixos fixos no corpo) -> eixos locais da câmera, no instante do frame
-        SpaceFrame.meshToLocal(observer, clock, camX, camZ, candidate.body(), meshBasis);
+        observer.meshToLocal(candidate.body(), meshBasis);
         rotation.set((float) meshBasis[0], (float) meshBasis[3], (float) meshBasis[6], 0.0F,
                 (float) meshBasis[1], (float) meshBasis[4], (float) meshBasis[7], 0.0F,
                 (float) meshBasis[2], (float) meshBasis[5], (float) meshBasis[8], 0.0F,

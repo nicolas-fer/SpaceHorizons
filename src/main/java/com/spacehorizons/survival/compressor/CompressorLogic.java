@@ -140,7 +140,8 @@ public final class CompressorLogic {
     /**
      * O ar no ponto do bloco é respirável? É o mesmo critério de vácuo do jogador ({@link OxygenMath#isVacuum}), contado
      * a partir do centro do bloco. Fora dos planetas conhecidos (Nether, End) o ar é sempre respirável, como no sistema
-     * de oxigênio do jogador.
+     * de oxigênio do jogador. O espaço aberto (SpaceDimension) não é um planeta e é vácuo em qualquer ponto: quem o chama
+     * decide isso antes (OxygenCompressorBlockEntity), porque esta lógica é pura e só conhece planetas.
      */
     public static boolean isBreathable(Optional<PlanetDefinition> planet, int blockY) {
         return planet.map(p -> !OxygenMath.isVacuum(p, blockY + 0.5)).orElse(true);

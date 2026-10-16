@@ -4,6 +4,7 @@
   "package": "com.spacehorizons.mixin.travel",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "EntityMixin",
     "ServerGamePacketListenerImplMixin"
   ],
   "client": [

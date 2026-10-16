@@ -9,6 +9,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.planet.Planets;
+import com.spacehorizons.space.SpaceDimension;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -21,6 +22,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.flag.FeatureFlagSet;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gamerules.GameRule;
 import net.minecraft.world.level.gamerules.GameRuleCategory;
 import net.minecraft.world.level.gamerules.GameRuleType;
@@ -39,8 +41,8 @@ import net.neoforged.neoforge.registries.NeoForgeRegistries;
 /**
  * Sistema de vácuo e oxigênio (lado servidor + registros comuns).
  *
- * Por tick de cada jogador de servidor: descobre se ele está no vácuo (planeta sem atmosfera ou acima do topo dela,
- * pelo ponto dos olhos), soma as {@link OxygenSource}, avança a reserva ({@link OxygenMath#step}) e aplica o dano
+ * Por tick de cada jogador de servidor: descobre se ele está no vácuo (planeta sem atmosfera ou acima do topo dela, ou
+ * a dimensão de espaço aberto inteira, pelo ponto dos olhos), soma as {@link OxygenSource}, avança a reserva ({@link OxygenMath#step}) e aplica o dano
  * {@code spacehorizons:vacuum} quando a reserva acaba. O estado vive num Data Attachment do jogador (salvo e
  * sincronizado com o próprio cliente). Criativo e espectador são isentos.
  *
@@ -96,9 +98,17 @@ public final class OxygenSetup {
         return player.isCreative() || player.isSpectator() || !player.isAlive();
     }
 
+    /**
+     * A altura {@code y} deste level é vácuo? Num planeta, sem atmosfera ou acima do topo dela ({@link OxygenMath#isVacuum});
+     * no espaço aberto ({@link SpaceDimension}), sempre; nos outros mundos (Nether, End) nunca, como no vanilla.
+     */
+    public static boolean isVacuumAt(Level level, double y) {
+        return Planets.forLevel(level).map(planet -> OxygenMath.isVacuum(planet, y)).orElseGet(() -> SpaceDimension.is(level));
+    }
+
     /** O jogador está no vácuo? Pontos de respiração: os olhos do jogador, não os pés. */
     public static boolean isInVacuum(ServerPlayer player) {
-        return Planets.forLevel(player.level()).map(planet -> OxygenMath.isVacuum(planet, player.getEyeY())).orElse(false);
+        return isVacuumAt(player.level(), player.getEyeY());
     }
 
     private static void tick(ServerPlayer player) {
@@ -139,7 +149,7 @@ public final class OxygenSetup {
     private static int status(CommandSourceStack source) throws CommandSyntaxException {
         ServerPlayer player = source.getPlayerOrException();
         OxygenState state = player.getData(OXYGEN);
-        boolean vacuum = Planets.forLevel(player.level()).map(planet -> OxygenMath.isVacuum(planet, player.getEyeY())).orElse(false);
+        boolean vacuum = isInVacuum(player);
         source.sendSuccess(() -> Component.literal("Oxigênio: reserva=" + state.reserve() + "/" + OxygenMath.MAX_RESERVE
                 + " vácuo=" + vacuum + " fonte=" + state.supplied() + " sistema=" + (state.enabled() ? "ligado" : "desligado")), false);
         return state.reserve();

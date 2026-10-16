@@ -8,6 +8,7 @@ import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.SpaceClock;
+import com.spacehorizons.space.SpaceDimension;
 import com.spacehorizons.space.SpaceFrame;
 
 import net.minecraft.server.MinecraftServer;
@@ -42,6 +43,16 @@ public final class TravelTransfers {
         return null;
     }
 
+    /** ServerLevel da dimensão de espaço aberto (pelo tipo de dimensão), ou null se o mundo não a tem (criado antes dela existir). */
+    public static @Nullable ServerLevel findSpace(MinecraftServer server) {
+        for (ServerLevel level : server.getAllLevels()) {
+            if (SpaceDimension.is(level)) {
+                return level;
+            }
+        }
+        return null;
+    }
+
     /** O jogador pode receber um teleporte agora (cliente carregado e sem outra troca de dimensão em curso). */
     public static boolean isReady(ServerPlayer player) {
         return player.connection != null && player.connection.hasClientLoaded() && !player.isChangingDimension();
@@ -62,6 +73,36 @@ public final class TravelTransfers {
                 transfer.xRot(),
                 TeleportTransition.DO_NOTHING);
         return player.teleport(transition) != null;
+    }
+
+    /**
+     * Leva o jogador do planeta {@code from} para a dimensão de espaço aberto, sem tela de carregamento, no mesmo ponto do
+     * espaço e com a mesma velocidade e olhar (ver {@link BodyTransfer#toSpace}). Devolve false se o mundo não tem a
+     * dimensão de espaço ou o teleporte foi recusado.
+     */
+    public static boolean transferToSpace(ServerPlayer player, SolarSystem.Body from) {
+        ServerLevel space = findSpace(player.level().getServer());
+        if (space == null) {
+            return false;
+        }
+        Vec3 v = player.getKnownMovement();
+        return transfer(player, BodyTransfer.toSpace(from, SpaceClock.ticks(player.level()), player.getX(), player.getY(),
+                player.getZ(), v.x, v.y, v.z, player.getYRot(), player.getXRot()), space);
+    }
+
+    /**
+     * Leva o jogador do espaço aberto para a dimensão do corpo {@code to}, sem tela de carregamento, no mesmo ponto do
+     * espaço e com a mesma velocidade (relativa ao chão do corpo) e olhar (ver {@link BodyTransfer#fromSpace}). Devolve
+     * false se o mundo não tem a dimensão do corpo ou o teleporte foi recusado.
+     */
+    public static boolean transferFromSpace(ServerPlayer player, SolarSystem.Body to) {
+        ServerLevel level = findLevel(player.level().getServer(), to.planet());
+        if (level == null) {
+            return false;
+        }
+        Vec3 v = player.getKnownMovement();
+        return transfer(player, BodyTransfer.fromSpace(to, SpaceClock.ticks(player.level()), player.getX(), player.getY(),
+                player.getZ(), v.x, v.y, v.z, player.getYRot(), player.getXRot()), level);
     }
 
     /**

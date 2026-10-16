@@ -1,6 +1,7 @@
 package com.spacehorizons.mixin.travel;
 
 import com.spacehorizons.planet.Planets;
+import com.spacehorizons.space.SpaceDimension;
 import com.spacehorizons.space.travel.TravelMath;
 
 import net.minecraft.server.level.ServerPlayer;
@@ -15,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * O voo acelerado e o piloto automático andam dezenas de blocos por tick; o "moved too quickly" do vanilla (que no
  * singleplayer já é ignorado) devolveria o jogador para trás num servidor dedicado. Acima de uma altitude baixa,
- * num level-planeta, a checagem de velocidade fica desligada.
+ * num level-planeta, e em qualquer ponto do espaço aberto, a checagem de velocidade fica desligada.
  */
 @Mixin(ServerGamePacketListenerImpl.class)
 abstract class ServerGamePacketListenerImplMixin {
@@ -29,5 +30,8 @@ abstract class ServerGamePacketListenerImplMixin {
                 cir.setReturnValue(false);
             }
         });
+        if (SpaceDimension.is(this.player.level())) {
+            cir.setReturnValue(false);
+        }
     }
 }
