@@ -4,6 +4,7 @@ import com.spacehorizons.SpaceHorizons;
 import com.mojang.serialization.Codec;
 import com.spacehorizons.survival.fuel.CanisterFuel;
 import com.spacehorizons.survival.fuel.RefineryLogic;
+import com.spacehorizons.survival.oxygen.OxygenStorage;
 
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
@@ -29,6 +30,24 @@ public final class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> REFINERY_TANK_MB =
             COMPONENTS.registerComponentType("refinery_tank_mb", builder -> builder
                     .persistent(Codec.intRange(0, RefineryLogic.TANK_CAPACITY))
+                    .networkSynchronized(ByteBufCodecs.VAR_INT));
+
+    /**
+     * Oxigênio guardado num item (tanque de oxigênio etc.), em ticks de respiração (a unidade de
+     * {@link com.spacehorizons.survival.oxygen.OxygenMath#CONSUMPTION_PER_TICK}). Use {@link OxygenStorage}.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> OXYGEN =
+            COMPONENTS.registerComponentType("oxygen", builder -> builder
+                    .persistent(Codec.intRange(0, Integer.MAX_VALUE))
+                    .networkSynchronized(ByteBufCodecs.VAR_INT));
+
+    /**
+     * Capacidade de oxigênio de um item, em ticks de respiração. Um item com este componente é um recipiente de
+     * oxigênio; o valor padrão vai nas Item.Properties do item (ex.: tanque pequeno e grande).
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> OXYGEN_CAPACITY =
+            COMPONENTS.registerComponentType("oxygen_capacity", builder -> builder
+                    .persistent(Codec.intRange(1, Integer.MAX_VALUE))
                     .networkSynchronized(ByteBufCodecs.VAR_INT));
 
     private ModDataComponents() {
