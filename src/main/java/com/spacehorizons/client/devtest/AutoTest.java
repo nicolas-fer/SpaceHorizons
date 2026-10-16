@@ -1159,8 +1159,17 @@ public final class AutoTest {
                 mc.level.dimension().identifier().getPath(), f(p.getY()));
     }
 
-    /** Recipiente de teste do contrato de oxigênio: um item qualquer com os componentes aplicados por comando. */
+    /**
+     * Recipiente de oxigênio para o cenário: o tanque de verdade quando a capacidade é a de um tanque do mod (pequeno ou
+     * grande), senão um item qualquer com os componentes do contrato aplicados por comando.
+     */
     private static String tank(int capacity, int oxygen) {
+        if (capacity == com.spacehorizons.survival.oxygen.OxygenAmounts.SMALL_TANK_CAPACITY) {
+            return "spacehorizons:oxygen_tank_small[spacehorizons:oxygen=" + oxygen + "]";
+        }
+        if (capacity == com.spacehorizons.survival.oxygen.OxygenAmounts.LARGE_TANK_CAPACITY) {
+            return "spacehorizons:oxygen_tank_large[spacehorizons:oxygen=" + oxygen + "]";
+        }
         return "minecraft:iron_ingot[spacehorizons:oxygen_capacity=" + capacity + ",spacehorizons:oxygen=" + oxygen + "]";
     }
 
