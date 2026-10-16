@@ -42,5 +42,10 @@
   "advancements.spacehorizons.fuel_full.title": "Full Tank",
   "advancements.spacehorizons.fuel_full.description": "Fill a canister with 1000 mB of rocket fuel.",
   "advancements.spacehorizons.steel_block.title": "Vault Material",
-  "advancements.spacehorizons.steel_block.description": "Compress nine steel ingots into a block of steel."
+  "advancements.spacehorizons.steel_block.description": "Compress nine steel ingots into a block of steel.",
+  "jei.spacehorizons.category.refining": "Refinery",
+  "jei.spacehorizons.refining.fuel": "%s mB",
+  "jei.spacehorizons.refining.time": "%s s",
+  "jei.spacehorizons.info.fuel_canister": "Craft it from 3 steel plates and 1 steel nugget. Put it in the refinery's canister slot: it fills with rocket fuel (up to 1000 mB) to carry it around.",
+  "jei.spacehorizons.info.forge_hammer": "Craft it from 4 steel ingots and 2 sticks. Use it as an ingredient (for example, to make steel plates): it is not consumed, but loses 1 durability per craft."
 }

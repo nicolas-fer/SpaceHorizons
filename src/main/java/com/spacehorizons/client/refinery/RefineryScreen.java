@@ -30,6 +30,12 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
     private static final Identifier LIT_SPRITE = Identifier.withDefaultNamespace("container/furnace/lit_progress");
     private static final Identifier BURN_SPRITE = Identifier.withDefaultNamespace("container/furnace/burn_progress");
 
+    /** Seta de progresso (relativa ao canto da tela): área clicável que o JEI usa para abrir as receitas de refino. */
+    public static final int ARROW_X = 79;
+    public static final int ARROW_Y = 34;
+    public static final int ARROW_W = 24;
+    public static final int ARROW_H = 16;
+
     /** Retângulo interno do tanque, relativo ao canto da tela. */
     private static final int TANK_X = 146;
     private static final int TANK_Y = 17;
@@ -71,7 +77,7 @@ public class RefineryScreen extends AbstractContainerScreen<RefineryMenu> {
                     height);
         }
         int arrow = Mth.ceil(menu.getProgress() * 24.0F);
-        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, BURN_SPRITE, 24, 16, 0, 0, x + 79, y + 34, arrow, 16);
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, BURN_SPRITE, 24, 16, 0, 0, x + ARROW_X, y + ARROW_Y, arrow, ARROW_H);
 
         // tanque: moldura em relevo invertido (como os slots), fundo cinza e combustível de baixo para cima
         int tx = x + TANK_X;

@@ -42,5 +42,10 @@
   "advancements.spacehorizons.fuel_full.title": "Tanque cheio",
   "advancements.spacehorizons.fuel_full.description": "Encha um galão com 1000 mB de combustível de foguete.",
   "advancements.spacehorizons.steel_block.title": "Material de cofre",
-  "advancements.spacehorizons.steel_block.description": "Comprima nove lingotes de aço em um bloco de aço."
+  "advancements.spacehorizons.steel_block.description": "Comprima nove lingotes de aço em um bloco de aço.",
+  "jei.spacehorizons.category.refining": "Refinaria",
+  "jei.spacehorizons.refining.fuel": "%s mB",
+  "jei.spacehorizons.refining.time": "%s s",
+  "jei.spacehorizons.info.fuel_canister": "Fabrique com 3 placas de aço e 1 pepita de aço. Coloque no slot de galão da refinaria: ele enche de combustível de foguete (até 1000 mB) para você carregá-lo.",
+  "jei.spacehorizons.info.forge_hammer": "Fabrique com 4 lingotes de aço e 2 gravetos. Use como ingrediente (por exemplo, para fazer placas de aço): ele não é consumido, mas perde 1 de durabilidade a cada fabricação."
 }
