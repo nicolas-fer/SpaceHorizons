@@ -3,6 +3,7 @@ package com.spacehorizons.worldgen;
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
+import com.spacehorizons.space.SpaceDimension;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
@@ -21,7 +22,8 @@ import net.minecraft.world.level.Level;
  * O dano de queda NÃO acompanha a gravidade sozinho (ele depende só da distância caída): com gravidade baixa
  * o jogador cai mais devagar mas a distância continua a mesma, então FALL_DAMAGE_MULTIPLIER recebe o mesmo
  * fator. O modificador é transitório (não vai para o disco): é reaplicado a cada tick de jogador e na entrada
- * de mobs, e removido quando o jogador está num level sem planeta ou com gravidade 1.
+ * de mobs, e removido quando o jogador está num level sem planeta ou com gravidade 1. No espaço aberto
+ * ({@link SpaceDimension}) o fator é 0: o modificador de -100% zera a gravidade e o dano de queda.
  */
 final class PlanetGravity {
     private static final Identifier GRAVITY_ID = Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "planet_gravity");
@@ -47,8 +49,9 @@ final class PlanetGravity {
         apply(living, factorOf(level));
     }
 
-    private static double factorOf(Level level) {
-        return Planets.forLevel(level).map(PlanetDefinition::surfaceGravity).orElse(1.0);
+    /** Fator de gravidade do level: o do planeta; zero no espaço aberto (nem queda nem dano de queda); 1 nos outros mundos. */
+    static double factorOf(Level level) {
+        return Planets.forLevel(level).map(PlanetDefinition::surfaceGravity).orElseGet(() -> SpaceDimension.is(level) ? 0.0 : 1.0);
     }
 
     static void apply(LivingEntity entity, double factor) {

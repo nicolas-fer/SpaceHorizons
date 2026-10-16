@@ -3,7 +3,6 @@ package com.spacehorizons.client.oxygen;
 import java.util.Locale;
 
 import com.spacehorizons.SpaceHorizons;
-import com.spacehorizons.planet.Planets;
 import com.spacehorizons.survival.oxygen.OxygenMath;
 import com.spacehorizons.survival.oxygen.OxygenSetup;
 import com.spacehorizons.survival.oxygen.OxygenState;
@@ -65,8 +64,7 @@ public final class OxygenHud {
     }
 
     private static boolean isVacuum(Minecraft mc) {
-        LocalPlayer player = mc.player;
-        return Planets.forLevel(mc.level).map(planet -> OxygenMath.isVacuum(planet, player.getEyeY())).orElse(false);
+        return OxygenSetup.isVacuumAt(mc.level, mc.player.getEyeY());
     }
 
     /**

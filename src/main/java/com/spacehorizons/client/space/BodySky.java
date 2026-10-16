@@ -30,7 +30,12 @@ public final class BodySky {
     /** Tamanho alvo, em pixels, de um segmento da esfera. */
     public static final double TARGET_PIXELS = 1.5;
     public static final int MIN_SEGMENTS = 32;
-    public static final int MAX_SEGMENTS = 512;
+    /**
+     * Teto de resolução da esfera: 1.024 segmentos (525 mil vértices, ~21 MB na GPU) dão células de 64 blocos na Terra, a
+     * resolução do mapa do planeta. Com 512 a Terra vista de 15.000 blocos (a saída para o espaço a 5.000 de altitude) saía
+     * borrada ao lado da malha orbital que a precedia; a de 1.024 só custa mais uma construção em background (~1 s).
+     */
+    public static final int MAX_SEGMENTS = 1024;
     /** Quanto o dia (céu claro) apaga um corpo visto de dentro de uma atmosfera, no máximo. */
     public static final double MAX_DAYLIGHT_FADE = 0.65;
 

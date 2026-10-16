@@ -29,6 +29,19 @@
         }
       }
     },
+    "spacehorizons:space": {
+      "type": "spacehorizons:space",
+      "generator": {
+        "type": "minecraft:flat",
+        "settings": {
+          "biome": "spacehorizons:space",
+          "features": false,
+          "lakes": false,
+          "layers": [],
+          "structure_overrides": []
+        }
+      }
+    },
     "minecraft:the_end": {
       "type": "minecraft:the_end",
       "generator": {

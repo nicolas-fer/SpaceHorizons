@@ -10,6 +10,7 @@ import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.SpaceClock;
+import com.spacehorizons.space.SpaceDimension;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -88,7 +89,8 @@ public final class Autopilot {
         PlanetDefinition planet = Planets.forLevel(level).orElse(null);
         SolarSystem.Body current = planet == null ? null : SolarSystem.bodyOf(planet).orElse(null);
         if (current == null) {
-            return Component.literal("Este mundo não é um planeta do Space Horizons");
+            return Component.literal(SpaceDimension.is(level) ? "O piloto automático não funciona no espaço aberto (a nave de verdade é que vai pilotar ali)"
+                    : "Este mundo não é um planeta do Space Horizons");
         }
         if (!player.mayFly()) {
             return Component.literal("O piloto automático só funciona com voo (criativo ou espectador)");

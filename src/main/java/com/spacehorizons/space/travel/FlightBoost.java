@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.spacehorizons.planet.PlanetDefinition;
+import com.spacehorizons.space.SolarSystem;
+import com.spacehorizons.space.SpaceDimension;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Abilities;
@@ -28,6 +30,17 @@ final class FlightBoost {
 
     static void update(ServerPlayer player, PlanetDefinition planet) {
         apply(player, TravelMath.flightSpeedMultiplier(player.getY() - planet.seaLevel()));
+    }
+
+    /**
+     * No espaço aberto: a mesma regra, pela altitude sobre a superfície do corpo MAIS PRÓXIMO. Na saída de um planeta a
+     * altitude é a mesma dos dois lados da troca, então a velocidade de voo não dá salto.
+     */
+    static void updateInSpace(ServerPlayer player, double clock) {
+        double[] space = new double[3];
+        SpaceDimension.toSpace(player.getX(), player.getY(), player.getZ(), space);
+        SolarSystem.Body nearest = TravelMath.nearestBody(clock, space[0], space[1], space[2]);
+        apply(player, TravelMath.flightSpeedMultiplier(TravelMath.altitudeOver(nearest, clock, space[0], space[1], space[2])));
     }
 
     /** Devolve a velocidade ao padrão se foi este código que a mudou (fora de planeta ou ao sair do jogo). */

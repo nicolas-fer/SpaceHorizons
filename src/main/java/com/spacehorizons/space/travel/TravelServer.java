@@ -4,6 +4,8 @@ import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
+import com.spacehorizons.space.SpaceClock;
+import com.spacehorizons.space.SpaceDimension;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -15,7 +17,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
 /**
  * Cola dos eventos da viagem (servidor): registro do aviso de transferência, tick por jogador (piloto automático,
- * velocidade de voo e esfera de influência) e limpeza do estado. Registrada sozinha pelo {@link EventBusSubscriber};
+ * velocidade de voo e esfera de influência; no espaço aberto só a velocidade de voo) e limpeza do estado. Registrada sozinha pelo {@link EventBusSubscriber};
  * não precisa de chamada no construtor do mod.
  */
 @EventBusSubscriber(modid = SpaceHorizons.MODID)
@@ -37,8 +39,14 @@ public final class TravelServer {
         PlanetDefinition planet = Planets.forLevel(player.level()).orElse(null);
         SolarSystem.Body body = planet == null ? null : SolarSystem.bodyOf(planet).orElse(null);
         if (body == null) {
+            // fora de um planeta não há piloto automático nem esfera de influência. No espaço aberto o voo criativo anda pela
+            // altitude sobre o corpo mais próximo (a nave de verdade, etapa 3b, é quem vai pilotar ali); nos outros mundos volta ao padrão
             Autopilot.forget(player.getUUID());
-            FlightBoost.restore(player);
+            if (SpaceDimension.is(player.level())) {
+                FlightBoost.updateInSpace(player, SpaceClock.ticks(player.level()));
+            } else {
+                FlightBoost.restore(player);
+            }
             return;
         }
         if (Autopilot.tick(player, body)) {

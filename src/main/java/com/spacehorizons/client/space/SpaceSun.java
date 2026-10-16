@@ -43,6 +43,8 @@ public final class SpaceSun {
     private static float starAngle;
     /** Rotação do campo de estrelas (eixos do Minecraft da câmera); null = nenhuma (vale o vanilla). */
     private static Matrix4f starRotation;
+    /** A câmera está na dimensão de espaço aberto (ligado por SpaceSkyClient a cada frame; lido por SkyRendererMixin). */
+    private static boolean inSpace;
 
     private SpaceSun() {
     }
@@ -162,9 +164,22 @@ public final class SpaceSun {
         return starRotation;
     }
 
+    /**
+     * A câmera está no espaço aberto? Nele a lua do vanilla (um quadrado de textura) não pode aparecer: a Lua de verdade é a
+     * esfera do BodyRenderer, e sem chão para escondê-la o quadrado ficaria visível olhando para baixo.
+     */
+    public static boolean inSpace() {
+        return inSpace;
+    }
+
+    static void setInSpace(boolean value) {
+        inSpace = value;
+    }
+
     /** Esquece o estado do céu (saída do mundo). */
     public static void reset() {
         clearView();
+        inSpace = false;
     }
 
     /** Apaga giro e rotação, para que um céu que não é do mod fique como o vanilla. */

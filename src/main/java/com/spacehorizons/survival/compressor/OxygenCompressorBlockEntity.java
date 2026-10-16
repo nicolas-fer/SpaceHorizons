@@ -2,6 +2,7 @@ package com.spacehorizons.survival.compressor;
 
 import com.spacehorizons.content.ModBlockEntities;
 import com.spacehorizons.planet.Planets;
+import com.spacehorizons.space.SpaceDimension;
 import com.spacehorizons.survival.fuel.RefineryBlockEntity;
 import com.spacehorizons.survival.oxygen.OxygenStorage;
 
@@ -127,7 +128,8 @@ public class OxygenCompressorBlockEntity extends BaseContainerBlockEntity implem
         ItemStack tank = entity.items.get(SLOT_TANK);
         ItemStack fuel = entity.items.get(SLOT_FUEL);
 
-        boolean breathable = CompressorLogic.isBreathable(Planets.forLevel(level), pos.getY());
+        // o espaço aberto é vácuo em qualquer ponto (a lógica pura só conhece planetas)
+        boolean breathable = !SpaceDimension.is(level) && CompressorLogic.isBreathable(Planets.forLevel(level), pos.getY());
         // o tempo de queima só é lido quando o compressor precisa (re)acender
         int burn = entity.logic.litTime() <= 0 && !fuel.isEmpty() ? entity.getBurnDuration(level, fuel) : 0;
         CompressorLogic.Result result = entity.logic.tick(new CompressorLogic.Inputs(breathable,

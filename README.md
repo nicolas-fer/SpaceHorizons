@@ -131,6 +131,57 @@ A Terra deixou de ser um terreno simples e passou a usar o gerador completo do O
 - **Viagem com alvo móvel** (`space/travel/FlightGuide`, `FlightPlan`, `BodyTransfer`): o plano mira onde o corpo estará, corrige a
   cada tick e na troca de dimensão a velocidade vira velocidade relativa ao chão do corpo novo (ver "Autoteste").
 
+## Dimensão de espaço aberto (etapa 3c do foguete)
+
+Entre a Terra e a Lua existe agora uma dimensão vazia, `spacehorizons:space`, de onde se vê a Terra e a Lua inteiras. Ela entra
+no world preset (só mundos criados depois; num mundo antigo `/spacehorizons goto space` avisa que a dimensão não existe).
+
+- **Dados**: `dimension_type/space.json` (altura 16, `min_y` 0, `has_skylight`, `has_ceiling` para desligar o clima, `skybox overworld`,
+  nuvens com alfa 0, sem timeline), `worldgen/biome/space.json` (sem chuva e sem spawns) e o gerador `minecraft:flat` sem camadas.
+  Altura 16 é o mínimo do codec: uma seção por chunk.
+- **Coordenadas** (`space/SpaceDimension`): os eixos da dimensão são a base local da Terra no spawn (leste = +Z do espaço, cima = +X,
+  norte = +Y) e Y tem um viés de 20.000: `(x, y, z) da dimensão = (sz, sx + 20.000, sy)`. Assim o sol, as estrelas e a vertical do spawn
+  da Terra funcionam sem rotação. A Terra fica em y = 20.000 e a Lua orbita entre y ≈ -40.000 e +80.000 (ver "Limitações").
+- **Céu** (`client/space/`): `SkyObserver` diz de onde se olha (chão de um planeta ou espaço aberto) e o `BodyRenderer` desenha os
+  corpos pelo observador; no espaço a Terra (com halo) e a Lua são esferas reais, e o céu do vanilla traz só o sol e as estrelas
+  (`SpaceSkyClient`: sem lua do vanilla, sem névoa, sem disco escuro, sem nuvens nem chuva).
+- **Regras**: gravidade 0 (`PlanetGravity`), vácuo em todo o espaço (`OxygenSetup.isVacuumAt`, HUD, compressor), sem "moved too
+  quickly" e sem morte por cair abaixo do mundo (`mixin/travel/EntityMixin`). No espaço o voo criativo anda pela altitude sobre o corpo
+  mais próximo (a mesma regra dos planetas); não há piloto automático.
+- **Travessia** (`BodyTransfer.toSpace/fromSpace`, `TravelTransfers.findSpace`): do planeta ao espaço e de volta no mesmo ponto do
+  espaço, com a mesma velocidade e o mesmo olhar, sem tela de carregamento.
+
+| Comando | O que faz |
+| --- | --- |
+| `/spacehorizons goto space` | de um planeta, vai ao espaço no mesmo ponto (travessia contínua) |
+| `/spacehorizons goto space x y z` | vai ao ponto (coordenadas da dimensão de espaço, as do F3 de lá), parado |
+| `/spacehorizons goto earth` / `moon` | do espaço, dentro da zona do corpo (acima da superfície até 5.000 na Terra e 1.250 na Lua), volta no mesmo ponto; fora dela, teleporta à superfície |
+
+Autoteste: `./gradlew runClientTest -PshOnly=space` (apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes). Prefixos
+dos prints: `sp_a_*` Terra a 4.900 antes da troca, `sp_b_*` o mesmo ponto no espaço, `sp_c_*` sol, estrelas e Lua perto da Terra,
+`sp_e_*` meio do caminho, `sp_f_*` e `sp_g_*` perto da Lua (com a Lua em Y negativo e em Y positivo), `sp_fly_*` os voos, `sp_i*_*` a
+volta pelo comando. O log traz `ESPACO` (posição, gravidade, clima, oxigênio), `VOO ... RESULTADO` (tempo de trabalho do tick do
+servidor num voo em linha reta, com e sem tickets à frente) e `sp_* RESULTADO` (telas abertas durante a travessia).
+
+Medido em jogo (autoteste, voo em linha reta no espaço empurrado pelo servidor, 200 ticks, distância de visão 16): com tickets à
+frente (ENDER_PEARL em 1, 2, 4, 8, 16 e 32 ticks, passo segurado se faltar chunk) o tempo de trabalho do tick fica em ~1,3 a
+1,9 ms (máximo 5 a 30 ms) a 300, 600 e 1.200 blocos/s, sem aviso "Can't keep up"; sem tickets, a 600 blocos/s, a média sobe para
+6,6 a 7,8 ms com picos de 95 a 178 ms (o `getChunk` bloqueante do `Entity.setPosRaw`). Reduzir a distância de visão para 2 não
+mudou o resultado de forma mensurável.
+
+Limitações da dimensão de espaço:
+
+- **Faixa de Y**: com o viés fixo de 20.000, a órbita da Lua leva Y de -40.000 a +80.000 (os eixos da dimensão são os do spawn da
+  Terra, e a Lua orbita no plano leste-cima). Por isso `EntityMixin` desliga a morte abaixo do mundo no espaço. Uma convenção que
+  pusesse o eixo polar da Terra em Y daria ±15.000 com o mesmo viés, mas exigiria girar o sol e as estrelas do vanilla.
+- **Salto na saída a 5.000**: a esfera da Terra (agora até 1.024 segmentos, célula de 64 blocos, a do mapa) coincide em posição,
+  cor e halo com a malha orbital, mas some o detalhe dos chunks e do DH do centro da vista (uns 500 blocos de lado).
+- **DH no espaço**: o DH trata a dimensão de espaço como uma dimensão qualquer (gerador flat vazio); não há gerador de LOD próprio.
+  O log mostra só avisos "Renderer already started" do DH a cada troca de dimensão.
+- **Mundos antigos**: a dimensão só existe em mundos criados depois (world preset).
+- **Lua e clima**: `moon.json` tem `has_ceiling` falso, então a chuva do Overworld escurece o céu da Lua; no espaço `has_ceiling`
+  verdadeiro evita isso. Não alterei a Lua.
+
 ## Como rodar
 
 Requisitos: JDK 25 (o Gradle baixa o toolchain se preciso).
