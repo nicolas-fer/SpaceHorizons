@@ -15,6 +15,8 @@ import org.jspecify.annotations.Nullable;
 public final class RocketTelemetryClient {
     private static volatile @Nullable RocketTelemetryPayload last;
     private static volatile long receivedAtMillis;
+    /** Telemetria fixada pelo autoteste: vale sempre e não é trocada por pacotes do servidor (só em dev). */
+    private static volatile @Nullable RocketTelemetryPayload pinned;
 
     private RocketTelemetryClient() {
     }
@@ -29,7 +31,16 @@ public final class RocketTelemetryClient {
 
     /** A telemetria mais recente, ou null se nunca chegou ou está velha (mais de 2 s sem pacote). */
     public static @Nullable RocketTelemetryPayload current() {
+        RocketTelemetryPayload fixed = pinned;
+        if (fixed != null) {
+            return fixed;
+        }
         RocketTelemetryPayload p = last;
         return p != null && System.currentTimeMillis() - receivedAtMillis < 2000 ? p : null;
+    }
+
+    /** Só para testes: fixa uma telemetria falsa (null solta). Enquanto fixa, {@link #current()} a devolve sem checar a idade. */
+    public static void pinForTest(@Nullable RocketTelemetryPayload payload) {
+        pinned = payload;
     }
 }

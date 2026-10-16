@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Comandos de teste do foguete (operadores): {@code /spacehorizons rocket assemble <pos>|disassemble|nudge <dx> <dy> <dz>|yaw
- * <graus>|info}. {@code disassemble} é o pouso de volta a blocos; {@code nudge} e {@code yaw} movem e giram a entidade
+ * <graus>|pitch <graus>|roll <graus>|info}. {@code disassemble} é o pouso de volta a blocos; {@code nudge} e {@code yaw} movem e giram a entidade
  * (a física de voo só vem na etapa 3b) para ver o retrato fora do chão e testar o arredondamento do yaw ao pousar.
  */
 final class RocketCommands {
@@ -46,6 +46,12 @@ final class RocketCommands {
                         .then(Commands.literal("yaw")
                                 .then(Commands.argument("graus", DoubleArgumentType.doubleArg())
                                         .executes(ctx -> yaw(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "graus")))))
+                        .then(Commands.literal("pitch")
+                                .then(Commands.argument("graus", DoubleArgumentType.doubleArg())
+                                        .executes(ctx -> tilt(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "graus"), false))))
+                        .then(Commands.literal("roll")
+                                .then(Commands.argument("graus", DoubleArgumentType.doubleArg())
+                                        .executes(ctx -> tilt(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "graus"), true))))
                         .then(Commands.literal("info").executes(ctx -> info(ctx.getSource())))));
     }
 
@@ -98,6 +104,23 @@ final class RocketCommands {
         rocket.setAttitude(RocketAttitude.fromYaw(degrees));
         rocket.teleportTo(rocket.getX(), rocket.getY(), rocket.getZ());
         source.sendSuccess(() -> Component.literal(String.format(java.util.Locale.ROOT, "Foguete girado para yaw %.1f", rocket.yawDegrees())), true);
+        return 1;
+    }
+
+    /**
+     * Atitude de teste só de arfagem (nariz para +Z) ou só de rolagem (em torno do nariz), a partir do foguete em pé: para
+     * ver a câmera e o retrato girados. O sinal é o do comando de voo: positivo é a rotação de mão direita nos eixos do corpo.
+     */
+    private static int tilt(CommandSourceStack source, double degrees, boolean roll) throws CommandSyntaxException {
+        RocketEntity rocket = findRocket(source);
+        if (rocket == null) {
+            return 0;
+        }
+        float radians = (float) Math.toRadians(degrees);
+        rocket.setAttitude(roll ? new org.joml.Quaternionf().rotationY(radians) : new org.joml.Quaternionf().rotationX(radians));
+        rocket.teleportTo(rocket.getX(), rocket.getY(), rocket.getZ());
+        source.sendSuccess(() -> Component.literal(String.format(java.util.Locale.ROOT, "Foguete com %s de %.1f graus (inclinação %.1f)",
+                roll ? "rolagem" : "arfagem", degrees, rocket.tiltDegrees())), true);
         return 1;
     }
 

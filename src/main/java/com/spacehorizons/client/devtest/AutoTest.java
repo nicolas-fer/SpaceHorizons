@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.client.oxygen.OxygenHud;
+import com.spacehorizons.client.rocket.RocketKeys;
 import com.spacehorizons.client.space.BodySky;
 import com.spacehorizons.client.space.SkyObserver;
 import com.spacehorizons.client.space.SpaceSun;
@@ -154,6 +155,10 @@ public final class AutoTest {
         }
         if ("rocket".equals(ONLY)) {
             rocketScenario();
+            return;
+        }
+        if ("cockpit".equals(ONLY)) {
+            cockpitScenario();
             return;
         }
 
@@ -2203,6 +2208,170 @@ public final class AutoTest {
         step(25, mc -> RocketDevtest.afterLand(mc, "pousou com yaw 90", 1));
         rocketView("rk_k_landed_rotated_east", bx + 9.0, by + 2.5, bz, 90f, 6f);
         rocketView("rk_k_landed_rotated_south", bx, by + 2.5, bz + 9.0, 180f, 6f);
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /**
+     * Cliente do foguete (fase B2): monta o foguete como no cenário {@code rocket}, senta o piloto e confere as teclas (Shift
+     * sobe o acelerador sem desmontar, Z/X/T/P/G mandam flags de borda, W/D/E dão giro), o pacote que o cliente mandou e o que o
+     * SERVIDOR recebeu; fixa telemetria falsa para o painel ter números e tira prints do painel em primeira e terceira pessoa;
+     * gira a atitude por comando (arfagem, rolagem, guinada) e confere a câmera contra a direção esperada; testa o olhar livre e a
+     * tecla de câmera; liga o motor (dado sincronizado só no cliente) para ver chama e fumaça, de dentro e de fora.
+     */
+    private void cockpitScenario() {
+        BlockPos tank = RocketDevtest.at(new BlockPos(0, 2, 0));
+        BlockPos cockpit = RocketDevtest.at(new BlockPos(0, 4, 0));
+        double bx = RocketDevtest.BASE.getX() + 0.5;
+        double by = RocketDevtest.BASE.getY();
+        double bz = RocketDevtest.BASE.getZ() + 0.5;
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        fly(10);
+        cmd(10, "tp @s " + (bx + 2.7) + " " + (by + 0.88) + " " + bz);
+        fly(10);
+        cmd(10, "clear @s");
+        cmd(10, RocketDevtest.clearCommand());
+        for (String command : RocketDevtest.buildCommands()) {
+            cmd(4, command);
+        }
+        look(20, 90f, 0f);
+        cmd(5, "give @s spacehorizons:fuel_canister[spacehorizons:fuel_mb=1000]");
+        cmd(5, "give @s spacehorizons:fuel_canister[spacehorizons:fuel_mb=1000]");
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(0);
+            useOnBlock(mc, tank, Direction.EAST);
+        });
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(1);
+            useOnBlock(mc, tank, Direction.EAST);
+        });
+        step(20, mc -> mc.player.getInventory().setSelectedSlot(8));
+        step(10, mc -> useOnBlock(mc, cockpit, Direction.EAST));
+        step(25, mc -> RocketDevtest.afterAssemble(mc, "montado"));
+        // senta (clique direito de verdade) e confere o embarque: primeira pessoa, olhar livre zerado, ajuda no chat
+        cmd(10, "tp @s " + (bx + 2.7) + " " + (by + 0.88) + " " + bz);
+        fly(5);
+        look(10, 90f, 0f);
+        step(10, RocketDevtest::clickRocket);
+        step(15, mc -> CockpitDevtest.boarded(mc, "sentou"));
+        shot(10, "cp_a_boarding_chat_and_hint");
+        step(5, mc -> CockpitDevtest.pinOrbitTelemetry());
+        step(0, mc -> CockpitDevtest.camera(mc, "pousado, em pé, primeira pessoa"));
+        shot(10, "cp_b_first_person_landed_panel");
+
+        // Shift apertado por 30 ticks: o acelerador sobe 0,02 por tick (0,6) e o jogador NÃO desmonta
+        step(5, mc -> mc.options.keyShift.setDown(true));
+        step(31, mc -> CockpitDevtest.sent(mc, "Shift apertado por 30 ticks (esperado acelerador ~0,60 e ainda sentado)"));
+        step(0, mc -> CockpitDevtest.serverReceived(mc, "Shift apertado"));
+        step(0, mc -> mc.options.keyShift.setDown(false));
+        // Ctrl desce
+        step(5, mc -> mc.options.keySprint.setDown(true));
+        step(11, mc -> CockpitDevtest.sent(mc, "Ctrl apertado por 10 ticks (esperado ~0,40)"));
+        step(0, mc -> mc.options.keySprint.setDown(false));
+        // Z cheio, T SAS, P paraquedas, X corta: flags de borda
+        step(5, mc -> CockpitDevtest.click(RocketKeys.FULL_THROTTLE));
+        step(3, mc -> CockpitDevtest.sent(mc, "Z (esperado acelerador 1,00 e flag 8)"));
+        // T e E pelo caminho real do teclado (o código da tecla): o vanilla também recebe o clique (chat e inventário), e o
+        // cliente tem que descartá-lo; a tela continua fechada e o foguete recebe o comando
+        step(2, mc -> CockpitDevtest.clickRawKey(com.mojang.blaze3d.platform.InputConstants.KEY_T));
+        step(3, mc -> CockpitDevtest.sent(mc, "T pelo teclado (esperado flag 1 e NENHUMA tela de chat aberta)"));
+        step(2, mc -> CockpitDevtest.clickRawKey(com.mojang.blaze3d.platform.InputConstants.KEY_E));
+        step(3, mc -> CockpitDevtest.sent(mc, "E pelo teclado (esperado NENHUM inventário aberto)"));
+        step(2, mc -> CockpitDevtest.clickRawKey(com.mojang.blaze3d.platform.InputConstants.KEY_Q));
+        step(3, mc -> CockpitDevtest.sent(mc, "Q pelo teclado (esperado nada solto: só o item da mão, vazio, e nenhuma tela)"));
+        step(2, mc -> CockpitDevtest.click(RocketKeys.PARACHUTE));
+        step(3, mc -> CockpitDevtest.sent(mc, "P (esperado flag 2)"));
+        step(2, mc -> CockpitDevtest.click(RocketKeys.CUT_THROTTLE));
+        step(3, mc -> CockpitDevtest.sent(mc, "X (esperado acelerador 0,00 e flag 16)"));
+        // W + D + E
+        step(2, mc -> {
+            mc.options.keyUp.setDown(true);
+            mc.options.keyRight.setDown(true);
+            RocketKeys.ROLL_RIGHT.setDown(true);
+        });
+        step(8, mc -> CockpitDevtest.sent(mc, "W + D + E (esperado pitch=1 yaw=1 roll=1)"));
+        step(0, mc -> CockpitDevtest.serverReceived(mc, "W + D + E"));
+        step(0, mc -> CockpitDevtest.releaseAll(mc));
+        // S + A + Q
+        step(2, mc -> {
+            mc.options.keyDown.setDown(true);
+            mc.options.keyLeft.setDown(true);
+            RocketKeys.ROLL_LEFT.setDown(true);
+        });
+        step(8, mc -> CockpitDevtest.sent(mc, "S + A + Q (esperado pitch=-1 yaw=-1 roll=-1)"));
+        step(0, mc -> CockpitDevtest.releaseAll(mc));
+
+        // acelerador a 80% (Shift por 40 ticks) para o print do painel; telemetria falsa de órbita já fixada
+        step(5, mc -> mc.options.keyShift.setDown(true));
+        step(41, mc -> mc.options.keyShift.setDown(false));
+        step(5, mc -> CockpitDevtest.sent(mc, "acelerador a ~80% para o print"));
+        step(0, mc -> CockpitDevtest.setClientData(mc, "THROTTLE", 0.8F));
+        step(0, mc -> CockpitDevtest.setClientData(mc, "FLIGHT_MODE", (byte) 1));
+        step(0, mc -> CockpitDevtest.setClientData(mc, "SAS_MODE", (byte) 2));
+        shot(15, "cp_c_first_person_panel_orbit");
+
+        // terceira pessoa (a tecla V de verdade)
+        step(5, mc -> CockpitDevtest.click(RocketKeys.CAMERA));
+        step(10, mc -> CockpitDevtest.camera(mc, "terceira pessoa (V)"));
+        shot(10, "cp_d_third_person_panel_orbit");
+
+        // atitude por comando: arfagem 30, e a câmera acompanha (terceira e primeira pessoa)
+        cmd(10, "spacehorizons rocket pitch 30");
+        step(10, mc -> CockpitDevtest.camera(mc, "arfagem 30, terceira pessoa"));
+        shot(5, "cp_e_third_person_pitch30");
+        step(5, mc -> CockpitDevtest.click(RocketKeys.CAMERA));
+        step(10, mc -> CockpitDevtest.camera(mc, "arfagem 30, primeira pessoa"));
+        shot(5, "cp_f_first_person_pitch30");
+        cmd(10, "spacehorizons rocket roll 45");
+        step(10, mc -> CockpitDevtest.camera(mc, "rolagem 45, primeira pessoa"));
+        shot(5, "cp_g_first_person_roll45");
+        cmd(10, "spacehorizons rocket pitch 90");
+        step(10, mc -> CockpitDevtest.camera(mc, "arfagem 90 (deitado), primeira pessoa"));
+        shot(5, "cp_h_first_person_pitch90");
+        cmd(10, "spacehorizons rocket yaw 90");
+        step(10, mc -> CockpitDevtest.camera(mc, "guinada 90 (de pé), primeira pessoa"));
+
+        // olhar livre com o mouse (yaw/pitch do jogador) por cima da atitude
+        step(5, mc -> {
+            mc.player.setYRot(60f);
+            mc.player.setXRot(-20f);
+        });
+        step(10, mc -> CockpitDevtest.camera(mc, "olhar livre yaw 60 pitch -20"));
+        shot(5, "cp_i_first_person_freelook");
+        step(5, mc -> {
+            mc.player.setYRot(0f);
+            mc.player.setXRot(0f);
+        });
+
+        // reentrada: telemetria falsa de descida com calor e paraquedas, e o calor sincronizado só no cliente
+        cmd(10, "spacehorizons rocket pitch 0");
+        step(5, mc -> CockpitDevtest.pinReentryTelemetry());
+        step(0, mc -> CockpitDevtest.setClientData(mc, "HEAT", 1.4F));
+        step(0, mc -> CockpitDevtest.setClientData(mc, "THROTTLE", 0.0F));
+        step(0, mc -> CockpitDevtest.setClientData(mc, "SAS_MODE", (byte) 3));
+        step(15, mc -> CockpitDevtest.effects(mc, "reentrada (calor 1,4)"));
+        shot(5, "cp_j_first_person_reentry_panel");
+
+        // G em voo: o cliente recusa e avisa; pousado: manda a flag de desmontar (o servidor só age com a física de voo, fase B1)
+        step(5, mc -> CockpitDevtest.setClientData(mc, "HEAT", 0.0F));
+        step(0, mc -> CockpitDevtest.setClientData(mc, "THROTTLE", 1.0F));
+        step(0, mc -> CockpitDevtest.setClientData(mc, "FLIGHT_MODE", (byte) 1));
+        step(5, mc -> CockpitDevtest.click(RocketKeys.DISASSEMBLE));
+        step(3, mc -> CockpitDevtest.sent(mc, "G em voo: o cliente recusa e avisa (esperado nenhuma flag nova de desmontar)"));
+        step(0, mc -> CockpitDevtest.setClientData(mc, "FLIGHT_MODE", (byte) 0));
+        step(5, mc -> CockpitDevtest.click(RocketKeys.DISASSEMBLE));
+        step(3, mc -> CockpitDevtest.sent(mc, "G pousado (esperado flag 4 de desmontar)"));
+        step(0, mc -> CockpitDevtest.serverReceived(mc, "G pousado"));
+        // motor ligado e chama, vista de fora (desembarca pelo caminho vanilla)
+        step(5, RocketDevtest::dismount);
+        rocketView("cp_k_exhaust_outside_east", bx + 11.0, by + 1.5, bz, 90f, 5f);
+        rocketView("cp_l_exhaust_outside_oblique", bx + 7.0, by + 7.0, bz + 7.0, 135f, 25f);
+        step(0, mc -> CockpitDevtest.effects(mc, "motor ligado, visto de fora"));
+        step(10, mc -> CockpitDevtest.setClientData(mc, "THROTTLE", 0.0F));
+        step(0, mc -> CockpitDevtest.unpinTelemetry());
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
