@@ -49,6 +49,8 @@ public final class RocketSpecs {
     public static RocketStats statsFor(RocketCensus c) {
         double dry = c.cockpits() * COCKPIT_MASS_T + c.engines() * ENGINE_MASS_T + c.tanks() * TANK_DRY_MASS_T
                 + c.parachutes() * PARACHUTE_MASS_T + c.legs() * LEG_MASS_T + (c.hulls() + c.structures()) * STRUCTURE_MASS_T;
+        // a entidade nasce vazia (antes de receber o retrato) e RocketStats exige massa seca positiva
+        dry = Math.max(dry, STRUCTURE_MASS_T);
         double dragK0 = G0 / (TERMINAL_SPEED_ASCENT * TERMINAL_SPEED_ASCENT);
         double parachuteK0 = c.parachutes() > 0 ? G0 / (TERMINAL_SPEED_PARACHUTE * TERMINAL_SPEED_PARACHUTE) : 0.0;
         return new RocketStats(dry, c.engines() * ENGINE_THRUST, ENGINE_ISP_TICKS, (double) c.tanks() * TANK_CAPACITY_MB,
