@@ -49,5 +49,6 @@ public final class BodyClient {
     private static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         BodyRenderer.INSTANCE.reset();
         SpaceSun.reset();
+        SkyAttitude.reset();
     }
 }

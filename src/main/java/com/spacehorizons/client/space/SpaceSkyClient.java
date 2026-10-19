@@ -11,6 +11,7 @@ import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
 import net.neoforged.neoforge.client.event.ViewportEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
+import org.joml.Quaterniondc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
@@ -42,7 +43,14 @@ final class SpaceSkyClient {
         SpaceSun.setInSpace(true);
         SkyRenderState sky = event.getRenderState().skyRenderState;
         // ângulo do sol e das estrelas do spawn da Terra (a rotação das estrelas sai identidade: ver SpaceSun.update)
-        SpaceSun.update(event.getLevel(), Planets.EARTH, 0.0, 0.0);
+        SkyAttitude.update(System.nanoTime());                  // uma atitude por frame: sol, estrelas e corpos leem a mesma
+        Quaterniondc attitude = SkyAttitude.current();
+        if (attitude != null) {
+            // modo skytest / nave: o céu do vanilla acompanha a atitude (sol por altura+azimute, estrelas por quaternion)
+            SpaceSun.updateForObserver(SkyObserver.forShip(SpaceSun.clock(event.getLevel()), new double[3], attitude));
+        } else {
+            SpaceSun.update(event.getLevel(), Planets.EARTH, 0.0, 0.0);
+        }
         sky.sunAngle = SpaceSun.skyAngle();
         sky.starAngle = SpaceSun.starAngle();
         sky.rainBrightness = 1.0F;
