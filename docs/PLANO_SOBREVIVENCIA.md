@@ -3,7 +3,7 @@
 ## Decisões
 
 - História média: diários e terminais em estruturas abandonadas, contada também por conquistas.
-- Dificuldade equilibrada: umas horas de jogo até a Lua.
+- Dificuldade equilibrada: umas horas de jogo até a Lua. Escala atual: Terra R ≈ 104.304 (10x a original), Lua a 600.000, velocidade orbital 91 b/t, Isp 1.600 (ve 128 b/t); TLI de ~19 min e Δv de 26,6 (ver README, "Escala").
 - Foguete construído com blocos livres que sobe inteiro.
 - Voo pilotável estilo "KSP-lite": gravidade real simples do corpo dominante e níveis de ajuda (assistido, normal, manual).
 - Um estágio só na primeira versão; separação de estágios depois.

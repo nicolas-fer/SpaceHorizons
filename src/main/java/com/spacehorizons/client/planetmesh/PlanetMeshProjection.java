@@ -12,19 +12,21 @@ import com.spacehorizons.planet.Planets;
  * exato perto da câmera, mas o centro da projeção anda junto com ela. Quem olha o planeta inteiro de longe vê o
  * mesmo mapa ser "arrastado" no plano em vez de a esfera girar: o terreno desliza em relação à esfera.
  *
- * Erro medido (script numérico sobre a calota visível, R = 10.430; deslocamento lateral D da câmera, pior ponto,
- * que fica perto do limbo e perpendicular ao movimento): erro = distância geodésica entre onde o ponto aparece
- * com a câmera em c2 e onde apareceria se a esfera apenas girasse D/R desde c1.
+ * Erro medido (script numérico sobre a calota visível, R = 104.304 (655.360 / 2π); deslocamento lateral D da câmera,
+ * pior ponto, que fica perto do limbo e perpendicular ao movimento): erro = distância geodésica entre onde o ponto
+ * aparece com a câmera em c2 e onde apareceria se a esfera apenas girasse D/R desde c1.
  * <pre>
  *   altitude   raio da calota   D = 500        D = 3.000
- *      600         3.440 bl      16 bl (0,5%)   113 bl (3,3%)
- *    2.000         6.050 bl      48 bl (0,8%)   305 bl (5,1%)
- *    5.000         8.660 bl      97 bl (1,1%)   594 bl (6,9%)
- *   15.000        12.000 bl     176 bl (1,5%)  1062 bl (8,9%)
- *   40.000        14.200 bl     235 bl (1,7%)  1415 bl (10,0%)
+ *      600        11.160 bl      1,7 bl (0,02%) 10,5 bl (0,09%)
+ *    2.000        20.270 bl      5,7 bl (0,03%) 34 bl (0,17%)
+ *    5.000        31.670 bl      14 bl (0,04%)  83 bl (0,26%)
+ *   15.000        52.870 bl      38 bl (0,07%)  227 bl (0,43%)
+ *   40.000        79.580 bl      83 bl (0,10%)  498 bl (0,63%)
  * </pre>
- * (percentuais do raio da calota). Em órbita, 3.000 blocos de voo lateral deslocam as formas junto ao limbo em
- * ~9% do raio do disco: visível como bordas de continente que "escorregam" ao mover a câmera.
+ * (percentuais do raio da calota). Com a Terra 10x
+ * maior o deslizamento a uma mesma altitude caiu uma ordem de grandeza (a distorção azimutal cresce com o quadrado do
+ * ângulo da calota, e ele é menor), por isso as altitudes abaixo ficam absolutas (3.000 e 12.000) em vez de crescer
+ * com o raio da Terra.
  *
  * <h2>Mitigação</h2>
  * O planeta é definido em lat/lon (equirretangular: lon = x / R, lat = z / R; ver PlanetMath.unitSphere), que é

@@ -197,40 +197,40 @@ public final class AutoTest {
         look(40, EAST, 0f);
         shot(60, "a_deep_y12");
 
-        // (b) COSTURA em X (circunferência 65536 = x de -32768 a 32768); à meia-noite do spawn é meio-dia na costura
+        // (b) COSTURA em X (circunferência 655360 = x de -327680 a 327680); à meia-noite do spawn é meio-dia na costura
         cmd(20, "time set 18000");
-        surface(32700, 0);
+        surface(327600, 0);
         cmd(10, "tp @s ~ ~25 ~");
         look(10, EAST, 8f);
-        shot(80, "b_seam_32700_east");
-        step(0, mc -> logHeights(mc, "costura lado leste", 32690, 32767, 0));
-        surface(32760, 0);
+        shot(80, "b_seam_327600_east");
+        step(0, mc -> logHeights(mc, "costura lado leste", 327590, 327679, 0));
+        surface(327670, 0);
         cmd(10, "tp @s ~ ~25 ~");
         look(10, EAST, 12f);
-        shot(80, "b_seam_32760_east");
-        step(0, mc -> logHeights(mc, "costura, perto", 32740, 32767, 0));
-        step(0, mc -> logHeights(mc, "costura, depois", -32768, -32741, 0));
-        surface(-32760, 0);
+        shot(80, "b_seam_327670_east");
+        step(0, mc -> logHeights(mc, "costura, perto", 327650, 327679, 0));
+        step(0, mc -> logHeights(mc, "costura, depois", -327680, -327651, 0));
+        surface(-327670, 0);
         cmd(10, "tp @s ~ ~25 ~");
         look(10, EAST, 12f);
         shot(80, "b_seam_after_east");
         look(10, 90f, 12f);
         shot(30, "b_seam_after_west");
-        step(0, mc -> logHeights(mc, "costura lado oeste", -32768, -32690, 0));
+        step(0, mc -> logHeights(mc, "costura lado oeste", -327680, -327600, 0));
         // atravessando de verdade, voando para leste
-        surface(32700, 0);
+        surface(327600, 0);
         cmd(10, "tp @s ~ ~25 ~");
         fly(10);
         look(10, EAST, 12f);
         step(0, mc -> push(1.0, 0.0, 100));
         step(40, mc -> logPos(mc, "no meio da travessia"));
         shot(10, "b_seam_crossing_mid");
-        step(60, mc -> logPos(mc, "depois de atravessar (esperado x negativo perto de -32768+)"));
+        step(60, mc -> logPos(mc, "depois de atravessar (esperado x negativo perto de -327680+)"));
         shot(40, "b_seam_crossing_after");
 
         cmd(20, "time set 6000");
-        // (c) latitude: equador, médias e perto do polo (barreira em +-70 graus = ~12740 blocos)
-        int[] lats = {0, 8000, 12000};
+        // (c) latitude: equador, médias e perto do polo (barreira em +-70 graus = ~127400 blocos)
+        int[] lats = {0, 80000, 120000};
         for (int z : lats) {
             surface(0, z);
             look(10, EAST, 8f);
@@ -238,9 +238,9 @@ public final class AutoTest {
             look(10, SOUTH, 8f);
             shot(30, "c_lat" + z + "_s");
         }
-        surface(0, -12000);
+        surface(0, -120000);
         look(10, EAST, 8f);
-        shot(120, "c_lat_minus12000_e");
+        shot(120, "c_lat_minus120000_e");
 
         // (e) ÓRBITA: a Lua vista do chão do spawn em vários relógios
         cmd(20, "spacehorizons goto earth");
@@ -274,11 +274,11 @@ public final class AutoTest {
         shot(500, "d_orbit15000_down");
         look(10, EAST, 55f);
         shot(60, "d_orbit15000_limb");
-        cmd(20, "tp @s 16384 15000 4000");
+        cmd(20, "tp @s 163840 15000 40000");
         fly(20);
         look(20, EAST, 90f);
         shot(500, "d_orbit15000_east90_down");
-        cmd(20, "tp @s 0 15000 -9000");
+        cmd(20, "tp @s 0 15000 -90000");
         fly(20);
         look(20, 0f, 75f);
         shot(500, "d_orbit15000_pole");
@@ -299,7 +299,7 @@ public final class AutoTest {
         look(40, EAST, -90f);
         cmd(5, "gamerule advance_time true");
         cmd(5, "spacehorizons fly moon");
-        travel("tr_out", "moon", 36000, 6000);
+        travel("tr_out", "moon", 360_000, 12_000);
         cmd(5, "gamerule advance_time false");
         step(300, mc -> logPos(mc, "chegada na Lua"));
         step(0, mc -> logArrival(mc, "Lua"));
@@ -333,7 +333,7 @@ public final class AutoTest {
         look(40, EAST, -90f);
         cmd(5, "gamerule advance_time true");
         cmd(5, "spacehorizons fly earth");
-        travel("tr_back", "overworld", 8500, 6000);
+        travel("tr_back", "overworld", 85_000, 12_000);
         cmd(5, "gamerule advance_time false");
         cmd(200, "time set 6000");
         step(100, mc -> logPos(mc, "chegada na Terra"));
@@ -1720,14 +1720,16 @@ public final class AutoTest {
                 {"300bps", 300.0, 1.0, 0.0, 200, true, 0},
                 {"600bps", 600.0, 1.0, 0.0, 200, true, 0},
                 {"1200bps", 1200.0, 1.0, 0.0, 200, true, 0},
+                {"4000bps", 4000.0, 1.0, 0.0, 200, true, 0},
                 {"600bps_sem_tickets", 600.0, 1.0, 0.0, 200, false, 0},
                 {"600bps_diagonal", 600.0, 1.0, 1.0, 200, true, 0},
                 {"600bps_dist2", 600.0, 1.0, 0.0, 200, true, 2},
                 {"1200bps_dist2", 1200.0, 1.0, 0.0, 200, true, 2},
         }) {
-            // um ponto novo (chunks nunca vistos) a 25.000 acima do centro da Terra, longe dos corpos
-            double startX = 40_000.0 * (++k);
-            cmd(10, String.format(java.util.Locale.ROOT, "spacehorizons goto space %.1f 45000 %.1f", startX, -startX));
+            // um ponto novo (chunks nunca vistos) a ~280.000 acima do centro da Terra (Y = 300.000 com o viés de 20.000), longe dos
+            // dois corpos (a Terra tem raio 104.304 e a Lua está a 600.000)
+            double startX = 20_000.0 * (++k);
+            cmd(10, String.format(java.util.Locale.ROOT, "spacehorizons goto space %.1f 300000 %.1f", startX, -startX));
             step(120, mc -> logSpace(mc, "H inicio do voo " + leg[0]));
             flightLeg((String) leg[0], (Double) leg[1], (Double) leg[2], (Double) leg[3], (Integer) leg[4], (Boolean) leg[5], (Integer) leg[6]);
             step(60, mc -> {
@@ -1736,7 +1738,9 @@ public final class AutoTest {
 
         // I. a volta pelo comando: dentro da zona do corpo é a travessia contínua; fora dela, o teleporte à superfície
         cmd(10, "time set 6000");
-        cmd(20, "spacehorizons goto space 0 35330 0");
+        // 4.900 de altitude sobre o spawn da Terra: dentro da zona da Terra (saída em 5.000), com o viés Y de SpaceDimension
+        cmd(20, String.format(java.util.Locale.ROOT, "spacehorizons goto space 0 %.1f 0",
+                Planets.EARTH.radius() + 4_900.0 + SpaceDimension.Y_BIAS));
         look(60, EAST, 90f);
         step(5, mc -> logSpace(mc, "I1 no espaco sobre a Terra, antes da volta"));
         transferWatch("sp_i1", "spacehorizons goto earth", 90);
@@ -1761,7 +1765,9 @@ public final class AutoTest {
         cmd(10, "spacehorizons goto earth");
         step(300, mc -> logSpace(mc, "I3 depois do goto earth fora da zona (esperado: overworld na superficie)"));
         shot(60, "sp_i3_earth_surface");
-        cmd(20, "spacehorizons goto space 0 45000 0");
+        // ~30.000 de altitude sobre a Terra (fora da zona: Y = raio + 30.000 + viés)
+        cmd(20, String.format(java.util.Locale.ROOT, "spacehorizons goto space 0 %.1f 0",
+                Planets.EARTH.radius() + 30_000.0 + SpaceDimension.Y_BIAS));
         step(60, mc -> logSpace(mc, "I4 de volta ao espaco"));
         cmd(10, "spacehorizons goto moon");
         step(300, mc -> logSpace(mc, "I4 depois do goto moon fora da zona (esperado: moon na superficie)"));
@@ -2468,12 +2474,12 @@ public final class AutoTest {
         tickerStep(10, waitFor("built_c", 200));
         thirdPerson();
         step(0, FlightDevtest::go);
-        tickerStep(0, waitFor("space_c", 3000));
-        tickerStep(0, waitFor("orbit_c", 4000));
+        tickerStep(0, waitFor("space_c", 4000));
+        tickerStep(0, waitFor("orbit_c", 6000));
         shot(30, "fl_c1_orbit_third_person");
         firstPerson();
         shot(5, "fl_c2_orbit_first_person");
-        tickerStep(0, waitFor("reentry_c", 9000));
+        tickerStep(0, waitFor("reentry_c", 13_000));
         step(10, mc -> FlightDevtest.clientCheck(mc, "C voltou à Terra"));
         shot(5, "fl_c3_reentry");
         tickerStep(0, waitFor("end_c", 6000));

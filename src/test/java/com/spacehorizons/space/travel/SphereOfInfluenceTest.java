@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 import com.spacehorizons.space.SolarSystem;
 
 class SphereOfInfluenceTest {
-    private static final double STEP = 10.0;
+    private static final double STEP = 100.0;
     private static final double EARTH_RADIUS = SolarSystem.EARTH.planet().radius();
     private static final double MOON_RADIUS = SolarSystem.MOON.planet().radius();
     private static final double D = SolarSystem.EARTH_MOON_DISTANCE;
@@ -55,7 +55,7 @@ class SphereOfInfluenceTest {
             assertSame(SolarSystem.MOON, current);
             // a troca acontece bem antes da superfície lunar, com a Lua já dominando o quadro
             double altitudeOverMoon = D - switchDistance - MOON_RADIUS;
-            assertTrue(altitudeOverMoon > 3_000 && altitudeOverMoon < 20_000, "altitude de troca " + altitudeOverMoon);
+            assertTrue(altitudeOverMoon > 30_000 && altitudeOverMoon < 200_000, "altitude de troca " + altitudeOverMoon);
         }
     }
 
@@ -66,7 +66,7 @@ class SphereOfInfluenceTest {
         double inbound = firstSwitchDistance(SolarSystem.MOON, clock, D - MOON_RADIUS, -STEP);
         // indo, troca para a Lua depois do ponto de equilíbrio; voltando, troca para a Terra antes dele: sem pingue-pongue
         assertTrue(outbound > inbound, "ida " + outbound + " volta " + inbound);
-        assertTrue(outbound - inbound > 500, "banda de histerese " + (outbound - inbound));
+        assertTrue(outbound - inbound > 5_000, "banda de histerese " + (outbound - inbound));
         // dentro da banda, cada lado fica no corpo em que está
         double mid = (outbound + inbound) / 2;
         assertSame(SolarSystem.EARTH, dominantAt(SolarSystem.EARTH, clock, mid));
@@ -75,17 +75,17 @@ class SphereOfInfluenceTest {
 
     @Test
     void nearestHasNoHysteresis() {
-        double[] far = along(0, 20_000);
+        double[] far = along(0, 200_000);
         assertSame(SolarSystem.EARTH, SphereOfInfluence.nearest(SolarSystem.BODIES, 0, far[0], far[1], far[2]));
-        double[] close = along(0, D - 5_000);
+        double[] close = along(0, D - 50_000);
         assertSame(SolarSystem.MOON, SphereOfInfluence.nearest(SolarSystem.BODIES, 0, close[0], close[1], close[2]));
     }
 
     @Test
     void aShipLeftBehindIsCaughtByTheMovingMoonOncePerPassWithoutFlicker() {
-        // nave parada no referencial da Terra a 52.000 blocos do centro, perto do plano da órbita: a Lua passa por ela uma vez por
+        // nave parada no referencial da Terra a 520.000 blocos do centro, perto do plano da órbita: a Lua passa por ela uma vez por
         // dia lunar (~1,14 dia) e a esfera de influência dela a pega e solta, sem ficar pulando de um corpo ao outro na borda
-        double[] p = {52_000, 0, 0};
+        double[] p = {520_000, 0, 0};
         SolarSystem.Body current = SolarSystem.EARTH;
         int switches = 0;
         double lastSwitch = Double.NEGATIVE_INFINITY;

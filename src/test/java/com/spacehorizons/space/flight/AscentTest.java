@@ -72,38 +72,44 @@ class AscentTest {
     }
 
     @Test
-    void lunarRocketReachesOrbitSpendingAboutFortyFourBlocksPerTick() {
-        // 21 tanques + 5 motores (Δv 78): sobe até ~3.000 de altitude gastando o Δv de ~44 do planejamento (43,5 a 46)
+    void lunarRocketReachesOrbitSpendingAboutOneHundredAndTwelveBlocksPerTick() {
+        // 21 tanques + 5 motores (Δv 251): sobe até ~6.000 de altitude gastando o Δv de ~112 (a velocidade circular de ~90 mais
+        // as perdas de gravidade e arrasto; com a Terra 10x maior e Isp 1.600 o programa de arfagem vai até 3.000 de altitude)
         RocketStats rocket = RocketStats.of(5, 21, 1, 0, 1, 30, 9.0);
-        Ascent a = ascend(rocket, rocket.fuelCapacityMb(), 3_000, 100, 1_500);
+        Ascent a = ascend(rocket, rocket.fuelCapacityMb(), 6_000, 100, 3_000);
         assertTrue(a.reachedOrbit());
-        assertTrue(a.periapsisAltitude() > 1_800, "periastro = " + a.periapsisAltitude() + " (fora da atmosfera)");
+        assertTrue(a.periapsisAltitude() > 5_000, "periastro = " + a.periapsisAltitude() + " (acima da altitude de saída)");
         assertTrue(a.apoapsisAltitude() < 8_000, "apoastro = " + a.apoapsisAltitude());
         double spent = rocket.deltaV(rocket.fuelCapacityMb()) - rocket.deltaV(a.state().fuelMb());
-        assertTrue(spent > 40 && spent < 50, "Δv gasto = " + spent);
+        assertTrue(spent > 100 && spent < 125, "Δv gasto = " + spent);
         assertTrue(a.peakHeat() < FlightConstants.HEAT_WARNING, "calor = " + a.peakHeat());
-        // a subida leva ~25 segundos
-        assertTrue(a.ticks() > 300 && a.ticks() < 800, "ticks = " + a.ticks());
-        // e deixa mais de 30 de Δv para a Lua (o planejamento pede 66 a 82 no total)
-        assertTrue(rocket.deltaV(a.state().fuelMb()) > 30);
+        // a subida leva ~1 minuto (medido: ~1.135 ticks)
+        assertTrue(a.ticks() > 800 && a.ticks() < 1_600, "ticks = " + a.ticks());
+        // e deixa mais de 100 de Δv para a Lua (medido: ~138)
+        assertTrue(rocket.deltaV(a.state().fuelMb()) > 100);
     }
 
     @Test
-    void orbitRocketJustReachesOrbitWithItsFullTank() {
-        // 5 tanques + 2 motores (Δv 52): chega à órbita com uma guiagem simples, mas sem margem (o planejado é 48)
+    void orbitRocketReachesOrbitWithItsFullTankAndLittleMargin() {
+        // 5 tanques + 2 motores (Δv 166): chega à órbita com uma guiagem simples (gasta ~115, sobram ~50)
         RocketStats rocket = RocketStats.of(2, 5, 1, 0, 1, 30, 9.0);
-        Ascent a = ascend(rocket, rocket.fuelCapacityMb(), 3_000, 100, 900);
+        Ascent a = ascend(rocket, rocket.fuelCapacityMb(), 6_000, 300, 2_500);
         assertTrue(a.reachedOrbit());
-        assertTrue(a.periapsisAltitude() > 1_800, "periastro = " + a.periapsisAltitude());
+        assertTrue(a.periapsisAltitude() > 5_000, "periastro = " + a.periapsisAltitude());
         assertTrue(a.state().fuelMb() >= 0);
+        assertTrue(rocket.deltaV(a.state().fuelMb()) < 100, "sobra pouco Δv: " + rocket.deltaV(a.state().fuelMb()));
     }
 
     @Test
-    void minimalRocketCannotReachOrbitButReachesSpace() {
-        // o foguete mínimo (Δv 39,5) faz um salto suborbital: passa dos 5.000 e cai de volta
+    void minimalRocketReachesSpaceAndOnlyJustReachesOrbitWithAGoodProgram() {
+        // o foguete mínimo (Δv 126, Isp 1.600) passa dos 5.000 e só chega à órbita (circular, ~6.000) com um programa de arfagem bom
+        // (medido: 111 de Δv gastos, sobram ~14); com os outros programas faz um salto suborbital
         RocketStats rocket = RocketStats.of(1, 1, 0, 0, 1, 3, 1.0);
-        for (double[] program : new double[][] {{100, 700}, {100, 1_500}, {300, 2_500}}) {
-            Ascent a = ascend(rocket, rocket.fuelCapacityMb(), 3_000, program[0], program[1]);
+        Ascent best = ascend(rocket, rocket.fuelCapacityMb(), 6_000, 100, 900);
+        assertTrue(best.reachedOrbit(), "programa 100 -> 900");
+        assertTrue(rocket.deltaV(best.state().fuelMb()) < 30, "sobra pouco Δv: " + rocket.deltaV(best.state().fuelMb()));
+        for (double[] program : new double[][] {{100, 1_500}, {100, 3_000}, {300, 2_500}}) {
+            Ascent a = ascend(rocket, rocket.fuelCapacityMb(), 6_000, program[0], program[1]);
             assertEquals(false, a.reachedOrbit(), "programa " + program[0] + " -> " + program[1]);
         }
         // subida vertical: passa da atmosfera (1.800) e do limite da zona de espaço (5.000)

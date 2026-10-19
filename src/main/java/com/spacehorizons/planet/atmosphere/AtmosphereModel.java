@@ -20,7 +20,7 @@ import net.minecraft.resources.Identifier;
  * neblina e sem limbo. {@code present = false} é o que liga esse comportamento.
  */
 public record AtmosphereModel(double thickness, double baseAltitude, boolean present) {
-    /** Espessura da atmosfera do planeta de teste (R ≈ 10.430): "espaço" a partir de ~1.800 blocos. */
+    /** Espessura da atmosfera do planeta de teste (R ≈ 104.304): "espaço" a partir de ~1.800 blocos. */
     public static final double EARTH_THICKNESS = 1_800.0;
     /** Abaixo disso nada muda em relação ao vanilla (topo de montanha ainda é "chão"). */
     public static final double EARTH_BASE_ALTITUDE = 160.0;

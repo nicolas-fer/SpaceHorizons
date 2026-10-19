@@ -8,8 +8,8 @@ import com.spacehorizons.space.SolarSystem;
  *
  * <ul>
  *   <li>{@code mu = G0 · gravidade de superfície · R²} (blocos³/tick²), coerente com a gravidade que o jogador sente.
- *       Terra 8,7034e6; Lua 8,9754e4.</li>
- *   <li>Esfera de influência de Laplace: {@code d · (mu/mu_Terra)^0,4}. A da Lua tem 9.627 blocos; a da Terra é
+ *       Terra 8,7034e8; Lua 8,9754e6.</li>
+ *   <li>Esfera de influência de Laplace: {@code d · (mu/mu_Terra)^0,4}. A da Lua tem 96.270 blocos; a da Terra é
  *       infinita (é o corpo central). A regra antiga ({@code SphereOfInfluence}) continua só para o autopiloto
  *       criativo.</li>
  *   <li>Altitude de saída: {@code 5000 · R / R_Terra} (Terra 5.000, Lua 1.250), acima dela o foguete vive na dimensão

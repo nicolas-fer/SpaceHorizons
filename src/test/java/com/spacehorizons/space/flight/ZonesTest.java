@@ -73,7 +73,7 @@ class ZonesTest {
     @Test
     void noZoneInOpenSpace() {
         double clock = 12_000;
-        assertNull(Zones.shouldEnter(clock, new V3(30_000, 0, 0)));
+        assertNull(Zones.shouldEnter(clock, new V3(300_000, 0, 0)));
         assertNull(Zones.shouldEnter(clock, new V3(-200_000, 50_000, 10_000)));
         // a meio caminho entre a Terra e a Lua
         V3 mid = moonCenter(clock).times(0.5);

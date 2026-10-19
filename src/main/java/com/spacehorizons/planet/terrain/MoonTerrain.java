@@ -22,7 +22,7 @@ import com.spacehorizons.planet.SurfaceType;
  * "água" nela (a Lua não tem oceano, mas a malha compara a altura com seaLevel).
  */
 public final class MoonTerrain implements PlanetTerrain {
-    /** Frequência das células de cratera na esfera unitária (célula = 1/F de raio): 870, 290, 97 e 32 blocos na Lua. */
+    /** Frequência das células de cratera na esfera unitária (célula = 1/F de raio): 8.692, 2.897, 966 e 322 blocos na Lua (R ≈ 26.076). */
     private static final double[] CRATER_FREQ = {3.0, 9.0, 27.0, 81.0};
     /** Chance de uma célula ter cratera. */
     private static final double[] CRATER_PROB = {0.45, 0.60, 0.70, 0.70};

@@ -41,7 +41,7 @@ class KeplerTest {
 
     @Test
     void forwardThenBackwardRestoresTheState() {
-        double speed = Math.sqrt(EARTH.mu() * (2.0 / LEO - 2.0 / (LEO + 60_000)));
+        double speed = Math.sqrt(EARTH.mu() * (2.0 / LEO - 2.0 / (LEO + 600_000)));
         V3 r = new V3(LEO, 1_000, 0);
         V3 v = new V3(0.5, 0, speed);
         for (double dt : new double[] {1, 37.5, 2_500, 9_999}) {
@@ -55,16 +55,16 @@ class KeplerTest {
 
     @Test
     void ellipseApoapsisAfterHalfAPeriod() {
-        double speed = Math.sqrt(EARTH.mu() * (2.0 / LEO - 2.0 / (LEO + 60_000)));
-        Kepler.State apo = Kepler.propagate(EARTH.mu(), new V3(LEO, 0, 0), new V3(0, 0, speed), 7_955.34);
-        assertEquals(60_000.0, apo.r().length(), 0.5);
+        double speed = Math.sqrt(EARTH.mu() * (2.0 / LEO - 2.0 / (LEO + 600_000)));
+        Kepler.State apo = Kepler.propagate(EARTH.mu(), new V3(LEO, 0, 0), new V3(0, 0, speed), 22_538.55);
+        assertEquals(600_000.0, apo.r().length(), 0.5);
         assertEquals(-1.0, apo.r().unit().x(), 1e-5);
     }
 
     @Test
     void hyperbolaKeepsItsEnergyAndMovesAway() {
         V3 r = new V3(MOON.radius() + 500, 0, 0);
-        V3 v = new V3(0, 0, 10.05);
+        V3 v = new V3(0, 0, 31.8);
         double e0 = energy(MOON.mu(), r, v);
         assertTrue(e0 > 0);
         Kepler.State s = Kepler.propagate(MOON.mu(), r, v, 3_000);

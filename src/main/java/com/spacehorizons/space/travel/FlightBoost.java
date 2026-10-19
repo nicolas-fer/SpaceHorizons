@@ -12,7 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Abilities;
 
 /**
- * Velocidade de voo criativo proporcional à altitude: sem isto os ~47.000 blocos Terra–Lua são impraticáveis.
+ * Velocidade de voo criativo proporcional à altitude: sem isto os ~470.000 blocos Terra–Lua são impraticáveis.
  * Quem manda é o servidor (Abilities.flyingSpeed, enviado ao cliente), então funciona em servidor dedicado e persiste
  * na troca de dimensão. Perto do chão a velocidade volta ao padrão.
  *

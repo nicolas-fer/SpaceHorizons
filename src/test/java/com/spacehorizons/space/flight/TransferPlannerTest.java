@@ -48,7 +48,7 @@ class TransferPlannerTest {
 
     /**
      * Queima a TLI {@code offset} ticks depois do centro da janela prevista e voa até entrar na esfera da Lua, ou até
-     * 14.000 ticks.
+     * 30.000 ticks.
      */
     private static Flight fly(double clock0, double phi0, double offset, double clockRate) {
         FlightState start = planarOrbit(LEO, phi0);
@@ -59,7 +59,7 @@ class TransferPlannerTest {
         V3 burnVelocity = coasted.v().plus(coasted.v().unit().times(plan.tliDeltaV()));
         FlightState s = new FlightState(SolarSystem.EARTH, coasted.r(), burnVelocity, 0, 0);
         double clock = clock0 + clockRate * burnAt;
-        for (int tick = 1; tick <= 14_000; tick++) {
+        for (int tick = 1; tick <= 30_000; tick++) {
             s = FlightIntegrator.step(s, Control.IDLE, STATS, clock);
             clock += clockRate;
             s = SoiTracker.update(s, clock, clockRate);
@@ -92,7 +92,7 @@ class TransferPlannerTest {
         eccentric = eccentric.withRV(eccentric.r(), eccentric.v().times(1.2));
         assertSame(Status.NOT_IN_ORBIT, TransferPlanner.moon(eccentric, 1_000).status());
         // alta demais: mais da metade do caminho até a Lua
-        assertSame(Status.NOT_IN_ORBIT, TransferPlanner.moon(planarOrbit(40_000, 0.3), 1_000).status());
+        assertSame(Status.NOT_IN_ORBIT, TransferPlanner.moon(planarOrbit(400_000, 0.3), 1_000).status());
         // não ligada
         FlightState escaping = planarOrbit(LEO, 0.3);
         escaping = escaping.withRV(escaping.r(), escaping.v().times(1.5));
@@ -123,19 +123,19 @@ class TransferPlannerTest {
         Plan plan = TransferPlanner.moon(planarOrbit(LEO, 0.7), 12_000);
         assertSame(Status.OK, plan.status());
         assertTrue(plan.usable());
-        assertEquals(5.8234, plan.tliDeltaV(), 1e-3);
-        assertEquals(7_955.34, plan.transferTicks(), 0.05);
+        assertEquals(26.6285, plan.tliDeltaV(), 1e-3);
+        assertEquals(22_538.55, plan.transferTicks(), 0.05);
         assertEquals(0.0, plan.planeAngleDeg(), 0.01);
         // a diferença entre as fases atual e ideal é o erro de fase (módulo 360)
         assertEquals(0.0, wrapDegrees(plan.currentPhaseDeg() - plan.idealPhaseDeg() - plan.phaseErrorDeg()), 1e-9);
         assertTrue(plan.currentPhaseDeg() >= 0 && plan.currentPhaseDeg() < 360);
         assertTrue(plan.idealPhaseDeg() >= 0 && plan.idealPhaseDeg() < 360);
-        assertTrue(plan.timeToWindowTicks() > -200 && plan.timeToWindowTicks() < 6_500, "janela em " + plan.timeToWindowTicks());
+        assertTrue(plan.timeToWindowTicks() > -200 && plan.timeToWindowTicks() < 12_500, "janela em " + plan.timeToWindowTicks());
     }
 
     @Test
     void idealPhaseFollowsTheNonUniformMoon() {
-        // ~76° com a Lua média; varia de ~55° a ~100° conforme a hora do dia (a Lua anda de 8,5 a 16,7 b/t)
+        // ~243° com a Lua média (ela anda ~296° durante os 22.539 ticks da transferência); varia de ~237° a ~248° conforme a hora do dia (a Lua anda de 85 a 167 b/t)
         double min = 360;
         double max = 0;
         for (int i = 0; i < 48; i++) {
@@ -143,8 +143,8 @@ class TransferPlannerTest {
             min = Math.min(min, plan.idealPhaseDeg());
             max = Math.max(max, plan.idealPhaseDeg());
         }
-        assertTrue(min > 50 && min < 62, "mínimo = " + min);
-        assertTrue(max > 92 && max < 106, "máximo = " + max);
+        assertTrue(min > 232 && min < 242, "mínimo = " + min);
+        assertTrue(max > 244 && max < 254, "máximo = " + max);
     }
 
     @Test
@@ -180,9 +180,9 @@ class TransferPlannerTest {
         Kepler.State later = Kepler.propagate(EARTH.mu(), start.r(), start.v(), after);
         Plan next = TransferPlanner.moon(new FlightState(SolarSystem.EARTH, later.r(), later.v(), 0, 0), 9_000 + after);
         assertFalse(next.burnNow());
-        // período sinódico ~ 2π/(n − ω_Lua) ≈ 5.400 ticks (a Lua varia de 1,4e-4 a 2,8e-4 rad/tick)
+        // período sinódico ~ 2π/(n − ω_Lua) ≈ 11.100 ticks (a órbita baixa dá a volta em 7.802 ticks; a Lua varia de 1,4e-4 a 2,8e-4 rad/tick)
         double synodic = next.timeToWindowTicks() + 200;
-        assertTrue(synodic > 4_500 && synodic < 6_500, "período sinódico = " + synodic);
+        assertTrue(synodic > 10_000 && synodic < 12_500, "período sinódico = " + synodic);
         assertTrue(next.phaseErrorDeg() < 0, "a janela passou: o erro é negativo");
     }
 
@@ -193,8 +193,8 @@ class TransferPlannerTest {
         for (double clock0 : new double[] {0, 5_000, 12_000, 18_000, 25_000, 40_000}) {
             for (double phi0 : new double[] {0.3, 2.0, 4.4}) {
                 int ticks = flyTli(clock0, phi0, 0, 1.0);
-                // a Lua anda de 8,5 a 16,7 b/t: a entrada na esfera fica entre ~4.300 e ~7.400 ticks depois da queima
-                assertTrue(ticks > 4_000 && ticks < 8_000, "clock0 = " + clock0 + ", phi0 = " + phi0 + ": " + ticks);
+                // a transferência dura 22.539 ticks e a entrada na esfera (96 mil blocos) acontece perto do fim, entre ~21.100 e ~22.100 ticks depois da queima
+                assertTrue(ticks > 20_000 && ticks < 23_500, "clock0 = " + clock0 + ", phi0 = " + phi0 + ": " + ticks);
             }
         }
     }
@@ -202,11 +202,11 @@ class TransferPlannerTest {
     @Test
     void thePlannedBurnAimsAtTheCenterOfTheMoon() {
         // o alvo é o centro da Lua: no centro da janela o periastro em torno dela é pequeno (a correção de meio de curso
-        // desloca o alvo para uma passagem a ~500 blocos de altitude); a ±50 ticks (3,4° de fase) ainda é menor que a esfera
+        // desloca o alvo para uma passagem a ~500 blocos de altitude); a ±50 ticks (3,4° de fase) ainda é menor que a esfera; medido: ~8.400 blocos nos dois casos (o alvo é o centro da Lua, de raio 26.076)
         for (double clock0 : new double[] {0, 12_000, 25_000, 40_000}) {
             for (double phi0 : new double[] {0.3, 2.0, 4.4}) {
-                assertTrue(fly(clock0, phi0, 0, 1.0).moonPeriapsis() < 1_500, "clock0 = " + clock0 + ", phi0 = " + phi0);
-                assertTrue(fly(clock0, phi0, 50, 1.0).moonPeriapsis() < 4_000, "clock0 = " + clock0 + ", phi0 = " + phi0);
+                assertTrue(fly(clock0, phi0, 0, 1.0).moonPeriapsis() < 15_000, "clock0 = " + clock0 + ", phi0 = " + phi0);
+                assertTrue(fly(clock0, phi0, 50, 1.0).moonPeriapsis() < 40_000, "clock0 = " + clock0 + ", phi0 = " + phi0);
             }
         }
     }
@@ -243,15 +243,15 @@ class TransferPlannerTest {
         FlightState s = new FlightState(SolarSystem.EARTH, coasted.r(), coasted.v().plus(coasted.v().unit().times(plan.tliDeltaV())),
                 0, 0);
         double clock = 8_000 + plan.timeToWindowTicks();
-        for (int tick = 0; tick < 14_000 && s.body() == SolarSystem.EARTH; tick++) {
+        for (int tick = 0; tick < 30_000 && s.body() == SolarSystem.EARTH; tick++) {
             s = FlightIntegrator.step(s, Control.IDLE, STATS, clock);
             clock += 1;
             s = SoiTracker.update(s, clock);
         }
         assertSame(SolarSystem.MOON, s.body());
         Orbit around = Orbit.of(s, clock);
-        // chega pela direção da Terra a ~5,8 b/t em relação à Lua: ligada ou hiperbólica, passa perto
+        // chega pela direção da Terra: a velocidade relativa é dominada pela da Lua (85 a 167 b/t), ~83 a ~146 medida
         assertTrue(around.periapsis() < MOON.soiRadius(), "periastro = " + around.periapsis());
-        assertTrue(s.speed() > 3 && s.speed() < 12, "velocidade relativa = " + s.speed());
+        assertTrue(s.speed() > 50 && s.speed() < 200, "velocidade relativa = " + s.speed());
     }
 }

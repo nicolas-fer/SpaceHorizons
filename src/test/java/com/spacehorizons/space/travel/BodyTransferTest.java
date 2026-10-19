@@ -103,12 +103,12 @@ class BodyTransferTest {
 
     @Test
     void aShipAtRestOnTheEarthArrivesOnTheMoonWithTheMoonsGroundVelocityReversed() {
-        // parado no referencial da Terra, na Lua o jogador "voa" a ~14 blocos/tick em relação a ela (a Lua anda por baixo dele)
+        // parado no referencial da Terra, na Lua o jogador "voa" a ~40 blocos/tick (ω x distância ao centro da Terra) em relação a ela (a Lua anda por baixo dele)
         double clock = 40_000;
         double[] p = subLunar(clock, 40_000);
         BodyTransfer t = BodyTransfer.compute(SolarSystem.EARTH, SolarSystem.MOON, clock, p[0], p[1], p[2], 0, 0, 0, 0, 0);
         double speed = Math.sqrt(t.vx() * t.vx() + t.vy() * t.vy() + t.vz() * t.vz());
-        assertTrue(speed > 5 && speed < 30, "velocidade relativa " + speed);
+        assertTrue(speed > 20 && speed < 60, "velocidade relativa " + speed);
         double[] space = new double[3];
         SpaceFrame.toSpace(SolarSystem.MOON, clock, t.x(), t.y(), t.z(), space);
         double[] ground = new double[3];

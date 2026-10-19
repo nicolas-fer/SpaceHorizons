@@ -63,7 +63,7 @@ class PlanetBodyCoincidenceTest {
 
         double radius = EARTH.radius();
         // células de 24+ blocos teriam supersampling; aqui o raio é grande, então a cor central é a parte comparável
-        PlanetMeshGeometry.Layout layout = new PlanetMeshGeometry.Layout(new double[] {6000.0, 7500.0, 9000.0, 11_000.0},
+        PlanetMeshGeometry.Layout layout = new PlanetMeshGeometry.Layout(new double[] {35_000.0, 45_000.0, 55_000.0, 65_000.0},
                 new int[] {48, 48, 96, 96});
         float[] pos = new float[layout.vertexCount() * 3];
         int[] colors = new int[layout.vertexCount()];
@@ -89,7 +89,7 @@ class PlanetBodyCoincidenceTest {
                 SpaceFrame.spaceToLocal(SolarSystem.EARTH, camX, camZ,
                         point[0] - camSpace[0], point[1] - camSpace[1], point[2] - camSpace[2], local);
                 int v = layout.vertexOffset(ring) + j;
-                // a malha guarda float: tolerância de alguns ulps a ~50.000 blocos
+                // a malha guarda float: tolerância de alguns ulps a ~100.000 blocos
                 assertEquals(pos[v * 3], local[0], 0.05, "x anel " + ring + " seg " + j);
                 assertEquals(pos[v * 3 + 1], local[1], 0.05, "y anel " + ring + " seg " + j);
                 assertEquals(pos[v * 3 + 2], local[2], 0.05, "z anel " + ring + " seg " + j);

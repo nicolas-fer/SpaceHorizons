@@ -30,7 +30,7 @@ class OrbitTest {
         assertEquals(LEO, o.a(), 1e-6);
         assertEquals(LEO, o.periapsis(), 1e-6);
         assertEquals(LEO, o.apoapsis(), 1e-6);
-        assertEquals(4_485.45, o.period(), 0.1);
+        assertEquals(7_802.26, o.period(), 0.1);
         assertTrue(o.bound());
         assertEquals(0.0, o.trueAnomaly(), 0.0);
     }
@@ -71,36 +71,36 @@ class OrbitTest {
     @Test
     void hohmannTransferToTheMoonDistance() {
         Orbit t = transfer();
-        assertEquals(0.57006, t.e(), 1e-5);
-        assertEquals(16_430.38, t.periapsis(), 0.01);
-        assertEquals(60_000.0, t.apoapsis(), 0.01);
-        assertEquals(38_215.19, t.a(), 0.01);
-        assertEquals(7_955.34, t.period() / 2, 0.05);
-        assertEquals(7_955.34, t.timeTo(Math.PI), 0.05);
+        assertEquals(0.68942, t.e(), 1e-5);
+        assertEquals(110_303.78, t.periapsis(), 0.01);
+        assertEquals(600_000.0, t.apoapsis(), 0.01);
+        assertEquals(355_151.89, t.a(), 0.01);
+        assertEquals(22_538.55, t.period() / 2, 0.05);
+        assertEquals(22_538.55, t.timeTo(Math.PI), 0.05);
         assertEquals(0.0, t.timeTo(0.0), 1e-6);
         assertEquals(0.0, t.trueAnomaly(), 1e-9);
         // o Δv de Hohmann do planejador de referência
-        assertEquals(5.8234, Hohmann.dv1(EARTH.mu(), LEO, MOON_DISTANCE), 1e-3);
-        assertEquals(7_955.34, Hohmann.flightTime(EARTH.mu(), LEO, MOON_DISTANCE), 0.05);
+        assertEquals(26.6285, Hohmann.dv1(EARTH.mu(), LEO, MOON_DISTANCE), 1e-3);
+        assertEquals(22_538.55, Hohmann.flightTime(EARTH.mu(), LEO, MOON_DISTANCE), 0.05);
         double vc = EARTH.circularSpeed(LEO);
         double vTransfer = Math.sqrt(EARTH.mu() * (2.0 / LEO - 1.0 / t.a()));
-        assertEquals(5.8234, vTransfer - vc, 1e-3);
+        assertEquals(26.6285, vTransfer - vc, 1e-3);
         assertEquals(vTransfer, t.speedAt(LEO), 1e-9);
     }
 
     @Test
     void hohmannHelpersMatchTheResearchTables() {
         double mu = EARTH.mu();
-        // ângulo de avanço com a Lua média (ω = 2,2907e-4 rad/tick): ~75,6° para a LEO de 6.000
+        // ângulo de avanço com a Lua média (ω = 2,2907e-4 rad/tick) para a LEO de 6.000: a Lua anda 296° durante a transferência de 22.539 ticks, logo π − 296° = −115,8° (a nave precisa estar 244° à frente)
         double lead = Hohmann.phaseAngle(Hohmann.flightTime(mu, LEO, MOON_DISTANCE), 2.2907e-4);
-        assertEquals(75.6, Math.toDegrees(lead), 0.1);
-        // LEO de 2.500: Δv1 7,335 e 7.415 ticks de voo
+        assertEquals(-115.81, Math.toDegrees(lead), 0.1);
+        // LEO de 2.500: Δv1 27,351 e 22.372 ticks de voo
         double leo2500 = EARTH.radius() + 2_500;
-        assertEquals(7.335, Hohmann.dv1(mu, leo2500, MOON_DISTANCE), 1e-3);
-        assertEquals(7_415, Hohmann.flightTime(mu, leo2500, MOON_DISTANCE), 1.0);
-        // velocidade no apoastro de 6.000: 7,897 (a circular lá é 12,04), então o segundo impulso é a diferença
-        assertEquals(12.04 - 7.897, Hohmann.dv2(mu, LEO, MOON_DISTANCE), 0.01);
-        assertEquals(38_215.19, Hohmann.transferSemiMajor(LEO, MOON_DISTANCE), 0.01);
+        assertEquals(27.3515, Hohmann.dv1(mu, leo2500, MOON_DISTANCE), 1e-3);
+        assertEquals(22_372, Hohmann.flightTime(mu, leo2500, MOON_DISTANCE), 1.0);
+        // velocidade no apoastro de 6.000: 21,225 (a circular lá é 38,086), então o segundo impulso é a diferença
+        assertEquals(38.0864 - 21.2255, Hohmann.dv2(mu, LEO, MOON_DISTANCE), 0.01);
+        assertEquals(355_151.89, Hohmann.transferSemiMajor(LEO, MOON_DISTANCE), 0.01);
     }
 
     @Test
@@ -108,7 +108,7 @@ class OrbitTest {
         Orbit t = transfer();
         double rSoi = MOON_DISTANCE - MOON.soiRadius();
         double nu = t.trueAnomalyAtRadius(rSoi);
-        assertEquals(4_279, t.timeTo(nu), 2.0);
+        assertEquals(12_016, t.timeTo(nu), 2.0);
         // raio além do apoastro: não alcança
         assertTrue(Double.isNaN(t.trueAnomalyAtRadius(MOON_DISTANCE + 1_000)));
         // raio abaixo do periastro também não
@@ -125,7 +125,7 @@ class OrbitTest {
         Kepler.State s = Kepler.propagate(EARTH.mu(), new V3(LEO, 0, 0), new V3(0, 0, t.speedAt(LEO)), 3_000);
         Orbit now = Orbit.fromState(EARTH.mu(), s.r(), s.v(), EARTH_POLE);
         double toApoapsis = now.timeTo(Math.PI);
-        assertEquals(7_955.34 - 3_000, toApoapsis, 0.05);
+        assertEquals(22_538.55 - 3_000, toApoapsis, 0.05);
         Kepler.State apo = Kepler.propagate(EARTH.mu(), s.r(), s.v(), toApoapsis);
         assertEquals(MOON_DISTANCE, apo.r().length(), 1e-3);
         assertEquals(0.0, apo.r().dot(apo.v()) / apo.r().length(), 1e-6);
@@ -133,17 +133,17 @@ class OrbitTest {
         double toPeriapsis = now.timeTo(0.0);
         assertEquals(t.period() - 3_000, toPeriapsis, 0.05);
         // descendo (r·v < 0) a anomalia verdadeira fica em (π, 2π)
-        Kepler.State down = Kepler.propagate(EARTH.mu(), new V3(LEO, 0, 0), new V3(0, 0, t.speedAt(LEO)), 12_000);
+        Kepler.State down = Kepler.propagate(EARTH.mu(), new V3(LEO, 0, 0), new V3(0, 0, t.speedAt(LEO)), 30_000);
         Orbit descending = Orbit.fromState(EARTH.mu(), down.r(), down.v(), EARTH_POLE);
         assertTrue(descending.trueAnomaly() > Math.PI && descending.trueAnomaly() < 2 * Math.PI);
-        assertEquals(t.period() - 12_000, descending.timeTo(0.0), 0.05);
+        assertEquals(t.period() - 30_000, descending.timeTo(0.0), 0.05);
     }
 
     @Test
     void hyperbolaIsUnboundWithInfinitePeriodAndSignedTimes() {
         double rp = MOON.radius() + 500;
         V3 r0 = new V3(rp, 0, 0);
-        V3 v0 = new V3(0, 0, 10.05);
+        V3 v0 = new V3(0, 0, 31.8);
         Orbit o = Orbit.fromState(MOON.mu(), r0, v0, new V3(0, -1, 0));
         assertFalse(o.bound());
         assertTrue(o.e() > 1);
@@ -157,7 +157,7 @@ class OrbitTest {
         Orbit after = Orbit.fromState(MOON.mu(), later.r(), later.v(), new V3(0, -1, 0));
         assertEquals(-2_000, after.timeTo(0.0), 1e-3);
         // e a anomalia verdadeira de saída em outro raio prevê o tempo certo
-        double rTarget = 20_000;
+        double rTarget = 200_000;
         double nu = after.trueAnomalyAtRadius(rTarget);
         double dt = after.timeTo(nu);
         Kepler.State there = Kepler.propagate(MOON.mu(), later.r(), later.v(), dt);

@@ -26,7 +26,7 @@ import com.spacehorizons.planet.Planets;
  */
 public final class SolarSystem {
     /** Distância centro a centro Terra–Lua (comprimida: ~5,75 raios terrestres em vez de 60). */
-    public static final double EARTH_MOON_DISTANCE = 60_000;
+    public static final double EARTH_MOON_DISTANCE = 600_000;
 
     /** Ciclo de fases (sinódico) da Lua: 8 dias do jogo, as 8 fases do vanilla. */
     public static final double SYNODIC_PERIOD_TICKS = 8.0 * SunModel.DAY_TICKS;
@@ -121,7 +121,7 @@ public final class SolarSystem {
             out[2] = (b.z() - a.z()) / (2 * h);
         }
 
-        /** Centro na configuração de referência (a Lua em (60000, 0, 0)). */
+        /** Centro na configuração de referência (a Lua em (600000, 0, 0)). */
         public double x() {
             return reference.x();
         }

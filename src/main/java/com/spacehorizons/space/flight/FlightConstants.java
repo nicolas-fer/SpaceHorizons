@@ -24,8 +24,8 @@ public final class FlightConstants {
 
     // ------------------------------------------------------------------ foguete (massas em toneladas)
 
-    /** Impulso específico do motor básico em ticks: ve = Isp · G0 = 40 blocos/tick. */
-    public static final double ISP_TICKS = 500.0;
+    /** Impulso específico do motor básico em ticks: ve = Isp · G0 = 128 blocos/tick. */
+    public static final double ISP_TICKS = 1600.0;
     /** Empuxo de um motor (t·blocos/tick²). */
     public static final double ENGINE_THRUST = 2.5;
     public static final double ENGINE_MASS_T = 0.6;
@@ -58,7 +58,7 @@ public final class FlightConstants {
     // ------------------------------------------------------------------ aquecimento (índice visual)
 
     /** Velocidade de referência do índice de calor: a circular na superfície da Terra (blocos/tick). */
-    public static final double HEAT_REFERENCE_SPEED = 28.9;
+    public static final double HEAT_REFERENCE_SPEED = 91.3;
     /** Ganho e decaimento por tick do medidor: {@code H += A·Q − B·H} (constante de tempo de 100 ticks). */
     public static final double HEAT_GAIN = 0.04;
     public static final double HEAT_DECAY = 0.01;

@@ -25,13 +25,13 @@ import com.spacehorizons.space.SpaceFrame;
  * destino).
  */
 public final class FlightPlan {
-    /** Blocos/tick de velocidade por bloco de altitude sobre o corpo mais próximo. */
-    public static final double ALTITUDE_SPEED_FACTOR = 0.04;
+    /** Blocos/tick de velocidade por bloco de altitude sobre o corpo mais próximo (150 b/tick na altitude de saída da Terra, 5.000, já limitado pelo teto). */
+    public static final double ALTITUDE_SPEED_FACTOR = 0.03;
     /** Blocos/tick por bloco de distância ao destino final (frenagem exponencial). */
     public static final double DISTANCE_SPEED_FACTOR = 0.06;
     public static final double MIN_SPEED = 0.5;
-    /** 60 blocos/tick = 1.200 blocos/s: os ~47.000 blocos Terra–Lua levam menos de um minuto. */
-    public static final double MAX_SPEED = 60.0;
+    /** 200 blocos/tick = 4.000 blocos/s: tem de passar da velocidade da Lua (85 a 167 b/tick) para alcançá-la; a 300 b/tick o servidor engasgou e a 200 já sofre (chunks do voo, ver README). */
+    public static final double MAX_SPEED = 200.0;
     public static final double ACCELERATION_FACTOR = 1.06;
     public static final double ACCELERATION_ADD = 0.15;
     /** Altitude acima da superfície dos pontos intermediários que desviam de um planeta. */
@@ -42,13 +42,13 @@ public final class FlightPlan {
      */
     public static final double ASCENT_ALTITUDE = 3_000.0;
     /** A reta não pode passar mais perto que isto da superfície (raio + margem) de um corpo no meio do caminho. */
-    private static final double SURFACE_MARGIN = 50.0;
+    private static final double SURFACE_MARGIN = 1_000.0;
     private static final int MAX_DETOUR_DEPTH = 8;
     private static final double ARRIVE_DISTANCE = 1.0;
     /** Teto do tempo de antecipação da perseguição (ticks). */
     private static final double MAX_LEAD_TICKS = 20_000.0;
     /** Velocidade média presumida para o instante do cálculo dos desvios (para onde estará o destino que se move). */
-    private static final double PLANNING_SPEED = 0.6 * MAX_SPEED;
+    private static final double PLANNING_SPEED = 0.9 * MAX_SPEED;
 
     /** Esfera (centro e raio) no referencial do plano. */
     private record Sphere(double x, double y, double z, double radius) {

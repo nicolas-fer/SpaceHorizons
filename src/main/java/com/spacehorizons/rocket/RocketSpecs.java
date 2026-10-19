@@ -19,7 +19,7 @@ public final class RocketSpecs {
     /** Empuxo de um motor básico, em t·blocos/tick². */
     public static final double ENGINE_THRUST = 2.5;
     /** Isp do motor básico, em ticks (velocidade de exaustão 40 blocos/tick). */
-    public static final double ENGINE_ISP_TICKS = 500.0;
+    public static final double ENGINE_ISP_TICKS = 1600.0;
     /** Capacidade de um tanque, em mB (4 galões). */
     public static final int TANK_CAPACITY_MB = 4000;
 

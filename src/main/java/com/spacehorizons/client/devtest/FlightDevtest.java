@@ -23,6 +23,7 @@ import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.SpaceClock;
 import com.spacehorizons.space.flight.AttitudeMath;
 import com.spacehorizons.space.flight.AttitudeMath.SasMode;
+import com.spacehorizons.space.flight.BodyPhysics;
 import com.spacehorizons.space.flight.FlightState;
 import com.spacehorizons.space.flight.FrameBridge;
 import com.spacehorizons.space.flight.FrameBridge.Local;
@@ -397,9 +398,14 @@ final class FlightDevtest {
         }
         ServerLevel level = player.level();
         double clearance = clearance(level, rocket);
+        if (clearance >= 10_000.0) {
+            // chunk sob o foguete ainda não carregado (a deriva horizontal de ~8 b/t leva o foguete a milhares de blocos da plataforma e,
+            // com a Terra 10x maior, o chunk só chegava aos ~850 de altitude, tarde demais para frear): usa a altitude do nível do mar
+            clearance = Math.max(0.0, t.altitude() - 40.0);
+        }
         // a velocidade em relação ao chão (a reentrada vinda de órbita chega quase na horizontal): o freio retrógrado a corta inteira
         double down = Math.hypot(t.verticalSpeed(), t.horizontalSpeed());
-        double target = Math.sqrt(25.0 + 2.0 * 0.45 * Math.max(0.0, clearance - 300.0));
+        double target = Math.sqrt(25.0 + 2.0 * 0.15 * Math.max(0.0, clearance - 300.0)); // 0,15 b/t²: abaixo da desaceleração líquida do foguete cheio (~0,23)
         if (down > target + 0.2 && clearance < 3_000.0) {
             c.throttle = Math.min(1.0, (down - target) / 2.0);
         }
@@ -507,7 +513,10 @@ final class FlightDevtest {
                     return;
                 }
                 mark("liftoff_c");
-                steerGravityTurn(snap, c, t.altitude(), 150.0, 1_800.0, 75.0);
+                // com a Terra 10x maior a órbita pede ~91 b/t horizontais (e ~85 de Δv de circularização no apoastro): a curva vai
+                // até a horizontal (90 graus, perfil de raiz como no AscentTest) aos 3.000 de altitude, para o apoastro de 6.000
+                // chegar já com a maior parte da velocidade lateral e a circularização ser curta
+                steerGravityTurn(snap, c, t.altitude(), 100.0, 3_000.0, 90.0, 0.5);
                 if (t.apoapsisAltitude() >= 6_000.0) {
                     c.throttle = 0.0;
                     SpaceHorizons.LOGGER.info("{}C: CORTE: apoastro {} blocos, periastro {}, altitude {}, v horizontal {}, combustível={} mB", TAG,
@@ -540,7 +549,8 @@ final class FlightDevtest {
                     c.throttle = 0.0;
                     SpaceHorizons.LOGGER.info("{}C: ÓRBITA: apoastro {} periastro {} inclinação {} graus, período≈{} ticks, combustível={} mB, Δv restante={}", TAG,
                             f(t.apoapsisAltitude()), f(t.periapsisAltitude()), f(t.inclination()), f(2.0 * Math.PI
-                                    * Math.sqrt(Math.pow((t.apoapsisAltitude() + t.periapsisAltitude()) / 2.0 + 10_430.0, 3) / 8.7034e6)),
+                                    * Math.sqrt(Math.pow((t.apoapsisAltitude() + t.periapsisAltitude()) / 2.0 + BodyPhysics.of(SolarSystem.EARTH).radius(), 3)
+                                            / BodyPhysics.of(SolarSystem.EARTH).mu())),
                             f(t.fuelMb()), f(t.deltaV()));
                     next(4);
                 }
@@ -583,7 +593,7 @@ final class FlightDevtest {
                             f(t.verticalSpeed()), f(t.horizontalSpeed()));
                     next(8);
                 }
-                timeout(5_000, "descida da órbita");
+                timeout(9_000, "descida da órbita (a órbita baixa tem período de ~7.800 ticks)");
             }
             case 8 -> {
                 if (t == null) {
@@ -618,8 +628,14 @@ final class FlightDevtest {
      * direção desejada, no referencial do corpo do foguete (arfagem em +X, guinada em +Z).
      */
     private static void steerGravityTurn(Snapshot snap, Control c, double altitude, double startAlt, double fullAlt, double maxDeg) {
+        steerGravityTurn(snap, c, altitude, startAlt, fullAlt, maxDeg, 1.0);
+    }
+
+    /** Idem, com a inclinação proporcional à fração de altitude elevada a {@code exponent} (0,5 inclina mais cedo). */
+    private static void steerGravityTurn(Snapshot snap, Control c, double altitude, double startAlt, double fullAlt, double maxDeg,
+            double exponent) {
         FlightState st = snap.state();
-        double frac = Math.max(0.0, Math.min(1.0, (altitude - startAlt) / (fullAlt - startAlt)));
+        double frac = Math.pow(Math.max(0.0, Math.min(1.0, (altitude - startAlt) / (fullAlt - startAlt))), exponent);
         double theta = Math.toRadians(maxDeg) * frac;
         V3 up = st.r().unit();
         V3 east = eastAt(snap);
