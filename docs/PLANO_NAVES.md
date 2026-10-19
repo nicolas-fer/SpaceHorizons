@@ -191,5 +191,6 @@ Autotestes (estilo `AutoTest`, cenários com `-PshOnly=`): `ship` (fase 1: cria 
 - **D6**: pouso de barriga permitido?
 - **D7**: batida de nave grande: o que acontece com os blocos?
 - **D8**: luz do sol nas janelas e `skylight` na nave.
-- **D9**: gravidade interna fixa ou por gerador?
+- **D9 (decidida em 19/10/2026)**: gravidade interna sempre ligada na fase 1; o bloco gerador de gravidade (sem ele,
+  gravidade zero) entra depois como opção.
 - **D10**: aceita-se o hitch de ~1 s na conversão entidade → blocos na fase 2 (versus lote em vários ticks)?
