@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.planet.PlanetDefinition;
+import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.rocket.FlightMachine.Event;
 import com.spacehorizons.rocket.FlightMachine.Snapshot;
@@ -111,7 +112,10 @@ final class RocketFlightController {
                 f.lastVelocity = rocket.getDeltaMovement();
             }
             double circumference = zone != null ? zone.planet().circumferenceBlocks() : 0.0;
-            boolean missing = requestChunksAhead(level, rocket.position(), f.lastVelocity, circumference);
+            boolean missing = requestChunksAhead(level, rocket.position(), f.lastVelocity, circumference, footprint(rocket));
+            if (zone == null && snap.state() != null) {
+                preloadBelow(server, snap.state(), clock, rate, footprint(rocket));
+            }
             if (pilot != null) {
                 level.getChunkSource().move(pilot);
             }
@@ -119,6 +123,7 @@ final class RocketFlightController {
                 boolean ready = pilot == null
                         || (TravelTransfers.isReady(pilot) && level.getChunkSource().chunkMap.getPlayersWatching(rocket).contains(pilot));
                 if (!ready && ++f.arrivalTicks <= RocketFlight.MAX_ARRIVAL_TICKS) {
+                    f.restoreEdges(edges);
                     rocket.setDeltaMovement(Vec3.ZERO);
                     telemetry(rocket, pilot, now, snap, landedLocal, clock, rate, true);
                     return;
@@ -139,10 +144,13 @@ final class RocketFlightController {
                 }
             }
             if (decision == ChunkGate.Decision.HOLD) {
+                f.restoreEdges(edges);
+                f.lastHeld = f.gate.heldTicks();
                 rocket.setDeltaMovement(Vec3.ZERO);
                 telemetry(rocket, pilot, now, snap, landedLocal, clock, rate, true);
                 return;
             }
+            logHeld(f, level, rocket, snap);
         }
 
         // ---- o passo
@@ -157,6 +165,11 @@ final class RocketFlightController {
             @Override
             public boolean hasBody(SolarSystem.Body body) {
                 return TravelTransfers.findLevel(server, body.planet()) != null;
+            }
+
+            @Override
+            public double terrainHeight(SolarSystem.Body body, double x, double z) {
+                return PlanetTerrains.get(body.planet()).surfaceHeight(Mth.floor(x), Mth.floor(z));
             }
         };
         FlightMachine.Command command = new FlightMachine.Command(control.pitch(), control.yaw(), control.roll(), throttle, parachute, nextSas);
@@ -184,6 +197,7 @@ final class RocketFlightController {
             dest.getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, arrival, ChunkGate.NEAR_RADIUS);
             ChunkGate.Decision decision = f.gate.decide(!dest.hasChunk(arrival.x(), arrival.z()));
             if (decision == ChunkGate.Decision.HOLD) {
+                f.restoreEdges(edges);
                 rocket.setDeltaMovement(Vec3.ZERO);
                 telemetry(rocket, pilot, now, snap, landedLocal, clock, rate, true);
                 return;
@@ -234,6 +248,21 @@ final class RocketFlightController {
         telemetry(rocket, pilot, now, next, new Local(loc.x(), loc.y(), loc.z(), 0.0, 0.0, 0.0), clock + rate, rate, false);
     }
 
+    /** Meia-extensão horizontal da pegada do foguete mais a folga do piloto e do teste de fluido do vanilla (1 bloco de cada lado). */
+    private static double footprint(RocketEntity rocket) {
+        RocketPortrait p = rocket.portrait();
+        return Math.max(p.sizeX, p.sizeZ) / 2.0 + 2.0;
+    }
+
+    /** Quando uma espera por chunks acaba, registra quanto durou e onde (diagnóstico do ritmo de carga a alta velocidade). */
+    private static void logHeld(RocketFlight f, ServerLevel level, RocketEntity rocket, Snapshot snap) {
+        if (f.lastHeld >= 3) {
+            SpaceHorizons.LOGGER.info("Foguete esperou {} ticks por chunks em {} (altitude {}, velocidade {} b/tick)", f.lastHeld,
+                    level.dimension().identifier(), fmt(rocket.getY()), fmt(f.lastVelocity.length()));
+        }
+        f.lastHeld = 0;
+    }
+
     /** Dados sincronizados com o resultado do passo (atitude local, acelerador, modos, calor, combustível). */
     private static void syncEntity(RocketEntity rocket, FlightMachine.Result r, boolean moving) {
         Snapshot next = r.next();
@@ -282,12 +311,36 @@ final class RocketFlightController {
     // ---------------------------------------------------------------- chunks
 
     /**
+     * No espaço, perto de um corpo e devagar o bastante para entrar na dimensão dele ({@link ZoneSwitch#shouldPreload}): pede à frente,
+     * na dimensão do corpo, os chunks por onde o foguete vai entrar, para a troca não esperar a geração (nunca gateia o voo
+     * do espaço: a espera, se faltar chunk, é a de {@code transfer}).
+     */
+    private static void preloadBelow(MinecraftServer server, FlightState state, double clock, double rate, double halfExtent) {
+        SolarSystem.Body body = state.body();
+        PlanetDefinition planet = body.planet();
+        double altitude = state.r().length() - planet.radius();
+        if (altitude >= Zones.exitAltitude(planet)) {
+            return;
+        }
+        ServerLevel below = TravelTransfers.findLevel(server, planet);
+        if (below == null) {
+            return;
+        }
+        Local l = FrameBridge.toDimension(body, clock + rate, rate, state.r(), state.v());
+        if (!ZoneSwitch.shouldPreload(ZoneSwitch.horizontalSpeed(l))) {
+            return;
+        }
+        V3 cv = l.coordinateVelocity(body);
+        requestChunksAhead(below, new Vec3(l.x(), l.y(), l.z()), new Vec3(cv.x(), 0.0, cv.z()), planet.circumferenceBlocks(), halfExtent);
+    }
+
+    /**
      * Pede os chunks à frente (tickets ENDER_PEARL) e devolve true se algum dos chunks dos próximos
      * {@link ChunkGate#GATING_STEPS} ticks ainda não está carregado.
      */
-    private static boolean requestChunksAhead(ServerLevel level, Vec3 position, Vec3 velocity, double circumference) {
+    private static boolean requestChunksAhead(ServerLevel level, Vec3 position, Vec3 velocity, double circumference, double halfExtent) {
         boolean missing = false;
-        List<ChunkGate.Probe> probes = ChunkGate.probes(position.x, position.z, velocity.x, velocity.z, circumference);
+        List<ChunkGate.Probe> probes = ChunkGate.probes(position.x, position.z, velocity.x, velocity.z, circumference, halfExtent);
         for (ChunkGate.Probe probe : probes) {
             level.getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, new ChunkPos(probe.chunkX(), probe.chunkZ()), probe.radius());
             if (probe.gating() && !level.hasChunk(probe.chunkX(), probe.chunkZ())) {

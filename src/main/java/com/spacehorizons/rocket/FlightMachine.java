@@ -82,6 +82,14 @@ public final class FlightMachine {
         boolean hasSpace();
 
         boolean hasBody(SolarSystem.Body body);
+
+        /**
+         * Altura do terreno (coordenada y da dimensão do corpo) na coluna {@code (x, z)}; só decide a entrada forçada na
+         * dimensão do corpo ({@link ZoneSwitch}). O padrão é o nível do mar.
+         */
+        default double terrainHeight(SolarSystem.Body body, double x, double z) {
+            return body.planet().seaLevel();
+        }
     }
 
     /** O que aconteceu no tick. */
@@ -162,7 +170,9 @@ public final class FlightMachine {
             FlightState inZone = moved.body() == zone ? moved : rebase(moved, zone, clockEnd, clockRate);
             Local loc = FrameBridge.toDimension(zone, clockEnd, clockRate, inZone.r(), inZone.v());
             var planet = zone.planet();
-            if (Zones.shouldLeave(planet, loc.y()) && zones.hasSpace()) {
+            boolean leaves = Zones.shouldLeave(planet, loc.y())
+                    || ZoneSwitch.shouldLeaveEarly(planet, loc.y() - planet.seaLevel(), ZoneSwitch.horizontalSpeed(loc));
+            if (leaves && zones.hasSpace()) {
                 Local dest = FrameBridge.toSpaceDimension(moved.body(), clockEnd, clockRate, moved.r(), moved.v());
                 Quaterniond localAtt = AttitudeMath.inertialToSpaceLocal(att.attitude(), clockEnd);
                 Snapshot next = new Snapshot(mode, moved, att.attitude(), att.spin(), sas, throttle, chuteStillWanted, null, moved.fuelMb());
@@ -189,9 +199,13 @@ public final class FlightMachine {
         if (enter != null && zones.hasBody(enter)) {
             FlightState rebased = enter == moved.body() ? moved : rebase(moved, enter, clockEnd, clockRate);
             Local dest = FrameBridge.toDimension(enter, clockEnd, clockRate, rebased.r(), rebased.v());
-            Quaterniond localAtt = AttitudeMath.inertialToLocal(enter, clockEnd, dest.x(), dest.z(), att.attitude());
-            Snapshot next = new Snapshot(mode, rebased, att.attitude(), att.spin(), sas, throttle, chuteStillWanted, enter, rebased.fuelMb());
-            return new Result(next, Event.ENTER_ZONE, enter, dest, localAtt, 0.0, 0.0, 0.0);
+            double height = dest.y() - zones.terrainHeight(enter, dest.x(), dest.z());
+            // rápido demais para a dimensão do corpo carregar o terreno: segue na dimensão de espaço (vazia), freando no ar
+            if (ZoneSwitch.canEnter(enter.planet(), height, ZoneSwitch.horizontalSpeed(dest))) {
+                Quaterniond localAtt = AttitudeMath.inertialToLocal(enter, clockEnd, dest.x(), dest.z(), att.attitude());
+                Snapshot next = new Snapshot(mode, rebased, att.attitude(), att.spin(), sas, throttle, chuteStillWanted, enter, rebased.fuelMb());
+                return new Result(next, Event.ENTER_ZONE, enter, dest, localAtt, 0.0, 0.0, 0.0);
+            }
         }
         Local loc = FrameBridge.toSpaceDimension(moved.body(), clockEnd, clockRate, moved.r(), moved.v());
         Quaterniond la = AttitudeMath.inertialToSpaceLocal(att.attitude(), clockEnd);

@@ -38,21 +38,50 @@ public final class ChunkGate {
 
     private int held;
 
+    /** Até este passo (inclusive) os chunks pedidos cobrem a pegada do foguete e do piloto, não só o chunk do centro. */
+    public static final int FOOTPRINT_STEPS = 4;
+
     /**
-     * Os chunks a pedir a partir da posição {@code (x, z)} com a velocidade das coordenadas {@code (vx, vz)} por tick.
-     * {@code circumference} > 0 normaliza X na costura do planeta (o terreno é periódico); 0 não normaliza (espaço aberto).
+     * Os chunks a pedir a partir da posição {@code (x, z)} com a velocidade das coordenadas {@code (vx, vz)} por tick,
+     * só o chunk do centro de cada passo. {@code circumference} > 0 normaliza X na costura do planeta (o terreno é
+     * periódico); 0 não normaliza (espaço aberto).
      */
     public static List<Probe> probes(double x, double z, double vx, double vz, double circumference) {
+        return probes(x, z, vx, vz, circumference, 0.0);
+    }
+
+    /**
+     * Idem, e nos passos até {@link #FOOTPRINT_STEPS} pede TODOS os chunks que a pegada ({@code x ± halfExtent}, {@code z ± halfExtent})
+     * toca. O vanilla testa os chunks da caixa do foguete e do piloto (com 1 bloco de folga) com {@code getChunk} e, se algum
+     * deles ainda está sendo gerado, o servidor BLOQUEIA esperando (era a maior parte do tempo do tick a 90 blocos por tick,
+     * mesmo no espaço vazio): só o chunk do centro carregado não basta quando a caixa cruza a borda do chunk.
+     */
+    public static List<Probe> probes(double x, double z, double vx, double vz, double circumference, double halfExtent) {
         List<Probe> probes = new ArrayList<>(REQUEST_STEPS.length);
         for (int k : REQUEST_STEPS) {
             double px = normalize(x + vx * k, circumference);
+            double pz = z + vz * k;
             int cx = (int) Math.floor(px) >> 4;
-            int cz = (int) Math.floor(z + vz * k) >> 4;
+            int cz = (int) Math.floor(pz) >> 4;
             boolean gating = false;
             for (int g : GATING_STEPS) {
                 gating |= g == k;
             }
-            probes.add(new Probe(k, cx, cz, k <= NEAR_STEPS ? NEAR_RADIUS : 0, gating));
+            int radius = k <= NEAR_STEPS ? NEAR_RADIUS : 0;
+            probes.add(new Probe(k, cx, cz, radius, gating));
+            if (k <= FOOTPRINT_STEPS && halfExtent > 0.0) {
+                int cx0 = (int) Math.floor(px - halfExtent) >> 4;
+                int cx1 = (int) Math.floor(px + halfExtent) >> 4;
+                int cz0 = (int) Math.floor(pz - halfExtent) >> 4;
+                int cz1 = (int) Math.floor(pz + halfExtent) >> 4;
+                for (int ax = cx0; ax <= cx1; ax++) {
+                    for (int az = cz0; az <= cz1; az++) {
+                        if (ax != cx || az != cz) {
+                            probes.add(new Probe(k, ax, az, radius, gating));
+                        }
+                    }
+                }
+            }
         }
         return probes;
     }
