@@ -63,6 +63,9 @@ final class FlightDevtest {
     /** Plataforma e foguete no ar, bem acima do terreno do spawn (como no cenário rocket). */
     static final BlockPos BASE = RocketDevtest.BASE;
 
+    /** O cenário roda com o relógio andando (gamerule advance_time): a Terra gira em relação a I, taxa 1 tick de relógio por tick de jogo. */
+    private static final double CLOCK_RATE = 1.0;
+
     private static final Set<String> MILESTONES = ConcurrentHashMap.newKeySet();
     private static boolean registered;
     private static boolean armed;
@@ -73,6 +76,8 @@ final class FlightDevtest {
     private static int pendingSas;
     private static boolean sasPulse;
     private static double padY;
+    /** Relógio do Overworld no tick atual (o referencial inercial gira com ele: o leste e a velocidade do ar dependem do relógio). */
+    private static double clockNow;
     private static double lastHealth;
     private static long mspsStart;
     private static long tickStartNanos;
@@ -251,6 +256,7 @@ final class FlightDevtest {
             return;
         }
         ServerPlayer player = server.getPlayerList().getPlayers().get(0);
+        clockNow = SpaceClock.ticks(player.level());
         totalTicks++;
         stageTicks++;
         if (!(player.getVehicle() instanceof RocketEntity rocket)) {
@@ -409,7 +415,7 @@ final class FlightDevtest {
         if (down > target + 0.2 && clearance < 3_000.0) {
             c.throttle = Math.min(1.0, (down - target) / 2.0);
         }
-        if (clearance < 330.0 && t.orbitalSpeed() < 8.0) {
+        if (clearance < 330.0 && Math.hypot(t.verticalSpeed(), t.horizontalSpeed()) < 8.0) { // relativa ao chão (a orbital, inercial, inclui a rotação da Terra)
             c.flags |= RocketControlPayload.FLAG_PARACHUTE;
         }
         if (clearance < 330.0) {
@@ -624,7 +630,7 @@ final class FlightDevtest {
             return null;
         }
         return RocketTelemetryBuilder.build(st, snap.mode(), snap.sas(), snap.throttle(), snap.zoneBody() == null, rocket.stats(),
-                SpaceClock.ticks(player.level()), 0.0, false);
+                SpaceClock.ticks(player.level()), CLOCK_RATE, false);
     }
 
     /**
@@ -651,8 +657,8 @@ final class FlightDevtest {
     private static V3 eastAt(Snapshot snap) {
         FlightState st = snap.state();
         SolarSystem.Body body = st.body();
-        Local l = FrameBridge.toDimension(body, 0.0, 1.0, st.r(), st.v());
-        Matrix3d m = AttitudeMath.localToSpaceMatrix(body, 0.0, l.x(), l.z());
+        Local l = FrameBridge.toDimension(body, clockNow, CLOCK_RATE, st.r(), st.v());
+        Matrix3d m = AttitudeMath.localToSpaceMatrix(body, clockNow, l.x(), l.z());
         Vector3d e = m.transform(new Vector3d(1.0, 0.0, 0.0));
         return new V3(e.x, e.y, e.z);
     }

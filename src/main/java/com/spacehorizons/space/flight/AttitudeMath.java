@@ -8,12 +8,13 @@ import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 import org.joml.Vector3d;
 
+import com.spacehorizons.space.InertialFrame;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.SpaceDimension;
 import com.spacehorizons.space.SpaceFrame;
 
 /**
- * Atitude do foguete: conversão entre o quaternion INERCIAL (o que o servidor guarda: eixos do espaço, o SAS e as
+ * Atitude do foguete: conversão entre o quaternion INERCIAL (o que o servidor guarda: eixos de I, o referencial inercial, o SAS e as
  * manobras ficam triviais) e o quaternion LOCAL da dimensão (o que o cliente usa para render e câmera), mais as contas
  * do SAS e dos comandos de arfagem, guinada e rolagem.
  *
@@ -59,22 +60,30 @@ public final class AttitudeMath {
 
     /**
      * Matriz (coluna j = eixo j) que leva vetores dos eixos locais (leste, cima, norte) do ponto {@code (x, z)} da
-     * dimensão do corpo para os eixos do espaço, no instante {@code clock}.
+     * dimensão do corpo para os eixos inerciais (I), no instante {@code clock}.
      */
     public static Matrix3d localToSpaceMatrix(SolarSystem.Body body, double clock, double x, double z) {
         double[] ex = new double[3];
         double[] ey = new double[3];
         double[] ez = new double[3];
-        SpaceFrame.localToSpace(body, clock, x, z, 1.0, 0.0, 0.0, ex);
-        SpaceFrame.localToSpace(body, clock, x, z, 0.0, 1.0, 0.0, ey);
-        SpaceFrame.localToSpace(body, clock, x, z, 0.0, 0.0, 1.0, ez);
+        SolarSystem.Pose pose = body.inertialPoseAt(clock);
+        SpaceFrame.localToSpace(body, pose, x, z, 1.0, 0.0, 0.0, ex);
+        SpaceFrame.localToSpace(body, pose, x, z, 0.0, 1.0, 0.0, ey);
+        SpaceFrame.localToSpace(body, pose, x, z, 0.0, 0.0, 1.0, ez);
         return new Matrix3d(ex[0], ex[1], ex[2], ey[0], ey[1], ey[2], ez[0], ez[1], ez[2]);
     }
 
-    /** Matriz que leva vetores dos eixos da dimensão de espaço para os do espaço. */
+    /** Matriz que leva vetores dos eixos da dimensão de espaço para os de E (preso à Terra), sem depender do tempo. */
     public static Matrix3d spaceDimensionMatrix() {
         double[] m = SpaceDimension.LOCAL_TO_SPACE;
         return new Matrix3d(m[0], m[3], m[6], m[1], m[4], m[7], m[2], m[5], m[8]);
+    }
+
+    /** Matriz que leva vetores dos eixos da dimensão de espaço para os inerciais (I) no instante {@code clock}: {@code Ry(−φ)·M}. */
+    public static Matrix3d spaceDimensionMatrix(double clock) {
+        double[] ry = InertialFrame.rotationY(-InertialFrame.angle(clock));
+        Matrix3d toInertial = new Matrix3d(ry[0], ry[3], ry[6], ry[1], ry[4], ry[7], ry[2], ry[5], ry[8]);
+        return toInertial.mul(spaceDimensionMatrix());
     }
 
     private static Quaterniond rotationOf(Matrix3d m) {
@@ -109,22 +118,22 @@ public final class AttitudeMath {
 
     // ------------------------------------------------------------------ inercial <-> local (dimensão de espaço)
 
-    /** Quaternion inercial → local da dimensão de espaço. */
-    public static Quaterniond inertialToSpaceLocal(Quaterniondc inertial) {
-        return rotationOf(spaceDimensionMatrix()).conjugate().mul(inertial, new Quaterniond()).normalize();
+    /** Quaternion inercial → local da dimensão de espaço no instante {@code clock}. */
+    public static Quaterniond inertialToSpaceLocal(Quaterniondc inertial, double clock) {
+        return rotationOf(spaceDimensionMatrix(clock)).conjugate().mul(inertial, new Quaterniond()).normalize();
     }
 
-    /** Quaternion local da dimensão de espaço → inercial. */
-    public static Quaterniond spaceLocalToInertial(Quaterniondc local) {
-        return rotationOf(spaceDimensionMatrix()).mul(local, new Quaterniond()).normalize();
+    /** Quaternion local da dimensão de espaço → inercial no instante {@code clock}. */
+    public static Quaterniond spaceLocalToInertial(Quaterniondc local, double clock) {
+        return rotationOf(spaceDimensionMatrix(clock)).mul(local, new Quaterniond()).normalize();
     }
 
-    public static Quaternionf inertialToSpaceLocal(Quaternionfc inertial) {
-        return toFloat(inertialToSpaceLocal(toDouble(inertial)));
+    public static Quaternionf inertialToSpaceLocal(Quaternionfc inertial, double clock) {
+        return toFloat(inertialToSpaceLocal(toDouble(inertial), clock));
     }
 
-    public static Quaternionf spaceLocalToInertial(Quaternionfc local) {
-        return toFloat(spaceLocalToInertial(toDouble(local)));
+    public static Quaternionf spaceLocalToInertial(Quaternionfc local, double clock) {
+        return toFloat(spaceLocalToInertial(toDouble(local), clock));
     }
 
     // ------------------------------------------------------------------ direções

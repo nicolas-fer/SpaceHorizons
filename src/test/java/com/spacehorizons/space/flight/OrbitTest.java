@@ -189,14 +189,14 @@ class OrbitTest {
         double vc = EARTH.circularSpeed(LEO);
         FlightState s = new FlightState(SolarSystem.EARTH, new V3(LEO, 0, 0), new V3(0, 0, vc), 0, 0);
         assertEquals(0.0, Orbit.of(s, 0).inclination(), 1e-9);
-        // a Lua vista da Terra orbita para oeste: 175°
+        // a Lua em I orbita para leste (prógrada), no plano inclinado 5°
         double clock = 4_000;
         double[] m = new double[3];
-        SolarSystem.MOON.positionAt(clock, m);
+        SolarSystem.MOON.inertialPositionAt(clock, m);
         double[] mv = new double[3];
-        SolarSystem.MOON.velocityAt(clock, mv);
+        SolarSystem.MOON.inertialVelocityAt(clock, mv);
         Orbit moon = Orbit.fromState(EARTH.mu(), V3.of(m), V3.of(mv), EARTH.pole(clock));
-        assertEquals(175.0, Math.toDegrees(moon.inclination()), 0.5);
-        assertFalse(moon.eastward());
+        assertEquals(5.0, Math.toDegrees(moon.inclination()), 0.1);
+        assertTrue(moon.eastward());
     }
 }

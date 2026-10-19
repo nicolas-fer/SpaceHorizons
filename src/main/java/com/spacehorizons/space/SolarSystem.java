@@ -6,18 +6,29 @@ import java.util.function.DoubleFunction;
 
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
+import com.spacehorizons.space.flight.FlightConstants;
 
 /**
- * Posição e orientação dos corpos no "espaço": um referencial único, em blocos, preso à Terra (a Terra fica parada na
- * origem e o sol gira em volta uma vez por dia do jogo, ver {@link SunModel}). O tempo é sempre o relógio do Overworld
- * em ticks (o mesmo do sol; {@code /time set} move os dois), igual no cliente e no servidor.
+ * Posição e orientação dos corpos no "espaço", em blocos, em DOIS referenciais com a mesma origem (o centro da Terra):
+ * <ul>
+ *   <li><b>E, preso à Terra</b> ({@link #poseAt}, {@link #positionAt}, {@link #velocityAt}): a Terra fica parada e o sol
+ *       gira em volta uma vez por dia do jogo ({@link SunModel}). É o referencial dos "lugares": dimensões, renderização,
+ *       coordenadas do jogador, piloto automático criativo;</li>
+ *   <li><b>I, inercial</b> ({@link #inertialPoseAt}, {@link #inertialPositionAt}, {@link #inertialVelocityAt}): o sol fica
+ *       fixo e a Terra gira para o leste. É o referencial da física do foguete e da órbita da Lua. A ponte entre os dois
+ *       é {@link InertialFrame}.</li>
+ * </ul>
+ * O tempo é sempre o relógio do Overworld em ticks (o mesmo do sol; {@code /time set} move tudo), igual no cliente e no
+ * servidor.
  *
  * <h2>A Lua</h2>
- * Orbita a Terra num círculo de raio {@link #EARTH_MOON_DISTANCE}, inclinado {@link #ORBIT_INCLINATION} em relação ao
- * equador. O ângulo da Lua no plano da órbita é o do sol menos uma volta a cada {@link #SYNODIC_PERIOD_TICKS} (8 dias do
- * jogo, como as 8 fases do vanilla): ela nasce e se põe todo dia (~1,14 dia entre dois nasceres) e muda de fase de modo
- * que o dia 0 tem lua cheia à meia-noite, como no vanilla. A rotação é sincronizada: os eixos do corpo giram com a
- * órbita, de modo que o ponto lon=π (x = ±C/2 na dimensão da Lua) aponta sempre para a Terra.
+ * Tem órbita kepleriana circular em I: raio {@link #EARTH_MOON_DISTANCE}, inclinação {@link #ORBIT_INCLINATION} em relação
+ * ao equador, período {@link #ORBITAL_PERIOD_TICKS} ({@code 2π·sqrt(a³/μ_Terra)}, ~4,12 dias) e sentido PRÓGRADO (o da
+ * rotação da Terra, para o leste). Como o sol é fixo em I, o ciclo de fases é o próprio período orbital; a fase inicial
+ * faz do tick 18.000 do dia 0 a lua cheia à meia-noite (a Lua em +X, o sol em −X). Em E ela nasce a leste e se põe a oeste
+ * a cada ~1,32 dia ({@code 1/(1/24000 − 1/período)}) e o plano da órbita oscila ao longo do dia. A rotação é sincronizada:
+ * os eixos do corpo giram com a órbita, de modo que o ponto lon=π (x = ±C/2 na dimensão da Lua) aponta sempre para a
+ * Terra.
  *
  * <h2>Eixos</h2>
  * Cada corpo tem eixos próprios fixos nele: o ponto (lat 0, lon 0) aponta para +X, leste (+lon, +X do Minecraft) para
@@ -28,8 +39,15 @@ public final class SolarSystem {
     /** Distância centro a centro Terra–Lua (comprimida: ~5,75 raios terrestres em vez de 60). */
     public static final double EARTH_MOON_DISTANCE = 600_000;
 
-    /** Ciclo de fases (sinódico) da Lua: 8 dias do jogo, as 8 fases do vanilla. */
-    public static final double SYNODIC_PERIOD_TICKS = 8.0 * SunModel.DAY_TICKS;
+    /** Parâmetro gravitacional da Terra (blocos³/tick²): {@code G0 · gravidade de superfície · R²}, o mesmo de BodyPhysics. */
+    public static final double EARTH_MU = FlightConstants.G0 * Planets.EARTH.surfaceGravity() * Planets.EARTH.radius()
+            * Planets.EARTH.radius();
+
+    /** Movimento médio da Lua (rad por tick de relógio): {@code sqrt(μ/a³)}. */
+    public static final double MOON_MEAN_MOTION = Math.sqrt(EARTH_MU / (EARTH_MOON_DISTANCE * EARTH_MOON_DISTANCE * EARTH_MOON_DISTANCE));
+
+    /** Período orbital da Lua em I (ticks): ~98.985, ~4,12 dias do jogo. É também o ciclo de fases (o sol é fixo em I). */
+    public static final double ORBITAL_PERIOD_TICKS = 2.0 * Math.PI / MOON_MEAN_MOTION;
 
     /** Inclinação da órbita lunar em relação ao equador (plano do sol): evita eclipse a cada lua nova e cheia. */
     public static final double ORBIT_INCLINATION = Math.toRadians(5.0);
@@ -72,13 +90,18 @@ public final class SolarSystem {
         }
 
         private final PlanetDefinition planet;
+        /** Movimento em I (inercial). */
+        private final DoubleFunction<Pose> inertialMotion;
+        /** Movimento em E (preso à Terra). */
         private final DoubleFunction<Pose> motion;
         private final Pose reference;
         /** Um instante em cache: o mesmo relógio é pedido dezenas de vezes por frame. Imutável e volátil: seguro entre threads. */
         private volatile Cached cached;
+        private volatile Cached cachedInertial;
 
-        private Body(PlanetDefinition planet, DoubleFunction<Pose> motion, Pose reference) {
+        private Body(PlanetDefinition planet, DoubleFunction<Pose> inertialMotion, DoubleFunction<Pose> motion, Pose reference) {
             this.planet = planet;
+            this.inertialMotion = inertialMotion;
             this.motion = motion;
             this.reference = reference;
         }
@@ -87,7 +110,7 @@ public final class SolarSystem {
             return planet;
         }
 
-        /** Posição e orientação do corpo no relógio {@code clock} (ticks do Overworld, com fração). */
+        /** Posição e orientação do corpo no relógio {@code clock} (ticks do Overworld, com fração), em E (preso à Terra). */
         public Pose poseAt(double clock) {
             Cached c = cached;
             if (c != null && c.clock == clock) {
@@ -98,12 +121,23 @@ public final class SolarSystem {
             return pose;
         }
 
+        /** Posição e orientação do corpo em {@code clock}, em I (inercial: o sol fixo, a Terra girando). */
+        public Pose inertialPoseAt(double clock) {
+            Cached c = cachedInertial;
+            if (c != null && c.clock == clock) {
+                return c.pose;
+            }
+            Pose pose = inertialMotion.apply(clock);
+            cachedInertial = new Cached(clock, pose);
+            return pose;
+        }
+
         /** Configuração de referência (ver a documentação da classe). */
         public Pose referencePose() {
             return reference;
         }
 
-        /** Centro do corpo no espaço em {@code clock}. out = {x, y, z}. */
+        /** Centro do corpo no espaço em {@code clock}, em E. out = {x, y, z}. */
         public void positionAt(double clock, double[] out) {
             Pose p = poseAt(clock);
             out[0] = p.x();
@@ -111,11 +145,28 @@ public final class SolarSystem {
             out[2] = p.z();
         }
 
-        /** Velocidade do centro do corpo no espaço (blocos/tick), por diferença central. out = {vx, vy, vz}. */
+        /** Centro do corpo em {@code clock}, em I. out = {x, y, z}. */
+        public void inertialPositionAt(double clock, double[] out) {
+            Pose p = inertialPoseAt(clock);
+            out[0] = p.x();
+            out[1] = p.y();
+            out[2] = p.z();
+        }
+
+        /** Velocidade do centro do corpo em E (blocos por tick de relógio), por diferença central. out = {vx, vy, vz}. */
         public void velocityAt(double clock, double[] out) {
+            centralDifference(motion, clock, out);
+        }
+
+        /** Velocidade do centro do corpo em I (blocos por tick de relógio), por diferença central. out = {vx, vy, vz}. */
+        public void inertialVelocityAt(double clock, double[] out) {
+            centralDifference(inertialMotion, clock, out);
+        }
+
+        private static void centralDifference(DoubleFunction<Pose> f, double clock, double[] out) {
             double h = 0.5;
-            Pose a = motion.apply(clock - h);
-            Pose b = motion.apply(clock + h);
+            Pose a = f.apply(clock - h);
+            Pose b = f.apply(clock + h);
             out[0] = (b.x() - a.x()) / (2 * h);
             out[1] = (b.y() - a.y()) / (2 * h);
             out[2] = (b.z() - a.z()) / (2 * h);
@@ -135,9 +186,15 @@ public final class SolarSystem {
         }
     }
 
-    /** A Terra fica parada na origem com a identidade: o espaço é o referencial dela. */
-    public static final Body EARTH = new Body(Planets.EARTH, clock -> new Pose(0, 0, 0, IDENTITY), new Pose(0, 0, 0, IDENTITY));
-    public static final Body MOON = new Body(Planets.MOON, SolarSystem::moonPose, new Pose(EARTH_MOON_DISTANCE, 0, 0, IDENTITY));
+    /**
+     * A Terra fica parada na origem com a identidade em E (o referencial dela); em I seus eixos giram: o corpo leva os
+     * eixos presos a ela a I por {@code Ry(−φ)} (ver {@link InertialFrame}).
+     */
+    public static final Body EARTH = new Body(Planets.EARTH,
+            clock -> new Pose(0, 0, 0, InertialFrame.rotationY(-InertialFrame.angle(clock))),
+            clock -> new Pose(0, 0, 0, IDENTITY), new Pose(0, 0, 0, IDENTITY));
+    public static final Body MOON = new Body(Planets.MOON, SolarSystem::moonInertialPose, SolarSystem::moonPose,
+            new Pose(EARTH_MOON_DISTANCE, 0, 0, IDENTITY));
 
     public static final List<Body> BODIES = List.of(EARTH, MOON);
 
@@ -150,15 +207,18 @@ public final class SolarSystem {
 
     /**
      * Elongação da Lua (rad): ângulo dela menos o do sol no plano da órbita. 0 = lua nova, -π = cheia (a Lua gira para o
-     * leste do sol: o ângulo diminui com o tempo, uma volta a cada {@link #SYNODIC_PERIOD_TICKS}).
+     * leste: o ângulo diminui com o tempo, uma volta a cada {@link #ORBITAL_PERIOD_TICKS}; o sol é fixo em I).
      */
     public static double moonElongation(double clock) {
-        return -Math.PI - 2.0 * Math.PI * (clock - FULL_MOON_TICK) / SYNODIC_PERIOD_TICKS;
+        return -Math.PI - MOON_MEAN_MOTION * (clock - FULL_MOON_TICK);
     }
 
-    /** Ângulo da Lua no plano da órbita (rad, mesma convenção do sol: direção (cos, 0, -sen) antes da inclinação). */
+    /**
+     * Ângulo da Lua no plano da órbita EM I (rad, mesma convenção do sol: direção (cos, 0, -sen) antes da inclinação).
+     * O sol fica em π nesse referencial (direção −X), por isso a elongação é este ângulo menos π.
+     */
     public static double moonAngle(double clock) {
-        return SunModel.angle(clock) + moonElongation(clock);
+        return moonElongation(clock) + Math.PI;
     }
 
     /** Fração iluminada da Lua vista da Terra (0 = nova, 1 = cheia), pelo ângulo entre o sol e a Lua. */
@@ -171,11 +231,27 @@ public final class SolarSystem {
         return 0.5 * (1.0 - cosElongation);
     }
 
+    /** Pose da Lua em E: a de I girada por {@code Ry(φ)} (posição e eixos do corpo). */
+    private static Pose moonPose(double clock) {
+        Pose inertial = moonInertialPose(clock);
+        double[] earth = InertialFrame.rotationY(InertialFrame.angle(clock));
+        double[] r = inertial.rotation();
+        double[] out = new double[9];
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                out[row * 3 + col] = earth[row * 3] * r[col] + earth[row * 3 + 1] * r[3 + col] + earth[row * 3 + 2] * r[6 + col];
+            }
+        }
+        double[] p = new double[3];
+        InertialFrame.toEarthFixed(clock, inertial.x(), inertial.y(), inertial.z(), p);
+        return new Pose(p[0], p[1], p[2], out);
+    }
+
     /**
-     * Pose da Lua: R = Rz(i)·Ry(θ). A primeira coluna de R (o eixo +X do corpo, lat 0 lon 0) é a direção Terra→Lua;
+     * Pose da Lua em I: R = Rz(i)·Ry(θ). A primeira coluna de R (o eixo +X do corpo, lat 0 lon 0) é a direção Terra→Lua;
      * logo o ponto lon=π (-X do corpo) aponta sempre para a Terra. A segunda (norte) é a normal da órbita.
      */
-    private static Pose moonPose(double clock) {
+    private static Pose moonInertialPose(double clock) {
         double theta = moonAngle(clock);
         double c = Math.cos(theta);
         double s = Math.sin(theta);

@@ -16,7 +16,9 @@ class ZonesTest {
     private static final double MOON_R = Planets.MOON.radius();
 
     private static V3 moonCenter(double clock) {
-        return SoiTracker.position(SolarSystem.MOON, clock);
+        double[] out = new double[3];
+        SolarSystem.MOON.positionAt(clock, out);
+        return V3.of(out);
     }
 
     @Test

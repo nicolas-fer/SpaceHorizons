@@ -125,9 +125,10 @@ A Terra deixou de ser um terreno simples e passou a usar o gerador completo do O
   em background (~140 s na primeira vez; 4096 colunas levaram 487 s e 13,9 MiB), guarda em `<mundo>/data/spacehorizons/planetmap_earth.bin` e manda ao cliente em pedaços.
   A malha orbital e as esferas dos corpos usam as cores dos biomas reais desse mapa (`PlanetTerrains.get`); o terreno analítico
   só vale enquanto o mapa não chega e para a Lua. O DH usa o gerador do mundo (não há mais override de LOD na Terra).
-- **A Lua orbita** (`space/SolarSystem`, `space/SpaceClock`): órbita circular de raio 600.000, inclinada 5°, período sinódico de 8 dias
-  (fases como as do vanilla: cheia à meia-noite do dia 0), no relógio do Overworld (`/time set` move sol e Lua). A Lua tem rotação
-  sincronizada: a mesma face fica voltada para a Terra. `SpaceFrame`, `SunModel`, `BodyRenderer` e `SpaceSun` recebem o relógio.
+- **A Lua orbita** (`space/SolarSystem`, `space/SpaceClock`): órbita kepleriana circular de raio 600.000, inclinada 5°, período de 98.983
+  ticks (4,12 dias), prógrada, cheia à meia-noite do dia 0, no relógio do Overworld (`/time set` move sol e Lua); ver "Referenciais: inercial
+  (I) e preso à Terra (E)". A Lua tem rotação sincronizada: a mesma face fica voltada para a Terra. `SpaceFrame`, `SunModel`, `BodyRenderer`
+  e `SpaceSun` recebem o relógio.
 - **Viagem com alvo móvel** (`space/travel/FlightGuide`, `FlightPlan`, `BodyTransfer`): o plano mira onde o corpo estará, corrige a
   cada tick e na troca de dimensão a velocidade vira velocidade relativa ao chão do corpo novo (ver "Autoteste").
 
@@ -265,6 +266,43 @@ Combinações (as flags `-P` ficam no `build.gradle`):
 Apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes de cada uma e copie os prints
 antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` no log.
 
+## Referenciais: inercial (I) e preso à Terra (E)
+
+A física do foguete e a órbita da Lua vivem num referencial INERCIAL (**I**); tudo que é "lugar" (dimensões, `SpaceDimension`, renderização,
+coordenadas do jogador, piloto automático criativo) continua num referencial PRESO À TERRA (**E**, o de `SolarSystem.poseAt`). A ponte é
+`space/InertialFrame`: `r_E = Ry(φ)·r_I`, com `φ = ângulo do sol − π` (eixo polar +Y). O sol de E é exatamente o de `SunModel` (nada
+no céu do sol mudou); em I ele fica fixo, em −X, e a Terra gira para o leste. Em `clock = 18.000` (meia-noite do dia 0) E e I coincidem.
+
+- **Rotação da Terra**: `φ̇` é a taxa do sol do vanilla (curva Bézier), então varia de 0,67 a 1,19 vez a média 2π/24.000 (mais lenta ao
+  meio-dia). A velocidade do chão em I é `φ̇·R·cos(lat)`: no equador **18,2 a 32,5 b/tick, média 27,3** (um foguete parado na pista tem
+  isso em I). Lançar para o leste é mais barato: a velocidade circular de uma órbita baixa (6.000 de altitude, 88,8 b/t) custa
+  88,8 − 27,3 = **61,5** de Δv para o leste e 88,8 + 27,3 = **116,1** para o oeste, em média (56,3 a 121,3 conforme a hora; sem perdas por
+  gravidade e arrasto). Foi escolhido manter a taxa do sol, e não uma rotação uniforme de 2π/24.000, para o sol ser fixo em I: com taxa
+  uniforme o sol vanilla "tremeria" em I e, na Lua, o sol andaria para trás por instantes uma vez por dia. Trocar é mudar `InertialFrame.angle/rate`.
+- **A Lua** (`SolarSystem`): círculo kepleriano em I, raio 600.000, inclinação 5°, período `2π·sqrt(a³/μ_Terra)` = **98.983 ticks (4,12 dias do
+  jogo)**, prógrada (para o leste), **38,09 b/t** em I. Em E ela anda de **66,4 a 148,1 b/t** (a Terra gira por baixo). Rotação sincronizada
+  (a mesma face para a Terra; o chão dela gira 1,66 b/t no equador em I). Fase inicial: o tick 18.000 do dia 0 é lua cheia à meia-noite (Lua em
+  +X, sol em −X). Como o sol é fixo em I, o ciclo de fases é o período orbital (4,12 dias; o vanilla tem 8 fases em 8 dias, aqui não); em E a
+  Lua nasce a leste a cada **31.677 ticks (1,32 dia)**. `SYNODIC_PERIOD_TICKS` virou `ORBITAL_PERIOD_TICKS`.
+- **Foguete** (`space/flight/*`, `FrameBridge`): o `FlightState` é inercial (I). Posição E↔I por rotação por `φ`; velocidade
+  `v_I = Rᵀ·v_E + ω × r` (`FrameBridge.rotationVelocity`). Apoastro, periastro, SOI e `TransferPlanner` são em I; pouso suave, batida, velocidade
+  horizontal ao chão, arrasto e aquecimento usam a velocidade RELATIVA ao chão/ar (a atmosfera gira com a Terra). O SAS prógrado/retrógrado usa a
+  velocidade ao chão dentro da dimensão do corpo e a inercial no espaço. Perto da Lua o corpo de referência é a Lua (pose inercial dela: o
+  chão gira com o período orbital e o pouso usa a velocidade relativa ao chão lunar).
+- **Transferência Terra→Lua** (planejador): a Lua é uniforme em I, então a fase ideal é constante (98,0°) e a transferência é a mesma a qualquer
+  hora: Δv de TLI de **26,63 b/t** a partir da órbita baixa, 22.539 ticks de voo, entrada na esfera de influência 17.008 ticks depois da queima com
+  **15,9 b/t de velocidade relativa** (antes, com a Lua cinemática em E: 83 a 146). É preciso orbitar para o **leste** (o planejador avisa
+  "Órbita para oeste: vá para leste").
+- **Dimensão de espaço**: a posição é E (como antes); o foguete é integrado em I e a posição na dimensão vem de I→E a cada tick (uma órbita
+  baixa para o leste anda a ~63 b/t em E e 89 em I). Um foguete que segura a atitude inercial (SAS "estabilizar") gira devagar, com a Terra,
+  nas coordenadas da dimensão (o céu do espaço é o de E).
+- **Piloto automático criativo** (`space/travel/*`, `/spacehorizons fly`): é cinemático e continua em E (o servidor só enxerga E, e é o deslocamento
+  em E por tick que custa chunks). Como em E a Lua anda 66 a 149 b/t, o plano não a persegue: mira o ponto de INTERCEPTAÇÃO
+  (`FlightPlan.interceptTime`: o menor τ com `|Lua(t+τ) − nave| = v·τ`, varredura + bisseção) e assim o teto de velocidade deixa de precisar
+  passar da Lua. O teto caiu de 200 para **80 b/tick**: a mira por interceptação alcança a Lua com qualquer teto. Medido em jogo (autoteste `moontrip`, relógio correndo): ida em 9.784 ticks de cliente (troca para a dimensão da Lua no tick 7.985) e volta em 6.528, chegando nos alvos (face da Lua voltada para a Terra; zênite do spawn). Nos ~3 min de voo sobre o planeta o servidor ficou atrasado ("Can't keep up", até 14 s) com a thread cheia em `ServerChunkCache.getChunk` (geração de chunks da Terra sob a rota), e no espaço vazio o tick voltou a 14 a 30% de ocupação; o custo por tick em função do teto NÃO foi remedido aqui (as medições de 60 b/t = 1,5 ms e 200 b/t = 24 ms são as de antes).
+- **`/time set`**: move o sol e, agora, também a rotação E↔I. O estado de voo é guardado em I e não muda; só a posição E é re-derivada, então um
+  foguete em voo cujo relógio salta horas vê o chão "pular" e pode bater ou aparecer longe. Não há tratamento especial (limitação aceita).
+
 ## Escala: Terra 10x maior (limitações)
 
 A Terra tem circunferência 655.360 (R ≈ 104.304) e a Lua 163.840 (R ≈ 26.076) a 600.000 de distância; antes eram 65.536, 16.384 e 60.000.
@@ -273,11 +311,12 @@ Alturas e a atmosfera não mudaram (saída para o espaço a 5.000 na Terra e 1.2
 
 - **Foguete**: a velocidade orbital da Terra subiu √10 (28,9 para 91,3 b/tick, ~1.827 b/s) e o Isp do motor também (500 para 1.600, ve = 128 b/t).
   Com isso o foguete mínimo (Δv 126) faz a órbita com um programa de subida bom (gasta ~111, sobram ~14); antes só fazia salto suborbital.
-  A transferência Terra→Lua (TLI) leva 22.539 ticks (~19 min) e custa 26,6 b/t de Δv a partir da órbita baixa; a Lua é cinemática (85 a 167 b/t), então
-  chega-se à esfera dela com 83 a 146 b/t de velocidade relativa (antes ~6), muito acima da velocidade de escape da Lua (26 b/t na superfície).
+  A transferência Terra→Lua (TLI) leva 22.539 ticks (~19 min) e custa 26,6 b/t de Δv a partir da órbita baixa; com a Lua inercial (38 b/t, ver "Referenciais")
+  chega-se à esfera dela com 15,9 b/t de velocidade relativa (com a Lua cinemática em E eram 83 a 146, e antes da escala ~6), a captura custa algumas
+  dezenas de b/t no máximo (a velocidade de escape da Lua é 26 b/t na superfície). A pista da Terra já tem ~27 b/t para leste em I.
 - **Foguete em velocidade orbital** (`rocket/ZoneSwitch`, ver `docs/DESIGN_FOGUETE.md`): a dimensão da Terra só carrega o terreno a voo lento, então ela só é usada com horizontal ao chão ≤ 25 b/tick (entrada forçada a ≤ 1.000 sobre o terreno, qualquer velocidade) e o foguete sai para o espaço antes dos 5.000 se passar de 40 b/tick acima de 1.000. A reentrada vinda de órbita desce "virtualmente" na dimensão de espaço (arrasto e calor já valem lá) e o piloto deve frear de retrógrado antes da entrada forçada; chegar a ela a ~59 b/tick ainda faz o servidor esperar chunks (medido: um tick de 43 s com tickets à frente a 90 b/tick). No autoteste `flight`: 0 avisos "Can't keep up" (antes 6, de 2 a 7,7 s) e tick máximo de 292 ms (antes 1.557 ms). O render do planeta visto da dimensão de espaço a baixa altitude (1.000 a 4.000) NÃO foi conferido em print.
 - **Mapa do planeta**: 2048 colunas (célula de 320 blocos); 4096 levaria 487 s de bake.
-- **Voo rápido** (medido no espaço vazio, 200 ticks): 60 b/tick (1.200 b/s) média de 1,5 ms por tick; 200 b/tick (4.000 b/s) média de 24 ms, 17 ticks acima de 100 ms e um "Can't keep up" de 2 s (47 mil chunks); 300 b/tick, tick de 4,8 s. O teto do piloto automático é 200 b/tick e a viagem Terra–Lua (`fly moon`) NÃO foi exercitada em jogo nesta escala (só no teste unitário).
+- **Voo rápido** (medido no espaço vazio, 200 ticks): 60 b/tick (1.200 b/s) média de 1,5 ms por tick; 200 b/tick (4.000 b/s) média de 24 ms, 17 ticks acima de 100 ms e um "Can't keep up" de 2 s (47 mil chunks); 300 b/tick, tick de 4,8 s. O teto do piloto automático agora é 80 b/tick e a viagem Terra–Lua (`fly moon`, `fly earth`) foi exercitada em jogo (ver "Referenciais").
 - **Dimensão de espaço**: Y vai de ~-580.000 a ~+620.000 (viés de 20.000 mantido); o lado do nadir da Terra fica em Y negativo.
 
 ## Limitações da fase 4
@@ -290,11 +329,12 @@ Alturas e a atmosfera não mudaram (saída para o espaço a 5.000 na Terra e 1.2
   aproximada (`BiomeColors`). A calota além de 70° é pintada de gelo e aparece como uma mancha clara de contorno retangular visto
   de 15.000 blocos sobre o polo. O primeiro cálculo leva ~140 s; depois sai do cache em disco.
 - **Spawn de teste**: `/spacehorizons goto earth` leva a (0, 0), que é oceano tropical com uma ilha de badlands.
-- **Lua em órbita**: o ângulo usa a curva Bézier do sol, então a velocidade orbital oscila (85 a 167 blocos/tick, medido); as fases são
-  exatamente periódicas. O sol da Lua oscila ±5° de declinação por dia terrestre (o eixo da Lua é a normal da órbita).
+- **Lua em órbita**: em I é uniforme (38,09 b/t); em E (preso à Terra) anda de 66 a 148 b/t porque a taxa de giro da Terra segue a curva do sol do
+  vanilla; as fases são exatamente periódicas (ciclo de 4,12 dias). O sol da Lua oscila ±5° de declinação por período orbital (o eixo da Lua é a
+  normal da órbita).
   No primeiro quadro depois de uma troca de dimensão, o relógio do cliente novo pode ainda não ter chegado.
-- **Piloto automático**: a velocidade é 0,03 b/tick por bloco de altitude, com teto de 200 b/tick (precisa passar da Lua, que anda
-  85 a 167 b/tick); a Terra–Lua leva ~4.000 a 9.000 ticks conforme onde a Lua está. A 200 b/tick o servidor já sofre no voo em linha reta no espaço (ver "Escala").
+- **Piloto automático**: a velocidade é 0,03 b/tick por bloco de altitude, com teto de 80 b/tick (não precisa passar da Lua: mira a interceptação,
+  ver "Referenciais"); a Terra–Lua leva ~9.000 ticks (testes unitários) (medido em jogo: 9.784 na ida e 6.528 na volta).
   A chegada é parada a 300 blocos sobre o chão.
 - **DH**: um `NullPointerException` interno do DH (`FullDataUpdatePropagatorV2`) aparece no log no carregamento do mundo; não
   é do mod. Logo depois de um `/tp` longo, o DH pode mostrar por instantes LODs em posição errada até os chunks próximos carregarem.

@@ -30,8 +30,14 @@ public final class FlightPlan {
     /** Blocos/tick por bloco de distância ao destino final (frenagem exponencial). */
     public static final double DISTANCE_SPEED_FACTOR = 0.06;
     public static final double MIN_SPEED = 0.5;
-    /** 200 blocos/tick = 4.000 blocos/s: tem de passar da velocidade da Lua (85 a 167 b/tick) para alcançá-la; a 300 b/tick o servidor engasgou e a 200 já sofre (chunks do voo, ver README). */
-    public static final double MAX_SPEED = 200.0;
+    /**
+     * Teto de velocidade (blocos/tick, relativa ao chão do referencial do plano): 80 b/tick = 1.600 blocos/s. Já NÃO precisa
+     * passar da velocidade da Lua: neste referencial (preso à Terra, que gira) ela anda 66 a 149 b/tick, mas o plano mira
+     * o ponto de INTERCEPTAÇÃO (onde ela estará quando a nave chegar, ver {@link #interceptTime}) em vez de persegui-la, e
+     * assim qualquer teto alcança. 80 dá ~7.500 ticks até a Lua (~6 min) e custa ao servidor pouco mais que os 60 de antes
+     * da escala (a 200 b/tick o tick passava de 24 ms, ver README). O custo vem dos chunks do voo: cresce com a velocidade.
+     */
+    public static final double MAX_SPEED = 80.0;
     public static final double ACCELERATION_FACTOR = 1.06;
     public static final double ACCELERATION_ADD = 0.15;
     /** Altitude acima da superfície dos pontos intermediários que desviam de um planeta. */
@@ -90,9 +96,7 @@ public final class FlightPlan {
         List<double[]> points = new ArrayList<>();
         FlightPlan probe = new FlightPlan(frame, bodies, targetBody, tx, ty, tz, points, start, initialSpeed);
 
-        double[] first = new double[3];
-        probe.targetInFrame(clock, first);
-        double tau = Math.min(MAX_LEAD_TICKS, distance(start, first) / PLANNING_SPEED);
+        double tau = probe.interceptTime(clock, start, PLANNING_SPEED);
         double[] aim = new double[3];
         probe.targetInFrame(clock + tau, aim);
         List<Sphere> spheres = probe.spheres(clock + tau);
@@ -221,16 +225,63 @@ public final class FlightPlan {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
+    /**
+     * Ticks até a nave, saindo de {@code from} (referencial do plano) a velocidade constante {@code speed}, alcançar o
+     * destino: o menor {@code τ > 0} com {@code |destino(clock + τ) − from| = speed·τ}. Num referencial em que o destino
+     * anda em círculo (a Lua vista da Terra que gira, 66 a 149 b/tick) uma iteração de ponto fixo diverge quando
+     * {@code speed} é menor que a velocidade dele; a varredura com bisseção acha a raiz para qualquer velocidade. Destino
+     * parado: simplesmente {@code distância / speed}. Sem raiz até {@link #MAX_LEAD_TICKS}, devolve esse teto.
+     */
+    double interceptTime(double clock, double[] from, double speed) {
+        double[] goal = new double[3];
+        if (targetBody == frame) {
+            targetInFrame(clock, goal);
+            return Math.min(MAX_LEAD_TICKS, distance(from, goal) / speed);
+        }
+        double step = 100.0;
+        double previous = 0.0;
+        double previousGap = gap(clock, from, speed, 0.0, goal);
+        if (previousGap <= 0.0) {
+            return 0.0;
+        }
+        for (double t = step; t <= MAX_LEAD_TICKS + step; t += step) {
+            double tt = Math.min(t, MAX_LEAD_TICKS);
+            double g = gap(clock, from, speed, tt, goal);
+            if (g <= 0.0) {
+                double lo = previous;
+                double hi = tt;
+                for (int i = 0; i < 40; i++) {
+                    double mid = 0.5 * (lo + hi);
+                    if (gap(clock, from, speed, mid, goal) > 0.0) {
+                        lo = mid;
+                    } else {
+                        hi = mid;
+                    }
+                }
+                return 0.5 * (lo + hi);
+            }
+            previous = tt;
+            if (tt >= MAX_LEAD_TICKS) {
+                break;
+            }
+        }
+        return MAX_LEAD_TICKS;
+    }
+
+    /** {@code |destino(clock + τ) − from| / speed − τ}: positivo enquanto a nave ainda não chegaria a tempo. */
+    private double gap(double clock, double[] from, double speed, double tau, double[] goal) {
+        targetInFrame(clock + tau, goal);
+        return distance(from, goal) / speed - tau;
+    }
+
     /** Para onde mirar no último trecho: o próprio destino se ele está parado; senão, onde estará quando o plano chegar lá. */
     private double[] aimPoint(double clock, double[] now) {
         if (targetBody == frame) {
             return now;
         }
         double[] goal = now.clone();
-        for (int i = 0; i < 2; i++) {
-            double tau = Math.min(MAX_LEAD_TICKS, distance(position, goal) / MAX_SPEED);
-            targetInFrame(clock + tau, goal);
-        }
+        double tau = interceptTime(clock, position, MAX_SPEED);
+        targetInFrame(clock + tau, goal);
         return goal;
     }
 

@@ -17,11 +17,11 @@ class TransferPlannerTest {
     private static final double LEO = EARTH.radius() + 6_000;
     private static final RocketStats STATS = RocketStats.of(1, 1, 0, 0, 1, 3, 1.0);
 
-    /** Base do plano da órbita lunar: a Lua anda de E1 para E2 (ver SolarSystem.moonPose). */
+    /** Base do plano da órbita lunar em I: a Lua anda de E1 para E2, para o leste (+Z; ver SolarSystem.moonInertialPose). */
     private static final V3 E1 = new V3(Math.cos(SolarSystem.ORBIT_INCLINATION), Math.sin(SolarSystem.ORBIT_INCLINATION), 0);
-    private static final V3 E2 = new V3(0, 0, -1);
+    private static final V3 E2 = new V3(0, 0, 1);
 
-    /** Órbita circular de raio {@code r1} no PLANO DA LUA, no ângulo {@code phi}, no mesmo sentido dela (oeste). */
+    /** Órbita circular de raio {@code r1} no PLANO DA LUA, no ângulo {@code phi}, no mesmo sentido dela (leste, prógrada). */
     private static FlightState planarOrbit(double r1, double phi) {
         V3 radial = E1.times(Math.cos(phi)).plus(E2.times(Math.sin(phi)));
         V3 tangent = E1.times(-Math.sin(phi)).plus(E2.times(Math.cos(phi)));
@@ -100,19 +100,19 @@ class TransferPlannerTest {
     }
 
     @Test
-    void eastwardOrbitIsTheWrongDirection() {
-        // equatorial para o leste: a Lua vai para o oeste
+    void westwardOrbitIsTheWrongDirection() {
+        // equatorial para o oeste: a Lua vai para o leste (em I, como a rotação da Terra)
         double vc = EARTH.circularSpeed(LEO);
-        FlightState east = new FlightState(SolarSystem.EARTH, new V3(LEO, 0, 0), new V3(0, 0, vc), 0, 0);
-        Plan plan = TransferPlanner.moon(east, 1_000);
-        assertSame(Status.WRONG_DIRECTION, plan.status());
-        assertFalse(plan.westward());
-        assertFalse(plan.usable());
-        // para o oeste a mesma órbita vale (a 5° do plano lunar)
         FlightState west = new FlightState(SolarSystem.EARTH, new V3(LEO, 0, 0), new V3(0, 0, -vc), 0, 0);
-        Plan ok = TransferPlanner.moon(west, 1_000);
+        Plan plan = TransferPlanner.moon(west, 1_000);
+        assertSame(Status.WRONG_DIRECTION, plan.status());
+        assertFalse(plan.prograde());
+        assertFalse(plan.usable());
+        // para o leste a mesma órbita vale (a 5° do plano lunar)
+        FlightState east = new FlightState(SolarSystem.EARTH, new V3(LEO, 0, 0), new V3(0, 0, vc), 0, 0);
+        Plan ok = TransferPlanner.moon(east, 1_000);
         assertSame(Status.OK, ok.status());
-        assertTrue(ok.westward());
+        assertTrue(ok.prograde());
         assertEquals(5.0, ok.planeAngleDeg(), 0.01);
     }
 
@@ -134,17 +134,16 @@ class TransferPlannerTest {
     }
 
     @Test
-    void idealPhaseFollowsTheNonUniformMoon() {
-        // ~243° com a Lua média (ela anda ~296° durante os 22.539 ticks da transferência); varia de ~237° a ~248° conforme a hora do dia (a Lua anda de 85 a 167 b/t)
-        double min = 360;
-        double max = 0;
+    void idealPhaseIsConstantBecauseTheMoonIsUniformInTheInertialFrame() {
+        // em I a Lua anda a n constante (6,35e-5 rad/tick, ~38 b/t): a fase ideal é 180° − n·t_f, a mesma a qualquer hora do dia
+        // (antes, no referencial preso à Terra, ela variava de ~237° a ~248° porque a Lua andava de 85 a 167 b/t)
+        Plan reference = TransferPlanner.moon(planarOrbit(LEO, 0.7), 0.0);
+        double expected = 180.0 - Math.toDegrees(SolarSystem.MOON_MEAN_MOTION * reference.transferTicks());
+        assertEquals(98.0, expected, 0.1);
         for (int i = 0; i < 48; i++) {
             Plan plan = TransferPlanner.moon(planarOrbit(LEO, 0.7), i * 500.0);
-            min = Math.min(min, plan.idealPhaseDeg());
-            max = Math.max(max, plan.idealPhaseDeg());
+            assertEquals(expected, plan.idealPhaseDeg(), 0.01, "clock " + i * 500.0);
         }
-        assertTrue(min > 232 && min < 242, "mínimo = " + min);
-        assertTrue(max > 244 && max < 254, "máximo = " + max);
     }
 
     @Test
@@ -180,9 +179,10 @@ class TransferPlannerTest {
         Kepler.State later = Kepler.propagate(EARTH.mu(), start.r(), start.v(), after);
         Plan next = TransferPlanner.moon(new FlightState(SolarSystem.EARTH, later.r(), later.v(), 0, 0), 9_000 + after);
         assertFalse(next.burnNow());
-        // período sinódico ~ 2π/(n − ω_Lua) ≈ 11.100 ticks (a órbita baixa dá a volta em 7.802 ticks; a Lua varia de 1,4e-4 a 2,8e-4 rad/tick)
+        // período sinódico 2π/(n − n_Lua) ≈ 8.470 ticks (a órbita baixa dá a volta em 7.802 ticks; a Lua anda 6,35e-5 rad/tick)
         double synodic = next.timeToWindowTicks() + 200;
-        assertTrue(synodic > 10_000 && synodic < 12_500, "período sinódico = " + synodic);
+        double expected = 2.0 * Math.PI / (EARTH.circularSpeed(LEO) / LEO - SolarSystem.MOON_MEAN_MOTION);
+        assertEquals(expected, synodic, 60.0, "período sinódico = " + synodic);
         assertTrue(next.phaseErrorDeg() < 0, "a janela passou: o erro é negativo");
     }
 
@@ -193,8 +193,11 @@ class TransferPlannerTest {
         for (double clock0 : new double[] {0, 5_000, 12_000, 18_000, 25_000, 40_000}) {
             for (double phi0 : new double[] {0.3, 2.0, 4.4}) {
                 int ticks = flyTli(clock0, phi0, 0, 1.0);
-                // a transferência dura 22.539 ticks e a entrada na esfera (96 mil blocos) acontece perto do fim, entre ~21.100 e ~22.100 ticks depois da queima
-                assertTrue(ticks > 20_000 && ticks < 23_500, "clock0 = " + clock0 + ", phi0 = " + phi0 + ": " + ticks);
+                // a transferência dura 22.539 ticks; a Lua anda a 38 b/t na mesma direção da nave (que chega ao apoastro a ~21 b/t),
+                // então ela alcança a nave por trás e a esfera (91 mil blocos) é tocada ~5.500 ticks antes do fim
+                assertTrue(ticks > 15_500 && ticks < 19_500, "clock0 = " + clock0 + ", phi0 = " + phi0 + ": " + ticks);
+                // a Lua é uniforme em I: a transferência é a mesma a qualquer hora e fase (medido: 17.008 ticks)
+                assertEquals(17_008, ticks, 40, "clock0 = " + clock0 + ", phi0 = " + phi0);
             }
         }
     }
@@ -250,8 +253,10 @@ class TransferPlannerTest {
         }
         assertSame(SolarSystem.MOON, s.body());
         Orbit around = Orbit.of(s, clock);
-        // chega pela direção da Terra: a velocidade relativa é dominada pela da Lua (85 a 167 b/t), ~83 a ~146 medida
+        // chega com a Lua alcançando a nave por trás: a velocidade relativa é a diferença (~17 b/t) mais a que a gravidade da Lua dá na
+        // queda até a borda da esfera, poucas dezenas de b/t (antes, com a Lua cinemática em E, eram 83 a 146)
         assertTrue(around.periapsis() < MOON.soiRadius(), "periastro = " + around.periapsis());
-        assertTrue(s.speed() > 50 && s.speed() < 200, "velocidade relativa = " + s.speed());
+        assertTrue(s.speed() > 8 && s.speed() < 35, "velocidade relativa = " + s.speed());
+        assertEquals(15.9, s.speed(), 0.3);
     }
 }

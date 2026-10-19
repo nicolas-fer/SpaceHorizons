@@ -5,6 +5,9 @@ import com.spacehorizons.space.SolarSystem;
 /**
  * Troca do corpo dominante da gravidade (patched conics): esfera de influência de Laplace com histerese de 5%.
  *
+ * <p>Tudo em I (o referencial inercial, ver {@code InertialFrame}): a Lua anda em círculo kepleriano, a ~38 blocos/tick, e
+ * a velocidade relativa ao entrar na esfera dela é a da transferência menos essa, não a da Lua em E (~120 blocos/tick).
+ *
  * <p>O estado é sempre relativo ao corpo dominante, então a troca é só uma mudança de origem e de referencial de
  * velocidade, EXATA (a posição e a velocidade absolutas se conservam):
  * <pre>
@@ -51,7 +54,7 @@ public final class SoiTracker {
     }
 
     /**
-     * Corpo dominante de um ponto absoluto do espaço, SEM histerese (para criar um estado a partir de uma posição, por
+     * Corpo dominante de um ponto absoluto do espaço (em I, o referencial inercial: a Terra no centro), SEM histerese (para criar um estado a partir de uma posição, por
      * exemplo ao entrar vindo da dimensão de espaço): a Lua dentro da esfera de Laplace, a Terra no resto.
      */
     public static SolarSystem.Body dominantAt(V3 absolute, double clock) {
@@ -66,14 +69,14 @@ public final class SoiTracker {
 
     static V3 position(SolarSystem.Body b, double clock) {
         double[] out = new double[3];
-        b.positionAt(clock, out);
+        b.inertialPositionAt(clock, out);
         return V3.of(out);
     }
 
     /** Velocidade do centro por tick de jogo (a do SolarSystem é por tick de relógio). */
     static V3 velocity(SolarSystem.Body b, double clock, double clockRate) {
         double[] out = new double[3];
-        b.velocityAt(clock, out);
+        b.inertialVelocityAt(clock, out);
         return V3.of(out).times(clockRate);
     }
 }

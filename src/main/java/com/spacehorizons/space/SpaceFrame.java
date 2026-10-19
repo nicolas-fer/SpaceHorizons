@@ -137,6 +137,34 @@ public final class SpaceFrame {
         }
     }
 
+    /**
+     * Velocidade em I (blocos por tick de relógio, eixos inerciais) do ponto fixo no corpo que neste instante está em
+     * (ix, iy, iz), um ponto de I: a do centro mais a da rotação ({@code ω × r}). Para a Terra é só a da rotação
+     * (~27 blocos/tick no equador, em média) e para a Lua a do centro mais a da rotação sincronizada. Por diferença central
+     * do movimento do corpo em I.
+     */
+    public static void inertialGroundVelocity(SolarSystem.Body body, double clock, double ix, double iy, double iz,
+            double[] out) {
+        SolarSystem.Pose now = body.inertialPoseAt(clock);
+        double[] b = new double[3];
+        now.unrotate(ix - now.x(), iy - now.y(), iz - now.z(), b);
+        double[] before = new double[3];
+        double[] after = new double[3];
+        inertialBodyFixedToInertial(body, clock - VELOCITY_STEP, b, before);
+        inertialBodyFixedToInertial(body, clock + VELOCITY_STEP, b, after);
+        for (int i = 0; i < 3; i++) {
+            out[i] = (after[i] - before[i]) / (2.0 * VELOCITY_STEP);
+        }
+    }
+
+    private static void inertialBodyFixedToInertial(SolarSystem.Body body, double clock, double[] b, double[] out) {
+        SolarSystem.Pose pose = body.inertialPoseAt(clock);
+        pose.rotate(b[0], b[1], b[2], out);
+        out[0] += pose.x();
+        out[1] += pose.y();
+        out[2] += pose.z();
+    }
+
     // ------------------------------------------------------------------ base local
 
     /** Base local no ponto (x, z) do corpo: east, up, north (3 doubles cada) em out[0..8], nos eixos fixos no corpo. */

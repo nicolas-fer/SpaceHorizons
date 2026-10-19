@@ -58,6 +58,29 @@ public final class SunModel {
         return bezier(EASE_X1, solveBezier(EASE_Y1, y));
     }
 
+    /** Derivada de {@link #skyEase} em relação à fração do dia (inclinação da curva; média 1). */
+    public static double skyEaseSlope(double dayFraction) {
+        double x = Math.max(0.0, Math.min(1.0, dayFraction));
+        double t = solveBezier(EASE_X1, x);
+        return bezierSlope(EASE_Y1, t) / bezierSlope(EASE_X1, t);
+    }
+
+    /** Derivada de {@link #bezier} em relação ao parâmetro t. */
+    private static double bezierSlope(double p1, double t) {
+        double u = 1.0 - t;
+        return 3.0 * p1 * (u * u - 2.0 * u * t) + 3.0 * (1.0 - p1) * (2.0 * u * t - t * t) + 3.0 * t * t;
+    }
+
+    /**
+     * Velocidade angular do sol (rad por tick de relógio): a derivada de {@link #angle}. Média 2π/{@link #DAY_TICKS}, mas
+     * a curva do vanilla a faz variar de ~0,67 a ~1,19 vezes a média (mais lenta ao meio-dia, mais rápida à meia-noite).
+     */
+    public static double angularRate(double clockTicks) {
+        double fraction = (clockTicks - NOON) / DAY_TICKS;
+        fraction -= Math.floor(fraction);
+        return TWO_PI / DAY_TICKS * skyEaseSlope(fraction);
+    }
+
     /** Ângulo do sol em radianos [0, 2π) (0 = meio-dia no spawn da Terra) para um tick do relógio do Overworld. */
     public static double angle(double clockTicks) {
         double fraction = (clockTicks - NOON) / DAY_TICKS;

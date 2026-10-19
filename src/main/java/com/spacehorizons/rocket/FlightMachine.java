@@ -24,7 +24,7 @@ import com.spacehorizons.space.flight.Zones;
 
 /**
  * A máquina de estados do voo do foguete, SEPARADA da entidade (lógica pura, testável): {@code LANDED} (preso ao chão da
- * dimensão; a física não roda) → {@code FLIGHT} (estado inercial relativo ao corpo dominante) → {@code PARACHUTE}
+ * dimensão; a física não roda) → {@code FLIGHT} (estado inercial, em I, relativo ao corpo dominante) → {@code PARACHUTE}
  * (subestado: o paraquedas começou a abrir) → pouso suave ({@code LANDED} de novo) ou batida.
  *
  * <p>O passo {@link #step} é uma FUNÇÃO: recebe o instantâneo anterior e devolve o seguinte (mais o que a entidade precisa
@@ -47,7 +47,7 @@ public final class FlightMachine {
     /**
      * O estado do voo entre dois ticks. Em {@code LANDED} só valem o modo de SAS, o acelerador e a zona (o combustível, a
      * posição e a atitude pousados são da entidade); em voo, {@code state} é a verdade (inclusive o combustível) e
-     * {@code attitude} é o quaternion INERCIAL (eixos do espaço). Os objetos mutáveis (quaternion) não são alterados depois
+     * {@code attitude} é o quaternion INERCIAL (eixos de I). Os objetos mutáveis (quaternion) não são alterados depois
      * de criados.
      */
     public record Snapshot(FlightMode mode, @Nullable FlightState state, Quaterniond attitude, V3 spin, SasMode sas,
@@ -174,7 +174,7 @@ public final class FlightMachine {
                     || ZoneSwitch.shouldLeaveEarly(planet, loc.y() - planet.seaLevel(), ZoneSwitch.horizontalSpeed(loc));
             if (leaves && zones.hasSpace()) {
                 Local dest = FrameBridge.toSpaceDimension(moved.body(), clockEnd, clockRate, moved.r(), moved.v());
-                Quaterniond localAtt = AttitudeMath.inertialToSpaceLocal(att.attitude());
+                Quaterniond localAtt = AttitudeMath.inertialToSpaceLocal(att.attitude(), clockEnd);
                 Snapshot next = new Snapshot(mode, moved, att.attitude(), att.spin(), sas, throttle, chuteStillWanted, null, moved.fuelMb());
                 return new Result(next, Event.LEAVE_ZONE, null, dest, localAtt, 0.0, 0.0, 0.0);
             }
@@ -193,9 +193,8 @@ public final class FlightMachine {
         }
 
         // ---- no espaço aberto
-        double[] center = new double[3];
-        moved.body().positionAt(clockEnd, center);
-        V3 absolute = moved.r().plus(V3.of(center));
+        // as zonas são do espaço E (preso à Terra): a posição absoluta inercial vira E antes de comparar
+        V3 absolute = FrameBridge.absoluteInEarthFixed(moved.body(), clockEnd, moved.r());
         SolarSystem.Body enter = Zones.shouldEnter(clockEnd, absolute);
         if (enter != null && zones.hasBody(enter)) {
             FlightState rebased = enter == moved.body() ? moved : rebase(moved, enter, clockEnd, clockRate);
@@ -209,7 +208,7 @@ public final class FlightMachine {
             }
         }
         Local loc = FrameBridge.toSpaceDimension(moved.body(), clockEnd, clockRate, moved.r(), moved.v());
-        Quaterniond la = AttitudeMath.inertialToSpaceLocal(att.attitude());
+        Quaterniond la = AttitudeMath.inertialToSpaceLocal(att.attitude(), clockEnd);
         Snapshot next = new Snapshot(mode, moved, att.attitude(), att.spin(), sas, throttle, chuteStillWanted, null, moved.fuelMb());
         return new Result(next, event, null, loc, la, 0.0, 0.0, 0.0);
     }
@@ -250,12 +249,12 @@ public final class FlightMachine {
         }
         double[] from = new double[3];
         double[] fromV = new double[3];
-        s.body().positionAt(clock, from);
-        s.body().velocityAt(clock, fromV);
+        s.body().inertialPositionAt(clock, from);
+        s.body().inertialVelocityAt(clock, fromV);
         double[] dest = new double[3];
         double[] destV = new double[3];
-        to.positionAt(clock, dest);
-        to.velocityAt(clock, destV);
+        to.inertialPositionAt(clock, dest);
+        to.inertialVelocityAt(clock, destV);
         V3 absolute = s.r().plus(V3.of(from));
         V3 absoluteV = s.v().plus(V3.of(fromV).times(clockRate));
         return s.withBody(to, absolute.minus(V3.of(dest)), absoluteV.minus(V3.of(destV).times(clockRate)));

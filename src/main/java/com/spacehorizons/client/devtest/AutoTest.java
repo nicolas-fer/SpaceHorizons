@@ -161,6 +161,10 @@ public final class AutoTest {
             cockpitScenario();
             return;
         }
+        if ("moontrip".equals(ONLY)) {
+            moonTripScenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B e C; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abc" : ONLY.substring(6));
@@ -2422,6 +2426,8 @@ public final class AutoTest {
     private void flightScenario(String parts) {
         cmd(20, "weather clear 1000000");
         cmd(10, "gamemode creative");
+        // o relógio anda durante os voos: a Terra gira em relação ao referencial inercial (lançar para o leste é mais barato)
+        cmd(5, "gamerule advance_time true");
         fly(10);
         if (parts.contains("a")) {
         step(10, mc -> FlightDevtest.build(mc, 'A'));
@@ -2486,6 +2492,47 @@ public final class AutoTest {
         shot(30, "fl_c4_landed");
         step(5, mc -> FlightDevtest.clientCheck(mc, "C em órbita"));
         }
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /**
+     * Viagem criativa Terra -> Lua -> Terra com o tempo correndo (o piloto automático voa no referencial preso à Terra e mira o ponto
+     * de interceptação da Lua; ver FlightPlan). É o trecho (f)/(g) do roteiro completo, sozinho.
+     */
+    private void moonTripScenario() {
+        cmd(20, "spacehorizons goto earth");
+        cmd(300, "time set 6000");
+        cmd(10, "tp @s 0 200 0");
+        fly(20);
+        look(40, EAST, -90f);
+        cmd(5, "gamerule advance_time true");
+        cmd(5, "spacehorizons fly moon");
+        travel("tr_out", "moon", 360_000, 14_000);
+        cmd(5, "gamerule advance_time false");
+        step(300, mc -> logPos(mc, "chegada na Lua"));
+        step(0, mc -> logArrival(mc, "Lua"));
+        lookAtBody(300, SolarSystem.EARTH);
+        shot(60, "g_moon_arrival_earth");
+        look(20, EAST, 90f);
+        shot(40, "g_moon_arrival_down");
+        look(20, EAST, 5f);
+        shot(40, "g_moon_arrival_horizon_e");
+        // volta
+        cmd(20, "tp @s ~ ~300 ~");
+        fly(20);
+        look(40, EAST, -90f);
+        cmd(5, "gamerule advance_time true");
+        cmd(5, "spacehorizons fly earth");
+        travel("tr_back", "overworld", 85_000, 14_000);
+        cmd(5, "gamerule advance_time false");
+        cmd(200, "time set 6000");
+        step(100, mc -> logPos(mc, "chegada na Terra"));
+        step(0, mc -> logArrival(mc, "Terra"));
+        look(300, EAST, 90f);
+        shot(60, "h_earth_arrival_down");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();

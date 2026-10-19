@@ -16,6 +16,11 @@ class FlightIntegratorTest {
     private static final RocketStats ORBITER = RocketStats.of(2, 5, 1, 0, 1, 30, 9.0);
     private static final RocketStats MINIMAL = RocketStats.of(1, 1, 0, 0, 1, 3, 1.0);
 
+    /** Velocidade inercial de um foguete com velocidade {@code relative} em relação ao AR (a atmosfera gira com a Terra). */
+    private static V3 inAir(V3 r, V3 relative) {
+        return relative.plus(FrameBridge.rotationVelocity(SolarSystem.EARTH, 0.0, 1.0, r));
+    }
+
     private static double energy(double mu, V3 r, V3 v) {
         return 0.5 * v.lengthSquared() - mu / r.length();
     }
@@ -199,22 +204,26 @@ class FlightIntegratorTest {
         // mantém a altitude fixa (ρ = 1) e deixa só a velocidade evoluir: gravidade e arrasto se equilibram em √(g/k0)
         RocketStats rocket = RocketStats.of(2, 5, 0, 0, 1, 30, 9.0);
         V3 r0 = new V3(EARTH.radius() + 100, 0, 0);
-        FlightState s = new FlightState(SolarSystem.EARTH, r0, V3.ZERO, 16_000, 0);
+        FlightState s = new FlightState(SolarSystem.EARTH, r0, inAir(r0, V3.ZERO), 16_000, 0);
         for (int i = 0; i < 3_000; i++) {
             FlightState next = FlightIntegrator.step(s, Control.IDLE, rocket, 0);
             s = next.withRV(r0, next.v());
         }
         double terminal = Math.sqrt(EARTH.gravityAt(r0.length()) / rocket.dragK0());
-        assertEquals(terminal, s.speed(), 0.01 * terminal);
-        assertEquals(16.0, s.speed(), 1.0);
-        // a velocidade só tem componente radial (para baixo)
-        assertTrue(s.v().x() < 0);
-        assertEquals(0.0, s.v().y(), 1e-9);
+        // a velocidade relativa ao AR (o chão gira com ~28 b/t em I) é a terminal
+        V3 relative = s.v().minus(FrameBridge.rotationVelocity(SolarSystem.EARTH, 0.0, 1.0, r0));
+        assertEquals(terminal, relative.length(), 0.01 * terminal);
+        assertEquals(16.0, relative.length(), 1.0);
+        // e só tem componente radial (para baixo)
+        assertTrue(relative.x() < 0);
+        assertEquals(0.0, relative.y(), 1e-6);
+        assertEquals(0.0, relative.z(), 0.02);
     }
 
     @Test
     void parachuteOpensWithARampAndLandsSoftly() {
-        FlightState s = new FlightState(SolarSystem.EARTH, new V3(EARTH.radius() + 900, 0, 0), new V3(-4, 0, 0), 0, 0);
+        V3 r0 = new V3(EARTH.radius() + 900, 0, 0);
+        FlightState s = new FlightState(SolarSystem.EARTH, r0, inAir(r0, new V3(-4, 0, 0)), 0, 0);
         // pede o paraquedas no primeiro tick
         s = FlightIntegrator.step(s, new Control(0, V3.ZERO, true), ORBITER, 0);
         assertEquals(1.0 / 80, s.chute(), 1e-12);
@@ -256,7 +265,8 @@ class FlightIntegratorTest {
 
     @Test
     void parachuteKeepsOpeningOnceStarted() {
-        FlightState s = new FlightState(SolarSystem.EARTH, new V3(EARTH.radius() + 900, 0, 0), new V3(-4, 0, 0), 0, 0);
+        V3 r0 = new V3(EARTH.radius() + 900, 0, 0);
+        FlightState s = new FlightState(SolarSystem.EARTH, r0, inAir(r0, new V3(-4, 0, 0)), 0, 0);
         s = FlightIntegrator.step(s, new Control(0, V3.ZERO, true), ORBITER, 0);
         // o pedido some, mas a rampa segue até abrir (o paraquedas não fecha)
         for (int i = 0; i < 100; i++) {

@@ -115,19 +115,19 @@ class SunModelTest {
 
     @Test
     void moonFaceTowardEarthIsLitAtFullMoonAndDarkAtNewMoon() {
-        // a face voltada para a Terra (lon = π): no dia 0 à meia-noite (lua cheia) o sol está a pino sobre ela; quatro dias depois
+        // a face voltada para a Terra (lon = π): no dia 0 à meia-noite (lua cheia) o sol está a pino sobre ela; meio período orbital depois
         // (lua nova) o sol está atrás da Lua e a face fica na noite. A órbita inclinada deixa o sol ~5° fora da vertical.
         double[] local = new double[3];
         SunModel.localDirection(SolarSystem.MOON, C_MOON / 2, 0, 18_000, local);
         assertTrue(local[1] > 0.99, "sol deveria estar a pino na lua cheia, up=" + local[1]);
-        SunModel.localDirection(SolarSystem.MOON, C_MOON / 2, 0, 18_000 + 4 * 24_000, local);
+        SunModel.localDirection(SolarSystem.MOON, C_MOON / 2, 0, 18_000 + SolarSystem.ORBITAL_PERIOD_TICKS / 2, local);
         assertTrue(local[1] < -0.99, "sol deveria estar abaixo do horizonte na lua nova, up=" + local[1]);
     }
 
     @Test
-    void theLunarDayLastsEightGameDays() {
-        // o "dia" na Lua (nascer do sol a nascer do sol num ponto) dura o ciclo de fases inteiro: 8 dias do jogo
-        double period = SolarSystem.SYNODIC_PERIOD_TICKS;
+    void theLunarDayLastsOneOrbitalPeriod() {
+        // o "dia" na Lua (nascer do sol a nascer do sol num ponto) dura o ciclo de fases inteiro: o período orbital (~4,12 dias do jogo)
+        double period = SolarSystem.ORBITAL_PERIOD_TICKS;
         for (double[] spot : new double[][] {{0, 0}, {C_MOON / 2, 0}, {C_MOON / 4, 2000}, {-C_MOON / 8, -1500}}) {
             double[] local = new double[3];
             double[] later = new double[3];
@@ -161,11 +161,11 @@ class SunModelTest {
     }
 
     @Test
-    void theLunarDayIsOneEffectiveDayStretchedOverEightRealDays() {
-        // o relógio efetivo na Lua dá uma volta de 24000 ticks (um dia do vanilla) a cada 8 dias reais
+    void theLunarDayIsOneEffectiveDayStretchedOverOneOrbitalPeriod() {
+        // o relógio efetivo na Lua dá uma volta de 24000 ticks (um dia do vanilla) a cada período orbital
         double total = 0;
         double prev = SunModel.effectiveClock(SolarSystem.MOON, 0, 0, 40_000);
-        for (double clock = 40_050; clock <= 40_000 + SolarSystem.SYNODIC_PERIOD_TICKS; clock += 50) {
+        for (double clock = 40_050; clock <= 40_000 + SolarSystem.ORBITAL_PERIOD_TICKS; clock += 50) {
             double eff = SunModel.effectiveClock(SolarSystem.MOON, 0, 0, clock);
             total += Math.IEEEremainder(eff - prev, 24_000);
             prev = eff;
@@ -179,7 +179,7 @@ class SunModelTest {
         double[] moonSun = new double[3];
         double[] earthSun = new double[3];
         for (double[] spot : new double[][] {{0, 0}, {C_MOON / 2, 0}, {C_MOON / 3, 800}, {-C_MOON / 5, -1900}}) {
-            for (double clock = 0; clock < 2 * SolarSystem.SYNODIC_PERIOD_TICKS; clock += 977) {
+            for (double clock = 0; clock < 2 * SolarSystem.ORBITAL_PERIOD_TICKS; clock += 977) {
                 SunModel.localDirection(SolarSystem.MOON, spot[0], spot[1], clock, moonSun);
                 double eff = SunModel.effectiveClock(SolarSystem.MOON, spot[0], spot[1], clock);
                 SunModel.localDirection(SolarSystem.EARTH, 0, 0, eff, earthSun);
