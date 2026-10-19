@@ -107,6 +107,10 @@ final class RocketFlightController {
         Quaterniond landedAttitude = new Quaterniond(attitude.x, attitude.y, attitude.z, attitude.w);
 
         // ---- chunks à frente e travessia: só em voo
+        if (!snap.flying()) {
+            LandingPreloadDriver.release(f);
+            rocket.setHeld(false);
+        }
         if (snap.flying()) {
             if (f.arrivalPending && f.arrivalTicks == 0) {
                 f.lastVelocity = rocket.getDeltaMovement();
@@ -116,6 +120,7 @@ final class RocketFlightController {
             if (zone == null && snap.state() != null) {
                 preloadBelow(server, snap.state(), clock, rate, footprint(rocket));
             }
+            LandingPreloadDriver.tick(server, rocket, f, snap);
             if (pilot != null) {
                 level.getChunkSource().move(pilot);
             }
@@ -125,6 +130,7 @@ final class RocketFlightController {
                 if (!ready && ++f.arrivalTicks <= RocketFlight.MAX_ARRIVAL_TICKS) {
                     f.restoreEdges(edges);
                     rocket.setDeltaMovement(Vec3.ZERO);
+                    rocket.setHeld(true);
                     telemetry(rocket, pilot, now, snap, landedLocal, clock, rate, true);
                     return;
                 }
@@ -147,13 +153,15 @@ final class RocketFlightController {
                 f.restoreEdges(edges);
                 f.lastHeld = f.gate.heldTicks();
                 rocket.setDeltaMovement(Vec3.ZERO);
+                rocket.setHeld(true);
                 telemetry(rocket, pilot, now, snap, landedLocal, clock, rate, true);
                 return;
             }
             logHeld(f, level, rocket, snap);
         }
 
-        // ---- o passo
+        // ---- o passo (anda: o cliente volta a interpolar)
+        rocket.setHeld(false);
         RocketPortrait portrait = rocket.portrait();
         FlightMachine.Box box = new FlightMachine.Box(portrait.sizeX / 2.0, portrait.sizeY / 2.0, portrait.sizeZ / 2.0);
         FlightMachine.ZoneAccess zones = new FlightMachine.ZoneAccess() {
@@ -180,6 +188,7 @@ final class RocketFlightController {
 
         if (r.event() == Event.CRASH) {
             f.snapshot = r.next(); // pousado: o foguete devolve o ponto de saída no chão ao piloto
+            LandingPreloadDriver.release(f);
             rocket.setPos(center);
             RocketCrash.crash(level, rocket, pilot, center, FlightMachineSpeed.of(r));
             return;
@@ -195,10 +204,16 @@ final class RocketFlightController {
             }
             ChunkPos arrival = new ChunkPos(Mth.floor(center.x) >> 4, Mth.floor(center.z) >> 4);
             dest.getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, arrival, ChunkGate.NEAR_RADIUS);
-            ChunkGate.Decision decision = f.gate.decide(!dest.hasChunk(arrival.x(), arrival.z()));
+            // a chegada só vale com carregados os chunks que a pegada do foguete toca e o do ASSENTO do piloto (o positionRider do vanilla
+            // bloqueia no getChunk do que falta)
+            Vec3 seatAt = pilot == null ? center : rocket.passengerPositionAt(center, toFloat(r.localAttitude()), pilot);
+            boolean arrivalReady = arrivalLoaded(dest, center, footprint(rocket)) && arrivalLoaded(dest, seatAt, 1.0);
+            dest.getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, new ChunkPos(Mth.floor(seatAt.x) >> 4, Mth.floor(seatAt.z) >> 4), 0);
+            ChunkGate.Decision decision = f.gate.decide(!arrivalReady);
             if (decision == ChunkGate.Decision.HOLD) {
                 f.restoreEdges(edges);
                 rocket.setDeltaMovement(Vec3.ZERO);
+                rocket.setHeld(true);
                 telemetry(rocket, pilot, now, snap, landedLocal, clock, rate, true);
                 return;
             }
@@ -230,6 +245,7 @@ final class RocketFlightController {
             SpaceHorizons.LOGGER.info("Foguete decolou em ({}, {}, {}): {} mB, empuxo {}, massa {} t", fmt(loc.x()), fmt(loc.y()), fmt(loc.z()),
                     fmt(next.fuelMb()), fmt(rocket.stats().thrust()), fmt(rocket.stats().wetMass(next.fuelMb())));
         } else if (r.event() == Event.SOFT_LANDING) {
+            LandingPreloadDriver.release(f);
             SpaceHorizons.LOGGER.info("Foguete pousou suave em ({}, {}, {}): v vertical {} b/t, horizontal {} b/t, inclinação {}°, {} mB restantes",
                     fmt(loc.x()), fmt(loc.y()), fmt(loc.z()), fmt(r.impactVertical()), fmt(r.impactHorizontal()), fmt(r.tiltDegrees()), fmt(next.fuelMb()));
         }
@@ -246,6 +262,22 @@ final class RocketFlightController {
             level.getChunkSource().move(pilot);
         }
         telemetry(rocket, pilot, now, next, new Local(loc.x(), loc.y(), loc.z(), 0.0, 0.0, 0.0), clock + rate, rate, false);
+    }
+
+    /** Todos os chunks que a pegada ({@code center ± halfExtent}) toca na dimensão de destino estão carregados? */
+    private static boolean arrivalLoaded(ServerLevel dest, Vec3 center, double halfExtent) {
+        int cx0 = Mth.floor(center.x - halfExtent) >> 4;
+        int cx1 = Mth.floor(center.x + halfExtent) >> 4;
+        int cz0 = Mth.floor(center.z - halfExtent) >> 4;
+        int cz1 = Mth.floor(center.z + halfExtent) >> 4;
+        for (int cx = cx0; cx <= cx1; cx++) {
+            for (int cz = cz0; cz <= cz1; cz++) {
+                if (!dest.hasChunk(cx, cz)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** Meia-extensão horizontal da pegada do foguete mais a folga do piloto e do teste de fluido do vanilla (1 bloco de cada lado). */
@@ -421,8 +453,9 @@ final class RocketFlightController {
             }
             state = FrameBridge.fromDimension(s.zoneBody(), clock, rate, new Local(at.x(), at.y(), at.z(), 0.0, 0.0, 0.0), rocket.fuelMb());
         }
+        RocketFlight flight = rocket.flight();
         RocketTelemetryPayload payload = RocketTelemetryBuilder.build(state, s.mode(), s.sas(), s.throttle(), s.zoneBody() == null,
-                rocket.stats(), clock, rate, held);
+                rocket.stats(), clock, rate, held, LandingPreloadDriver.telemetryState(flight), (byte) flight.landing.percent());
         PacketDistributor.sendToPlayer(pilot, payload);
     }
 

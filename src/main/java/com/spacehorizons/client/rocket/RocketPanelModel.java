@@ -121,7 +121,24 @@ public final class RocketPanelModel {
         rows.add(new Row("hud.spacehorizons.rocket.periapsis", distance(t.periapsisAltitude()), peri));
         rows.add(new Row("hud.spacehorizons.rocket.inclination", degrees(t.inclination()), Tone.NORMAL));
         rows.add(new Row("hud.spacehorizons.rocket.time_to_apoapsis", time(t.timeToApoapsis()), Tone.NORMAL));
+        Row landing = landingRow(t);
+        if (landing != null) {
+            rows.add(landing);
+        }
         return rows;
+    }
+
+    /**
+     * "Pouso: carregando N%" / "Pouso: pronto": o estado da pré-carga do local de pouso previsto; null se não há previsão de
+     * impacto (nada a mostrar).
+     */
+    public static @Nullable Row landingRow(RocketTelemetryPayload t) {
+        int percent = Math.max(0, Math.min(100, t.landingPercent()));
+        return switch (t.landingState()) {
+            case 1 -> new Row("hud.spacehorizons.rocket.landing_loading", percent + "%", Tone.WARN);
+            case 2 -> new Row("hud.spacehorizons.rocket.landing_ready", "100%", Tone.GOOD);
+            default -> null;
+        };
     }
 
     /** Δv restante em b/s (a entrada é b/t); sem telemetria "—". */

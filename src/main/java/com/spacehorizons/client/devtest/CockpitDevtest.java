@@ -51,14 +51,14 @@ final class CockpitDevtest {
     /** Telemetria falsa de um voo em órbita baixa com plano da Lua e tudo aceso (para o painel ter números). */
     static void pinOrbitTelemetry() {
         RocketTelemetryClient.pinForTest(new RocketTelemetryPayload("earth", true, 842.0, 0.9, 1.2, 3.9, 12340.0, 220.0, 28.5, 2460.0, 1500.0, 4000.0,
-                2.5, 1.4, 0.8F, (byte) 1, (byte) 1, 0.0F, 0.0F, (byte) 0, 73.0F, 114.6F, 1.55F, true, true));
+                2.5, 1.4, 0.8F, (byte) 1, (byte) 1, 0.0F, 0.0F, (byte) 0, 73.0F, 114.6F, 1.55F, true, true, (byte) 1, (byte) 62));
         SpaceHorizons.LOGGER.info("{}telemetria falsa FIXADA: órbita baixa, plano da Lua OK, queime agora, aguardando terreno", TAG);
     }
 
     /** Telemetria falsa de reentrada: descendo, calor, paraquedas abrindo, sem plano. */
     static void pinReentryTelemetry() {
         RocketTelemetryClient.pinForTest(new RocketTelemetryPayload("earth", false, 2310.0, -2.4, 0.6, 3.1, Double.POSITIVE_INFINITY, -420.0, 28.5,
-                Double.NaN, 300.0, 4000.0, 0.4, 0.9, 0.0F, (byte) 3, (byte) 1, 1.3F, 0.5F, (byte) -1, 0.0F, 0.0F, 0.0F, false, false));
+                Double.NaN, 300.0, 4000.0, 0.4, 0.9, 0.0F, (byte) 3, (byte) 1, 1.3F, 0.5F, (byte) -1, 0.0F, 0.0F, 0.0F, false, false, (byte) 2, (byte) 100));
         SpaceHorizons.LOGGER.info("{}telemetria falsa FIXADA: reentrada (calor, descida rápida, paraquedas, combustível baixo)", TAG);
     }
 
