@@ -102,13 +102,13 @@ public record BodyPhysics(SolarSystem.Body body, double mu, double radius, doubl
     }
 
     /**
-     * Polo de referência das inclinações no instante {@code clock}, nos eixos do espaço: o SUL do corpo (a coluna 1 da pose,
-     * o norte, negada). Os eixos fixos no corpo são de mão esquerda (leste = +Z, norte = +Y, cima = +X em lon 0), então
-     * com o polo no norte uma órbita para leste sairia com 180°. Com P = −norte, leste dá 0° e a Lua, que orbita para
-     * oeste, dá ~175°.
+     * Polo de referência das inclinações no instante {@code clock}, nos eixos inerciais (I): o SUL do corpo (a coluna 1 da
+     * pose inercial, o norte, negada). Os eixos fixos no corpo são de mão esquerda (leste = +Z, norte = +Y, cima = +X em lon
+     * 0), então com o polo no norte uma órbita para leste sairia com 180°. Com P = −norte, leste dá 0°; a Lua, que orbita
+     * para leste em I (prógrada) num plano inclinado 5°, dá ~5° visto da Terra.
      */
     public V3 pole(double clock) {
-        double[] rot = body.poseAt(clock).rotation();
+        double[] rot = body.inertialPoseAt(clock).rotation();
         return new V3(-rot[1], -rot[4], -rot[7]);
     }
 }

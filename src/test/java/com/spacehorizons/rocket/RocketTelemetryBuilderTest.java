@@ -10,6 +10,7 @@ import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.flight.AttitudeMath.SasMode;
 import com.spacehorizons.space.flight.BodyPhysics;
 import com.spacehorizons.space.flight.FlightState;
+import com.spacehorizons.space.flight.FrameBridge;
 import com.spacehorizons.space.flight.RocketStats;
 import com.spacehorizons.space.flight.TransferPlanner;
 import com.spacehorizons.space.flight.V3;
@@ -35,16 +36,19 @@ class RocketTelemetryBuilderTest {
         assertEquals(1_000.0, t.apoapsisAltitude(), 0.01);
         assertEquals(1_000.0, t.periapsisAltitude(), 0.01);
         assertEquals(0.0, t.inclination(), 0.01, "leste = 0 graus (polo P = -norte)");
-        assertEquals(0.0, t.verticalSpeed(), 1e-9);
-        assertEquals(EARTH.circularSpeed(r), t.horizontalSpeed(), 1e-9);
+        assertEquals(0.0, t.verticalSpeed(), 1e-6);
+        // a velocidade horizontal é relativa ao CHÃO, que gira com a Terra; a orbital é a inercial
+        V3 ground = s.v().minus(FrameBridge.rotationVelocity(SolarSystem.EARTH, CLOCK, 1.0, s.r()));
+        assertEquals(ground.length(), t.horizontalSpeed(), 1e-6);
+        assertTrue(Math.abs(t.horizontalSpeed() - EARTH.circularSpeed(r)) > 5.0, "a rotação da Terra (~28 b/t em órbita baixa) muda a velocidade relativa ao chão");
         assertEquals(EARTH.circularSpeed(r), t.orbitalSpeed(), 1e-9);
         assertTrue(t.timeToApoapsis() >= 0.0 && Double.isFinite(t.timeToApoapsis()));
         assertEquals(SasMode.PROGRADE.ordinal(), t.sasMode());
         assertEquals(FlightMode.FLIGHT.ordinal(), t.flightMode());
         assertEquals(0.5F, t.throttle());
         assertEquals(0.1F, t.heat(), 1e-6);
-        // órbita para leste: o planejador da Lua diz que o sentido está errado
-        assertEquals(TransferPlanner.Status.WRONG_DIRECTION.ordinal(), t.plannerStatus());
+        // órbita equatorial para o leste (o sentido da Lua em I): o planejador a aceita, a 5° do plano dela
+        assertEquals(TransferPlanner.Status.OK.ordinal(), t.plannerStatus());
     }
 
     @Test
@@ -75,8 +79,9 @@ class RocketTelemetryBuilderTest {
         double r = EARTH.radius() + 300.0;
         FlightState s = new FlightState(SolarSystem.EARTH, new V3(r, 0, 0), new V3(12.0, 0, 0), STATS.fuelCapacityMb(), 0.0, 0.0);
         RocketTelemetryPayload t = build(s);
-        assertEquals(12.0, t.verticalSpeed(), 1e-9);
-        assertEquals(0.0, t.horizontalSpeed(), 1e-9);
+        assertEquals(12.0, t.verticalSpeed(), 1e-6);
+        // subindo na vertical em I, em relação ao chão que gira o foguete anda para o oeste na velocidade da rotação
+        assertEquals(FrameBridge.rotationVelocity(SolarSystem.EARTH, CLOCK, 1.0, s.r()).length(), t.horizontalSpeed(), 1e-6);
         assertTrue(t.apoapsisAltitude() > 300.0, "sobe mais");
         assertTrue(t.periapsisAltitude() < 0.0, "a órbita radial cruza o chão");
     }

@@ -51,7 +51,7 @@ Alternativa (decisão aberta D1): aumentar `space` para 384+ de altura e alocar 
 - **Reaproveita o estado do foguete**: `FlightState(body, r, v, fuelMb, heat)` de `space.flight.*`, e o **mesmo** `FlightIntegrator.step`, `SoiTracker`, `Zones`, `Orbit`. A nave no espaço é uma entidade *virtual*: não há entidade no mundo, só `ShipRecord.flight`.
 - Atitude: quaternion inercial `Quaternionf` (igual ao `RocketFlight`/`AttitudeMath`), controlada por `AttitudeControl` e SAS. Para o céu usa-se o quaternion sincronizado ao cliente (`ShipStateSyncPayload`).
 - Avanço do estado: `ShipFlightTicker` (servidor) integra **todo tick** cada nave `SPACE_YARD` ativa; naves sem ninguém dentro usam passo grosso (n ticks de uma vez, Kepler analítico por `Kepler`/`Orbit` quando sem empuxo) para a física continuar sem custo.
-- **Referencial**: a nave está sempre no referencial dela; o **mundo virtual (Terra/Lua/sol) se move em torno** dela do ponto de vista do render. Não há dilatação de coordenadas: o `FlightState` mantém precisão `double` relativa ao corpo dominante (R_Terra ≈ 104 k, bem dentro de `double`).
+- **Referencial**: a nave está sempre no referencial dela; o **mundo virtual (Terra/Lua/sol) se move em torno** dela do ponto de vista do render. Não há dilatação de coordenadas: o `FlightState` mantém precisão `double` relativa ao corpo dominante (R_Terra ≈ 104 k, bem dentro de `double`) e agora é INERCIAL (referencial I, em que a Terra gira e a Lua orbita em círculo kepleriano, ver `space/InertialFrame`); as dimensões, o render e o estaleiro continuam no referencial preso à Terra (E).
 
 ## 3. Transições
 
@@ -98,7 +98,7 @@ Só o `ShipRecord.flight` muda (3.2, 2.5). Os jogadores andam normal no estaleir
 
 ### 4.1 O céu pelo observador virtual
 
-- Reaproveita `SkyObserver`: hoje `forPlanet` e `forSpace` com `localToSpace` constante. Novo `SkyObserver.forShip(clock, posVirtual, shipAttitude)` com **`localToSpace = R_atitude · SpaceDimension.LOCAL_TO_SPACE`**, `pos = FlightState` da nave convertido para espaço absoluto. `BodyRenderer`, `BodySky.fromSpacePoint`, `meshToLocal`, `sun()` já recebem tudo daqui, então Terra, Lua, sol e estrelas giram com a atitude sem mexer neles.
+- Reaproveita `SkyObserver`: hoje `forPlanet` e `forSpace` com `localToSpace` constante. Novo `SkyObserver.forShip(clock, posVirtual, shipAttitude)` com **`localToSpace = R_atitude · SpaceDimension.LOCAL_TO_SPACE`**, `pos = FlightState` da nave convertido para espaço absoluto em E (`FrameBridge.absoluteInEarthFixed`: o estado é inercial e a posição absoluta vem de I→E no relógio; a Terra, o sol e a Lua de `BodyRenderer` já estão em E). `BodyRenderer`, `BodySky.fromSpacePoint`, `meshToLocal`, `sun()` já recebem tudo daqui, então Terra, Lua, sol e estrelas giram com a atitude sem mexer neles.
 - No cliente, em `SpaceSkyClient`, **o quarto estado de dimensão**: quando `level` é `shipyard`, usar `ShipRenderClient.currentObserver()` (último `ShipStateSyncPayload` interpolado), em vez do spawn da Terra.
 
 ### 4.2 Sol e estrelas do vanilla não ficarem fixos

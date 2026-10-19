@@ -8,14 +8,16 @@ import com.spacehorizons.space.SolarSystem;
  * <h2>Como a conta é feita</h2>
  * A Hohmann até o raio da órbita lunar ({@link Hohmann}) leva {@code t_f} ticks e termina no apoastro, do lado oposto ao
  * ponto da queima. Para a Lua estar lá na chegada, no momento da queima ela precisa estar à frente da nave, no plano da
- * órbita, por um ÂNGULO DE FASE ideal {@code π − Δθ}, onde {@code Δθ} é o quanto ela anda em {@code t_f} (calculado com
- * a Lua REAL, que tem velocidade angular não uniforme, ±33%: o ideal varia de ~55° a ~100° conforme a hora do dia).
- * O planejador acha, resolvendo a equação com a Lua verdadeira, o instante da próxima janela e se é "queime agora".
+ * órbita, por um ÂNGULO DE FASE ideal {@code π − Δθ}, onde {@code Δθ} é o quanto ela anda em {@code t_f}. Tudo é em I, o
+ * referencial INERCIAL (o foguete não vê a rotação da Terra): a Lua tem órbita circular uniforme ({@code n} constante,
+ * ~38 blocos/tick), então o ângulo ideal é constante (~100°) e a janela se repete a cada período sinódico da nave em
+ * relação a ela. O planejador acha, resolvendo a equação com a Lua verdadeira, o instante da próxima janela e se é
+ * "queime agora".
  *
  * <h2>Sentido</h2>
- * No referencial do espaço a Lua orbita para o OESTE (ver {@link BodyPhysics#pole}). A nave tem que orbitar no mesmo
- * sentido: lançada para o leste, a captura lunar custaria ~17 blocos/tick. Em órbita para o leste o plano devolve
- * {@link Status#WRONG_DIRECTION}.
+ * Em I a Lua orbita para o LESTE, o sentido da rotação da Terra (prógrada, ver {@link BodyPhysics#pole}). A nave tem que
+ * orbitar no mesmo sentido: lançada para o oeste, a captura lunar custaria dezenas de blocos/tick (a Lua vem a ~38 de
+ * frente). Em órbita para o oeste o plano devolve {@link Status#WRONG_DIRECTION}.
  *
  * <p>O alvo é o CENTRO da Lua: depois da TLI faça uma correção de meio de curso para passar a ~500 blocos de altitude. O
  * Δv e a fase supõem órbita quase circular no raio atual (excentricidade ≤ {@value #MAX_ECCENTRICITY}).
@@ -27,8 +29,8 @@ public final class TransferPlanner {
     public static final double MAX_ECCENTRICITY = 0.15;
     /** Raio máximo da órbita de saída: metade da distância à Lua. */
     public static final double MAX_ORBIT_RADIUS = 0.5 * SolarSystem.EARTH_MOON_DISTANCE;
-    /** Acima da velocidade angular máxima da Lua (2,79e-4 rad por tick de relógio): limita a varredura de janelas. */
-    private static final double MOON_MAX_ANGULAR_RATE = 3.0e-4;
+    /** Velocidade angular da Lua em I (6,35e-5 rad por tick de relógio, uniforme): limita a varredura de janelas. */
+    private static final double MOON_MAX_ANGULAR_RATE = SolarSystem.MOON_MEAN_MOTION;
     /** Passo da varredura em radianos de movimento da nave (0,05 rad ≈ 3° de órbita). */
     private static final double SCAN_STEP_RAD = 0.05;
 
@@ -40,30 +42,30 @@ public final class TransferPlanner {
         NOT_AROUND_EARTH,
         /** Não está numa órbita baixa e razoavelmente circular da Terra (suborbital, elíptica demais, alta demais). */
         NOT_IN_ORBIT,
-        /** Órbita no sentido contrário ao da Lua (leste): é preciso orbitar para o OESTE. */
+        /** Órbita no sentido contrário ao da Lua (oeste): é preciso orbitar para o LESTE. */
         WRONG_DIRECTION
     }
 
     /**
      * Resultado do planejador (ângulos em graus, tempos em ticks, Δv em blocos/tick).
      *
-     * @param westward a órbita atual segue para o oeste, o sentido da Lua
+     * @param prograde a órbita atual segue para o leste, o sentido da Lua
      * @param currentPhaseDeg ângulo (0..360) com que a Lua está à frente da nave no plano da órbita agora
      * @param idealPhaseDeg ângulo (0..360) que ela deveria ter à frente para a TLI dar certo agora
      * @param phaseErrorDeg atual menos ideal, em (−180, 180]: positivo = ainda falta (espere), negativo = a janela passou
      * @param tliDeltaV Δv prógrado da TLI a partir da velocidade atual
      * @param transferTicks tempo de voo da transferência (meio período da elipse)
      * @param timeToWindowTicks ticks até o centro da próxima janela (pode ser negativo dentro da janela)
-     * @param burnNow estamos dentro de ±{@link #WINDOW_HALF_ANGLE_DEG} do ideal: queime agora, para o oeste
+     * @param burnNow estamos dentro de ±{@link #WINDOW_HALF_ANGLE_DEG} do ideal: queime agora, para o leste
      * @param planeAngleDeg ângulo entre o plano da órbita e o da Lua (a Lua é inclinada 5° ao equador)
      */
-    public record Plan(Status status, boolean westward, double currentPhaseDeg, double idealPhaseDeg, double phaseErrorDeg,
+    public record Plan(Status status, boolean prograde, double currentPhaseDeg, double idealPhaseDeg, double phaseErrorDeg,
             double tliDeltaV, double transferTicks, double timeToWindowTicks, boolean burnNow, double planeAngleDeg) {
 
         /** Plano sem números (todos NaN). */
-        static Plan unavailable(Status status, boolean westward, double planeAngleDeg) {
+        static Plan unavailable(Status status, boolean prograde, double planeAngleDeg) {
             double nan = Double.NaN;
-            return new Plan(status, westward, nan, nan, nan, nan, nan, nan, false, planeAngleDeg);
+            return new Plan(status, prograde, nan, nan, nan, nan, nan, nan, false, planeAngleDeg);
         }
 
         public boolean usable() {
@@ -93,15 +95,16 @@ public final class TransferPlanner {
         double r1 = r.length();
         Orbit orbit = Orbit.of(s, clock);
         V3 h = r.cross(v);
-        double[] rot = SolarSystem.MOON.poseAt(clock).rotation();
-        V3 moonNormal = new V3(rot[1], rot[4], rot[7]);
+        double[] rot = SolarSystem.MOON.inertialPoseAt(clock).rotation();
+        // normal do plano da Lua no sentido do movimento dela (r × v): o norte do corpo, negado (eixos de mão esquerda)
+        V3 moonNormal = new V3(-rot[1], -rot[4], -rot[7]);
         double planeAngle = Math.toDegrees(h.angleTo(moonNormal));
         if (!orbit.bound() || orbit.e() > MAX_ECCENTRICITY || orbit.periapsis() <= earth.radius() || r1 > MAX_ORBIT_RADIUS
                 || h.length() < 1.0e-9) {
             return Plan.unavailable(Status.NOT_IN_ORBIT, h.dot(moonNormal) > 0.0, planeAngle);
         }
-        boolean westward = h.dot(moonNormal) > 0.0;
-        if (!westward) {
+        boolean prograde = h.dot(moonNormal) > 0.0;
+        if (!prograde) {
             return Plan.unavailable(Status.WRONG_DIRECTION, false, planeAngle);
         }
 

@@ -18,6 +18,9 @@ import com.spacehorizons.space.SpaceFrame;
 import com.spacehorizons.space.flight.AttitudeMath.SasMode;
 
 class AttitudeMathTest {
+    /** Relógio em que E e I coincidem (meia-noite do dia 0: φ = 0). */
+    private static final double IDENTITY_CLOCK = 18_000.0;
+
     private static final double[] CLOCKS = {0, 7_000, 40_000.5, 123_456};
 
     private static Quaterniond randomQuaternion(Random rng) {
@@ -80,8 +83,8 @@ class AttitudeMathTest {
             Quaternionf local = AttitudeMath.inertialToLocal(SolarSystem.MOON, 9_000, 800, 300, q);
             Quaternionf back = AttitudeMath.localToInertial(SolarSystem.MOON, 9_000, 800, 300, local);
             assertEquals(1.0, Math.abs(q.dot(back)), 1e-5);
-            Quaternionf space = AttitudeMath.inertialToSpaceLocal(q);
-            assertEquals(1.0, Math.abs(q.dot(AttitudeMath.spaceLocalToInertial(space))), 1e-5);
+            Quaternionf space = AttitudeMath.inertialToSpaceLocal(q, 7_777.0);
+            assertEquals(1.0, Math.abs(q.dot(AttitudeMath.spaceLocalToInertial(space, 7_777.0))), 1e-5);
             assertEquals(1.0, norm(space.x(), space.y(), space.z(), space.w()), 1e-5);
         }
     }
@@ -96,7 +99,7 @@ class AttitudeMathTest {
                 Quaterniond inertial = AttitudeMath.localToInertial(body, clock, x, z, new Quaterniond());
                 V3 nose = AttitudeMath.noseDirection(inertial);
                 double[] up = new double[3];
-                SpaceFrame.localToSpace(body, clock, x, z, 0, 1, 0, up);
+                SpaceFrame.localToSpace(body, body.inertialPoseAt(clock), x, z, 0, 1, 0, up);
                 assertEquals(0.0, nose.distanceTo(toV3(up)), 1e-12);
                 // e a inclinação em relação à vertical é 0
                 assertEquals(0.0, AttitudeMath.tiltDegrees(inertial, toV3(up)), 1e-6);
@@ -116,7 +119,7 @@ class AttitudeMathTest {
                 Quaterniond local = AttitudeMath.inertialToLocal(body, clock, x, z, inertial);
                 V3 inertialNose = AttitudeMath.noseDirection(inertial);
                 double[] expected = new double[3];
-                SpaceFrame.spaceToLocal(body, clock, x, z, inertialNose.x(), inertialNose.y(), inertialNose.z(), expected);
+                SpaceFrame.spaceToLocal(body, body.inertialPoseAt(clock), x, z, inertialNose.x(), inertialNose.y(), inertialNose.z(), expected);
                 assertEquals(0.0, AttitudeMath.noseDirection(local).distanceTo(toV3(expected)), 1e-12);
             }
         }
@@ -144,7 +147,7 @@ class AttitudeMathTest {
     @Test
     void spaceDimensionUprightRocketPointsAlongSpacePlusX() {
         // na dimensão de espaço o "cima" local é o +X do espaço (a vertical do spawn da Terra)
-        Quaterniond inertial = AttitudeMath.spaceLocalToInertial(new Quaterniond());
+        Quaterniond inertial = AttitudeMath.spaceLocalToInertial(new Quaterniond(), IDENTITY_CLOCK);
         V3 nose = AttitudeMath.noseDirection(inertial);
         assertEquals(0.0, nose.distanceTo(new V3(1, 0, 0)), 1e-12);
         // a conversão concorda com o mapeamento de vetores do FrameBridge
@@ -152,10 +155,10 @@ class AttitudeMathTest {
         for (int i = 0; i < 20; i++) {
             Quaterniond local = randomQuaternion(rng);
             V3 localNose = AttitudeMath.noseDirection(local);
-            V3 spaceNose = AttitudeMath.noseDirection(AttitudeMath.spaceLocalToInertial(local));
+            V3 spaceNose = AttitudeMath.noseDirection(AttitudeMath.spaceLocalToInertial(local, IDENTITY_CLOCK));
             assertEquals(0.0, FrameBridge.spaceDimVectorToSpace(localNose.x(), localNose.y(), localNose.z()).distanceTo(spaceNose),
                     1e-12);
-            Quaterniond back = AttitudeMath.inertialToSpaceLocal(AttitudeMath.spaceLocalToInertial(local));
+            Quaterniond back = AttitudeMath.inertialToSpaceLocal(AttitudeMath.spaceLocalToInertial(local, 4_321.0), 4_321.0);
             assertEquals(1.0, Math.abs(local.dot(back)), 1e-12);
         }
     }
@@ -163,11 +166,22 @@ class AttitudeMathTest {
     @Test
     void earthSpawnLocalAxesAreTheSpaceDimensionAxes() {
         // a base local da Terra em (0, 0) é a mesma da dimensão de espaço (esse é o ponto do desenho dos eixos)
-        Matrix3d earth = AttitudeMath.localToSpaceMatrix(SolarSystem.EARTH, 0, 0, 0);
-        Matrix3d space = AttitudeMath.spaceDimensionMatrix();
+        // (em I as duas giram juntas com a Terra: valem em qualquer relógio)
+        for (double clock : new double[] {IDENTITY_CLOCK, 0.0, 1_234.5, 9_999.0, 55_555.5}) {
+            Matrix3d earth = AttitudeMath.localToSpaceMatrix(SolarSystem.EARTH, clock, 0, 0);
+            Matrix3d space = AttitudeMath.spaceDimensionMatrix(clock);
+            for (int column = 0; column < 3; column++) {
+                for (int row = 0; row < 3; row++) {
+                    assertEquals(space.get(column, row), earth.get(column, row), 1e-12);
+                }
+            }
+        }
+        // sem relógio é a matriz da dimensão para E, que coincide com I à meia-noite do dia 0
+        Matrix3d inE = AttitudeMath.spaceDimensionMatrix();
+        Matrix3d inI = AttitudeMath.spaceDimensionMatrix(IDENTITY_CLOCK);
         for (int column = 0; column < 3; column++) {
             for (int row = 0; row < 3; row++) {
-                assertEquals(space.get(column, row), earth.get(column, row), 1e-12);
+                assertEquals(inE.get(column, row), inI.get(column, row), 1e-12);
             }
         }
     }

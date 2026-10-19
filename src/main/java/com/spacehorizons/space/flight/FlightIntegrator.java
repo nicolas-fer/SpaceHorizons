@@ -3,7 +3,7 @@ package com.spacehorizons.space.flight;
 import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 
 /**
- * Um passo (1 tick) da dinâmica de voo no referencial do corpo dominante (eixos inerciais paralelos aos do espaço).
+ * Um passo (1 tick) da dinâmica de voo no referencial do corpo dominante (eixos inerciais de I, o referencial inercial: ver {@code InertialFrame}).
  *
  * <ol>
  *   <li><b>Empuxo</b> com Tsiolkovsky EXATO no tick: a vazão é {@code F·acelerador/ve} (limitada ao combustível que
@@ -20,15 +20,15 @@ import com.spacehorizons.planet.atmosphere.AtmosphereModel;
  *
  * Contato com o chão, troca de corpo e zonas NÃO são daqui: o chamador testa o chão depois do passo
  * ({@link LandingRules}), troca de corpo com {@link SoiTracker} e de dimensão com {@link Zones}. Não há vento nem
- * sustentação; a velocidade relativa ao ar é a inercial menos {@code ω × r} (zero na Terra, a única com atmosfera).
+ * sustentação; a velocidade relativa ao ar é a inercial menos {@code ω × r}: a atmosfera gira com a Terra, então o foguete parado na pista
+ * (que tem ~27 blocos/tick em I no equador) não sente arrasto, e o aquecimento usa a mesma velocidade relativa.
  */
 public final class FlightIntegrator {
     private FlightIntegrator() {
     }
 
     /**
-     * Avança o estado em 1 tick. {@code clock} é o relógio no INÍCIO do tick (só entra na velocidade do ar de corpos que
-     * giram; a integração em si independe dele). Se {@code c} pede empuxo sem combustível, motor ou direção, ele é
+     * Avança o estado em 1 tick. {@code clock} é o relógio no INÍCIO do tick (só entra na velocidade do ar, que gira com o corpo; a integração em si independe dele). Se {@code c} pede empuxo sem combustível, motor ou direção, ele é
      * ignorado.
      */
     public static FlightState step(FlightState s, Control c, RocketStats st, double clock) {

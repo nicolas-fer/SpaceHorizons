@@ -5,18 +5,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.spacehorizons.space.InertialFrame;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.SpaceFrame;
 
 /**
- * Regressão do movimento da Lua no {@link SolarSystem}, que decide toda a calibração das manobras: a Lua é cinemática
- * (não kepleriana), com velocidade de 85 a 167 blocos/tick (10x a de antes da Terra 10x maior: a velocidade angular é a mesma e a distância cresceu), e gira de forma sincronizada. Se alguém mexer na curva do
- * sol ou na órbita, estes números mudam e a física de voo (janelas de transferência, custo de captura) precisa ser
- * recalibrada.
+ * Regressão do movimento da Lua no {@link SolarSystem}, que decide toda a calibração das manobras. Em I (o referencial
+ * INERCIAL, o da física do foguete) a Lua é kepleriana: círculo uniforme a ~38 blocos/tick, período ~98.985 ticks, para o
+ * leste, com rotação sincronizada. Em E (o referencial preso à Terra, o dos lugares e do piloto automático criativo) ela
+ * anda de ~66 a ~149 blocos/tick, porque E gira. Se alguém mexer na órbita ou na curva do sol, estes números mudam e a
+ * física de voo (janelas de transferência, custo de captura) precisa ser recalibrada.
  */
 class MoonKinematicsTest {
     @Test
-    void moonSpeedRangesFromEightyFiveToOneHundredSixtySeven() {
+    void moonSpeedInTheEarthFixedFrameRangesFromSixtySixToOneFortyNine() {
         double min = Double.MAX_VALUE;
         double max = 0;
         double sum = 0;
@@ -30,13 +32,42 @@ class MoonKinematicsTest {
             sum += speed;
             count++;
         }
-        assertEquals(84.946, min, 0.1);
-        assertEquals(167.24, max, 0.1);
-        assertEquals(137.44, sum / count, 0.1);
+        assertEquals(66.4, min, 0.5);
+        assertEquals(149.0, max, 1.0);
+        // média = D·(2π/24.000 − n) = 119,4 (a taxa de giro média da Terra menos o movimento médio da Lua)
+        assertEquals(SolarSystem.EARTH_MOON_DISTANCE * (2.0 * Math.PI / 24_000.0 - SolarSystem.MOON_MEAN_MOTION), sum / count, 0.5);
     }
 
     @Test
-    void equatorialSurfaceSpeedOfTheMoonRotationRangesFrom37To73() {
+    void moonSpeedInTheInertialFrameIsConstantAndTheCircularSpeed() {
+        double[] v = new double[3];
+        BodyPhysics earth = BodyPhysics.of(SolarSystem.EARTH);
+        for (double c = 0; c < 200_000; c += 997) {
+            SolarSystem.MOON.inertialVelocityAt(c, v);
+            assertEquals(38.08, Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]), 0.02);
+            assertEquals(earth.circularSpeed(SolarSystem.EARTH_MOON_DISTANCE), Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]), 1e-4);
+        }
+    }
+
+    @Test
+    void equatorialSurfaceSpeedOfTheMoonRotationIsConstantInTheInertialFrame() {
+        // rotação sincronizada: o período é o orbital, n·R = 1,66 blocos/tick no equador, sempre (em I)
+        double[] abs = new double[3];
+        double[] ground = new double[3];
+        double[] center = new double[3];
+        for (double clock = 0; clock < 120_000; clock += 2_501) {
+            SolarSystem.Pose pose = SolarSystem.MOON.inertialPoseAt(clock);
+            SpaceFrame.toSpace(SolarSystem.MOON, pose, 0, SolarSystem.MOON.planet().seaLevel(), 0, abs);
+            SpaceFrame.inertialGroundVelocity(SolarSystem.MOON, clock, abs[0], abs[1], abs[2], ground);
+            SolarSystem.MOON.inertialVelocityAt(clock, center);
+            double speed = new V3(ground[0] - center[0], ground[1] - center[1], ground[2] - center[2]).length();
+            assertEquals(SolarSystem.MOON_MEAN_MOTION * SolarSystem.MOON.planet().radius(), speed, 1e-3);
+        }
+    }
+
+    @Test
+    void equatorialSurfaceSpeedOfTheMoonRotationInTheEarthFixedFrameRangesFromTwoPointNineToFive() {
+        // em E o chão da Lua gira a (φ̇ − n): de ~2,9 a ~5,6 blocos/tick no equador
         double min = Double.MAX_VALUE;
         double max = 0;
         double[] abs = new double[3];
@@ -50,33 +81,38 @@ class MoonKinematicsTest {
             min = Math.min(min, speed);
             max = Math.max(max, speed);
         }
-        assertEquals(3.69, min, 0.05);
-        assertEquals(7.27, max, 0.05);
+        double radius = SolarSystem.MOON.planet().radius();
+        assertEquals((0.666 * 2.0 * Math.PI / 24_000.0 - SolarSystem.MOON_MEAN_MOTION) * radius, min, 0.1);
+        assertEquals((1.19 * 2.0 * Math.PI / 24_000.0 - SolarSystem.MOON_MEAN_MOTION) * radius, max, 0.15);
     }
 
     @Test
-    void moonOrbitsWestwardSeenFromTheEarthPole() {
-        // o polo P = −norte da Terra dá à Lua uma inclinação de ~175° em todo instante: órbita para o OESTE
+    void moonOrbitsEastwardInTheInertialFrame() {
+        // o polo P = −norte da Terra dá à Lua uma inclinação de ~5° em todo instante (leste, o sentido da rotação da Terra)
         BodyPhysics earth = BodyPhysics.of(SolarSystem.EARTH);
         for (double clock : new double[] {0, 4_321, 12_000.5, 77_777, 191_999}) {
             double[] m = new double[3];
-            SolarSystem.MOON.positionAt(clock, m);
+            SolarSystem.MOON.inertialPositionAt(clock, m);
             double[] mv = new double[3];
-            SolarSystem.MOON.velocityAt(clock, mv);
+            SolarSystem.MOON.inertialVelocityAt(clock, mv);
             Orbit moon = Orbit.fromState(earth.mu(), V3.of(m), V3.of(mv), earth.pole(clock));
-            assertEquals(175.0, Math.toDegrees(moon.inclination()), 0.5, "clock = " + clock);
-            assertTrue(!moon.eastward());
+            assertEquals(5.0, Math.toDegrees(moon.inclination()), 0.1, "clock = " + clock);
+            assertTrue(moon.eastward());
+            assertEquals(0.0, moon.e(), 1e-6);
+            assertEquals(SolarSystem.EARTH_MOON_DISTANCE, moon.a(), 1.0);
+            assertEquals(SolarSystem.ORBITAL_PERIOD_TICKS, moon.period(), 0.5);
         }
     }
 
     @Test
-    void theMoonIsFasterThanKeplerOnAverage() {
-        // uma Lua kepleriana com este mu teria ω = 6,348e-5 rad/tick (período 98.985); a real tem ω médio de 2,291e-4 (3,6x mais rápida)
+    void theMoonIsKeplerianInTheInertialFrameButNotInTheEarthFixedOne() {
         BodyPhysics earth = BodyPhysics.of(SolarSystem.EARTH);
         double keplerian = Math.sqrt(earth.mu() / Math.pow(SolarSystem.EARTH_MOON_DISTANCE, 3));
         assertEquals(6.348e-5, keplerian, 1e-7);
-        double real = 2 * Math.PI / 27_428.6;
-        assertEquals(2.291e-4, real, 1e-6);
-        assertTrue(real > keplerian * 1.1);
+        assertEquals(keplerian, SolarSystem.MOON_MEAN_MOTION, 1e-12);
+        // em E a taxa angular dela é φ̇ − n: nasce a leste e se põe a oeste, de ~2,0e-4 rad/tick em média
+        double meanE = 2.0 * Math.PI / 24_000.0 - keplerian;
+        assertEquals(1.983e-4, meanE, 1e-6);
+        assertTrue(InertialFrame.rate(0.0) > 0);
     }
 }
