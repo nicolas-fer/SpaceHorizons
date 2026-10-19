@@ -53,6 +53,8 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     private static final EntityDataAccessor<Byte> FLIGHT_MODE = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.BYTE);
     private static final EntityDataAccessor<Byte> SAS_MODE = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.BYTE);
     private static final EntityDataAccessor<Float> HEAT = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.FLOAT);
+    /** O servidor está segurando o passo do voo (espera de chunks): o cliente não interpola nem prevê movimento além da posição real. */
+    private static final EntityDataAccessor<Boolean> HELD = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.BOOLEAN);
 
     /** Pouso com a inclinação máxima (graus) para voltar a blocos; acima disso a desmontagem é recusada. */
     private static final double MAX_TILT_TO_LAND_DEGREES = 15.0;
@@ -83,6 +85,7 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         builder.define(FLIGHT_MODE, FlightMode.LANDED.id());
         builder.define(SAS_MODE, (byte) 0);
         builder.define(HEAT, 0.0F);
+        builder.define(HELD, false);
     }
 
     @Override
@@ -175,6 +178,16 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         return this.entityData.get(HEAT);
     }
 
+    /** Servidor: marca (ou solta) o passo segurado. O dado só é enviado quando o valor muda. */
+    void setHeld(boolean held) {
+        this.entityData.set(HELD, held);
+    }
+
+    /** O passo do voo está segurado esperando chunks (no cliente, o valor sincronizado). */
+    public boolean isHeld() {
+        return this.entityData.get(HELD);
+    }
+
     /** Define a atitude (servidor): guarda e sincroniza uma cópia (o dado só marca "sujo" se o valor mudar). */
     public void setAttitude(Quaternionfc q) {
         this.attitude.set(q).normalize();
@@ -252,10 +265,29 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         if (this.level().isClientSide()) {
             this.attitudePrev.set(this.attitudeCur);
             this.attitudeCur.set(this.attitudeTarget);
+            if (this.isHeld()) {
+                freezeAtTarget();
+            }
         } else {
             this.flight.tick(this);
             this.entityData.set(FLIGHT_MODE, this.flight.mode().id());
         }
+    }
+
+    /**
+     * Segurado pelo servidor (cliente): a posição REAL é a última recebida. A interpolação de 2 ticks ainda estaria andando
+     * em direção a ela, e a velocidade sincronizada do último passo (90 blocos por tick) a faria seguir adiante; então pula
+     * para o alvo, zera a velocidade e para de interpolar. Quando o servidor volta a andar, a interpolação recomeça do ponto real.
+     */
+    private void freezeAtTarget() {
+        var handler = this.getInterpolation();
+        var target = handler.target();
+        if (target != null) {
+            this.setPos(target.position());
+            handler.cancel();
+        }
+        this.setDeltaMovement(Vec3.ZERO);
+        this.attitudePrev.set(this.attitudeCur);
     }
 
     // ---------------------------------------------------------------- passageiro

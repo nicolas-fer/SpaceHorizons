@@ -142,6 +142,8 @@
   "hud.spacehorizons.rocket.no_signal": "No telemetry",
   "hud.spacehorizons.rocket.burn_now": "BURN NOW — head east",
   "hud.spacehorizons.rocket.heat": "REENTRY HEAT",
+  "hud.spacehorizons.rocket.landing_loading": "Landing: loading",
+  "hud.spacehorizons.rocket.landing_ready": "Landing: ready",
   "hud.spacehorizons.rocket.waiting_terrain": "Waiting for terrain",
   "hud.spacehorizons.rocket.parachute": "Parachute %s",
   "hud.spacehorizons.rocket.planner.title": "Moon planner",

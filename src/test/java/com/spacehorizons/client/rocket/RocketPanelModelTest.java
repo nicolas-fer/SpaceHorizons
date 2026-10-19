@@ -2,6 +2,7 @@ package com.spacehorizons.client.rocket;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -18,7 +19,7 @@ class RocketPanelModelTest {
     private static RocketTelemetryPayload sample(double alt, double vv, double apo, double peri, byte planner, boolean burnNow, boolean held,
             float heat, float chute) {
         return new RocketTelemetryPayload("earth", true, alt, vv, 0.5, 3.0, apo, peri, 28.5, 1234.0, 1500.0, 4000.0, 2.5, 1.4, 0.8F, (byte) 1,
-                (byte) 1, heat, chute, planner, 73.0F, 114.0F, 1.55F, burnNow, held);
+                (byte) 1, heat, chute, planner, 73.0F, 114.0F, 1.55F, burnNow, held, (byte) 0, (byte) 0);
     }
 
     private static RocketTelemetryPayload plain() {
@@ -145,5 +146,40 @@ class RocketPanelModelTest {
         assertFalse(RocketPanelModel.hasPlanner(plain()));
         assertFalse(RocketPanelModel.hasPlanner(sample(1.0, 0.0, 1.0, 1.0, (byte) 9, false, false, 0F, 0F)), "status desconhecido é ignorado");
         assertFalse(RocketPanelModel.hasPlanner(null));
+    }
+
+    private static RocketTelemetryPayload withLanding(byte state, byte percent) {
+        RocketTelemetryPayload t = plain();
+        return new RocketTelemetryPayload(t.body(), t.inSpace(), t.altitude(), t.verticalSpeed(), t.horizontalSpeed(), t.orbitalSpeed(),
+                t.apoapsisAltitude(), t.periapsisAltitude(), t.inclination(), t.timeToApoapsis(), t.fuelMb(), t.fuelCapacityMb(), t.deltaV(), t.twr(),
+                t.throttle(), t.sasMode(), t.flightMode(), t.heat(), t.chute(), t.plannerStatus(), t.phaseNow(), t.phaseIdeal(), t.tliDeltaV(),
+                t.burnNow(), t.heldForChunks(), state, percent);
+    }
+
+    @Test
+    void semPrevisaoDeImpactoNaoHaLinhaDePouso() {
+        assertNull(RocketPanelModel.landingRow(withLanding((byte) 0, (byte) 0)));
+        assertEquals(8, RocketPanelModel.flightRows(withLanding((byte) 0, (byte) 0)).size());
+    }
+
+    @Test
+    void carregandoMostraAPorcentagemEProntoMostraPronto() {
+        Row loading = RocketPanelModel.landingRow(withLanding((byte) 1, (byte) 62));
+        assertEquals("hud.spacehorizons.rocket.landing_loading", loading.labelKey());
+        assertEquals("62%", loading.value());
+        assertEquals(Tone.WARN, loading.tone());
+        Row ready = RocketPanelModel.landingRow(withLanding((byte) 2, (byte) 100));
+        assertEquals("hud.spacehorizons.rocket.landing_ready", ready.labelKey());
+        assertEquals(Tone.GOOD, ready.tone());
+        // a linha entra no fim dos dados de voo
+        List<Row> rows = RocketPanelModel.flightRows(withLanding((byte) 1, (byte) 62));
+        assertEquals(9, rows.size());
+        assertEquals("hud.spacehorizons.rocket.landing_loading", rows.get(8).labelKey());
+    }
+
+    @Test
+    void aPorcentagemForaDaFaixaEhLimitada() {
+        assertEquals("100%", RocketPanelModel.landingRow(withLanding((byte) 1, (byte) 120)).value());
+        assertEquals("0%", RocketPanelModel.landingRow(withLanding((byte) 1, (byte) -5)).value());
     }
 }

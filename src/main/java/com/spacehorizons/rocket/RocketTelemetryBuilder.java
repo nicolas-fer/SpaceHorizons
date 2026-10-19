@@ -25,6 +25,12 @@ public final class RocketTelemetryBuilder {
      */
     public static RocketTelemetryPayload build(FlightState s, FlightMode mode, SasMode sas, double throttle, boolean inSpace,
             RocketStats stats, double clock, double clockRate, boolean held) {
+        return build(s, mode, sas, throttle, inSpace, stats, clock, clockRate, held, (byte) 0, (byte) 0);
+    }
+
+    /** Idem, com o estado da pré-carga do local de pouso ({@code landingState} 0, 1 ou 2 e a porcentagem de chunks carregados). */
+    public static RocketTelemetryPayload build(FlightState s, FlightMode mode, SasMode sas, double throttle, boolean inSpace,
+            RocketStats stats, double clock, double clockRate, boolean held, byte landingState, byte landingPercent) {
         BodyPhysics bp = BodyPhysics.of(s.body());
         V3 r = s.r();
         V3 up = r.unit();
@@ -56,6 +62,6 @@ public final class RocketTelemetryBuilder {
                 s.v().length(), apoapsis, periapsis, Math.toDegrees(orbit.inclination()), timeToApoapsis, s.fuelMb(),
                 stats.fuelCapacityMb(), stats.deltaV(s.fuelMb()), stats.twr(s.fuelMb(), bp.gravityAt(r.length())), (float) throttle,
                 (byte) sas.ordinal(), (byte) mode.ordinal(), (float) s.heat(), (float) s.chute(), plannerStatus, phaseNow, phaseIdeal,
-                tliDeltaV, burnNow, held);
+                tliDeltaV, burnNow, held, landingState, landingPercent);
     }
 }

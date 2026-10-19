@@ -142,6 +142,8 @@
   "hud.spacehorizons.rocket.no_signal": "Sem telemetria",
   "hud.spacehorizons.rocket.burn_now": "QUEIME AGORA — para leste",
   "hud.spacehorizons.rocket.heat": "CALOR NA REENTRADA",
+  "hud.spacehorizons.rocket.landing_loading": "Pouso: carregando",
+  "hud.spacehorizons.rocket.landing_ready": "Pouso: pronto",
   "hud.spacehorizons.rocket.waiting_terrain": "Aguardando terreno",
   "hud.spacehorizons.rocket.parachute": "Paraquedas %s",
   "hud.spacehorizons.rocket.planner.title": "Planejador da Lua",

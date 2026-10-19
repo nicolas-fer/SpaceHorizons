@@ -63,6 +63,16 @@ public final class RocketPilot {
         return LINK.throttle();
     }
 
+    /**
+     * Só para o autoteste: esquece que estava pilotando e zera o acelerador guardado. Entre dois voos do roteiro o jogador troca de
+     * foguete no mesmo tick (sem passar por "não pilotando"), e o acelerador do voo anterior (0,84 no meio de uma frenagem) seguia sendo
+     * mandado ao foguete novo, que decolava sozinho antes da partida.
+     */
+    public static void forgetPilotingForTest() {
+        wasPiloting = false;
+        LINK.reset(0.0F);
+    }
+
     /** O último pacote enviado ao servidor (para o autoteste conferir), ou null. */
     public static @Nullable RocketControlPayload lastSent() {
         return lastSent;

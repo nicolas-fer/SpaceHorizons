@@ -200,7 +200,166 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
 (estabilizar, prógrado, retrógrado), P paraquedas, V câmera, G desmontar (pousado).
 
-Autoteste do voo: `./gradlew runClientTest -PshOnly=flight` (salto suborbital, batida e órbita completa com reentrada).
+Autoteste do voo: `./gradlew runClientTest -PshOnly=flight` (salto suborbital, batida, órbita completa com reentrada e o voo D, a mesma descida sem o freio de horizontal no espaço).
+
+## Como rodar
+
+Requisitos: JDK 25 (o Gradle baixa o toolchain se preciso).
+
+```bash
+./gradlew runClient      # cliente de desenvolvimento
+./gradlew runServer      # servidor de desenvolvimento (exige aceitar a EULA você mesmo)
+./gradlew test           # testes unitários (JUnit 5)
+./gradlew build          # compila, testa e empacota
+```
+
+O `runClient` já traz o Distant Horizons no `localRuntime` do build. Não rode
+os comandos acima sem ter lido a EULA do Minecraft.
+
+## Como testar
+
+1. Entre no mundo como operador (nível 2) e rode `/spacehorizons goto earth`.
+   Você nasce na superfície em `(0, 0)` da dimensão `spacehorizons:earth`.
+2. Ande reto em X para o leste. A costura fica em `x = 327680` (metade da
+   circunferência). Para chegar mais rápido, use `/tp @s 327600 ~ 0` e ande um
+   pouco mais.
+3. Ao cruzar a costura você deve reaparecer em `x = -327680`, com a mesma direção.
+4. Olhe para o horizonte: a curvatura deve aparecer nos chunks (o terreno some
+   atrás do horizonte em vez de ficar plano). Com o DH instalado, os LODs distantes
+   devem usar as mesmas cores.
+5. Ande em Z até perto de ±70°: a barreira polar deve empurrar você de volta.
+
+### Autoteste em jogo
+
+```bash
+rm -rf run/saves/SpaceAuto run/screenshots/autotest_*
+./gradlew runClientTest --console=plain > run-client.log 2>&1
+```
+
+Leva uns 15 minutos. O roteiro (235+ passos, prefixos dos prints):
+
+- `a_*`: Terra vanilla em 6 pontos (biomas, árvores, relevo), caverna (o teste procura ar coberto sob o spawn) e y=12.
+- `b_*`: costura em x=327600/327670 e -327670 (de dia: é meia-noite no spawn), com o log `ALTURAS` (altura da superfície de 4 em 4
+  blocos, salto máximo) e uma travessia real voando para leste.
+- `c_*`: latitude em z=0, 80000, 120000 e -120000 (trópico, temperado, neve, gelo).
+- `e_*`: a Lua vista do spawn no relógio em que ela está mais alta em cada um de cinco dias (fases 1,00 a 0,06); o log `ORBITA`
+  traz posição no espaço, azimute, elevação, ângulo orbital e fração iluminada.
+- `d_*`: malha orbital a 5.000 e 15.000 blocos (e a 90° de longitude e no polo) depois de esperar o mapa (`MAPA do planeta pronto`).
+- `tr_out_*`, `tr_back_*`: `/spacehorizons fly moon` e `fly earth` com o tempo correndo (a Lua se move durante o voo); prints a cada
+  3 ticks em volta da troca; o log registra `TROCA DE DIMENSAO`, `TELA ABERTA` (não deve aparecer), a velocidade relativa depois da
+  troca e a altitude de chegada (`CHEGADA`).
+- `g_*`: na Lua, a Terra no céu na direção calculada (zênite da face voltada para ela), em quatro relógios (fases opostas às da
+  Lua), pulo e chão à meia-noite. `h_*`: chegada na Terra.
+
+Antes de rodar, `rm -rf run/saves/SpaceAuto run/screenshots/autotest_*`. A regra `advance_time` é desligada e o horário
+fixado com `/time set`, exceto durante os voos.
+
+Combinações (as flags `-P` ficam no `build.gradle`):
+
+| Configuração | Comando |
+| --- | --- |
+| Padrão (DH) | `./gradlew runClientTest --console=plain` |
+| Sem DH | `./gradlew runClientTest -PshDh=false --console=plain` |
+| Sodium | `./gradlew runClientTest -PshSodium=true --console=plain` |
+| Iris, shaders desligados | `./gradlew runClientTest -PshIris=true --console=plain` |
+
+Apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes de cada uma e copie os prints
+antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` no log.
+
+## Escala: Terra 10x maior (limitações)
+
+A Terra tem circunferência 655.360 (R ≈ 104.304) e a Lua 163.840 (R ≈ 26.076) a 600.000 de distância; antes eram 65.536, 16.384 e 60.000.
+**Mundos criados antes dessa mudança são incompatíveis** (mapa, terreno, chunks da costura e posições mudam): crie um mundo novo.
+Alturas e a atmosfera não mudaram (saída para o espaço a 5.000 na Terra e 1.250 na Lua, atmosfera de 1.800).
+
+- **Foguete**: a velocidade orbital da Terra subiu √10 (28,9 para 91,3 b/tick, ~1.827 b/s) e o Isp do motor também (500 para 1.600, ve = 128 b/t).
+  Com isso o foguete mínimo (Δv 126) faz a órbita com um programa de subida bom (gasta ~111, sobram ~14); antes só fazia salto suborbital.
+  A transferência Terra→Lua (TLI) leva 22.539 ticks (~19 min) e custa 26,6 b/t de Δv a partir da órbita baixa; a Lua é cinemática (85 a 167 b/t), então
+  chega-se à esfera dela com 83 a 146 b/t de velocidade relativa (antes ~6), muito acima da velocidade de escape da Lua (26 b/t na superfície).
+- **Foguete em velocidade orbital** (`rocket/ZoneSwitch`, ver `docs/DESIGN_FOGUETE.md`): a dimensão da Terra só carrega o terreno a voo lento e baixo, então o foguete que desce fica na dimensão de espaço (vazia; arrasto, calor e paraquedas já valem lá, a atmosfera vai até 1.800) até 1.200 blocos sobre o terreno, e só entra com horizontal ao chão ≤ 25 b/tick (entrada forçada a ≤ 600 sobre o terreno, qualquer velocidade). Sai para o espaço cedo se passar de 40 b/tick acima de 1.000 de altitude e de 1.500 sobre o terreno.
+- **Pré-carga do pouso** (`rocket/ImpactPredictor`, `LandingPreloader`, `LandingPreloadDriver`): descendo e abaixo de 5.000 de altitude, uma vez por segundo o impacto é previsto integrando a física de voo (gravidade e arrasto, sem empuxo nem paraquedas; até 1.200 ticks) e são pedidos, com tickets assíncronos `PORTAL` de raio 0, os ~7×7 chunks do impacto e o trecho final (últimos 1.500 blocos) da trajetória: no máximo 40 chunks novos por segundo e 96 pendentes; o que a previsão nova larga é solto, e tudo ao pousar ou bater. O painel mostra "Pouso: carregando N%" / "Pouso: pronto".
+- **Voo rápido do piloto** (`rocket/FastFlight`, `client/rocket/FastFlightClient`, `dh/DhFastFlightConfig`): acima de 20 b/tick ao chão (volta abaixo de 10) o cliente do piloto reduz a distância de visão para 4 e a de simulação para 5 chunks e pausa a geração de LOD do Distant Horizons (a API 7.2 não tem pausa de fila: o override é `GeneratorPlan = DISABLED`; os LODs gerados continuam desenhados e o que já estava em geração termina). Tudo volta ao frear, pousar, descer do foguete ou sair do mundo.
+- **Passo segurado**: quando o portão de chunks segura o passo, o foguete sincroniza `HELD`; o cliente cancela a interpolação, fica na última posição real e zera a velocidade. O cliente vanilla não extrapola o movimento de uma entidade (só interpola 2 ticks até a posição recebida), então a causa exata do "vai e volta" gravado NÃO foi provada; o `HELD` garante que o cliente nunca mostre além da posição real. Não foi exercitado em jogo (nenhuma espera de chunks aconteceu no autoteste).
+- **Medido no autoteste `flight`** (voos A, B, C e D; D = como C, sem o freio de horizontal no espaço): 0 avisos "Can't keep up" antes e depois; picos de tick na entrada na Terra de 638 ms (antes, entrada a 3.500 de altitude) para 170 a 360 ms (agora, entrada a 1.200); maior janela de 200 ticks de todo o autoteste 667 ms antes e 324 ms depois. Os 266 a 363 ms que restam na entrada são um `getChunk` bloqueante do `positionRider` do piloto. Os voos A a D pousaram suave. O render da Terra vista da dimensão de espaço a 1.200 a 3.000 (prints `fl_d1`, `fl_d2`) é a malha do planeta, borrada (células de 320 blocos), sem falhas.
+- **Mapa do planeta** (`planet/map/`, `network/`): o servidor amostra o gerador real numa grade de 2048x798 (célula de 320 blocos),
+  em background (~140 s na primeira vez; 4096 colunas levaram 487 s e 13,9 MiB), guarda em `<mundo>/data/spacehorizons/planetmap_earth.bin` e manda ao cliente em pedaços.
+  A malha orbital e as esferas dos corpos usam as cores dos biomas reais desse mapa (`PlanetTerrains.get`); o terreno analítico
+  só vale enquanto o mapa não chega e para a Lua. O DH usa o gerador do mundo (não há mais override de LOD na Terra).
+- **A Lua orbita** (`space/SolarSystem`, `space/SpaceClock`): órbita circular de raio 600.000, inclinada 5°, período sinódico de 8 dias
+  (fases como as do vanilla: cheia à meia-noite do dia 0), no relógio do Overworld (`/time set` move sol e Lua). A Lua tem rotação
+  sincronizada: a mesma face fica voltada para a Terra. `SpaceFrame`, `SunModel`, `BodyRenderer` e `SpaceSun` recebem o relógio.
+- **Viagem com alvo móvel** (`space/travel/FlightGuide`, `FlightPlan`, `BodyTransfer`): o plano mira onde o corpo estará, corrige a
+  cada tick e na troca de dimensão a velocidade vira velocidade relativa ao chão do corpo novo (ver "Autoteste").
+
+## Dimensão de espaço aberto (etapa 3c do foguete)
+
+Entre a Terra e a Lua existe agora uma dimensão vazia, `spacehorizons:space`, de onde se vê a Terra e a Lua inteiras. Ela entra
+no world preset (só mundos criados depois; num mundo antigo `/spacehorizons goto space` avisa que a dimensão não existe).
+
+- **Dados**: `dimension_type/space.json` (altura 16, `min_y` 0, `has_skylight`, `has_ceiling` para desligar o clima, `skybox overworld`,
+  nuvens com alfa 0, sem timeline), `worldgen/biome/space.json` (sem chuva e sem spawns) e o gerador `minecraft:flat` sem camadas.
+  Altura 16 é o mínimo do codec: uma seção por chunk.
+- **Coordenadas** (`space/SpaceDimension`): os eixos da dimensão são a base local da Terra no spawn (leste = +Z do espaço, cima = +X,
+  norte = +Y) e Y tem um viés de 20.000: `(x, y, z) da dimensão = (sz, sx + 20.000, sy)`. Assim o sol, as estrelas e a vertical do spawn
+  da Terra funcionam sem rotação. A Terra fica em y = 20.000 e a Lua orbita entre y ≈ -580.000 e +620.000 (ver "Limitações").
+- **Céu** (`client/space/`): `SkyObserver` diz de onde se olha (chão de um planeta ou espaço aberto) e o `BodyRenderer` desenha os
+  corpos pelo observador; no espaço a Terra (com halo) e a Lua são esferas reais, e o céu do vanilla traz só o sol e as estrelas
+  (`SpaceSkyClient`: sem lua do vanilla, sem névoa, sem disco escuro, sem nuvens nem chuva).
+- **Regras**: gravidade 0 (`PlanetGravity`), vácuo em todo o espaço (`OxygenSetup.isVacuumAt`, HUD, compressor), sem "moved too
+  quickly" e sem morte por cair abaixo do mundo (`mixin/travel/EntityMixin`). No espaço o voo criativo anda pela altitude sobre o corpo
+  mais próximo (a mesma regra dos planetas); não há piloto automático.
+- **Travessia** (`BodyTransfer.toSpace/fromSpace`, `TravelTransfers.findSpace`): do planeta ao espaço e de volta no mesmo ponto do
+  espaço, com a mesma velocidade e o mesmo olhar, sem tela de carregamento.
+
+| Comando | O que faz |
+| --- | --- |
+| `/spacehorizons goto space` | de um planeta, vai ao espaço no mesmo ponto (travessia contínua) |
+| `/spacehorizons goto space x y z` | vai ao ponto (coordenadas da dimensão de espaço, as do F3 de lá), parado |
+| `/spacehorizons goto earth` / `moon` | do espaço, dentro da zona do corpo (acima da superfície até 5.000 na Terra e 1.250 na Lua), volta no mesmo ponto; fora dela, teleporta à superfície |
+
+Autoteste: `./gradlew runClientTest -PshOnly=space` (apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes). Prefixos
+dos prints: `sp_a_*` Terra a 4.900 antes da troca, `sp_b_*` o mesmo ponto no espaço, `sp_c_*` sol, estrelas e Lua perto da Terra,
+`sp_e_*` meio do caminho, `sp_f_*` e `sp_g_*` perto da Lua (com a Lua em Y negativo e em Y positivo), `sp_fly_*` os voos, `sp_i*_*` a
+volta pelo comando. O log traz `ESPACO` (posição, gravidade, clima, oxigênio), `VOO ... RESULTADO` (tempo de trabalho do tick do
+servidor num voo em linha reta, com e sem tickets à frente) e `sp_* RESULTADO` (telas abertas durante a travessia).
+
+Medido em jogo (autoteste, voo em linha reta no espaço empurrado pelo servidor, 200 ticks, distância de visão 16): com tickets à
+frente (ENDER_PEARL em 1, 2, 4, 8, 16 e 32 ticks, passo segurado se faltar chunk) o tempo de trabalho do tick fica em ~1,3 a
+1,9 ms (máximo 5 a 30 ms) a 300, 600 e 1.200 blocos/s, sem aviso "Can't keep up"; sem tickets, a 600 blocos/s, a média sobe para
+6,6 a 7,8 ms com picos de 95 a 178 ms (o `getChunk` bloqueante do `Entity.setPosRaw`). Reduzir a distância de visão para 2 não
+mudou o resultado de forma mensurável.
+
+Limitações da dimensão de espaço:
+
+- **Faixa de Y**: com o viés fixo de 20.000, a órbita da Lua leva Y de -580.000 a +620.000 (e o lado do nadir da Terra fica em Y negativo, de -84.000 a -109.000 nas zonas de saída) (os eixos da dimensão são os do spawn da
+  Terra, e a Lua orbita no plano leste-cima). Por isso `EntityMixin` desliga a morte abaixo do mundo no espaço. Uma convenção que
+  pusesse o eixo polar da Terra em Y daria ±15.000 com o mesmo viés, mas exigiria girar o sol e as estrelas do vanilla.
+- **Salto na saída a 5.000**: a esfera da Terra (agora até 2.048 segmentos, célula de 320 blocos; o mapa tem 320) coincide em
+  posição, cor e halo com a malha orbital, mas some o detalhe dos chunks e do DH do centro da vista. Com a Terra 10x maior os 5.000
+  de altitude são só 1/21 do raio, então a esfera vista dali é bem mais grossa que a malha orbital que a precedia (facetas visíveis).
+- **DH no espaço**: o DH trata a dimensão de espaço como uma dimensão qualquer (gerador flat vazio); não há gerador de LOD próprio.
+  O log mostra só avisos "Renderer already started" do DH a cada troca de dimensão.
+- **Mundos antigos**: a dimensão só existe em mundos criados depois (world preset).
+- **Lua e clima**: `moon.json` tem `has_ceiling` falso, então a chuva do Overworld escurece o céu da Lua; no espaço `has_ceiling`
+  verdadeiro evita isso. Não alterei a Lua.
+
+## Sobrevivência e foguete
+
+Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguete em `docs/DESIGN_FOGUETE.md`.
+
+- **Materiais e refinaria** (`content/`, `survival/fuel/`): minérios, placas e a refinaria que enche galões de combustível.
+- **Oxigênio** (`survival/oxygen/`, `survival/suit/`, `survival/compressor/`): vácuo no espaço e na Lua, traje com tanque, compressor
+  que enche tanques; o ar da cabine do foguete conta como fonte antes do traje.
+- **JEI** (`compat/jei/`) e conquistas (`data/spacehorizons/advancement/`).
+- **Foguete de blocos** (`rocket/`): monte cockpit, motores, tanques, cascos, paraquedas e pernas sobre uma plataforma de lançamento;
+  clique com a mão vazia no cockpit e a estrutura vira uma entidade que sobe inteira. Voo pilotável no estilo KSP simplificado
+  (gravidade real, SAS, apoastro e periastro no painel), travessia para a dimensão de espaço com o piloto sentado, paraquedas,
+  pouso suave e batida que destrói o foguete.
+
+Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
+(estabilizar, prógrado, retrógrado), P paraquedas, V câmera, G desmontar (pousado).
+
+Autoteste do voo: `./gradlew runClientTest -PshOnly=flight` (salto suborbital, batida, órbita completa com reentrada e o voo D, a mesma descida sem o freio de horizontal no espaço).
 
 ## Como rodar
 
@@ -314,7 +473,7 @@ Alturas e a atmosfera não mudaram (saída para o espaço a 5.000 na Terra e 1.2
   A transferência Terra→Lua (TLI) leva 22.539 ticks (~19 min) e custa 26,6 b/t de Δv a partir da órbita baixa; com a Lua inercial (38 b/t, ver "Referenciais")
   chega-se à esfera dela com 15,9 b/t de velocidade relativa (com a Lua cinemática em E eram 83 a 146, e antes da escala ~6), a captura custa algumas
   dezenas de b/t no máximo (a velocidade de escape da Lua é 26 b/t na superfície). A pista da Terra já tem ~27 b/t para leste em I.
-- **Foguete em velocidade orbital** (`rocket/ZoneSwitch`, ver `docs/DESIGN_FOGUETE.md`): a dimensão da Terra só carrega o terreno a voo lento, então ela só é usada com horizontal ao chão ≤ 25 b/tick (entrada forçada a ≤ 1.000 sobre o terreno, qualquer velocidade) e o foguete sai para o espaço antes dos 5.000 se passar de 40 b/tick acima de 1.000. A reentrada vinda de órbita desce "virtualmente" na dimensão de espaço (arrasto e calor já valem lá) e o piloto deve frear de retrógrado antes da entrada forçada; chegar a ela a ~59 b/tick ainda faz o servidor esperar chunks (medido: um tick de 43 s com tickets à frente a 90 b/tick). No autoteste `flight`: 0 avisos "Can't keep up" (antes 6, de 2 a 7,7 s) e tick máximo de 292 ms (antes 1.557 ms). O render do planeta visto da dimensão de espaço a baixa altitude (1.000 a 4.000) NÃO foi conferido em print.
+- **Foguete em velocidade orbital**: ver o item de mesmo nome acima (troca para a Terra a 1.200 sobre o terreno, pré-carga do local de pouso). Medido na primeira versão (troca a 4.000): 0 avisos "Can't keep up" (antes 6, de 2 a 7,7 s) e tick máximo de 292 ms (antes 1.557 ms).
 - **Mapa do planeta**: 2048 colunas (célula de 320 blocos); 4096 levaria 487 s de bake.
 - **Voo rápido** (medido no espaço vazio, 200 ticks): 60 b/tick (1.200 b/s) média de 1,5 ms por tick; 200 b/tick (4.000 b/s) média de 24 ms, 17 ticks acima de 100 ms e um "Can't keep up" de 2 s (47 mil chunks); 300 b/tick, tick de 4,8 s. O teto do piloto automático agora é 80 b/tick e a viagem Terra–Lua (`fly moon`, `fly earth`) foi exercitada em jogo (ver "Referenciais").
 - **Dimensão de espaço**: Y vai de ~-580.000 a ~+620.000 (viés de 20.000 mantido); o lado do nadir da Terra fica em Y negativo.

@@ -33,6 +33,11 @@ public final class RocketFlight {
 
     @Nullable Snapshot snapshot;
     final ChunkGate gate = new ChunkGate();
+    /** Pré-carga do local de pouso previsto (tickets do trecho final da descida, ver {@link LandingPreloadDriver}). */
+    final LandingPreloader landing = new LandingPreloader();
+    /** Level em que a pré-carga pediu tickets (para soltá-los no mesmo level) e contador de ticks dela. */
+    net.minecraft.server.level.@Nullable ServerLevel landingLevel;
+    int landingTicks;
     /** Recém-chegado de outra dimensão (ou carregado do disco em voo): espera o piloto estar pronto antes de simular. */
     boolean arrivalPending;
     int arrivalTicks;
@@ -43,6 +48,11 @@ public final class RocketFlight {
     int lastHeld;
     boolean warnedNoSpace;
     boolean warnedChunks;
+
+    /** A pré-carga do local de pouso (estado e progresso para a telemetria e o autoteste). */
+    public LandingPreloader landing() {
+        return this.landing;
+    }
 
     public FlightMode mode() {
         return this.snapshot != null ? this.snapshot.mode() : this.mode;

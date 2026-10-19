@@ -53,7 +53,8 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  *       pousa suave;</li>
  *   <li><b>B</b> (batida): sobe um pouco, corta e cai de volta sem paraquedas: o foguete se desfaz em itens e o piloto toma dano;</li>
  *   <li><b>C</b> (órbita): curva de gravidade forte, corta com apoastro de ~6.000, espera o apoastro e circulariza com SAS
- *       prógrado.</li>
+ *       prógrado; desorbita, freia de retrógrado no espaço e pousa;</li>
+ *   <li><b>D</b>: igual a C, mas SEM o freio no espaço (o jogador comum): a descida rápida depende da pré-carga do local de pouso.</li>
  * </ul>
  *
  * Tudo vai para o log com o prefixo {@code [AUTOTEST] FLIGHT}; o cliente espera os marcos ({@link #reached}) e tira os prints.
@@ -75,6 +76,8 @@ final class FlightDevtest {
     private static int totalTicks;
     private static int pendingSas;
     private static boolean sasPulse;
+    /** O último comando que o piloto de teste mandou (ver {@link #reapplyControl}). */
+    private static RocketControlPayload lastApplied;
     private static double padY;
     /** Relógio do Overworld no tick atual (o referencial inercial gira com ele: o leste e a velocidade do ar dependem do relógio). */
     private static double clockNow;
@@ -121,6 +124,7 @@ final class FlightDevtest {
 
     /** Constrói o foguete do voo {@code which} sobre a plataforma, abastece, monta e senta o jogador. */
     static void build(Minecraft mc, char which) {
+        com.spacehorizons.client.rocket.RocketPilot.forgetPilotingForTest();
         onServer(mc, "montagem " + which, (server, player) -> {
             ServerLevel level = player.level();
             variant = which;
@@ -129,6 +133,7 @@ final class FlightDevtest {
             stageTicks = 0;
             totalTicks = 0;
             pendingSas = 0;
+            lastApplied = null;
             // limpa a plataforma e o que sobrou de um voo anterior
             for (int x = -4; x <= 4; x++) {
                 for (int z = -4; z <= 4; z++) {
@@ -230,7 +235,10 @@ final class FlightDevtest {
             return;
         }
         registered = true;
-        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Pre.class, e -> tickStartNanos = System.nanoTime());
+        NeoForge.EVENT_BUS.addListener(ServerTickEvent.Pre.class, e -> {
+            tickStartNanos = System.nanoTime();
+            reapplyControl(e.getServer());
+        });
         NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, e -> {
             try {
                 onTick(e.getServer());
@@ -249,6 +257,23 @@ final class FlightDevtest {
                 }
             }
         });
+    }
+
+    /**
+     * O cliente real (o jogador do autoteste) também manda o pacote de controle, com o acelerador que ele guarda (depois de uma
+     * travessia de dimensão o cliente o reinicia com o valor sincronizado do foguete: 0,84 no meio de uma frenagem), a cada 5 ticks;
+     * esse pacote sobrescrevia o comando do piloto de teste em 1 de cada 5 ticks e o foguete queimava combustível sem o piloto
+     * mandar. Antes do passo, o comando do piloto de teste volta a valer (sem as flags de ação: as bordas não se repetem).
+     */
+    private static void reapplyControl(MinecraftServer server) {
+        RocketControlPayload mine = lastApplied;
+        if (!armed || mine == null || server.getPlayerList().getPlayers().isEmpty()) {
+            return;
+        }
+        if (server.getPlayerList().getPlayers().get(0).getVehicle() instanceof RocketEntity rocket
+                && !rocket.flight().control(rocket.level().getGameTime()).equals(mine)) {
+            rocket.applyControl(new RocketControlPayload(mine.pitch(), mine.yaw(), mine.roll(), mine.throttle(), (byte) 0));
+        }
     }
 
     private static void onTick(MinecraftServer server) {
@@ -275,7 +300,7 @@ final class FlightDevtest {
         switch (variant) {
             case 'A' -> flightA(rocket, snap, c, player);
             case 'B' -> flightB(rocket, snap, c, player);
-            default -> flightC(rocket, snap, c, player);
+            default -> flightC(rocket, snap, c, player); // C e D
         }
         // pulso de SAS: uma borda por pacote (o bit sobe num tick e desce no seguinte)
         int flags = c.flags;
@@ -286,7 +311,8 @@ final class FlightDevtest {
         } else {
             sasPulse = false;
         }
-        rocket.applyControl(new RocketControlPayload((float) c.pitch, (float) c.yaw, 0.0F, (float) c.throttle, (byte) flags));
+        lastApplied = new RocketControlPayload((float) c.pitch, (float) c.yaw, 0.0F, (float) c.throttle, (byte) flags);
+        rocket.applyControl(lastApplied);
         if (totalTicks % 20 == 0) {
             log(rocket, snap, c, player);
         }
@@ -373,7 +399,10 @@ final class FlightDevtest {
                 }
                 timeout(2_500, "voo balístico até o apoastro");
             }
-            case 3 -> { // cai de retrógrado até voltar à dimensão da Terra
+            case 3 -> { // cai de retrógrado até voltar à dimensão da Terra (freando como no pouso: a troca é a 1.200 sobre o terreno)
+                if (t != null) {
+                    landingControl(rocket, snap, c, t, player);
+                }
                 if (snap.zoneBody() != null) {
                     mark("reentry_a");
                     SpaceHorizons.LOGGER.info("{}REENTRADA na dimensão da Terra: altitude {} vertical {}", TAG, f(t.altitude()), f(t.verticalSpeed()));
@@ -403,7 +432,8 @@ final class FlightDevtest {
             return;
         }
         ServerLevel level = player.level();
-        double clearance = clearance(level, rocket);
+        // na dimensão de espaço (vazia) não há terreno sob o foguete: a altura é a altitude sobre o nível do mar
+        double clearance = snap.zoneBody() == null ? 10_000.0 : clearance(level, rocket);
         if (clearance >= 10_000.0) {
             // chunk sob o foguete ainda não carregado (a deriva horizontal de ~8 b/t leva o foguete a milhares de blocos da plataforma e,
             // com a Terra 10x maior, o chunk só chegava aos ~850 de altitude, tarde demais para frear): usa a altitude do nível do mar
@@ -498,8 +528,8 @@ final class FlightDevtest {
         if (snap.mode() == FlightMode.LANDED && stage >= 8) {
             SpaceHorizons.LOGGER.info("{}C: POUSO depois da órbita no tick {}: pos=({}, {}, {}) combustível={} mB", TAG, totalTicks, f(rocket.getX()),
                     f(rocket.getY()), f(rocket.getZ()), f(rocket.fuelMb()));
-            mark("landed_c");
-            mark("end_c");
+            mark("landed_" + suffix());
+            mark("end_" + suffix());
             stage = 90;
             return;
         }
@@ -518,7 +548,7 @@ final class FlightDevtest {
                 if (t == null) {
                     return;
                 }
-                mark("liftoff_c");
+                mark("liftoff_" + suffix());
                 // com a Terra 10x maior a órbita pede ~91 b/t horizontais (e ~85 de Δv de circularização no apoastro): a curva vai
                 // até a horizontal (90 graus, perfil de raiz como no AscentTest) aos 3.000 de altitude, para o apoastro de 6.000
                 // chegar já com a maior parte da velocidade lateral e a circularização ser curta
@@ -537,7 +567,7 @@ final class FlightDevtest {
                     return;
                 }
                 if (snap.zoneBody() == null) {
-                    mark("space_c");
+                    mark("space_" + suffix());
                 }
                 if (snap.zoneBody() == null && t.timeToApoapsis() < 8.0 && t.verticalSpeed() > -0.5) {
                     SpaceHorizons.LOGGER.info("{}C: no apoastro: altitude {} v horizontal {} tempo até o apoastro {}", TAG, f(t.altitude()),
@@ -564,12 +594,12 @@ final class FlightDevtest {
             }
             case 4 -> { // fica em órbita um tempo, vendo se a órbita se sustenta no espaço
                 if (stageTicks == 1) {
-                    mark("orbit_c");
+                    mark("orbit_" + suffix());
                 }
                 if (stageTicks == 200 && t != null) {
                     SpaceHorizons.LOGGER.info("{}C: 200 ticks DEPOIS da circularização: altitude {} apoastro {} periastro {} zona={} (espaço = null)", TAG,
                             f(t.altitude()), f(t.apoapsisAltitude()), f(t.periapsisAltitude()), snap.zoneBody());
-                    mark("orbit_stable_c");
+                    mark("orbit_stable_" + suffix());
                     sas(1); // prógrado -> retrógrado
                     next(5);
                 }
@@ -595,16 +625,27 @@ final class FlightDevtest {
             case 7 -> { // desce até a dimensão da Terra
                 // a dimensão da Terra só carrega o terreno a velocidade baixa: no espaço, abaixo da altitude de entrada, freia de
                 // retrógrado até a horizontal ao chão ficar abaixo do limite de entrada (o piloto faz o mesmo)
-                if (t != null && snap.zoneBody() == null && t.altitude() < 4_000.0 && t.horizontalSpeed() > 15.0 && t.fuelMb() > 50.0) {
+                // voo D: o jogador comum, que NÃO freia no espaço: cai com a velocidade horizontal que a órbita deixou e só usa o motor
+                // dentro da atmosfera (landingControl); a pré-carga do local de pouso é que tem de dar conta do terreno
+                if (variant == 'D' && t != null) {
+                    landingControl(rocket, snap, c, t, player);
+                }
+                if (variant != 'D' && t != null && snap.zoneBody() == null && t.altitude() < 4_000.0 && t.horizontalSpeed() > 15.0 && t.fuelMb() > 50.0) {
                     c.throttle = Math.min(1.0, (t.horizontalSpeed() - 12.0) / 4.0);
                 }
+                if (snap.zoneBody() == null && t != null && t.altitude() < 3_000.0) {
+                    mark("descent_" + suffix());
+                }
+                if (snap.zoneBody() == null && t != null && t.altitude() < 1_300.0) {
+                    mark("descent1200_" + suffix());
+                }
                 if (snap.zoneBody() != null) {
-                    mark("reentry_c");
+                    mark("reentry_" + suffix());
                     SpaceHorizons.LOGGER.info("{}C: REENTRADA na dimensão da Terra: altitude {} vertical {} horizontal {}", TAG, f(t.altitude()),
                             f(t.verticalSpeed()), f(t.horizontalSpeed()));
                     next(8);
                 }
-                timeout(9_000, "descida da órbita (a órbita baixa tem período de ~7.800 ticks)");
+                timeout(16_000, "descida da órbita (a órbita baixa tem período de ~7.800 ticks)");
             }
             case 8 -> {
                 if (t == null) {
@@ -612,13 +653,18 @@ final class FlightDevtest {
                 }
                 landingControl(rocket, snap, c, t, player);
                 if (snap.mode() == FlightMode.PARACHUTE) {
-                    mark("chute_c");
+                    mark("chute_" + suffix());
                 }
                 timeout(4_000, "pouso depois da órbita");
             }
             default -> {
             }
         }
+    }
+
+    /** Sufixo dos marcos do voo de órbita: {@code c} (com freio no espaço) ou {@code d} (sem freio). */
+    private static String suffix() {
+        return variant == 'D' ? "d" : "c";
     }
 
     // ---------------------------------------------------------------- utilidades do piloto
@@ -688,8 +734,9 @@ final class FlightDevtest {
                     f(rocket.getY()), f(rocket.getZ()), f(rocket.fuelMb()));
             return;
         }
-        SpaceHorizons.LOGGER.info("{}[{}] t={} est={} dim={} modo={} sas={} alt={} vv={} vh={} v={} apo={} peri={} incl={} tta={} comb={} mB massa={} t "
+        SpaceHorizons.LOGGER.info("{}[{}] t={} est={} pouso={}/{}% dim={} modo={} sas={} alt={} vv={} vh={} v={} apo={} peri={} incl={} tta={} comb={} mB massa={} t "
                 + "acel={}→{} TWR={} Δv={} calor={} inclin.nariz={} pos=({}, {}, {}) sentado={}", TAG, variant, totalTicks, stage,
+                rocket.flight().landing().state(), rocket.flight().landing().percent(),
                 snap.zoneBody() == null ? "espaço" : snap.zoneBody().planet().id().getPath(), snap.mode(), snap.sas(), f(t.altitude()),
                 f(t.verticalSpeed()), f(t.horizontalSpeed()), f(t.orbitalSpeed()), f(t.apoapsisAltitude()), f(t.periapsisAltitude()), f(t.inclination()),
                 f(t.timeToApoapsis()), f(t.fuelMb()), f(rocket.stats().wetMass(t.fuelMb())), f(c.throttle), f(t.throttle()), f(t.twr()), f(t.deltaV()),

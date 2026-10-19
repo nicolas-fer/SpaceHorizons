@@ -170,8 +170,11 @@ public final class FlightMachine {
             FlightState inZone = moved.body() == zone ? moved : rebase(moved, zone, clockEnd, clockRate);
             Local loc = FrameBridge.toDimension(zone, clockEnd, clockRate, inZone.r(), inZone.v());
             var planet = zone.planet();
-            boolean leaves = Zones.shouldLeave(planet, loc.y())
-                    || ZoneSwitch.shouldLeaveEarly(planet, loc.y() - planet.seaLevel(), ZoneSwitch.horizontalSpeed(loc));
+            double altitude = loc.y() - planet.seaLevel();
+            double horizontal = ZoneSwitch.horizontalSpeed(loc);
+            // o terreno só é consultado quando o resto da saída antecipada (alto e rápido) já vale
+            boolean leaves = Zones.shouldLeave(planet, loc.y()) || (ZoneSwitch.mayLeaveEarly(planet, altitude, horizontal)
+                    && ZoneSwitch.shouldLeaveEarly(planet, altitude, loc.y() - zones.terrainHeight(zone, loc.x(), loc.z()), horizontal));
             if (leaves && zones.hasSpace()) {
                 Local dest = FrameBridge.toSpaceDimension(moved.body(), clockEnd, clockRate, moved.r(), moved.v());
                 Quaterniond localAtt = AttitudeMath.inertialToSpaceLocal(att.attitude(), clockEnd);

@@ -171,8 +171,8 @@ public final class AutoTest {
             return;
         }
         if (ONLY != null && ONLY.startsWith("flight")) {
-            // flight = voos A, B e C; flightb, flightc, flightbc... = só os voos citados (depuração)
-            flightScenario(ONLY.length() == 6 ? "abc" : ONLY.substring(6));
+            // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
+            flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
             return;
         }
 
@@ -2634,12 +2634,32 @@ public final class AutoTest {
         shot(30, "fl_c1_orbit_third_person");
         firstPerson();
         shot(5, "fl_c2_orbit_first_person");
-        tickerStep(0, waitFor("reentry_c", 13_000));
+        tickerStep(0, waitFor("reentry_c", 18_000));
         step(10, mc -> FlightDevtest.clientCheck(mc, "C voltou à Terra"));
         shot(5, "fl_c3_reentry");
         tickerStep(0, waitFor("end_c", 6000));
         shot(30, "fl_c4_landed");
         step(5, mc -> FlightDevtest.clientCheck(mc, "C em órbita"));
+        }
+
+        // voo D: como o C, mas sem o freio retrógrado no espaço (o jogador comum): a pré-carga do pouso é que carrega a descida
+        if (parts.contains("d")) {
+        step(20, mc -> FlightDevtest.build(mc, 'D'));
+        tickerStep(10, waitFor("built_d", 200));
+        thirdPerson();
+        step(0, FlightDevtest::go);
+        tickerStep(0, waitFor("space_d", 4000));
+        tickerStep(0, waitFor("orbit_d", 6000));
+        tickerStep(0, waitFor("descent_d", 18_000));
+        shot(5, "fl_d1_space_descent_3000");
+        tickerStep(0, waitFor("descent1200_d", 4000));
+        shot(2, "fl_d2_space_descent_1200");
+        tickerStep(0, waitFor("reentry_d", 4000));
+        step(10, mc -> FlightDevtest.clientCheck(mc, "D voltou à Terra"));
+        shot(5, "fl_d3_switch");
+        tickerStep(0, waitFor("end_d", 6000));
+        shot(30, "fl_d4_landed");
+        step(5, mc -> FlightDevtest.clientCheck(mc, "D pousado"));
         }
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");

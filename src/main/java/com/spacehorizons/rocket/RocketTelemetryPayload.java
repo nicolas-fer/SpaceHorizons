@@ -37,12 +37,14 @@ import net.minecraft.resources.Identifier;
  * @param tliDeltaV          delta-v da injeção translunar (b/t)
  * @param burnNow            true se é hora de queimar para a Lua
  * @param heldForChunks      true se o passo da simulação está segurado esperando chunks
+ * @param landingState       pré-carga do local de pouso: 0 sem previsão, 1 carregando, 2 pronta ({@link LandingPreloader.State})
+ * @param landingPercent     porcentagem (0..100) dos chunks do local de pouso previsto já carregados
  */
 public record RocketTelemetryPayload(String body, boolean inSpace, double altitude, double verticalSpeed, double horizontalSpeed,
         double orbitalSpeed, double apoapsisAltitude, double periapsisAltitude, double inclination, double timeToApoapsis,
         double fuelMb, double fuelCapacityMb, double deltaV, double twr, float throttle, byte sasMode, byte flightMode, float heat,
-        float chute, byte plannerStatus, float phaseNow, float phaseIdeal, float tliDeltaV, boolean burnNow, boolean heldForChunks)
-        implements CustomPacketPayload {
+        float chute, byte plannerStatus, float phaseNow, float phaseIdeal, float tliDeltaV, boolean burnNow, boolean heldForChunks,
+        byte landingState, byte landingPercent) implements CustomPacketPayload {
     public static final Type<RocketTelemetryPayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "rocket_telemetry"));
 
@@ -75,13 +77,16 @@ public record RocketTelemetryPayload(String body, boolean inSpace, double altitu
         buf.writeFloat(tliDeltaV);
         buf.writeBoolean(burnNow);
         buf.writeBoolean(heldForChunks);
+        buf.writeByte(landingState);
+        buf.writeByte(landingPercent);
     }
 
     private static RocketTelemetryPayload read(FriendlyByteBuf buf) {
         return new RocketTelemetryPayload(buf.readUtf(32), buf.readBoolean(), buf.readDouble(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat(), buf.readByte(), buf.readByte(), buf.readFloat(),
-                buf.readFloat(), buf.readByte(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readBoolean(), buf.readBoolean());
+                buf.readFloat(), buf.readByte(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readBoolean(), buf.readBoolean(), buf.readByte(),
+                buf.readByte());
     }
 
     @Override

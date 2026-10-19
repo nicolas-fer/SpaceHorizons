@@ -173,15 +173,15 @@ class FlightMachineTest {
     }
 
     @Test
-    void fallingBelowEightyPercentOfTheExitAltitudeEntersThePlanetDimension() {
-        FlightState state = FrameBridge.fromDimension(SolarSystem.EARTH, CLOCK, new Local(0.0, SEA + 3_990.0, 0.0, 0.0, -5.0, 0.0), 1_000.0);
+    void fallingBelow1200AboveTheTerrainEntersThePlanetDimension() {
+        FlightState state = FrameBridge.fromDimension(SolarSystem.EARTH, CLOCK, new Local(0.0, SEA + 1_190.0, 0.0, 0.0, -5.0, 0.0), 1_000.0);
         Quaterniond inertial = AttitudeMath.localToInertial(SolarSystem.EARTH, CLOCK, 0.0, 0.0, new Quaterniond());
         Snapshot inSpace = new Snapshot(FlightMode.FLIGHT, state, inertial, V3.ZERO, SasMode.OFF, 0.0, false, null, 1_000.0);
         Result r = step(inSpace, thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
         assertEquals(Event.ENTER_ZONE, r.event());
         assertSame(SolarSystem.EARTH, r.toBody());
         assertSame(SolarSystem.EARTH, r.next().zoneBody());
-        assertEquals(SEA + 3_985.0, r.local().y(), 10.0);
+        assertEquals(SEA + 1_185.0, r.local().y(), 10.0);
         assertTrue(r.local().vy() < 0.0, "ainda descendo, agora com velocidade local ao chão");
         // a atitude local de um foguete de pé no espaço de cabeça para cima volta ao identidade (de pé) aqui no spawn
         assertEquals(0.0, AttitudeMath.tiltDegrees(r.localAttitude(), new V3(0, 1, 0)), 0.5);
@@ -202,15 +202,48 @@ class FlightMachineTest {
     }
 
     @Test
-    void aSlowDescentEntersThePlanetDimensionBelowTheEnterAltitude() {
-        Result r = step(inSpaceAbove(3_990.0, 20.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
+    void aSlowDescentEntersThePlanetDimensionOnlyBelow1200AboveTheTerrain() {
+        Result r = step(inSpaceAbove(1_190.0, 20.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
         assertEquals(Event.ENTER_ZONE, r.event());
+        // acima disso, mesmo devagar e abaixo da altitude de entrada de 4.000, segue no espaço (vazio: sem geração de terreno)
+        for (double altitude : new double[] {3_990.0, 2_500.0, 1_300.0}) {
+            Result above = step(inSpaceAbove(altitude, 5.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
+            assertEquals(Event.NONE, above.event(), "altitude " + altitude);
+            assertNull(above.next().zoneBody(), "altitude " + altitude);
+        }
+    }
+
+    @Test
+    void theParachuteOpensInTheSpaceDimensionInTheAtmosphereAndTheEntryDoesNotCloseIt() {
+        // no espaço (zona nula), a 1.600 de altitude (a atmosfera vai até 1.800), a 5 b/tick: o paraquedas pedido começa a abrir
+        FlightState state = FrameBridge.fromDimension(SolarSystem.EARTH, CLOCK, new Local(0.0, SEA + 1_600.0, 0.0, 2.0, -4.5, 0.0), 1_000.0);
+        Quaterniond inertial = AttitudeMath.localToInertial(SolarSystem.EARTH, CLOCK, 0.0, 0.0, new Quaterniond());
+        Snapshot inSpace = new Snapshot(FlightMode.FLIGHT, state, inertial, V3.ZERO, SasMode.OFF, 0.0, false, null, 1_000.0);
+        Command open = new Command(0.0, 0.0, 0.0, 0.0, true, false);
+        Result first = step(inSpace, open, onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
+        assertNull(first.next().zoneBody(), "ainda no espaço (acima de 1.200 sobre o terreno)");
+        assertEquals(FlightMode.PARACHUTE, first.next().mode());
+        assertTrue(first.next().state().chute() > 0.0, "a rampa começou");
+        // desce na dimensão de espaço até a troca: o paraquedas continua abrindo e a entrada não o fecha nem o reinicia
+        Snapshot s = first.next();
+        double chute = s.state().chute();
+        Result r = first;
+        for (int i = 0; i < 8_000 && !r.transfer(); i++) {
+            r = step(s, Command.IDLE, onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
+            assertTrue(r.next().state().chute() >= chute - 1e-12, "o paraquedas não fecha (tick " + i + ")");
+            chute = r.next().state().chute();
+            s = r.next();
+        }
+        assertEquals(Event.ENTER_ZONE, r.event(), "a troca à dimensão da Terra acontece na descida");
+        assertSame(SolarSystem.EARTH, r.next().zoneBody());
+        assertEquals(FlightMode.PARACHUTE, r.next().mode());
+        assertEquals(1.0, r.next().state().chute(), 1e-9, "aberto por inteiro na troca");
     }
 
     @Test
     void aFastReentryStaysInTheSpaceDimensionDownToTheForcedEntryHeight() {
         // 60 b/tick na horizontal (reentrada de órbita): a dimensão da Terra não carregaria o terreno nessa velocidade
-        for (double altitude : new double[] {3_990.0, 3_000.0, 1_500.0, 1_100.0}) {
+        for (double altitude : new double[] {3_990.0, 3_000.0, 1_500.0, 1_100.0, 700.0}) {
             Result r = step(inSpaceAbove(altitude, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
             assertEquals(Event.NONE, r.event(), "altitude " + altitude);
             assertNull(r.next().zoneBody(), "altitude " + altitude);
@@ -219,8 +252,8 @@ class FlightMachineTest {
 
     @Test
     void aFastReentryIsForcedIntoThePlanetDimensionNearTheTerrain() {
-        // o terreno do teste é o nível do mar: a 1.000 de altura o foguete entra mesmo a 60 b/tick (a espera por chunks é do voo)
-        Result r = step(inSpaceAbove(990.0, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
+        // o terreno do teste é o nível do mar: a 600 de altura o foguete entra mesmo a 60 b/tick (a espera por chunks é do voo)
+        Result r = step(inSpaceAbove(590.0, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
         assertEquals(Event.ENTER_ZONE, r.event());
         assertSame(SolarSystem.EARTH, r.next().zoneBody());
     }
@@ -243,9 +276,9 @@ class FlightMachineTest {
                 return SEA + 500.0;
             }
         };
-        // 1.400 sobre o mar = 900 sobre o terreno de 500: entra; 1.600 = 1.100 sobre o terreno: segue no espaço
-        assertEquals(Event.ENTER_ZONE, step(inSpaceAbove(1_400.0, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), mountain).event());
-        assertEquals(Event.NONE, step(inSpaceAbove(1_600.0, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), mountain).event());
+        // 1.000 sobre o mar = 500 sobre o terreno de 500: entra; 1.200 = 700 sobre o terreno: segue no espaço
+        assertEquals(Event.ENTER_ZONE, step(inSpaceAbove(1_000.0, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), mountain).event());
+        assertEquals(Event.NONE, step(inSpaceAbove(1_200.0, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), mountain).event());
     }
 
     @Test
