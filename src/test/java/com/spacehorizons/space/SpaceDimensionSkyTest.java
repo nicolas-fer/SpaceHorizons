@@ -98,10 +98,11 @@ class SpaceDimensionSkyTest {
             minY = Math.min(minY, dim[1]);
             maxY = Math.max(maxY, dim[1]);
         }
-        assertTrue(minY < -39_000, "mínimo " + minY);
-        assertTrue(maxY > 79_000, "máximo " + maxY);
-        // perto da Terra a altitude de saída (5.000) cabe com folga
-        SpaceDimension.fromSpace(-(SolarSystem.EARTH.planet().radius() + 5_000), 0, 0, dim);
-        assertTrue(dim[1] > 4_000);
+        assertTrue(minY < -570_000, "mínimo " + minY);
+        assertTrue(maxY > 610_000, "máximo " + maxY);
+        // acima do spawn da Terra a altitude de saída (5.000) cai em Y positivo; o lado do nadir da Terra (10x maior que antes)
+        // fica em Y negativo, como a Lua: o vácuo do mundo está desligado na dimensão (ver EntityMixin)
+        SpaceDimension.fromSpace(SolarSystem.EARTH.planet().radius() + 5_000, 0, 0, dim);
+        assertTrue(dim[1] > SpaceDimension.Y_BIAS + 5_000);
     }
 }

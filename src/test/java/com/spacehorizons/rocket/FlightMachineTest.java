@@ -130,7 +130,7 @@ class FlightMachineTest {
         Result r = step(Snapshot.landed(SolarSystem.MOON, FULL), thrust(1.0), onThePad(SolarSystem.MOON), new Quaterniond(), ALL);
         assertEquals(Event.LIFTOFF, r.event());
         double speed = r.next().state().v().length();
-        assertTrue(speed > 0.3 && speed < 1.2, "ω×r da Lua entra na velocidade inercial: " + speed);
+        assertTrue(speed > 3.0 && speed < 12.0, "ω×r da Lua entra na velocidade inercial: " + speed);
         // e relativa ao chão a velocidade é só a do empuxo
         assertTrue(Math.hypot(r.local().vx(), r.local().vz()) < 0.01);
     }

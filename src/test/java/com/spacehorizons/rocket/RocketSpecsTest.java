@@ -19,9 +19,9 @@ class RocketSpecsTest {
         RocketStats s = RocketSpecs.statsFor(new RocketCensus(1, 1, 1, 0, 0, 0, 0));
         assertEquals(1.6, s.dryMassT(), EPS);
         assertEquals(2.5, s.thrust(), EPS);
-        assertEquals(500.0, s.ispTicks(), EPS);
+        assertEquals(1600.0, s.ispTicks(), EPS);
         assertEquals(4000.0, s.fuelCapacityMb(), EPS);
-        assertEquals(40.0, s.exhaustVelocity(), EPS, "ve = Isp * G0 = 500 * 0,08");
+        assertEquals(128.0, s.exhaustVelocity(), EPS, "ve = Isp * G0 = 1600 * 0,08");
         assertEquals(1, s.engines());
         assertEquals(1, s.tanks());
         assertEquals(0, s.parachutes());
@@ -60,7 +60,7 @@ class RocketSpecsTest {
         // 4.000 mB de combustível = 3,2 t
         assertEquals(1.6 + 3.2, s.wetMass(4000.0), EPS);
         assertEquals(1.6, s.wetMass(0.0), EPS);
-        assertEquals(40.0 * Math.log(4.8 / 1.6), s.deltaV(4000.0), 1.0E-9);
+        assertEquals(128.0 * Math.log(4.8 / 1.6), s.deltaV(4000.0), 1.0E-9);
         assertEquals(0.0, s.deltaV(0.0), EPS, "sem combustível não há Δv");
         double g = 0.08;
         assertEquals(2.5 / (4.8 * g), s.twr(4000.0, g), 1.0E-9);

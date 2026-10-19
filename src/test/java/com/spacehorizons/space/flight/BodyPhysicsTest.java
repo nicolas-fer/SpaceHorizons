@@ -14,8 +14,8 @@ class BodyPhysicsTest {
 
     @Test
     void gravitationalParametersMatchTheFeltGravity() {
-        assertEquals(8_703_423.4, EARTH.mu(), 1.0);
-        assertEquals(89_754.05, MOON.mu(), 0.1);
+        assertEquals(870_342_340.3, EARTH.mu(), 100.0);
+        assertEquals(8_975_405.4, MOON.mu(), 10.0);
         // a Lua tem 1/4 do raio e 0,165 da gravidade: mu_Lua/mu_Terra = 0,165/16 exato
         assertEquals(0.0103125, MOON.mu() / EARTH.mu(), 1e-12);
         // a gravidade de superfície é a que o jogador sente: G0 · fator do planeta
@@ -25,25 +25,25 @@ class BodyPhysicsTest {
 
     @Test
     void laplaceSphereOfInfluenceOfTheMoon() {
-        assertEquals(9_627.1, MOON.soiRadius(), 0.1);
+        assertEquals(96_271.3, MOON.soiRadius(), 1.0);
         assertEquals(Double.POSITIVE_INFINITY, EARTH.soiRadius());
-        assertEquals(9_627.1 * 0.95, MOON.soiEnterRadius(), 0.1);
-        assertEquals(9_627.1 * 1.05, MOON.soiExitRadius(), 0.1);
+        assertEquals(96_271.3 * 0.95, MOON.soiEnterRadius(), 1.0);
+        assertEquals(96_271.3 * 1.05, MOON.soiExitRadius(), 1.0);
         assertTrue(MOON.soiEnterRadius() < MOON.soiRadius() && MOON.soiRadius() < MOON.soiExitRadius());
     }
 
     @Test
     void referenceSpeedsAndPeriods() {
-        assertEquals(28.8865, EARTH.circularSpeed(EARTH.radius()), 1e-3);
-        assertEquals(40.852, EARTH.escapeSpeed(EARTH.radius()), 1e-3);
-        assertEquals(Math.sqrt(2) * EARTH.circularSpeed(20_000), EARTH.escapeSpeed(20_000), 1e-12);
-        assertEquals(5.867, MOON.circularSpeed(MOON.radius()), 1e-3);
+        assertEquals(91.3472, EARTH.circularSpeed(EARTH.radius()), 1e-3);
+        assertEquals(129.184, EARTH.escapeSpeed(EARTH.radius()), 1e-3);
+        assertEquals(Math.sqrt(2) * EARTH.circularSpeed(200_000), EARTH.escapeSpeed(200_000), 1e-12);
+        assertEquals(18.5527, MOON.circularSpeed(MOON.radius()), 1e-3);
         double leo = EARTH.radius() + 6_000;
-        assertEquals(23.016, EARTH.circularSpeed(leo), 1e-3);
-        assertEquals(4_485.45, EARTH.period(leo), 0.1);
-        // período rasante: 2.269 ticks na Terra e 2.793 na Lua
-        assertEquals(2_269, EARTH.period(EARTH.radius()), 1);
-        assertEquals(2_793, MOON.period(MOON.radius()), 1);
+        assertEquals(88.828, EARTH.circularSpeed(leo), 1e-3);
+        assertEquals(7_802.26, EARTH.period(leo), 0.1);
+        // período rasante: 7.174 ticks na Terra e 8.831 na Lua
+        assertEquals(7_174, EARTH.period(EARTH.radius()), 1);
+        assertEquals(8_831, MOON.period(MOON.radius()), 1);
     }
 
     @Test

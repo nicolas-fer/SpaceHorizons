@@ -12,8 +12,8 @@ public final class TravelMath {
     public static final float BASE_FLYING_SPEED = 0.05F;
     /** Abaixo desta altitude (sobre o nível do mar) o voo é o normal do jogo. */
     public static final double BOOST_START_ALTITUDE = 800.0;
-    /** Teto do multiplicador de velocidade (atingido a BOOST_MAX * BOOST_START_ALTITUDE blocos). */
-    public static final double BOOST_MAX = 100.0;
+    /** Teto do multiplicador de velocidade (atingido a BOOST_MAX * BOOST_START_ALTITUDE = 320.000 blocos; a Lua está a 600.000). */
+    public static final double BOOST_MAX = 400.0;
     /** Passo de quantização do multiplicador: evita um pacote de habilidades a cada tick durante a subida. */
     public static final double BOOST_STEP = 0.25;
     /**

@@ -136,7 +136,7 @@ class SkyObserverTest {
 
     @Test
     void spaceObserverSeesBothBodiesAsOtherBodies() {
-        // meio do caminho entre os centros da Terra e da Lua (a 60.000 um do outro), em vários instantes
+        // meio do caminho entre os centros da Terra e da Lua (a 600.000 um do outro), em vários instantes
         for (double clock : CLOCKS) {
             double[] m = new double[3];
             SolarSystem.MOON.positionAt(clock, m);
@@ -145,10 +145,10 @@ class SkyObserverTest {
             SkyObserver observer = SkyObserver.forSpace(clock, dim[0], dim[1], dim[2]);
             BodySky.Apparent earth = observer.apparent(SolarSystem.EARTH);
             BodySky.Apparent moon = observer.apparent(SolarSystem.MOON);
-            assertEquals(30_000, earth.distance(), 1e-6);
-            assertEquals(30_000, moon.distance(), 1e-6);
-            assertEquals(Math.asin(SolarSystem.EARTH.planet().radius() / 30_000.0), earth.angularRadius(), 1e-12);
-            assertEquals(Math.asin(SolarSystem.MOON.planet().radius() / 30_000.0), moon.angularRadius(), 1e-12);
+            assertEquals(300_000, earth.distance(), 1e-6);
+            assertEquals(300_000, moon.distance(), 1e-6);
+            assertEquals(Math.asin(SolarSystem.EARTH.planet().radius() / 300_000.0), earth.angularRadius(), 1e-12);
+            assertEquals(Math.asin(SolarSystem.MOON.planet().radius() / 300_000.0), moon.angularRadius(), 1e-12);
             // em direções opostas
             assertEquals(-moon.x(), earth.x(), 1e-9);
             assertEquals(-moon.y(), earth.y(), 1e-9);

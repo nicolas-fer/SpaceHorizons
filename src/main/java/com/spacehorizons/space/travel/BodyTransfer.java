@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
  * As dimensões são as dos corpos ({@link #compute}) ou a do espaço aberto ({@link #toSpace}, {@link #fromSpace}).
  *
  * As velocidades do Minecraft num corpo são sempre relativas ao chão dele (o jogador parado na superfície tem velocidade
- * zero), mas os corpos se movem (a Lua anda ~14 blocos/tick e gira com a órbita). Então a velocidade vira velocidade no
+ * zero), mas os corpos se movem (a Lua anda ~140 blocos/tick e gira com a órbita). Então a velocidade vira velocidade no
  * espaço somando a do chão de origem (SpaceFrame#groundVelocity), e no destino subtrai-se a do chão de lá: o jogador
  * chega com a velocidade relativa ao corpo novo, não com centenas de blocos/s herdados do movimento do outro. No espaço
  * aberto não há chão: a velocidade é a do espaço (o referencial inercial da Terra), sem somar nem subtrair nada.

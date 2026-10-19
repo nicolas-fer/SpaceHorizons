@@ -17,8 +17,8 @@ class RocketStatsTest {
         RocketStats s = minimal();
         assertEquals(1.9, s.dryMassT(), 1e-12);
         assertEquals(2.5, s.thrust(), 1e-12);
-        assertEquals(500.0, s.ispTicks(), 0.0);
-        assertEquals(40.0, s.exhaustVelocity(), 1e-12);
+        assertEquals(1_600.0, s.ispTicks(), 0.0);
+        assertEquals(128.0, s.exhaustVelocity(), 1e-12);
         assertEquals(4_000.0, s.fuelCapacityMb(), 0.0);
         assertEquals(5.1, s.wetMass(4_000), 1e-12);
         assertEquals(1, s.engines());
@@ -30,7 +30,7 @@ class RocketStatsTest {
         // o marco: encher o tanque dá um voo ao espaço (suborbital, Δv >= 35)
         RocketStats s = minimal();
         double dv = s.deltaV(s.fuelCapacityMb());
-        assertEquals(40 * Math.log(5.1 / 1.9), dv, 1e-9);
+        assertEquals(128 * Math.log(5.1 / 1.9), dv, 1e-9);
         assertTrue(dv >= 35, "Δv = " + dv);
         assertEquals(0.0, s.deltaV(0), 0.0);
         // com a metade do combustível ainda há Δv, mas menos
@@ -52,7 +52,7 @@ class RocketStatsTest {
         RocketStats s = RocketStats.of(2, 5, 0, 0, 1, 30, 9.0);
         assertEquals(6.0, s.dryMassT(), 1e-9);
         assertEquals(22.0, s.wetMass(s.fuelCapacityMb()), 1e-9);
-        assertTrue(s.deltaV(s.fuelCapacityMb()) >= 48);
+        assertTrue(s.deltaV(s.fuelCapacityMb()) >= 150);
         // foguete de 9 blocos² e 22 t: velocidade terminal de ~16 blocos/tick
         double terminal = Math.sqrt(FlightConstants.G0 / s.dragK0());
         assertEquals(16.0, terminal, 0.5);
@@ -65,18 +65,18 @@ class RocketStatsTest {
         assertEquals(11.0, s.dryMassT(), 1e-9);
         assertEquals(84_000.0, s.fuelCapacityMb(), 0.0);
         assertEquals(78.2, s.wetMass(s.fuelCapacityMb()), 1e-9);
-        assertTrue(s.deltaV(s.fuelCapacityMb()) >= 78);
+        assertTrue(s.deltaV(s.fuelCapacityMb()) >= 247);
     }
 
     @Test
     void flowAndBurnTimeFollowTheDesign() {
-        // 5 motores a 100%: 0,3125 t/tick = 390,6 mB/tick
+        // 5 motores a 100%: 0,09765625 t/tick = 122,07 mB/tick
         RocketStats s = RocketStats.of(5, 21, 0, 0, 1, 30, 9.0);
-        assertEquals(0.3125, s.fullThrottleFlow(), 1e-12);
-        assertEquals(390.625, s.fullThrottleFuelMbPerTick(), 1e-9);
+        assertEquals(0.09765625, s.fullThrottleFlow(), 1e-12);
+        assertEquals(122.0703125, s.fullThrottleFuelMbPerTick(), 1e-9);
         assertEquals(s.thrust() / s.wetMass(84_000), s.acceleration(84_000, 1.0), 1e-12);
         assertEquals(0.5 * s.acceleration(84_000, 1.0), s.acceleration(84_000, 0.5), 1e-12);
-        assertEquals(Tsiolkovsky.burnTime(s.wetMass(84_000), 0.3125, 40, 20), s.burnTime(84_000, 20), 1e-12);
+        assertEquals(Tsiolkovsky.burnTime(s.wetMass(84_000), 0.09765625, 128, 20), s.burnTime(84_000, 20), 1e-12);
     }
 
     @Test

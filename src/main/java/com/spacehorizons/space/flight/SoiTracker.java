@@ -11,7 +11,7 @@ import com.spacehorizons.space.SolarSystem;
  *   Terra → Lua:  r' = r − centro_Lua(clock),  v' = v − velocidade_Lua(clock)
  *   Lua → Terra:  r' = r + centro_Lua(clock),  v' = v + velocidade_Lua(clock)
  * </pre>
- * Entra na Lua a 95% do raio da esfera (9.146 blocos) e só volta à Terra a 105% (10.108): entre os dois a troca não
+ * Entra na Lua a 95% do raio da esfera (91.457 blocos) e só volta à Terra a 105% (101.085): entre os dois a troca não
  * acontece, então não há vai e vem na fronteira. Esta esfera é a física; a regra antiga ({@code SphereOfInfluence}) fica
  * só para o autopiloto criativo.
  */

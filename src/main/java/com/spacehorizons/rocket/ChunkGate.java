@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Chunks à frente do foguete (lógica pura): quais pedir e quando segurar a simulação. A 30 a 60 blocos por tick o foguete
+ * Chunks à frente do foguete (lógica pura): quais pedir e quando segurar a simulação. A 30 a 90 blocos por tick o foguete
  * cruza vários chunks por tick e o vanilla só carrega o que o jogador "vê"; então a cada tick o servidor pede tickets
  * {@code ENDER_PEARL} à frente (extrapolando a velocidade das coordenadas) e SEGURA o passo se faltar chunk nos próximos
  * {@link #GATING_STEPS}, até {@link #MAX_HELD_TICKS} ticks (depois segue com aviso: um chunk que nunca carrega não pode

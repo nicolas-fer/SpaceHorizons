@@ -20,7 +20,7 @@ class PlanetMeshProjectionTest {
         assertEquals(0.0, PlanetMeshProjection.weight(R, PlanetMeshProjection.ALTITUDE_START, 9_000.0, 2_000.0), 0.0);
         assertEquals(0.0, PlanetMeshProjection.weight(R, 40_000.0, 1_999.0, 2_000.0), 0.0);
         assertEquals(1.0, PlanetMeshProjection.weight(R, 40_000.0, 2_000.0 + 0.31 * R, 2_000.0), 1e-12);
-        assertEquals(1.0, PlanetMeshProjection.weight(R, PlanetMeshProjection.ALTITUDE_FULL, 20_000.0, 2_000.0), 1e-12);
+        assertEquals(1.0, PlanetMeshProjection.weight(R, PlanetMeshProjection.ALTITUDE_FULL, 2_000.0 + 0.31 * R, 2_000.0), 1e-12);
     }
 
     @Test
@@ -94,7 +94,7 @@ class PlanetMeshProjectionTest {
         // longe do equador a distância no plano (usada pela carta azimutal) é maior que o arco real
         double[] xz = new double[2];
         double camX = 0.0;
-        double camZ = 9_000.0; // ~49° de latitude
+        double camZ = 90_000.0; // ~49° de latitude
         double theta = 0.6;
         double phi = 0.0; // para leste
         PlanetMeshProjection.terrainPoint(EARTH, camX, camZ, theta, phi, 1.0, xz);
@@ -172,12 +172,12 @@ class PlanetMeshProjectionTest {
     void azimuthalSwimMatchesTheDocumentedTable() {
         // altitude, deslocamento, erro esperado (blocos)
         double[][] table = {
-                {600, 3_000, 113}, {2_000, 3_000, 305}, {5_000, 3_000, 594}, {15_000, 3_000, 1_062}, {40_000, 3_000, 1_415},
-                {5_000, 500, 97}, {15_000, 500, 176}, {40_000, 500, 235},
+                {600, 3_000, 10.5}, {2_000, 3_000, 34.2}, {5_000, 3_000, 82.7}, {15_000, 3_000, 226.6}, {40_000, 3_000, 498.3},
+                {5_000, 500, 13.75}, {15_000, 500, 37.8}, {40_000, 500, 83.0},
         };
         for (double[] row : table) {
             double error = azimuthalSwimBlocks(row[0], row[1]);
-            assertEquals(row[2], error, Math.max(25.0, row[2] * 0.08), "altitude " + row[0] + " deslocamento " + row[1]);
+            assertEquals(row[2], error, Math.max(2.0, row[2] * 0.08), "altitude " + row[0] + " deslocamento " + row[1]);
         }
     }
 

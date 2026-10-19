@@ -32,13 +32,13 @@ class FlightIntegratorTest {
 
     @Test
     void verletTracksKeplerOverAWholeTransferEllipse() {
-        double speed = Math.sqrt(EARTH.mu() * (2.0 / LEO - 2.0 / (LEO + 60_000)));
+        double speed = Math.sqrt(EARTH.mu() * (2.0 / LEO - 2.0 / (LEO + 600_000)));
         V3 r0 = new V3(LEO, 0, 0);
         V3 v0 = new V3(0, 0, speed);
-        int ticks = 15_911;
+        int ticks = 45_077; // período da elipse (2 x 22.538,55)
         FlightState s = coast(new FlightState(SolarSystem.EARTH, r0, v0, 0, 0), MINIMAL, ticks);
         Kepler.State k = Kepler.propagate(EARTH.mu(), r0, v0, ticks);
-        assertTrue(s.r().distanceTo(k.r()) < 1.0, "diferença = " + s.r().distanceTo(k.r()));
+        assertTrue(s.r().distanceTo(k.r()) < 6.0, "diferença = " + s.r().distanceTo(k.r())); // 45 mil ticks de Verlet em 600 mil blocos: ~3 blocos (5e-6 do raio)
         double e0 = energy(EARTH.mu(), r0, v0);
         assertTrue(Math.abs((energy(EARTH.mu(), s.r(), s.v()) - e0) / e0) < 1e-12);
     }
@@ -46,7 +46,7 @@ class FlightIntegratorTest {
     @Test
     void verletTracksKeplerOnTheLunarHyperbola() {
         V3 r0 = new V3(MOON.radius() + 500, 0, 0);
-        V3 v0 = new V3(0, 0, 10.05);
+        V3 v0 = new V3(0, 0, 31.8);
         FlightState s = coast(new FlightState(SolarSystem.MOON, r0, v0, 0, 0), MINIMAL, 3_000);
         Kepler.State k = Kepler.propagate(MOON.mu(), r0, v0, 3_000);
         assertTrue(s.r().distanceTo(k.r()) < 0.02, "diferença = " + s.r().distanceTo(k.r()));
@@ -98,9 +98,9 @@ class FlightIntegratorTest {
         double used = fuel - s.fuelMb();
         assertTrue(used > 0);
         double m1 = ORBITER.wetMass(s.fuelMb());
-        assertEquals(Tsiolkovsky.deltaV(40, m0, m1), s.v().z(), 1e-6);
-        // 100 ticks a 100% com 2 motores: vazão de 0,125 t/tick = 156,25 mB/tick
-        assertEquals(100 * 156.25, used, 1e-6);
+        assertEquals(Tsiolkovsky.deltaV(128, m0, m1), s.v().z(), 1e-6);
+        // 100 ticks a 100% com 2 motores: vazão de 5/128 = 0,0390625 t/tick = 48,828125 mB/tick
+        assertEquals(100 * 48.828125, used, 1e-6);
         // o empuxo foi só ao longo de +Z
         assertEquals(0.0, s.v().x(), 1e-6);
         assertEquals(0.0, s.v().y(), 1e-6);
@@ -118,7 +118,7 @@ class FlightIntegratorTest {
     @Test
     void lastTickOfABurnIsPartialAndTheTotalDeltaVMatchesTheFullTank() {
         // combustível para poucos ticks: acaba no meio de um tick
-        double fuel = 500;
+        double fuel = 150;
         FlightState s = farAway(fuel);
         double m0 = ORBITER.wetMass(fuel);
         for (int i = 0; i < 10; i++) {
@@ -126,7 +126,7 @@ class FlightIntegratorTest {
         }
         assertEquals(0.0, s.fuelMb(), 0.0);
         assertEquals(ORBITER.deltaV(fuel), s.v().z(), 1e-6);
-        assertEquals(Tsiolkovsky.deltaV(40, m0, ORBITER.dryMassT()), s.v().z(), 1e-6);
+        assertEquals(Tsiolkovsky.deltaV(128, m0, ORBITER.dryMassT()), s.v().z(), 1e-6);
         // depois de acabar, o empuxo não faz mais nada
         FlightState after = FlightIntegrator.step(s, Control.thrust(1.0, new V3(0, 0, 1)), ORBITER, 0);
         assertEquals(s.v().z(), after.v().z(), 1e-9);
@@ -155,25 +155,25 @@ class FlightIntegratorTest {
 
     @Test
     void tliBurnGivesTheHohmannApoapsis() {
-        // queima de 5,8234 b/t em órbita baixa de 6.000 com TWR alto: a perda de gravidade é pequena (< 10 blocos)
+        // queima de 26,63 b/t em órbita baixa de 6.000 com TWR alto: a perda de gravidade é pequena (< 10 blocos)
         RocketStats strong = RocketStats.of(5, 21, 0, 0, 1, 30, 9.0);
         double vc = EARTH.circularSpeed(LEO);
         FlightState s = new FlightState(SolarSystem.EARTH, new V3(LEO, 0, 0), new V3(0, 0, vc), 30_000, 0);
-        double remaining = Hohmann.dv1(EARTH.mu(), LEO, 60_000);
+        double remaining = Hohmann.dv1(EARTH.mu(), LEO, 600_000);
         int ticks = 0;
         while (remaining > 1e-9 && ticks++ < 1_000) {
             double m0 = strong.wetMass(s.fuelMb());
-            double fullTickDv = Tsiolkovsky.deltaV(40, m0, m0 - strong.fullThrottleFlow());
+            double fullTickDv = Tsiolkovsky.deltaV(128, m0, m0 - strong.fullThrottleFlow());
             // no último tick o acelerador é reduzido para entregar exatamente o Δv que falta
             double throttle = remaining >= fullTickDv ? 1.0
-                    : (m0 - Tsiolkovsky.finalMass(m0, 40, remaining)) / strong.fullThrottleFlow();
+                    : (m0 - Tsiolkovsky.finalMass(m0, 128, remaining)) / strong.fullThrottleFlow();
             s = FlightIntegrator.step(s, Control.thrust(throttle, s.v().unit()), strong, 0);
-            remaining -= Tsiolkovsky.deltaV(40, m0, strong.wetMass(s.fuelMb()));
+            remaining -= Tsiolkovsky.deltaV(128, m0, strong.wetMass(s.fuelMb()));
         }
-        // TWR em órbita ~5: a queima dura poucos ticks e a perda de gravidade é de dezenas de blocos
-        assertTrue(ticks < 40, "queima de " + ticks + " ticks");
+        // TWR em órbita ~1,3: a queima dura ~100 ticks (Δv de 26,6 com ve = 128) e a perda de gravidade é de centenas de blocos no apoastro
+        assertTrue(ticks < 150, "queima de " + ticks + " ticks");
         Orbit o = Orbit.fromState(EARTH.mu(), s.r(), s.v(), new V3(0, -1, 0));
-        assertEquals(60_000, o.apoapsis(), 200, "apoastro = " + o.apoapsis());
+        assertEquals(600_000, o.apoapsis(), 2_000, "apoastro = " + o.apoapsis());
     }
 
     // ------------------------------------------------------------------ atmosfera
@@ -270,18 +270,18 @@ class FlightIntegratorTest {
     @Test
     void heatIndexGrowsWithSpeedAndDensityAndVanishesInVacuum() {
         assertEquals(0.0, FlightIntegrator.heatIndex(0, 30), 0.0);
-        assertEquals(1.0, FlightIntegrator.heatIndex(1.0, 28.9), 1e-12);
+        assertEquals(1.0, FlightIntegrator.heatIndex(1.0, FlightConstants.HEAT_REFERENCE_SPEED), 1e-12);
         assertTrue(FlightIntegrator.heatIndex(0.5, 30) > FlightIntegrator.heatIndex(0.5, 20));
         assertTrue(FlightIntegrator.heatIndex(0.8, 30) > FlightIntegrator.heatIndex(0.2, 30));
-        // índice de referência: 0,15 a 0,19 em LEO a vt = 10 (ρ ~ 0,1..0,2 a ~26 b/t)
-        double q = FlightIntegrator.heatIndex(0.1, 26);
+        // índice de referência: 0,15 a 0,19 em LEO a vt = 10 (ρ ~ 0,1..0,2 a ~82 b/t)
+        double q = FlightIntegrator.heatIndex(0.1, 82);
         assertTrue(q > 0.08 && q < 0.4, "Q = " + q);
     }
 
     @Test
     void heatMeterRisesInTheAirAndFallsBackInVacuum() {
-        // mergulha na atmosfera a 30 b/t
-        FlightState s = new FlightState(SolarSystem.EARTH, new V3(EARTH.radius() + 1_200, 0, 0), new V3(-20, 0, 25), 0, 0);
+        // mergulha na atmosfera a ~100 b/t
+        FlightState s = new FlightState(SolarSystem.EARTH, new V3(EARTH.radius() + 1_200, 0, 0), new V3(-63, 0, 79), 0, 0);
         double peak = 0;
         for (int i = 0; i < 60; i++) {
             s = FlightIntegrator.step(s, Control.IDLE, MINIMAL, 0);
@@ -290,7 +290,7 @@ class FlightIntegratorTest {
         assertTrue(peak > 0.05, "pico = " + peak);
         assertTrue(peak <= FlightConstants.HEAT_MAX);
         // no vácuo o medidor esfria com constante de tempo de 100 ticks
-        FlightState hot = new FlightState(SolarSystem.EARTH, new V3(EARTH.radius() + 6_000, 0, 0), new V3(0, 0, 23), 0, 0.8);
+        FlightState hot = new FlightState(SolarSystem.EARTH, new V3(EARTH.radius() + 6_000, 0, 0), new V3(0, 0, 88.8), 0, 0.8);
         FlightState cooled = coast(hot, MINIMAL, 100);
         assertEquals(0.8 * Math.pow(1 - FlightConstants.HEAT_DECAY, 100), cooled.heat(), 1e-12);
         assertEquals(0.0, FlightIntegrator.stepHeat(0.0, 0.0, 0.0), 0.0);

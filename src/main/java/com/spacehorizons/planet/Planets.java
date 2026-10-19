@@ -11,13 +11,13 @@ import net.minecraft.world.level.Level;
 /** Catálogo de planetas. Por enquanto fixo em código; vira data-driven depois. */
 public final class Planets {
     /**
-     * Planeta de teste pequeno (R ≈ 10.430) para a curvatura ficar evidente:
-     * a 4.096 blocos o chão já caiu ~800 blocos abaixo do horizonte plano.
+     * Planeta de teste (10x a escala original) (R ≈ 104.303) para a curvatura ficar evidente:
+     * a 40.960 blocos o chão já caiu ~8.000 blocos abaixo do horizonte plano.
      */
     public static final PlanetDefinition EARTH = new PlanetDefinition(
             Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "earth"),
             0x5EAC0FFEEL,
-            65_536,
+            655_360,
             63,
             70.0,
             96,
@@ -25,13 +25,13 @@ public final class Planets {
             1.0);
 
     /**
-     * Lua pequena (R ≈ 2.608, um quarto da Terra): curvatura forte, sem água nem atmosfera,
+     * Lua pequena (R ≈ 26.076, um quarto da Terra): curvatura forte, sem água nem atmosfera,
      * gravidade de ~1/6. seaLevel 63 é só a referência de altitude.
      */
     public static final PlanetDefinition MOON = new PlanetDefinition(
             Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "moon"),
             0x10A4L,
-            16_384,
+            163_840,
             63,
             75.0,
             48,

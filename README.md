@@ -8,7 +8,7 @@ interplanetária sem trocar de representação de repente (nada de skybox em PNG
 
 Um planeta pequeno e curvo, onde andar reto em X dá a volta:
 
-- **Planeta `spacehorizons:earth`**: circunferência de 65536 blocos (raio ≈ 10430),
+- **Planeta `spacehorizons:earth`**: circunferência de 655360 blocos (raio ≈ 104304),
   nível do mar em y=63, latitude máxima de 70°. Mapeamento equirretangular:
   X é longitude (periódico), Z é latitude.
 - **Terreno** (`planet/terrain/SphericalTerrain`): ruído Perlin 3D amostrado na
@@ -62,7 +62,7 @@ nuvens vanilla curvas com o DH ligado.
 Dois corpos, a Terra e a Lua, num mesmo referencial (`space/SolarSystem`, `space/SpaceFrame`), e a viagem
 entre eles sem tela de carregamento.
 
-- **A Lua** (`spacehorizons:moon`, no tipo de mundo Space Horizons): circunferência 16384 (raio ≈ 2608),
+- **A Lua** (`spacehorizons:moon`, no tipo de mundo Space Horizons): circunferência 163840 (raio ≈ 26076),
   sem água, sem atmosfera, gravidade 0,165 (`worldgen/PlanetGravity`: atributos de gravidade e de dano de queda).
   Terreno `planet/terrain/MoonTerrain`: crateras em 4 escalas, mares escuros, terras altas e regolito.
   O dimension_type `moon` tem céu preto com estrelas o tempo todo. Os LODs do DH e a malha orbital
@@ -99,7 +99,7 @@ Em criativo e como operador, em um mundo do tipo Space Horizons:
 
 | Comando | O que faz |
 | --- | --- |
-| `/spacehorizons fly moon` | piloto automático da Terra à Lua (de 1.000 a 2.700 ticks, conforme onde a Lua está); a troca de dimensão ocorre sozinha a ~8.400 blocos acima da Lua |
+| `/spacehorizons fly moon` | piloto automático da Terra à Lua (~4.000 a 9.000 ticks conforme onde a Lua está, estimativa dos testes unitários; não medida em jogo); a troca de dimensão ocorre sozinha a ~94.000 blocos acima da Lua |
 | `/spacehorizons fly earth` | volta para a Terra |
 | `/spacehorizons fly stop` | cancela o piloto automático |
 | `/spacehorizons goto moon` | teleporta para a superfície da Lua (face voltada para a Terra); mostra a tela de carregamento, de propósito |
@@ -119,13 +119,13 @@ A Terra deixou de ser um terreno simples e passou a usar o gerador completo do O
     (ruídos, shifts, `BlendedNoise`, gradiente em X). Fora de ±1.024 blocos da costura o X é embrulhado em [-C/2, C/2); dentro da faixa,
     mistura de duas amostras (`cos·A + sin·B`, que preserva a variância). Clima, relevo e biomas batem dos dois lados (`SeamMath`, `PeriodicXSampler`).
   - **Clima por latitude** (`spacehorizons:latitude_cooling`, `LatitudeClimate`): soma ao parâmetro de temperatura `0,12 − 1,82·t²`
-    (t = |z| / latitude máxima): trópicos no equador, neve perto de ±12.000 blocos, gelo no polo.
+    (t = |z| / latitude máxima): trópicos no equador, neve perto de ±120.000 blocos, gelo no polo.
   - Estruturas ficam suprimidas a menos de 640 blocos da costura.
-- **Mapa do planeta** (`planet/map/`, `network/`): o servidor amostra o gerador real numa grade de 1024x400 (célula de 64 blocos),
-  em background (~75 s na primeira vez), guarda em `<mundo>/data/spacehorizons/planetmap_earth.bin` e manda ao cliente em pedaços.
+- **Mapa do planeta** (`planet/map/`, `network/`): o servidor amostra o gerador real numa grade de 2048x798 (célula de 320 blocos),
+  em background (~140 s na primeira vez; 4096 colunas levaram 487 s e 13,9 MiB), guarda em `<mundo>/data/spacehorizons/planetmap_earth.bin` e manda ao cliente em pedaços.
   A malha orbital e as esferas dos corpos usam as cores dos biomas reais desse mapa (`PlanetTerrains.get`); o terreno analítico
   só vale enquanto o mapa não chega e para a Lua. O DH usa o gerador do mundo (não há mais override de LOD na Terra).
-- **A Lua orbita** (`space/SolarSystem`, `space/SpaceClock`): órbita circular de raio 60.000, inclinada 5°, período sinódico de 8 dias
+- **A Lua orbita** (`space/SolarSystem`, `space/SpaceClock`): órbita circular de raio 600.000, inclinada 5°, período sinódico de 8 dias
   (fases como as do vanilla: cheia à meia-noite do dia 0), no relógio do Overworld (`/time set` move sol e Lua). A Lua tem rotação
   sincronizada: a mesma face fica voltada para a Terra. `SpaceFrame`, `SunModel`, `BodyRenderer` e `SpaceSun` recebem o relógio.
 - **Viagem com alvo móvel** (`space/travel/FlightGuide`, `FlightPlan`, `BodyTransfer`): o plano mira onde o corpo estará, corrige a
@@ -141,7 +141,7 @@ no world preset (só mundos criados depois; num mundo antigo `/spacehorizons got
   Altura 16 é o mínimo do codec: uma seção por chunk.
 - **Coordenadas** (`space/SpaceDimension`): os eixos da dimensão são a base local da Terra no spawn (leste = +Z do espaço, cima = +X,
   norte = +Y) e Y tem um viés de 20.000: `(x, y, z) da dimensão = (sz, sx + 20.000, sy)`. Assim o sol, as estrelas e a vertical do spawn
-  da Terra funcionam sem rotação. A Terra fica em y = 20.000 e a Lua orbita entre y ≈ -40.000 e +80.000 (ver "Limitações").
+  da Terra funcionam sem rotação. A Terra fica em y = 20.000 e a Lua orbita entre y ≈ -580.000 e +620.000 (ver "Limitações").
 - **Céu** (`client/space/`): `SkyObserver` diz de onde se olha (chão de um planeta ou espaço aberto) e o `BodyRenderer` desenha os
   corpos pelo observador; no espaço a Terra (com halo) e a Lua são esferas reais, e o céu do vanilla traz só o sol e as estrelas
   (`SpaceSkyClient`: sem lua do vanilla, sem névoa, sem disco escuro, sem nuvens nem chuva).
@@ -171,11 +171,12 @@ mudou o resultado de forma mensurável.
 
 Limitações da dimensão de espaço:
 
-- **Faixa de Y**: com o viés fixo de 20.000, a órbita da Lua leva Y de -40.000 a +80.000 (os eixos da dimensão são os do spawn da
+- **Faixa de Y**: com o viés fixo de 20.000, a órbita da Lua leva Y de -580.000 a +620.000 (e o lado do nadir da Terra fica em Y negativo, de -84.000 a -109.000 nas zonas de saída) (os eixos da dimensão são os do spawn da
   Terra, e a Lua orbita no plano leste-cima). Por isso `EntityMixin` desliga a morte abaixo do mundo no espaço. Uma convenção que
   pusesse o eixo polar da Terra em Y daria ±15.000 com o mesmo viés, mas exigiria girar o sol e as estrelas do vanilla.
-- **Salto na saída a 5.000**: a esfera da Terra (agora até 1.024 segmentos, célula de 64 blocos, a do mapa) coincide em posição,
-  cor e halo com a malha orbital, mas some o detalhe dos chunks e do DH do centro da vista (uns 500 blocos de lado).
+- **Salto na saída a 5.000**: a esfera da Terra (agora até 2.048 segmentos, célula de 320 blocos; o mapa tem 320) coincide em
+  posição, cor e halo com a malha orbital, mas some o detalhe dos chunks e do DH do centro da vista. Com a Terra 10x maior os 5.000
+  de altitude são só 1/21 do raio, então a esfera vista dali é bem mais grossa que a malha orbital que a precedia (facetas visíveis).
 - **DH no espaço**: o DH trata a dimensão de espaço como uma dimensão qualquer (gerador flat vazio); não há gerador de LOD próprio.
   O log mostra só avisos "Renderer already started" do DH a cada troca de dimensão.
 - **Mundos antigos**: a dimensão só existe em mundos criados depois (world preset).
@@ -218,10 +219,10 @@ os comandos acima sem ter lido a EULA do Minecraft.
 
 1. Entre no mundo como operador (nível 2) e rode `/spacehorizons goto earth`.
    Você nasce na superfície em `(0, 0)` da dimensão `spacehorizons:earth`.
-2. Ande reto em X para o leste. A costura fica em `x = 32768` (metade da
-   circunferência). Para chegar mais rápido, use `/tp @s 32700 ~ 0` e ande um
+2. Ande reto em X para o leste. A costura fica em `x = 327680` (metade da
+   circunferência). Para chegar mais rápido, use `/tp @s 327600 ~ 0` e ande um
    pouco mais.
-3. Ao cruzar a costura você deve reaparecer em `x = -32768`, com a mesma direção.
+3. Ao cruzar a costura você deve reaparecer em `x = -327680`, com a mesma direção.
 4. Olhe para o horizonte: a curvatura deve aparecer nos chunks (o terreno some
    atrás do horizonte em vez de ficar plano). Com o DH instalado, os LODs distantes
    devem usar as mesmas cores.
@@ -237,9 +238,9 @@ rm -rf run/saves/SpaceAuto run/screenshots/autotest_*
 Leva uns 15 minutos. O roteiro (235+ passos, prefixos dos prints):
 
 - `a_*`: Terra vanilla em 6 pontos (biomas, árvores, relevo), caverna (o teste procura ar coberto sob o spawn) e y=12.
-- `b_*`: costura em x=32700/32760 e -32760 (de dia: é meia-noite no spawn), com o log `ALTURAS` (altura da superfície de 4 em 4
+- `b_*`: costura em x=327600/327670 e -327670 (de dia: é meia-noite no spawn), com o log `ALTURAS` (altura da superfície de 4 em 4
   blocos, salto máximo) e uma travessia real voando para leste.
-- `c_*`: latitude em z=0, 8000, 12000 e -12000 (trópico, temperado, neve, gelo).
+- `c_*`: latitude em z=0, 80000, 120000 e -120000 (trópico, temperado, neve, gelo).
 - `e_*`: a Lua vista do spawn no relógio em que ela está mais alta em cada um de cinco dias (fases 1,00 a 0,06); o log `ORBITA`
   traz posição no espaço, azimute, elevação, ângulo orbital e fração iluminada.
 - `d_*`: malha orbital a 5.000 e 15.000 blocos (e a 90° de longitude e no polo) depois de esperar o mapa (`MAPA do planeta pronto`).
@@ -264,21 +265,36 @@ Combinações (as flags `-P` ficam no `build.gradle`):
 Apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes de cada uma e copie os prints
 antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` no log.
 
+## Escala: Terra 10x maior (limitações)
+
+A Terra tem circunferência 655.360 (R ≈ 104.304) e a Lua 163.840 (R ≈ 26.076) a 600.000 de distância; antes eram 65.536, 16.384 e 60.000.
+**Mundos criados antes dessa mudança são incompatíveis** (mapa, terreno, chunks da costura e posições mudam): crie um mundo novo.
+Alturas e a atmosfera não mudaram (saída para o espaço a 5.000 na Terra e 1.250 na Lua, atmosfera de 1.800).
+
+- **Foguete**: a velocidade orbital da Terra subiu √10 (28,9 para 91,3 b/tick, ~1.827 b/s) e o Isp do motor também (500 para 1.600, ve = 128 b/t).
+  Com isso o foguete mínimo (Δv 126) faz a órbita com um programa de subida bom (gasta ~111, sobram ~14); antes só fazia salto suborbital.
+  A transferência Terra→Lua (TLI) leva 22.539 ticks (~19 min) e custa 26,6 b/t de Δv a partir da órbita baixa; a Lua é cinemática (85 a 167 b/t), então
+  chega-se à esfera dela com 83 a 146 b/t de velocidade relativa (antes ~6), muito acima da velocidade de escape da Lua (26 b/t na superfície).
+- **Mapa do planeta**: 2048 colunas (célula de 320 blocos); 4096 levaria 487 s de bake.
+- **Voo rápido** (medido no espaço vazio, 200 ticks): 60 b/tick (1.200 b/s) média de 1,5 ms por tick; 200 b/tick (4.000 b/s) média de 24 ms, 17 ticks acima de 100 ms e um "Can't keep up" de 2 s (47 mil chunks); 300 b/tick, tick de 4,8 s. O teto do piloto automático é 200 b/tick e a viagem Terra–Lua (`fly moon`) NÃO foi exercitada em jogo nesta escala (só no teste unitário).
+- **Dimensão de espaço**: Y vai de ~-580.000 a ~+620.000 (viés de 20.000 mantido); o lado do nadir da Terra fica em Y negativo.
+
 ## Limitações da fase 4
 
 - **Decoração perto da costura**: carvers de caverna, árvores e minérios usam sementes por chunk, não são periódicos. Terreno,
   clima e bioma batem na costura (faixa de mistura de 2.048 blocos), mas árvores e cavernas diferem entre os dois lados.
   Estruturas são suprimidas a 640 blocos da costura.
 - **Relevo na faixa da costura** é a mistura de dois terrenos independentes, não terreno vanilla puro (~3% da Terra).
-- **Mapa do planeta**: células de 64 blocos (rios estreitos somem), bioma amostrado no ponto exato, cores por tabela
+- **Mapa do planeta**: células de 320 blocos (rios e ilhas pequenas somem), bioma amostrado no ponto exato, cores por tabela
   aproximada (`BiomeColors`). A calota além de 70° é pintada de gelo e aparece como uma mancha clara de contorno retangular visto
-  de 15.000 blocos sobre o polo. O primeiro cálculo leva ~75 s; depois sai do cache em disco.
+  de 15.000 blocos sobre o polo. O primeiro cálculo leva ~140 s; depois sai do cache em disco.
 - **Spawn de teste**: `/spacehorizons goto earth` leva a (0, 0), que é oceano tropical com uma ilha de badlands.
-- **Lua em órbita**: o ângulo usa a curva Bézier do sol, então a velocidade orbital oscila (8 a 22 blocos/tick); as fases são
+- **Lua em órbita**: o ângulo usa a curva Bézier do sol, então a velocidade orbital oscila (85 a 167 blocos/tick, medido); as fases são
   exatamente periódicas. O sol da Lua oscila ±5° de declinação por dia terrestre (o eixo da Lua é a normal da órbita).
   No primeiro quadro depois de uma troca de dimensão, o relógio do cliente novo pode ainda não ter chegado.
-- **Piloto automático**: as velocidades de cruzeiro mudam em degraus (por exemplo 38 para 83 blocos/tick logo depois da troca, e
-  frenagem forte nos últimos ~1.000 blocos); a chegada é parada a 300 blocos sobre o chão.
+- **Piloto automático**: a velocidade é 0,03 b/tick por bloco de altitude, com teto de 200 b/tick (precisa passar da Lua, que anda
+  85 a 167 b/tick); a Terra–Lua leva ~4.000 a 9.000 ticks conforme onde a Lua está. A 200 b/tick o servidor já sofre no voo em linha reta no espaço (ver "Escala").
+  A chegada é parada a 300 blocos sobre o chão.
 - **DH**: um `NullPointerException` interno do DH (`FullDataUpdatePropagatorV2`) aparece no log no carregamento do mundo; não
   é do mod. Logo depois de um `/tp` longo, o DH pode mostrar por instantes LODs em posição errada até os chunks próximos carregarem.
 - Testes unitários não carregam o `DensityFunction` (precisa do Bootstrap do FML); a reescrita `SeamRewrite` e os JSON só são
@@ -304,7 +320,7 @@ antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` 
   jogador não aparecem no primeiro quadro depois do respawn.
 - **Pulo**: com gravidade 0,165 o pulo vai a ~5 blocos e dura ~56 ticks (a Terra: ~1,25 e ~12). Não há ajuste de
   altura de pulo, de velocidade de queda terminal nem de atrito.
-- **Teleporte para dentro de uma esfera de influência**: `/tp` a mais de ~38.000 blocos de altitude na Terra (ou ~10.400
+- **Teleporte para dentro de uma esfera de influência**: `/tp` a mais de ~376.000 blocos de altitude na Terra (ou ~94.000
   na Lua) transfere o jogador na hora.
 - **Tela de carregamento**: `/spacehorizons goto` continua mostrando a tela (de propósito); só a transferência
   natural e o piloto automático não mostram.

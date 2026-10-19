@@ -31,8 +31,12 @@ import com.spacehorizons.planet.SurfaceType;
 public final class PlanetMap {
     public static final int MAGIC = 0x53484D50; // "SHMP"
     public static final int FORMAT = 1;
-    /** Largura (colunas) escolhida para a Terra: célula de 64 blocos na circunferência de 65.536, ~410 mil nós. */
-    public static final int DEFAULT_WIDTH = 1024;
+    /**
+     * Largura (colunas) escolhida para a Terra: célula de 320 blocos na circunferência de 655.360, ~1,6 milhão de nós. Medido: 4096
+     * colunas (célula 160, 6,5 milhões de nós) levaram 487 s de bake e 13,9 MiB comprimidos; 2048 leva ~1/4 disso. 1024 (célula 640)
+     * seria grosso demais para a malha distante.
+     */
+    public static final int DEFAULT_WIDTH = 2048;
 
     private static final int FLAG_WATER = 0x01;
     private static final int TYPE_SHIFT = 1;

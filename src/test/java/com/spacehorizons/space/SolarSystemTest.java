@@ -98,7 +98,7 @@ class SolarSystemTest {
     }
 
     @Test
-    void moonMovesAboutTenToFifteenBlocksPerTick() {
+    void moonMovesAboutOneHundredToOneFiftyBlocksPerTick() {
         double[] v = new double[3];
         double min = Double.MAX_VALUE;
         double max = 0;
@@ -108,9 +108,9 @@ class SolarSystemTest {
             min = Math.min(min, speed);
             max = Math.max(max, speed);
         }
-        // o ângulo da Lua acompanha o do sol (Bézier do vanilla), então a velocidade oscila em torno de ~14
-        assertTrue(min > 8, "mín " + min);
-        assertTrue(max < 22, "máx " + max);
+        // o ângulo da Lua acompanha o do sol (Bézier do vanilla), então a velocidade oscila em torno de ~140
+        assertTrue(min > 80, "mín " + min);
+        assertTrue(max < 220, "máx " + max);
     }
 
     @Test

@@ -89,14 +89,14 @@ class SoiTrackerTest {
 
     @Test
     void hysteresisAvoidsDoubleSwitchingAtTheBoundary() {
-        // distâncias à Lua visitadas em sequência: entra a < 9.146 e só sai a > 10.108
+        // distâncias à Lua visitadas em sequência: entra a < 91.457 e só sai a > 101.085
         double clock = 7_000;
-        double[] distances = {9_600, 9_300, 9_000, 9_900, 9_200, 10_050, 10_200, 9_700, 10_050, 9_100};
+        double[] distances = {96_000, 93_000, 90_000, 99_000, 92_000, 100_500, 102_000, 97_000, 100_500, 91_000};
         SolarSystem.Body[] expected = {SolarSystem.EARTH, SolarSystem.EARTH, SolarSystem.MOON, SolarSystem.MOON,
                 SolarSystem.MOON, SolarSystem.MOON, SolarSystem.EARTH, SolarSystem.EARTH, SolarSystem.EARTH,
                 SolarSystem.MOON};
         V3 dir = new V3(-0.6, 0.3, 0.5).unit();
-        FlightState s = earthStateAt(clock, 20_000, V3.ZERO);
+        FlightState s = earthStateAt(clock, 200_000, V3.ZERO);
         int switches = 0;
         for (int i = 0; i < distances.length; i++) {
             SolarSystem.Body before = s.body();
@@ -127,8 +127,8 @@ class SoiTrackerTest {
     void dominantBodyOfAnAbsolutePoint() {
         double clock = 9_000;
         assertSame(SolarSystem.EARTH, SoiTracker.dominantAt(new V3(20_000, 0, 0), clock));
-        assertSame(SolarSystem.MOON, SoiTracker.dominantAt(moonPos(clock).plus(new V3(5_000, 0, 0)), clock));
-        assertSame(SolarSystem.EARTH, SoiTracker.dominantAt(moonPos(clock).plus(new V3(11_000, 0, 0)), clock));
+        assertSame(SolarSystem.MOON, SoiTracker.dominantAt(moonPos(clock).plus(new V3(50_000, 0, 0)), clock));
+        assertSame(SolarSystem.EARTH, SoiTracker.dominantAt(moonPos(clock).plus(new V3(110_000, 0, 0)), clock));
     }
 
     @Test

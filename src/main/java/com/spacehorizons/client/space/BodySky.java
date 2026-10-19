@@ -31,11 +31,13 @@ public final class BodySky {
     public static final double TARGET_PIXELS = 1.5;
     public static final int MIN_SEGMENTS = 32;
     /**
-     * Teto de resolução da esfera: 1.024 segmentos (525 mil vértices, ~21 MB na GPU) dão células de 64 blocos na Terra, a
-     * resolução do mapa do planeta. Com 512 a Terra vista de 15.000 blocos (a saída para o espaço a 5.000 de altitude) saía
-     * borrada ao lado da malha orbital que a precedia; a de 1.024 só custa mais uma construção em background (~1 s).
+     * Teto de resolução da esfera: 2.048 segmentos (2,1 milhões de vértices, ~84 MB na GPU) dão células de 320 blocos na Terra
+     * (655.360 de circunferência; o mapa do planeta tem células de 160) e de 80 na Lua. Antes da Terra 10x maior eram 1.024 segmentos
+     * e células de 64 blocos, a resolução do mapa; 4.096 (8,4 milhões de vértices, ~340 MB) é caro demais. A saída para o espaço
+     * continua a 5.000 de altitude, que agora é só 1/21 do raio: vista dali a esfera tem facetas visíveis ao lado da malha orbital
+     * (a malha adaptativa chega a células de 16 blocos).
      */
-    public static final int MAX_SEGMENTS = 1024;
+    public static final int MAX_SEGMENTS = 2048;
     /** Quanto o dia (céu claro) apaga um corpo visto de dentro de uma atmosfera, no máximo. */
     public static final double MAX_DAYLIGHT_FADE = 0.65;
 

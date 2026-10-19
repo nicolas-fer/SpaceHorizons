@@ -21,7 +21,7 @@ import com.spacehorizons.space.SolarSystem;
  * Δv e a fase supõem órbita quase circular no raio atual (excentricidade ≤ {@value #MAX_ECCENTRICITY}).
  */
 public final class TransferPlanner {
-    /** Meia largura da janela de queima (graus de fase): 4° são ~4.200 blocos na Lua, dentro da esfera de 9.627. */
+    /** Meia largura da janela de queima (graus de fase): 4° são ~42.000 blocos na Lua, dentro da esfera de 96.270. */
     public static final double WINDOW_HALF_ANGLE_DEG = 4.0;
     /** Excentricidade máxima para o planejador valer (órbita "baixa e circular"). */
     public static final double MAX_ECCENTRICITY = 0.15;

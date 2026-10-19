@@ -86,7 +86,7 @@ class FrameBridgeTest {
         double clock = 5_555;
         FrameBridge.Local still = new FrameBridge.Local(1_200, 63, 300, 0, 0, 0);
         FlightState moon = FrameBridge.fromDimension(SolarSystem.MOON, clock, still, 0);
-        assertTrue(moon.v().length() > 0.1 && moon.v().length() < 0.75, "|v| = " + moon.v().length());
+        assertTrue(moon.v().length() > 1.0 && moon.v().length() < 7.5, "|v| = " + moon.v().length());
         FrameBridge.Local back = FrameBridge.toDimension(SolarSystem.MOON, clock, moon.r(), moon.v());
         assertEquals(0.0, Math.abs(back.vx()) + Math.abs(back.vy()) + Math.abs(back.vz()), 1e-9);
         FlightState earth = FrameBridge.fromDimension(SolarSystem.EARTH, clock, still, 0);
