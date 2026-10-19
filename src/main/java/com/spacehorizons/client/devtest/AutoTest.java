@@ -8,6 +8,7 @@ import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.client.oxygen.OxygenHud;
 import com.spacehorizons.client.rocket.RocketKeys;
 import com.spacehorizons.client.space.BodySky;
+import com.spacehorizons.client.space.SkyAttitude;
 import com.spacehorizons.client.space.SkyObserver;
 import com.spacehorizons.client.space.SpaceSun;
 import com.spacehorizons.content.ModBlocks;
@@ -159,6 +160,10 @@ public final class AutoTest {
         }
         if ("cockpit".equals(ONLY)) {
             cockpitScenario();
+            return;
+        }
+        if ("skytest".equals(ONLY)) {
+            skyTestScenario();
             return;
         }
         if ("moontrip".equals(ONLY)) {
@@ -1785,6 +1790,150 @@ public final class AutoTest {
         });
     }
 
+    /**
+     * Spike S1 das naves: o céu do espaço aberto com atitude virtual ({@code /spacehorizons skytest}). A: a travessia contínua
+     * Terra para espaço com o modo desligado (sem salto, a 4.900 de altitude); B: a 30.000 de altitude, com o relógio em 0 (sol a
+     * leste, a 90 graus do nadir da Terra: o terminador aparece), atitudes identidade, yaw 90, pitch 45, roll 90 e uma
+     * combinação, cada uma com um print apontado entre a Terra e o sol e um de câmera fixa; C: giro contínuo, 6 prints em 3 s; D: ligar
+     * e desligar (sem salto) e a ida à Terra com o modo ligado.
+     */
+    private void skyTestScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        step(5, mc -> mc.options.fov().set(110));
+
+        // A. a travessia contínua com o modo desligado: o mesmo ponto nos dois lados
+        tickerStep(0, waitForMap(24000));
+        cmd(20, "tp @s 0 4963 0");
+        fly(20);
+        look(20, EAST, 90f);
+        shot(300, "sk_a1_earth_4900_down");
+        transferWatch("sk_a", "spacehorizons goto space", 90);
+        step(5, mc -> logSpace(mc, "A no espaco, mesmo ponto"));
+        shot(200, "sk_a2_space_4900_down");
+
+        // B. a 30.000 de altitude, sol a leste logo abaixo do horizonte local (relógio 22.500: o terminador cruza a calota visível da Terra)
+        cmd(10, "time set 22500");
+        cmd(10, String.format(java.util.Locale.ROOT, "spacehorizons goto space 0 %.1f 0", Planets.EARTH.radius() + 30_000.0 + SpaceDimension.Y_BIAS));
+        step(120, mc -> logSpace(mc, "B a 30.000 de altitude"));
+        fly(10);
+        skyAttitudePrints("b0_identity", null);
+        skyAttitudePrints("b1_yaw90", "spacehorizons skytest 90 0 0");
+        skyAttitudePrints("b2_pitch45", "spacehorizons skytest 0 45 0");
+        skyAttitudePrints("b3_roll90", "spacehorizons skytest 0 0 90");
+        skyAttitudePrints("b4_combo", "spacehorizons skytest 90 45 90");
+        // a Lua com a mesma atitude: apontada e com zoom (FOV 30), para ver o lado iluminado dela
+        step(5, mc -> {
+            double clock = SpaceSun.clock(mc.level);
+            SkyObserver observer = SkyObserver.of(mc.level, mc.player.getX(), mc.player.getY(), mc.player.getZ(), clock).orElseThrow();
+            BodySky.Apparent moon = observer.apparent(SolarSystem.MOON);
+            mc.player.setYRot((float) Math.toDegrees(Math.atan2(-moon.x(), moon.z())));
+            mc.player.setXRot((float) -Math.toDegrees(Math.asin(Math.max(-1.0, Math.min(1.0, moon.y())))));
+            mc.options.fov().set(30);
+        });
+        shot(20, "sk_b5_combo_moon_zoom");
+        step(5, mc -> mc.options.fov().set(110));
+
+        // B2. prova de equivalência pixel a pixel: girar a nave por psi em torno do "cima" e a câmera para yaw0 + psi mostra o mesmo céu
+        // (estrelas, sol, Terra e Lua) que a nave sem atitude olhando para yaw0 (a rotação em torno do cima leva o yaw Y a Y - psi)
+        cmd(10, "spacehorizons skytest off");
+        look(30, EAST, -10f);
+        shot(40, "sk_e0_ref_east");
+        cmd(10, "spacehorizons skytest 90 0 0");
+        look(30, 0f, -10f);
+        shot(40, "sk_e1_yaw90_cam0");
+        cmd(10, "spacehorizons skytest 180 0 0");
+        look(30, 90f, -10f);
+        shot(40, "sk_e2_yaw180_cam90");
+
+        // C. giro contínuo de 60 graus/s em torno do eixo local z: a câmera olha ao longo do eixo (yaw 0 = +z), então o céu gira em torno do centro
+        cmd(10, "spacehorizons skytest off");
+        look(20, SOUTH, 0f);
+        tickerStep(0, new Ticker() {
+            int n;
+            long startNanos;
+            int shots;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                if (n == 0) {
+                    mc.player.connection.sendCommand("spacehorizons skytest spin 60 z");
+                } else if (n == 5) {
+                    startNanos = System.nanoTime();
+                }
+                n++;
+                if (n > 5 && (n - 5) % 10 == 0 && shots < 6) {
+                    shots++;
+                    org.joml.Quaterniondc q = SkyAttitude.current();
+                    double secs = (System.nanoTime() - startNanos) * 1.0e-9;
+                    SpaceHorizons.LOGGER.info(TAG + "GIRO print {} t={}s atitude(R)={}", shots, f(secs),
+                            q == null ? "desligada" : f(q.x()) + "," + f(q.y()) + "," + f(q.z()) + "," + f(q.w()));
+                    logSun(mc, "giro" + shots);
+                    grab(mc, "sk_c_spin" + shots);
+                }
+                return shots >= 6 && (n - 5) % 10 == 5;
+            }
+        });
+
+        // D. ligar e desligar: o mesmo ponto e olhar, atitude pitch 45 ligada e desligada duas vezes
+        look(10, EAST, -30f);
+        cmd(10, "spacehorizons skytest off");
+        shot(40, "sk_d1_off");
+        cmd(10, "spacehorizons skytest 0 45 0");
+        shot(40, "sk_d2_on");
+        cmd(10, "spacehorizons skytest off");
+        shot(40, "sk_d3_off_again");
+        // modo ligado, ida à Terra (4.900) e volta: o estado persiste e a Terra não é afetada
+        cmd(10, "spacehorizons skytest 0 45 0");
+        cmd(10, String.format(java.util.Locale.ROOT, "spacehorizons goto space 0 %.1f 0", Planets.EARTH.radius() + 4_900.0 + SpaceDimension.Y_BIAS));
+        look(60, EAST, 90f);
+        step(5, mc -> logSpace(mc, "D4 no espaco a 4.900 com a atitude ligada"));
+        shot(60, "sk_d4_space_on_4900");
+        transferWatch("sk_d5", "spacehorizons goto earth", 90);
+        step(5, mc -> logSpace(mc, "D5 de volta a Terra com o modo ligado (esperado: overworld, atitude sem efeito)"));
+        shot(200, "sk_d5_earth_with_mode_on");
+        transferWatch("sk_d6", "spacehorizons goto space", 90);
+        step(5, mc -> logSpace(mc, "D6 de volta ao espaco com o modo ligado"));
+        shot(100, "sk_d6_space_on_again");
+        cmd(10, "spacehorizons skytest off");
+
+        cmd(5, "gamerule send_command_feedback true");
+        cmd(5, "gamerule show_advancement_messages true");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /**
+     * Liga a atitude (ou não, com command null) e tira dois prints: apontado para o meio entre a Terra e o sol (os dois no quadro, para
+     * ver o lado iluminado da Terra virado para o sol) e de câmera fixa (leste, 30 graus para baixo), que mostra o céu girando.
+     */
+    private void skyAttitudePrints(String tag, String command) {
+        if (command != null) {
+            cmd(10, command);
+        }
+        step(30, mc -> {
+            double clock = SpaceSun.clock(mc.level);
+            SkyObserver observer = SkyObserver.of(mc.level, mc.player.getX(), mc.player.getY(), mc.player.getZ(), clock).orElseThrow();
+            double[] sun = new double[3];
+            observer.sun(sun);
+            BodySky.Apparent earth = observer.apparent(SolarSystem.EARTH);
+            double[] mid = {sun[0] + earth.x(), sun[1] + earth.y(), sun[2] + earth.z()};
+            double norm = Math.sqrt(mid[0] * mid[0] + mid[1] * mid[1] + mid[2] * mid[2]);
+            mid[0] /= norm;
+            mid[1] /= norm;
+            mid[2] /= norm;
+            mc.player.setYRot((float) Math.toDegrees(Math.atan2(-mid[0], mid[2])));
+            mc.player.setXRot((float) -Math.toDegrees(Math.asin(Math.max(-1.0, Math.min(1.0, mid[1])))));
+        });
+        shot(15, "sk_" + tag + "_aimed");
+        look(10, EAST, -30f);
+        shot(15, "sk_" + tag + "_fixed");
+    }
+
     private void cloudProbe(String name) {
         cmd(20, "tp @s 0 5000 0");
         fly(20);
@@ -2678,9 +2827,16 @@ public final class AutoTest {
                 // no espaço aberto o sol local sai do SkyObserver (os eixos da dimensão são os do spawn da Terra)
                 double clock = SpaceSun.clock(mc.level);
                 double[] sun = new double[3];
-                SkyObserver.forSpace(clock, mc.player.getX(), mc.player.getY(), mc.player.getZ()).sun(sun);
-                SpaceHorizons.LOGGER.info(TAG + "SOL {} (espaco): relogio={} sol=({}, {}, {}) altura={} graus", label, f(clock), f(sun[0]),
-                        f(sun[1]), f(sun[2]), f(Math.toDegrees(Math.asin(sun[1]))));
+                // SkyObserver.of: com o modo skytest ligado, é o observador com a atitude virtual
+                SkyObserver observer = SkyObserver.of(mc.level, mc.player.getX(), mc.player.getY(), mc.player.getZ(), clock).orElseThrow();
+                observer.sun(sun);
+                BodySky.Apparent earth = observer.apparent(SolarSystem.EARTH);
+                BodySky.Apparent moon = observer.apparent(SolarSystem.MOON);
+                org.joml.Quaterniondc attitude = SkyAttitude.current();
+                SpaceHorizons.LOGGER.info(TAG + "SOL {} (espaco): relogio={} sol=({}, {}, {}) altura={} graus terra=({}, {}, {}) lua=({}, {}, {}) "
+                        + "atitude(R)={}", label, f(clock), f(sun[0]), f(sun[1]), f(sun[2]), f(Math.toDegrees(Math.asin(sun[1]))), f(earth.x()),
+                        f(earth.y()), f(earth.z()), f(moon.x()), f(moon.y()), f(moon.z()),
+                        attitude == null ? "desligada" : f(attitude.x()) + "," + f(attitude.y()) + "," + f(attitude.z()) + "," + f(attitude.w()));
             }
             return;
         }

@@ -144,6 +144,27 @@ public final class SpaceSun {
         starRotation = new Matrix4f().rotation(new Quaternionf().setFromNormalized(m));
     }
 
+    /**
+     * Céu do espaço visto por um observador de atitude qualquer ({@link SkyObserver#forShip}): o sol do vanilla recebe a altura
+     * e o giro em torno da vertical que levam o disco à direção local do SunModel (a mesma da luz das esferas), e o campo de
+     * estrelas recebe a rotação COMPLETA do referencial do spawn ({@code SkyObserver#vanillaStarsToLocal}, quaternion, não só um
+     * ângulo), aplicada por {@code SkyRendererMixin}. Com a atitude identidade sai o mesmo de {@link #update} no spawn da Terra.
+     */
+    public static void updateForObserver(SkyObserver observer) {
+        double[] sun = new double[3];
+        observer.sun(sun);
+        skyAngle = (float) SunModel.vanillaSkyAngle(sun);
+        sunTilt = (float) SunModel.azimuthTilt(sun);
+        starAngle = (float) SunModel.angle(observer.clock());
+        double[] r = new double[9];
+        observer.vanillaStarsToLocal(r);
+        Matrix3f m = new Matrix3f();
+        for (int i = 0; i < 3; i++) {
+            m.setColumn(i, (float) r[i], (float) r[3 + i], (float) r[6 + i]);   // coluna i da matriz = (linhas 0..2, coluna i)
+        }
+        starRotation = new Matrix4f().rotation(new Quaternionf().setFromNormalized(m));
+    }
+
     /** Ângulo do sol do vanilla (rad) deste frame, para o disco e o brilho do nascer/pôr do sol. */
     public static float skyAngle() {
         return skyAngle;

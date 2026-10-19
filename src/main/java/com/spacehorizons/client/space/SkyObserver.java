@@ -11,6 +11,9 @@ import com.spacehorizons.space.SunModel;
 
 import net.minecraft.world.level.Level;
 
+import org.joml.Matrix3d;
+import org.joml.Quaterniondc;
+
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -63,6 +66,33 @@ public record SkyObserver(SolarSystem.@Nullable Body home, double clock, double[
     }
 
     /**
+     * Observador numa nave no espaço: posição absoluta {@code posE} (espaço do SolarSystem, em E) e atitude {@code attitude}, o
+     * quaternion (nos eixos do espaço) que gira a nave em relação à orientação de referência da dimensão:
+     * {@code localToSpace = R_atitude · SpaceDimension.LOCAL_TO_SPACE}. Com a atitude identidade é {@link #forSpace}; com outra,
+     * a nave virou e todo o céu (Terra, Lua, sol, estrelas) gira ao contrário na tela. A matriz sai ortonormal (det +1).
+     */
+    public static SkyObserver forShip(double clock, double[] posE, Quaterniondc attitude) {
+        return new SkyObserver(null, clock, posE.clone(), shipLocalToSpace(attitude));
+    }
+
+    /** {@code R_atitude · SpaceDimension.LOCAL_TO_SPACE}, matriz 3x3 em ordem de linhas. */
+    public static double[] shipLocalToSpace(Quaterniondc attitude) {
+        Matrix3d r = new Matrix3d().set(new org.joml.Quaterniond(attitude).normalize());
+        double[] l = SpaceDimension.LOCAL_TO_SPACE;
+        double[] m = new double[9];
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                double v = 0.0;
+                for (int k = 0; k < 3; k++) {
+                    v += r.get(k, i) * l[k * 3 + j];     // JOML: get(coluna, linha)
+                }
+                m[i * 3 + j] = v;
+            }
+        }
+        return m;
+    }
+
+    /**
      * Observador do nível: o planeta (pelo tipo de dimensão) ou o espaço aberto; vazio nos outros mundos (Nether, End) e
      * para planetas fora do SolarSystem.
      */
@@ -72,6 +102,13 @@ public record SkyObserver(SolarSystem.@Nullable Body home, double clock, double[
             return SolarSystem.bodyOf(planet.get()).map(body -> forPlanet(body, clock, x, y, z));
         }
         if (SpaceDimension.is(level)) {
+            // modo de teste do céu (comando skytest): a nave virtual gira; sem ele, a orientação fixa da dimensão
+            Quaterniondc attitude = SkyAttitude.current();
+            if (attitude != null) {
+                double[] s = new double[3];
+                SpaceDimension.toSpace(x, y, z, s);
+                return Optional.of(forShip(clock, s, attitude));
+            }
             return Optional.of(forSpace(clock, x, y, z));
         }
         return Optional.empty();
@@ -116,5 +153,24 @@ public record SkyObserver(SolarSystem.@Nullable Body home, double clock, double[
         double[] s = new double[3];
         SunModel.directionInSpace(clock, s);
         spaceToLocal(s[0], s[1], s[2], out);
+    }
+
+    /**
+     * Rotação do campo de estrelas do vanilla (eixos do Minecraft do spawn da Terra, que é onde o vanilla o desenha com
+     * {@code starAngle = SunModel.angle(clock)}) para os eixos locais da câmera: {@code Mᵀ · LOCAL_TO_SPACE}. Identidade com a
+     * atitude identidade; com outra, as estrelas giram com o sol e a Terra por R⁻¹. Matriz 3x3 em ordem de linhas.
+     */
+    public void vanillaStarsToLocal(double[] out) {
+        double[] m = localToSpace;
+        double[] l = SpaceDimension.LOCAL_TO_SPACE;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                double v = 0.0;
+                for (int k = 0; k < 3; k++) {
+                    v += m[k * 3 + i] * l[k * 3 + j];
+                }
+                out[i * 3 + j] = v;
+            }
+        }
     }
 }
