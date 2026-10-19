@@ -415,7 +415,7 @@ final class FlightDevtest {
         if (down > target + 0.2 && clearance < 3_000.0) {
             c.throttle = Math.min(1.0, (down - target) / 2.0);
         }
-        if (clearance < 330.0 && t.orbitalSpeed() < 8.0) {
+        if (clearance < 330.0 && Math.hypot(t.verticalSpeed(), t.horizontalSpeed()) < 8.0) { // relativa ao chão (a orbital, inercial, inclui a rotação da Terra)
             c.flags |= RocketControlPayload.FLAG_PARACHUTE;
         }
         if (clearance < 330.0) {
