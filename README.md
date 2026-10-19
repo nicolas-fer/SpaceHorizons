@@ -29,8 +29,8 @@ Um planeta pequeno e curvo, onde andar reto em X dá a volta:
 ## Fase 2 (pronta) e polimento antes da fase 3
 
 - **Atmosfera** (`client/atmosphere/`): `AtmosphereModel` (espessura 1.800 e altitude base 160
-  para a Terra) alimenta a neblina vanilla e a do DH (`dh/DhFogConfig`), a cor do céu e o
-  limbo. O limbo (`shaders/atmosphere/limb.fsh`) amostra só o trecho do raio dentro da atmosfera,
+  para a Terra) alimenta a neblina vanilla, a cor do céu e o limbo. A neblina do DH fica desligada
+  enquanto há um mundo aberto (`dh/DhFogConfig`, override da API; ao sair do mundo volta o valor do usuário). O limbo (`shaders/atmosphere/limb.fsh`) amostra só o trecho do raio dentro da atmosfera,
   com jitter por pixel e dither: as faixas concêntricas a 600 blocos sumiram.
 - **Malha orbital** (`client/planetmesh/`): grade polar adaptativa (célula de ~1,5 pixel, anéis
   com segmentos dobrando, orçamento de 70.000 vértices), cor por supersampling de 4 amostras,

@@ -1,12 +1,9 @@
 package com.spacehorizons.client.atmosphere;
 
-import java.util.Optional;
-
 import com.spacehorizons.client.space.BodyClient;
 import com.spacehorizons.dh.DhFogConfig;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
@@ -57,21 +54,13 @@ public final class AtmosphereClient {
                 sunX, sunY, sunZ, visibility, true);
     }
 
-    /** Ajusta a neblina do DH pela densidade na câmera; fora de planeta devolve a config do usuário. */
+    /** Com um mundo aberto a neblina do DH fica desligada; sem mundo, volta a config do usuário. */
     private static void onClientTick(ClientTickEvent.Post event) {
-        Minecraft minecraft = Minecraft.getInstance();
-        ClientLevel level = minecraft.level;
-        if (level == null) {
+        if (Minecraft.getInstance().level == null) {
             DhFogConfig.restore();
             return;
         }
-        Optional<AtmosphereSample> sample = AtmosphereSample.of(level, minecraft.gameRenderer.mainCamera().position().y);
-        if (sample.isEmpty()) {
-            DhFogConfig.restore();
-            return;
-        }
-        double density = sample.get().model().density(sample.get().altitude());
-        DhFogConfig.update(density);
+        DhFogConfig.disable();
     }
 
     private static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
