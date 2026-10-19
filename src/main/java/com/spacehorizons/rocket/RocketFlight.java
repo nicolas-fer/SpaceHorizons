@@ -39,6 +39,8 @@ public final class RocketFlight {
     /** Velocidade das coordenadas (blocos/tick) do último passo: para pedir os chunks à frente mesmo com o passo segurado. */
     Vec3 lastVelocity = Vec3.ZERO;
     double lastClock = Double.NaN;
+    /** Ticks segurados seguidos no tick anterior (só para registrar o fim de uma espera). */
+    int lastHeld;
     boolean warnedNoSpace;
     boolean warnedChunks;
 
@@ -69,6 +71,14 @@ public final class RocketFlight {
         int taken = this.edges;
         this.edges = 0;
         return taken;
+    }
+
+    /**
+     * Devolve bordas de ação que um tick segurado (espera de chunks ou do piloto na travessia) não aplicou: sem isto o pulso
+     * do SAS, que dura um pacote só, se perdia quando o passo era segurado.
+     */
+    void restoreEdges(int taken) {
+        this.edges |= taken;
     }
 
     /** Um tick de simulação do servidor. */

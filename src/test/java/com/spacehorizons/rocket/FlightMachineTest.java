@@ -186,6 +186,89 @@ class FlightMachineTest {
         assertEquals(0.0, AttitudeMath.tiltDegrees(r.localAttitude(), new V3(0, 1, 0)), 0.5);
     }
 
+    /** Um foguete no espaço aberto (zona nula) sobre o spawn da Terra, a {@code altitude}, com velocidade local ao chão {@code (vx, vy)}. */
+    private static Snapshot inSpaceAbove(double altitude, double vx, double vy) {
+        FlightState state = FrameBridge.fromDimension(SolarSystem.EARTH, CLOCK, new Local(0.0, SEA + altitude, 0.0, vx, vy, 0.0), 1_000.0);
+        Quaterniond inertial = AttitudeMath.localToInertial(SolarSystem.EARTH, CLOCK, 0.0, 0.0, new Quaterniond());
+        return new Snapshot(FlightMode.FLIGHT, state, inertial, V3.ZERO, SasMode.OFF, 0.0, false, null, 1_000.0);
+    }
+
+    /** Em voo na dimensão da Terra a {@code altitude} com velocidade horizontal local {@code vx}. */
+    private static Snapshot flyingFast(double altitude, double vx) {
+        FlightState state = FrameBridge.fromDimension(SolarSystem.EARTH, CLOCK, new Local(0.0, SEA + altitude, 0.0, vx, 5.0, 0.0), FULL / 2.0);
+        Quaterniond inertial = AttitudeMath.localToInertial(SolarSystem.EARTH, CLOCK, 0.0, 0.0, new Quaterniond());
+        return new Snapshot(FlightMode.FLIGHT, state, inertial, V3.ZERO, SasMode.OFF, 0.0, false, SolarSystem.EARTH, state.fuelMb());
+    }
+
+    @Test
+    void aSlowDescentEntersThePlanetDimensionBelowTheEnterAltitude() {
+        Result r = step(inSpaceAbove(3_990.0, 20.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
+        assertEquals(Event.ENTER_ZONE, r.event());
+    }
+
+    @Test
+    void aFastReentryStaysInTheSpaceDimensionDownToTheForcedEntryHeight() {
+        // 60 b/tick na horizontal (reentrada de órbita): a dimensão da Terra não carregaria o terreno nessa velocidade
+        for (double altitude : new double[] {3_990.0, 3_000.0, 1_500.0, 1_100.0}) {
+            Result r = step(inSpaceAbove(altitude, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
+            assertEquals(Event.NONE, r.event(), "altitude " + altitude);
+            assertNull(r.next().zoneBody(), "altitude " + altitude);
+        }
+    }
+
+    @Test
+    void aFastReentryIsForcedIntoThePlanetDimensionNearTheTerrain() {
+        // o terreno do teste é o nível do mar: a 1.000 de altura o foguete entra mesmo a 60 b/tick (a espera por chunks é do voo)
+        Result r = step(inSpaceAbove(990.0, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
+        assertEquals(Event.ENTER_ZONE, r.event());
+        assertSame(SolarSystem.EARTH, r.next().zoneBody());
+    }
+
+    @Test
+    void theForcedEntryHeightIsMeasuredFromTheTerrainNotFromSeaLevel() {
+        ZoneAccess mountain = new ZoneAccess() {
+            @Override
+            public boolean hasSpace() {
+                return true;
+            }
+
+            @Override
+            public boolean hasBody(SolarSystem.Body body) {
+                return true;
+            }
+
+            @Override
+            public double terrainHeight(SolarSystem.Body body, double x, double z) {
+                return SEA + 500.0;
+            }
+        };
+        // 1.400 sobre o mar = 900 sobre o terreno de 500: entra; 1.600 = 1.100 sobre o terreno: segue no espaço
+        assertEquals(Event.ENTER_ZONE, step(inSpaceAbove(1_400.0, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), mountain).event());
+        assertEquals(Event.NONE, step(inSpaceAbove(1_600.0, 60.0, -10.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), mountain).event());
+    }
+
+    @Test
+    void aFastAscentLeavesThePlanetDimensionEarlyButASlowOrLowOneDoesNot() {
+        Result fast = step(flyingFast(1_500.0, 60.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
+        assertEquals(Event.LEAVE_ZONE, fast.event());
+        assertNull(fast.next().zoneBody());
+        assertEquals(Event.NONE, step(flyingFast(1_500.0, 30.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL).event(), "devagar");
+        assertEquals(Event.NONE, step(flyingFast(600.0, 60.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL).event(), "baixo");
+        assertEquals(Event.NONE, step(flyingFast(1_500.0, 60.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), NO_SPACE).event(),
+                "sem dimensão de espaço");
+    }
+
+    @Test
+    void thereIsHysteresisBetweenLeavingEarlyAndEnteringAgain() {
+        // saiu a mais de 40 b/tick; no espaço, a 30 b/tick (entre 25 e 40) não volta, nem a 1.500 nem a 3.000
+        for (double altitude : new double[] {1_500.0, 3_000.0}) {
+            Result r = step(inSpaceAbove(altitude, 30.0, 5.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL);
+            assertEquals(Event.NONE, r.event(), "altitude " + altitude);
+        }
+        assertEquals(Event.NONE, step(flyingFast(1_500.0, 30.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL).event());
+        assertEquals(Event.LEAVE_ZONE, step(flyingFast(1_500.0, 45.0), thrust(0.0), onThePad(SolarSystem.EARTH), new Quaterniond(), ALL).event());
+    }
+
     @Test
     void thereIsNoEntryWhenThePlanetDimensionDoesNotExist() {
         FlightState state = FrameBridge.fromDimension(SolarSystem.EARTH, CLOCK, new Local(0.0, SEA + 3_990.0, 0.0, 0.0, -5.0, 0.0), 1_000.0);

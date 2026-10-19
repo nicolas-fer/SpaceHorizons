@@ -587,6 +587,11 @@ final class FlightDevtest {
                 timeout(600, "queima de desórbita");
             }
             case 7 -> { // desce até a dimensão da Terra
+                // a dimensão da Terra só carrega o terreno a velocidade baixa: no espaço, abaixo da altitude de entrada, freia de
+                // retrógrado até a horizontal ao chão ficar abaixo do limite de entrada (o piloto faz o mesmo)
+                if (t != null && snap.zoneBody() == null && t.altitude() < 4_000.0 && t.horizontalSpeed() > 15.0 && t.fuelMb() > 50.0) {
+                    c.throttle = Math.min(1.0, (t.horizontalSpeed() - 12.0) / 4.0);
+                }
                 if (snap.zoneBody() != null) {
                     mark("reentry_c");
                     SpaceHorizons.LOGGER.info("{}C: REENTRADA na dimensão da Terra: altitude {} vertical {} horizontal {}", TAG, f(t.altitude()),

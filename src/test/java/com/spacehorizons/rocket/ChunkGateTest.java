@@ -85,4 +85,24 @@ class ChunkGateTest {
         // depois de carregar, o contador recomeça
         assertEquals(Decision.HOLD, gate.decide(true));
     }
+
+    @Test
+    void theFootprintAddsTheNeighbourChunksTheBoxTouchesInTheNearSteps() {
+        // a 1 bloco da borda do chunk (x = 15) com meia-extensão 3: toca os chunks 0 e 1 em X; em Z (z = 8) só o 0
+        List<Probe> probes = ChunkGate.probes(15.0, 8.0, 0.0, 0.0, 0.0, 3.0);
+        for (int k : new int[] {0, 1, 2, 4}) {
+            long atStep = probes.stream().filter(p -> p.step() == k).count();
+            assertEquals(2, atStep, "passo " + k);
+            assertTrue(probes.stream().anyMatch(p -> p.step() == k && p.chunkX() == 1 && p.chunkZ() == 0), "vizinho no passo " + k);
+        }
+        // passos longe (8, 16, 32) pedem só o chunk do centro
+        assertEquals(1, probes.stream().filter(p -> p.step() == 8).count());
+        // os vizinhos do passo 1 também seguram o passo
+        assertTrue(probes.stream().filter(p -> p.step() == 1).allMatch(Probe::gating));
+    }
+
+    @Test
+    void withoutFootprintTheProbesAreTheCentreChunksOnly() {
+        assertEquals(ChunkGate.REQUEST_STEPS.length, ChunkGate.probes(15.0, 8.0, 0.0, 0.0, 0.0, 0.0).size());
+    }
 }
