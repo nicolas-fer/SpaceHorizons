@@ -1,6 +1,14 @@
 package com.spacehorizons.ship.block;
 
+import com.spacehorizons.ship.ShipSeatEntity;
+
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
@@ -21,8 +29,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public class ShipSeatBlock extends Block {
     public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;
     /** Altura do assento em blocos (o piloto senta nesta altura). */
-    public static final double SEAT_HEIGHT = 9.0 / 16.0;
-    private static final VoxelShape SHAPE = Block.box(1.0, 0.0, 1.0, 15.0, 9.0, 15.0);
+    public static final double SEAT_HEIGHT = 8.0 / 16.0;
+    private static final VoxelShape SHAPE = Block.box(1.0, 0.0, 1.0, 15.0, 8.0, 15.0);
 
     public ShipSeatBlock(BlockBehaviour.Properties properties) {
         super(properties);
@@ -30,8 +38,20 @@ public class ShipSeatBlock extends Block {
     }
 
     @Override
-    protected VoxelShape getShape(BlockState state, BlockGetter level, net.minecraft.core.BlockPos pos, CollisionContext context) {
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return SHAPE;
+    }
+
+    /** Clique com a mão vazia: senta (a entidade do assento carrega o jogador; sentado, ele pilota a nave se ela voa). */
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+        if (!player.getMainHandItem().isEmpty() || player.isSecondaryUseActive()) {
+            return InteractionResult.PASS;
+        }
+        if (level instanceof ServerLevel serverLevel) {
+            ShipSeatEntity.sit(serverLevel, pos, player);
+        }
+        return InteractionResult.SUCCESS;
     }
 
     /** O assento olha para onde o jogador olha (as costas ficam para trás dele). */

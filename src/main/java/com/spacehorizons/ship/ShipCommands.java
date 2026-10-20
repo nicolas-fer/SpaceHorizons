@@ -34,6 +34,7 @@ final class ShipCommands {
                 .then(Commands.literal("ship")
                         .then(Commands.literal("create")
                                 .executes(ctx -> create(ctx.getSource(), DEFAULT_SIZE))
+                                .then(Commands.literal("flight").executes(ctx -> createFlight(ctx.getSource())))
                                 .then(Commands.argument("tamanho", IntegerArgumentType.integer(ShipBuilder.MIN_SIZE, ShipYard.MAX_X))
                                         .executes(ctx -> create(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "tamanho")))))
                         .then(Commands.literal("list").executes(ctx -> list(ctx.getSource())))
@@ -113,6 +114,34 @@ final class ShipCommands {
                 ship.cell(), box.minX(), box.minY(), box.minZ(), box.chunkColumns(), String.format(Locale.ROOT, "%.0f", ms));
         source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "Nave %d criada (%dx%dx%d) na célula %d, canto (%d, %d, %d), em %.0f ms. Entre com /spacehorizons ship goto %d",
                 ship.id(), size, size, size, ship.cell(), box.minX(), box.minY(), box.minZ(), ms, ship.id())), true);
+        return ship.id();
+    }
+
+    /**
+     * Cria a nave de voo de teste (criativo, sem montagem no chão): ponte, três assentos, quatro motores, oito tanques cheios, janelas e
+     * anteparo com eclusa, já em órbita circular da Terra a 30.000 blocos com a Terra à direita. Mede o censo e confere com o que foi colocado.
+     */
+    private static int createFlight(CommandSourceStack source) {
+        ServerLevel yard = requireYard(source);
+        if (yard == null) {
+            return 0;
+        }
+        ShipRegistry registry = ShipRegistry.get(source.getServer());
+        ServerPlayer owner = source.getPlayer();
+        long start = System.nanoTime();
+        ShipRecord ship = registry.create("Nave de voo", ShipBuilder.FLIGHT_SX, ShipBuilder.FLIGHT_SY, ShipBuilder.FLIGHT_SZ,
+                owner != null ? owner.getUUID() : null, yard.getGameTime());
+        ShipChunkTickets.hold(yard, ship, yard.getGameTime());
+        ShipBuilder.FlightLayout layout = ShipBuilder.buildFlightShip(yard, ship.box());
+        ShipCensusResult census = ShipCensusService.scanNow(source.getServer(), ship);
+        ShipFlightTicker.start(source.getServer(), ship, census);
+        double ms = (System.nanoTime() - start) / 1.0e6;
+        boolean same = census.census().equals(layout.expected());
+        String line = ShipInfo.line(ship, census, census.tankFuelMb());
+        SpaceHorizons.LOGGER.info("[ship] nave de voo {} criada em {} ms; censo {} o esperado ({}); {}", ship.id(), String.format(Locale.ROOT, "%.0f", ms),
+                same ? "igual a" : "DIFERENTE do", layout.expected(), line);
+        source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "Nave de voo %d criada em %.0f ms. %s. Entre com /spacehorizons ship goto %d e sente no assento da ponte.",
+                ship.id(), ms, line, ship.id())), true);
         return ship.id();
     }
 

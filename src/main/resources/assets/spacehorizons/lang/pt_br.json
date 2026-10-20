@@ -174,5 +174,11 @@
   "hud.spacehorizons.rocket.mode.flight": "Em voo",
   "hud.spacehorizons.rocket.mode.parachute": "Paraquedas",
   "message.spacehorizons.rocket.chunks_slow": "O terreno à frente está demorando demais para carregar; o foguete segue voando assim mesmo.",
-  "message.spacehorizons.rocket.no_space_dimension": "Este mundo não tem a dimensão de espaço aberto (foi criado antes dela existir): o foguete fica na dimensão do planeta."
+  "message.spacehorizons.rocket.no_space_dimension": "Este mundo não tem a dimensão de espaço aberto (foi criado antes dela existir): o foguete fica na dimensão do planeta.",
+  "hud.spacehorizons.ship.title_flight": "Nave · %s",
+  "hud.spacehorizons.ship.title_engine": "Motores",
+  "hud.spacehorizons.ship.hint": "%s: levantar · %s: SAS",
+  "message.spacehorizons.ship.seat_taken": "Já tem alguém sentado aqui.",
+  "message.spacehorizons.ship.board_hint": "Nos controles. %s levanta, %s muda o SAS.",
+  "message.spacehorizons.ship.help": "Nave: %s/%s arfagem, %s/%s guinada, %s/%s rolagem, %s sobe e %s baixa o acelerador (ele fica onde você deixar), %s cheio, %s corta, %s SAS, %s levanta. A nave mantém o acelerador por 30 s depois que você levanta."
 }

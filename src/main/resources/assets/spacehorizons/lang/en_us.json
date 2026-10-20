@@ -174,5 +174,11 @@
   "hud.spacehorizons.rocket.mode.flight": "In flight",
   "hud.spacehorizons.rocket.mode.parachute": "Parachute",
   "message.spacehorizons.rocket.chunks_slow": "The terrain ahead is taking too long to load; the rocket keeps flying anyway.",
-  "message.spacehorizons.rocket.no_space_dimension": "This world has no open-space dimension (it was created before it existed): the rocket stays in the planet's dimension."
+  "message.spacehorizons.rocket.no_space_dimension": "This world has no open-space dimension (it was created before it existed): the rocket stays in the planet's dimension.",
+  "hud.spacehorizons.ship.title_flight": "Ship · %s",
+  "hud.spacehorizons.ship.title_engine": "Engines",
+  "hud.spacehorizons.ship.hint": "%s: stand up · %s: SAS",
+  "message.spacehorizons.ship.seat_taken": "Someone is already sitting here.",
+  "message.spacehorizons.ship.board_hint": "At the controls. %s stands up, %s changes the SAS.",
+  "message.spacehorizons.ship.help": "Ship: %s/%s pitch, %s/%s yaw, %s/%s roll, %s raises and %s lowers the throttle (it stays where you leave it), %s full, %s cut, %s SAS, %s stands up. The ship keeps its throttle for 30 s after you stand up."
 }

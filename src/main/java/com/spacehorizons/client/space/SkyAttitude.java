@@ -34,7 +34,31 @@ public final class SkyAttitude {
     /** Atitude deste frame, nos eixos do espaço (R). Só vale com {@link #active}. */
     private static final Quaterniond current = new Quaterniond();
 
+    /**
+     * Fonte externa da atitude (a nave de verdade, fase 1d das naves: o estado virtual que o servidor manda): dá a atitude R (eixos do espaço)
+     * para o relógio e o instante do frame, ou null se não vale mais. Só vale com o modo skytest desligado (o skytest manda).
+     */
+    @FunctionalInterface
+    public interface ExternalSource {
+        @Nullable Quaterniondc at(double clock, long nowNanos);
+    }
+
+    private static @Nullable ExternalSource external;
+    private static boolean externalActive;
+
     private SkyAttitude() {
+    }
+
+    /** Liga a fonte externa (a atitude da nave em que o jogador está). */
+    public static void setExternal(@Nullable ExternalSource source) {
+        external = source;
+        if (source == null) {
+            externalActive = false;
+        }
+    }
+
+    public static boolean hasExternal() {
+        return external != null;
     }
 
     /**
@@ -82,6 +106,8 @@ public final class SkyAttitude {
     /** Esquece tudo (saída do mundo). */
     public static void reset() {
         off();
+        external = null;
+        externalActive = false;
     }
 
     /** Atitude local (eixos da nave) no instante {@code nowNanos}: a base vezes o giro em torno do eixo escolhido. */
@@ -98,11 +124,18 @@ public final class SkyAttitude {
     public static void update(long nowNanos) {
         if (active) {
             current.set(localToSpaceFrame(localAt(nowNanos)));
+        } else if (external != null) {
+            net.minecraft.client.multiplayer.ClientLevel level = net.minecraft.client.Minecraft.getInstance().level;
+            Quaterniondc q = level == null ? null : external.at(SpaceSun.clock(level), nowNanos);
+            externalActive = q != null;
+            if (q != null) {
+                current.set(q);
+            }
         }
     }
 
     /** Atitude R deste frame (eixos do espaço), ou null com o modo desligado. */
     public static @Nullable Quaterniondc current() {
-        return active ? current : null;
+        return active || externalActive ? current : null;
     }
 }

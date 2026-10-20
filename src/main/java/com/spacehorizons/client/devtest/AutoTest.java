@@ -194,6 +194,14 @@ public final class AutoTest {
             shipConvertScenario();
             return;
         }
+        if ("shipflight".equals(ONLY)) {
+            shipFlightScenario();
+            return;
+        }
+        if ("ship".equals(ONLY)) {
+            shipScenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
@@ -4288,5 +4296,51 @@ public final class AutoTest {
         landAndCleanup(c);
         cmd(10, "tp @s 0 200 0");
         fly(20);
+    }
+
+    // ===================================================================================================================
+    // NAVES, FASE 1 (docs/PLANO_NAVES.md, 1b a 1e): -PshOnly=shipflight (voo virtual, piloto de teste no servidor) e -PshOnly=ship (a nave
+    // inteira: sentar, olhar pela janela, girar, queimar e andar pelo interior). Bloco separado; a leitura do servidor fica em ShipFlightDevtest.
+    // ===================================================================================================================
+
+    /** Voo virtual da nave (1c): cria a nave de voo e liga o piloto de teste do servidor, que roda as fases e confere os números. */
+    private void shipFlightScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(10, "spacehorizons ship create flight");
+        step(60, mc -> {
+            ShipDevtest.check("a nave de voo foi registrada", ShipDevtest.shipCount(mc) == 1, "naves=" + ShipDevtest.shipCount(mc));
+            ShipFlightDevtest.begin(mc, 1);
+        });
+        tickerStep(0, new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                if (n > 4000) {
+                    ShipDevtest.check("o piloto de teste terminou a tempo", false, "ticks=" + n);
+                    return true;
+                }
+                return ShipFlightDevtest.done();
+            }
+        });
+        cmd(5, "gamerule send_command_feedback true");
+        cmd(5, "gamerule show_advancement_messages true");
+        step(20, mc -> {
+            ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** A nave inteira (1d e 1e). */
+    private void shipScenario() {
+        step(20, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
     }
 }

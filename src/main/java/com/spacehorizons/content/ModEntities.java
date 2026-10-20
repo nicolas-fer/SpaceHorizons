@@ -2,6 +2,7 @@ package com.spacehorizons.content;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketEntity;
+import com.spacehorizons.ship.ShipSeatEntity;
 
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -20,6 +21,14 @@ public final class ModEntities {
     public static final DeferredHolder<EntityType<?>, EntityType<RocketEntity>> ROCKET = TYPES.registerEntityType("rocket",
             RocketEntity::new, MobCategory.MISC,
             builder -> builder.sized(1.0F, 1.0F).clientTrackingRange(16).updateInterval(1).noSummon());
+
+    /**
+     * Assento da nave: uma entidade minúscula e parada que carrega o piloto (não é salva nem invocável; some com o bloco). Rastreada a pouca
+     * distância e quase sem atualizações, porque nunca se move.
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<ShipSeatEntity>> SHIP_SEAT = TYPES.registerEntityType("ship_seat",
+            ShipSeatEntity::new, MobCategory.MISC,
+            builder -> builder.sized(0.1F, 0.1F).clientTrackingRange(8).updateInterval(20).noSummon().noSave().fireImmune());
 
     private ModEntities() {
     }

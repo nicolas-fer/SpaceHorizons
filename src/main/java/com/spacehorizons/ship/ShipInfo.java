@@ -31,7 +31,7 @@ public final class ShipInfo {
             return;
         }
         ShipCensusResult result = ShipCensusService.scanNow(server, ship);
-        player.sendSystemMessage(describe(ship, result, result.tankFuelMb()));
+        player.sendSystemMessage(describe(ship, result, ShipFlightTicker.fuelMb(ship.id(), result)));
     }
 
     /** A especificação em uma frase: blocos, massa seca, empuxo, motores, assentos, combustível e Δv. */
