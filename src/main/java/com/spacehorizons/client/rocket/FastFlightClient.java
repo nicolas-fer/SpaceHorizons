@@ -27,8 +27,15 @@ public final class FastFlightClient {
     private static int savedView;
     private static int savedSimulation;
     private static boolean dhPaused;
+    /** Só dev (autoteste "jump"): desliga o voo rápido para comparar a distância de visão reduzida com a do jogador. */
+    private static boolean disabledForTest;
 
     private FastFlightClient() {
+    }
+
+    /** Só dev: liga/desliga o voo rápido (desligado, o cliente do piloto nunca reduz a distância de visão nem pausa o DH). */
+    public static void setDisabledForTest(boolean disabled) {
+        disabledForTest = disabled;
     }
 
     /** Em voo rápido com as configurações reduzidas aplicadas (para o autoteste). */
@@ -48,7 +55,7 @@ public final class FastFlightClient {
         if (t != null) {
             FLIGHT.update(Math.hypot(t.verticalSpeed(), t.horizontalSpeed()));
         }
-        if (FLIGHT.fast()) {
+        if (FLIGHT.fast() && !disabledForTest) {
             apply(mc);
         } else {
             restore(mc);

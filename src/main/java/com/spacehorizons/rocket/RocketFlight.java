@@ -7,6 +7,7 @@ import com.spacehorizons.rocket.FlightMachine.Snapshot;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.flight.AttitudeMath.SasMode;
 import com.spacehorizons.space.flight.FlightState;
+import com.spacehorizons.space.flight.FrameBridge;
 import com.spacehorizons.space.flight.V3;
 
 import net.minecraft.world.level.storage.ValueInput;
@@ -48,6 +49,20 @@ public final class RocketFlight {
     int lastHeld;
     boolean warnedNoSpace;
     boolean warnedChunks;
+
+    /**
+     * Só dev (autoteste "jump"): põe o foguete em voo no espaço aberto no ponto e na velocidade dadas, em coordenadas da dimensão
+     * de espaço (velocidade ABSOLUTA em E, blocos/tick), sem acelerar nem decolar. Chamada a cada tick antes do passo, mantém
+     * a velocidade constante (a gravidade do passo anterior é descartada), para medir a dessincronia do cliente em voo rápido
+     * sem depender da órbita real. Mantém a atitude e o combustível do instantâneo atual.
+     */
+    public void devtestSetSpaceState(FrameBridge.Local local, double clock, double rate) {
+        Snapshot old = this.snapshot;
+        double fuel = old == null ? 0.0 : old.fuelMb();
+        Quaterniond attitude = old == null ? new Quaterniond() : old.attitude();
+        FlightState state = FrameBridge.fromSpaceDimension(SolarSystem.EARTH, clock, rate, local, fuel);
+        this.snapshot = new Snapshot(FlightMode.FLIGHT, state, attitude, V3.ZERO, SasMode.OFF, 0.0, false, null, fuel);
+    }
 
     /** A pré-carga do local de pouso (estado e progresso para a telemetria e o autoteste). */
     public LandingPreloader landing() {

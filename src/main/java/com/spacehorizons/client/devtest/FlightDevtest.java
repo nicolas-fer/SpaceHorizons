@@ -39,6 +39,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
@@ -225,6 +226,99 @@ final class FlightDevtest {
         for (RocketEntity r : rockets) {
             SpaceHorizons.LOGGER.info("{}CLIENTE {}: foguete sincronizado: combustível={} modo={} acelerador={} sas={} calor={} blocos no retrato={}", TAG, label,
                     r.syncedFuelMb(), r.flightMode(), r.throttle(), r.sasMode(), r.heat(), r.portrait().blockCount());
+        }
+    }
+
+    // ---------------------------------------------------------------- cruzeiro no espaço (cenário jump)
+
+    /**
+     * Em cruzeiro: DESLOCAMENTO por tick de passo (blocos, +X da dimensão de espaço) que o servidor mantém; 0 = desligado. A 8.000 de altitude
+     * a Terra de 10x ainda tem atmosfera e o arrasto come parte da velocidade a cada tick, então o comando é corrigido a cada passo para o
+     * deslocamento medido valer o pedido (o que o usuário leu na telemetria: ~54 blocos/tick).
+     */
+    private static volatile double cruiseSpeed;
+    /** A velocidade comandada (antes do arrasto) neste momento e a posição X do tick anterior (NaN = sem medida). */
+    private static double cruiseCommand;
+    private static double cruisePrevX = Double.NaN;
+    private static boolean cruiseRegistered;
+    private static int cruiseTicks;
+
+    /** Altitude (sobre a Terra) em que o cruzeiro começa: a faixa do voo real que o usuário mediu (7.000 a 9.500). */
+    private static final double CRUISE_ALTITUDE = 8_000.0;
+
+    /**
+     * Cenário {@code jump}: leva o foguete já montado e o piloto para a dimensão de espaço, a {@link #CRUISE_ALTITUDE} de altitude e
+     * {@code speed} blocos/tick em linha reta (+X), pelo MESMO caminho da travessia real (aviso ao piloto, snapshot de voo salvo no
+     * NBT, {@code rocket.teleport}), e a cada tick do servidor repõe a velocidade (acelerador 0, gravidade descartada): é o voo rápido
+     * do relatório, sem depender de uma órbita que tem a velocidade que ela quiser.
+     */
+    static void startCruise(Minecraft mc, double speed) {
+        onServer(mc, "cruzeiro", (server, player) -> {
+            if (!(player.getVehicle() instanceof RocketEntity rocket)) {
+                SpaceHorizons.LOGGER.error("{}CRUZEIRO: o jogador não está no foguete", TAG);
+                mark("failed");
+                return;
+            }
+            ServerLevel space = com.spacehorizons.space.travel.TravelTransfers.findSpace(server);
+            if (space == null) {
+                SpaceHorizons.LOGGER.error("{}CRUZEIRO: o mundo não tem a dimensão de espaço", TAG);
+                mark("failed");
+                return;
+            }
+            double y = com.spacehorizons.space.SpaceDimension.Y_BIAS + com.spacehorizons.planet.Planets.EARTH.radius() + CRUISE_ALTITUDE;
+            double clock = SpaceClock.ticks(player.level());
+            Local local = new Local(0.0, y, 0.0, speed, 0.0, 0.0);
+            rocket.flight().devtestSetSpaceState(local, clock, CLOCK_RATE);
+            rocket.setFlightMode(FlightMode.FLIGHT);
+            Vec3 center = new Vec3(local.x(), local.y(), local.z());
+            Vec3 seat = rocket.passengerPositionAt(center, rocket.attitude(), player);
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,
+                    new com.spacehorizons.space.travel.TravelTransferPayload(seat.x, seat.y, seat.z, player.getYRot(), player.getXRot()));
+            var moved = rocket.teleport(new net.minecraft.world.level.portal.TeleportTransition(space, center, new Vec3(speed, 0.0, 0.0), rocket.getYRot(),
+                    rocket.getXRot(), net.minecraft.world.level.portal.TeleportTransition.DO_NOTHING));
+            SpaceHorizons.LOGGER.info("{}CRUZEIRO começou: {} blocos/tick em ({}, {}, {}), teleporte={}", TAG, f(speed), f(center.x), f(center.y), f(center.z),
+                    moved != null);
+            cruiseTicks = 0;
+            cruiseCommand = speed / 0.75; // chute inicial; o controle integral corrige
+            cruisePrevX = Double.NaN;
+            cruiseSpeed = speed;
+            if (!cruiseRegistered) {
+                cruiseRegistered = true;
+                NeoForge.EVENT_BUS.addListener(ServerTickEvent.Pre.class, e -> holdCruise(e.getServer()));
+            }
+            mark("cruise_started");
+        });
+    }
+
+    /** Para o cruzeiro (a velocidade deixa de ser reposta). */
+    static void stopCruise() {
+        cruiseSpeed = 0.0;
+    }
+
+    /** Antes do passo do servidor: sem comando do piloto, e o estado de voo volta à velocidade do cruzeiro na posição atual. */
+    private static void holdCruise(MinecraftServer server) {
+        double speed = cruiseSpeed;
+        if (speed == 0.0 || server.getPlayerList().getPlayers().isEmpty()) {
+            return;
+        }
+        ServerPlayer player = server.getPlayerList().getPlayers().get(0);
+        if (!(player.getVehicle() instanceof RocketEntity rocket) || !com.spacehorizons.space.SpaceDimension.is(rocket.level())) {
+            return;
+        }
+        // o cliente real também manda controle (acelerador guardado no cliente): o cruzeiro vale sem empuxo
+        rocket.applyControl(new RocketControlPayload(0.0F, 0.0F, 0.0F, 0.0F, (byte) 0));
+        // o arrasto do passo (e o ar que gira com a Terra) faz o deslocamento diferir do comando; controle integral sobre o deslocamento
+        // medido do passo anterior (só os passos em que o servidor andou: o segurado não move o foguete)
+        double dx = rocket.getX() - cruisePrevX;
+        if (cruisePrevX == cruisePrevX && dx > 0.01) {
+            cruiseCommand = Math.max(0.0, Math.min(2_000.0, cruiseCommand + 0.7 * (speed - dx)));
+        }
+        cruisePrevX = rocket.getX();
+        rocket.flight().devtestSetSpaceState(new Local(rocket.getX(), rocket.getY(), rocket.getZ(), cruiseCommand, 0.0, 0.0),
+                SpaceClock.ticks(rocket.level()), CLOCK_RATE);
+        if (++cruiseTicks % 100 == 0) {
+            SpaceHorizons.LOGGER.info("{}CRUZEIRO tick {}: foguete em ({}, {}, {}) segurado={} comando={} b/tick (alvo de deslocamento {})", TAG, cruiseTicks,
+                    f(rocket.getX()), f(rocket.getY()), f(rocket.getZ()), rocket.isHeld(), f(cruiseCommand), f(speed));
         }
     }
 
