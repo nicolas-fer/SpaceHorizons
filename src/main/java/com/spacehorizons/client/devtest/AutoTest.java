@@ -174,6 +174,10 @@ public final class AutoTest {
             moonTripScenario();
             return;
         }
+        if ("shipyard".equals(ONLY)) {
+            shipYardScenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
@@ -3159,5 +3163,471 @@ public final class AutoTest {
         SpaceHorizons.LOGGER.info(TAG + "{}: dim={} x={} y={} z={}", label,
                 mc.level.dimension().identifier(), String.format("%.2f", p.getX()), String.format("%.2f", p.getY()),
                 String.format("%.2f", p.getZ()));
+    }
+
+    // ===================================================================================================================
+    // SHIPYARD (spike S2 das naves): -PshOnly=shipyard. Bloco separado; a leitura do servidor fica em ShipDevtest.
+    // ===================================================================================================================
+
+    /** Onde o jogador estava na Terra antes de entrar na primeira nave (para conferir o {@code ship leave}). */
+    private Vec3 shipEarthPoint;
+    /** Quadro de céu escolhido pela busca (sol ou lua pela janela). */
+    private ShipDevtest.SkyShot shipSky;
+    /** Chunks carregados no estaleiro com as duas naves seguradas (para comparar depois da soltura). */
+    private int shipYardChunksHeld;
+    /** Luz no ponto da lâmpada com ela apagada: {servidor bloco, servidor céu, cliente bloco, cliente céu}. */
+    private int[] shipLightOff = new int[4];
+
+    /**
+     * Spike S2: cria duas naves de 64 em células distantes, entra na primeira (anda, abre a porta, acende e apaga a luz, abre o baú,
+     * olha o sol, a Terra e a Lua pelas janelas), vai para a segunda, sai, espera os tickets caírem, entra de novo (as naves vieram do
+     * disco), fecha e reabre o mundo com o jogador dentro e confere tudo outra vez. Mede tick, chunks e memória em cada situação.
+     */
+    private void shipYardScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        step(5, mc -> mc.options.fov().set(90));
+
+        // A. a dimensão existe (world preset novo) e o servidor sem naves: linha de base
+        step(100, mc -> {
+            ShipDevtest.check("dimensao spacehorizons:shipyard existe no mundo novo", ShipDevtest.hasYard(mc), "world preset");
+            ShipDevtest.check("sem naves no mundo novo", ShipDevtest.shipCount(mc) == 0, "naves=" + ShipDevtest.shipCount(mc));
+            ShipDevtest.logStats(mc, "A linha de base (Terra, sem naves)", true);
+        });
+        step(100, mc -> ShipDevtest.logStats(mc, "A linha de base 2 (Terra, sem naves)", false));
+
+        // B. cria duas naves de 64 em duas células
+        cmd(10, "spacehorizons ship create 64");
+        step(100, mc -> ShipDevtest.logStats(mc, "B depois da nave 1 criada (jogador na Terra, nave segurada)", false));
+        cmd(10, "spacehorizons ship create 64");
+        step(100, mc -> {
+            ShipDevtest.check("duas naves registradas", ShipDevtest.shipCount(mc) == 2, "naves=" + ShipDevtest.shipCount(mc));
+            var l1 = ShipDevtest.layout(mc, 1);
+            var l2 = ShipDevtest.layout(mc, 2);
+            int gap = Math.max(Math.abs(l2.box().minX() - l1.box().minX()), Math.abs(l2.box().minZ() - l1.box().minZ())) - 64;
+            SpaceHorizons.LOGGER.info(TAG + "SHIP caixas: nave 1 em ({}, {}, {}), nave 2 em ({}, {}, {}); folga entre as caixas = {} blocos",
+                    l1.box().minX(), l1.box().minY(), l1.box().minZ(), l2.box().minX(), l2.box().minY(), l2.box().minZ(), gap);
+            ShipDevtest.check("naves em celulas distantes (folga >= 448 blocos de vazio)", gap >= 448, "folga=" + gap);
+            ShipDevtest.check("as duas naves seguradas por tickets", ShipDevtest.heldCount(mc) == 2, "seguradas=" + ShipDevtest.heldCount(mc));
+            ShipDevtest.check("a Terra intocada (jogador continua no overworld)", mc.level.dimension() == net.minecraft.world.level.Level.OVERWORLD,
+                    String.valueOf(mc.level.dimension().identifier()));
+            ShipDevtest.logStats(mc, "B duas naves criadas, jogador na Terra", true);
+            shipEarthPoint = mc.player.position();
+        });
+        step(20, mc -> ShipDevtest.check("estado inicial do baú da nave 1",
+                ShipDevtest.chestItems(mc, 1) == com.spacehorizons.ship.ShipBuilder.CHEST_TOTAL, "itens=" + ShipDevtest.chestItems(mc, 1)));
+
+        // C. entra na nave 1
+        cmd(10, "spacehorizons ship goto 1");
+        tickerStep(0, waitInYard(1, 700));
+        step(60, mc -> {
+            var l = ShipDevtest.layout(mc, 1);
+            mc.player.getAbilities().flying = false;
+            mc.player.onUpdateAbilities();
+            ShipDevtest.check("jogador no estaleiro, dentro da caixa da nave 1", l.box().contains(mc.player.getX(), mc.player.getY(), mc.player.getZ()),
+                    "pos=(" + f(mc.player.getX()) + ", " + f(mc.player.getY()) + ", " + f(mc.player.getZ()) + ")");
+            ShipDevtest.check("a nave ao redor do jogador e a 1", ShipDevtest.shipAroundPlayer(mc) == 1, "id=" + ShipDevtest.shipAroundPlayer(mc));
+            ShipDevtest.check("gravidade normal (atributo 0,08)",
+                    Math.abs(mc.player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY) - 0.08) < 1.0E-6,
+                    "gravity=" + mc.player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.GRAVITY));
+            logShipLight(mc, 1, "C entrada");
+        });
+        look(10, EAST, 5f);
+        shot(40, "shipyard_01_ship1_hall_east");
+
+        // D. gravidade: sobe 8 blocos e cai no piso (sem voar)
+        cmd(10, "tp @s ~ ~8 ~");
+        tickerStep(0, new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                if (n < 5 || (!mc.player.onGround() && n < 120)) {
+                    return false;
+                }
+                double floor = ShipDevtest.layout(mc, 1).spawn().getY();
+                ShipDevtest.check("gravidade: caiu de 8 blocos e pousou no piso da nave", Math.abs(mc.player.getY() - floor) < 0.05 && !mc.player.getAbilities().flying,
+                        "y=" + f(mc.player.getY()) + " piso=" + f(floor) + " ticks=" + n);
+                return true;
+            }
+        });
+
+        // E. anda ate a porta (movimento de verdade), abre, entra na cabine
+        step(5, mc -> {
+            var l = ShipDevtest.layout(mc, 1);
+            SpaceHorizons.LOGGER.info(TAG + "SHIP anda de x={} para a porta em x={}", f(mc.player.getX()), l.doorLower().getX());
+        });
+        tickerStep(0, walkTo(1, l -> l.doorLower().getX() - 1.0, l -> l.spawn().getZ() + 0.5, 160, "ate a porta"));
+        aimAt(5, 1, l -> Vec3.atCenterOf(l.doorLower()).add(0.0, 0.5, 0.0));
+        shot(15, "shipyard_02_door_closed");
+        useBlock(5, 1, l -> l.doorLower(), Direction.WEST, "porta");
+        step(30, mc -> ShipDevtest.check("porta aberta com o botao direito", ShipDevtest.doorOpen(mc, 1), "porta aberta=" + ShipDevtest.doorOpen(mc, 1)));
+        shot(5, "shipyard_03_door_open");
+        tickerStep(0, walkTo(1, l -> l.doorLower().getX() + 3.5, l -> l.spawn().getZ() + 0.5, 160, "para dentro da cabine"));
+        step(5, mc -> {
+            var l = ShipDevtest.layout(mc, 1);
+            ShipDevtest.check("jogador dentro da cabine (atravessou a porta)", mc.player.getX() > l.cabinMin().getX() + 1 && mc.player.getX() < l.cabinMax().getX(),
+                    "x=" + f(mc.player.getX()) + " cabine de " + l.cabinMin().getX() + " a " + l.cabinMax().getX());
+        });
+
+        // F. luz: lampada de redstone apagada, acende pela alavanca, apaga, acende de novo e fica acesa
+        aimAt(5, 1, l -> Vec3.atCenterOf(l.lamp()));
+        step(40, mc -> {
+            logShipLight(mc, 1, "F lampada apagada");
+            shipLightOff = ShipDevtest.light(mc, 1, ShipDevtest.layout(mc, 1).lightProbe());
+        });
+        shot(5, "shipyard_04_cabin_lamp_off");
+        aimAt(5, 1, l -> Vec3.atCenterOf(l.lever()));
+        useBlock(5, 1, l -> l.lever(), Direction.SOUTH, "alavanca (liga)");
+        step(40, mc -> {
+            ShipDevtest.check("alavanca acende a lampada de redstone", ShipDevtest.lampLit(mc, 1) && ShipDevtest.leverPowered(mc, 1),
+                    "lampada=" + ShipDevtest.lampLit(mc, 1) + " alavanca=" + ShipDevtest.leverPowered(mc, 1));
+            logShipLight(mc, 1, "F lampada acesa");
+            int[] on = ShipDevtest.light(mc, 1, ShipDevtest.layout(mc, 1).lightProbe());
+            ShipDevtest.check("luz de bloco sobe com a lampada acesa (servidor e cliente)", on[0] >= 12 && on[0] > shipLightOff[0] + 5 && on[2] >= 12,
+                    "apagada=" + shipLightOff[0] + "/" + shipLightOff[2] + " acesa=" + on[0] + "/" + on[2]);
+        });
+        aimAt(5, 1, l -> Vec3.atCenterOf(l.lamp()));
+        shot(5, "shipyard_05_cabin_lamp_on");
+        useBlock(5, 1, l -> l.lever(), Direction.SOUTH, "alavanca (desliga)");
+        step(40, mc -> {
+            ShipDevtest.check("alavanca apaga a lampada", !ShipDevtest.lampLit(mc, 1), "lampada=" + ShipDevtest.lampLit(mc, 1));
+            logShipLight(mc, 1, "F lampada apagada de novo");
+        });
+        useBlock(5, 1, l -> l.lever(), Direction.SOUTH, "alavanca (liga de novo: fica acesa)");
+        step(40, mc -> ShipDevtest.check("lampada acesa de novo (fica acesa para o teste de salvar)", ShipDevtest.lampLit(mc, 1),
+                "lampada=" + ShipDevtest.lampLit(mc, 1)));
+
+        // G. baú e fornalha
+        tickerStep(0, walkTo(1, l -> l.chest().getX() - 2.0, l -> l.chest().getZ() + 1.0, 160, "ate o bau"));
+        aimAt(5, 1, l -> Vec3.atCenterOf(l.chest()));
+        useBlock(5, 1, l -> l.chest(), Direction.WEST, "bau");
+        step(30, mc -> {
+            boolean open = mc.player.containerMenu != mc.player.inventoryMenu;
+            int total = 0;
+            if (open) {
+                for (int i = 0; i < 27; i++) {
+                    total += mc.player.containerMenu.getSlot(i).getItem().getCount();
+                }
+            }
+            ShipDevtest.check("bau aberto no cliente com os itens da nave", open && total == com.spacehorizons.ship.ShipBuilder.CHEST_TOTAL,
+                    "tela=" + (mc.gui.screen() == null ? "nenhuma" : mc.gui.screen().getClass().getSimpleName()) + " itens=" + total);
+        });
+        shot(5, "shipyard_06_chest_open");
+        step(10, mc -> mc.player.closeContainer());
+        step(10, mc -> {
+            ShipDevtest.takeDiamonds(mc, 1, 10);
+            ShipDevtest.check("10 diamantes tirados do bau (restam 54)", ShipDevtest.chestDiamonds(mc, 1) == 54, "diamantes=" + ShipDevtest.chestDiamonds(mc, 1));
+        });
+        aimAt(10, 1, l -> Vec3.atCenterOf(l.furnace()));
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "SHIP fornalha da nave 1: {}", ShipDevtest.furnace(mc, 1));
+            ShipDevtest.check("fornalha acesa na nave", ShipDevtest.furnaceLit(mc, 1), ShipDevtest.furnace(mc, 1));
+        });
+        shot(5, "shipyard_07_furnace_lit");
+
+        // H. janelas: a Terra pelo vidro do piso, o sol e a Lua pelas janelas das paredes e do teto
+        step(5, mc -> {
+            var l = ShipDevtest.layout(mc, 1);
+            Vec3 stand = new Vec3(l.floorWindowCenter().getX() + 0.5, l.spawn().getY(), l.floorWindowCenter().getZ() + 0.5);
+            mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f 0 90", stand.x, stand.y, stand.z));
+        });
+        look(40, 0f, 90f);
+        step(5, mc -> {
+            String sight = ShipDevtest.sightLine(mc.level, mc.player.getEyePosition(), new Vec3(0.0, -1.0, 0.0));
+            ShipDevtest.check("vidro do piso: a linha de visao para baixo passa pela janela", sight.startsWith("janela"), sight);
+            SkyObserver o = com.spacehorizons.client.ship.ShipSkyClient.observer(SpaceSun.clock(mc.level));
+            var earth = o.apparent(SolarSystem.EARTH);
+            SpaceHorizons.LOGGER.info(TAG + "SHIP Terra vista da nave: direcao=({}, {}, {}) raio angular={} graus distancia={}", f(earth.x()), f(earth.y()),
+                    f(earth.z()), f(Math.toDegrees(earth.angularRadius())), f(earth.distance()));
+        });
+        shot(10, "shipyard_08_floor_window_earth");
+        step(5, mc -> {
+            shipSky = ShipDevtest.findSkyShot(mc, ShipDevtest.layout(mc, 1), null, 20.0, 0, 12_000);
+            ShipDevtest.check("o sol aparece por uma janela em algum momento do dia", shipSky != null,
+                    shipSky == null ? "nenhum relogio achado" : "relogio=" + shipSky.clock() + " altura=" + f(shipSky.elevation()) + " graus");
+            if (shipSky != null) {
+                mc.player.connection.sendCommand("time set " + shipSky.clock());
+                mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f %.2f %.2f", shipSky.stand().x, shipSky.stand().y,
+                        shipSky.stand().z, ShipDevtest.yawOf(shipSky.dir()), ShipDevtest.pitchOf(shipSky.dir())));
+            }
+        });
+        step(60, mc -> {
+            if (shipSky != null) {
+                mc.player.setYRot(ShipDevtest.yawOf(shipSky.dir()));
+                mc.player.setXRot(ShipDevtest.pitchOf(shipSky.dir()));
+                SpaceHorizons.LOGGER.info(TAG + "SHIP olhando o sol: {}", ShipDevtest.sightLine(mc.level, mc.player.getEyePosition(), shipSky.dir()));
+            }
+        });
+        shot(10, "shipyard_09_window_sun");
+        step(5, mc -> {
+            shipSky = ShipDevtest.findSkyShot(mc, ShipDevtest.layout(mc, 1), SolarSystem.MOON, 12.0, 0, 23_750);
+            ShipDevtest.check("a Lua aparece por uma janela em algum momento do dia", shipSky != null,
+                    shipSky == null ? "nenhum relogio achado" : "relogio=" + shipSky.clock() + " altura=" + f(shipSky.elevation()) + " graus");
+            if (shipSky != null) {
+                mc.player.connection.sendCommand("time set " + shipSky.clock());
+                mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f %.2f %.2f", shipSky.stand().x, shipSky.stand().y,
+                        shipSky.stand().z, ShipDevtest.yawOf(shipSky.dir()), ShipDevtest.pitchOf(shipSky.dir())));
+            }
+        });
+        step(60, mc -> {
+            if (shipSky != null) {
+                mc.player.setYRot(ShipDevtest.yawOf(shipSky.dir()));
+                mc.player.setXRot(ShipDevtest.pitchOf(shipSky.dir()));
+                SpaceHorizons.LOGGER.info(TAG + "SHIP olhando a Lua: {}", ShipDevtest.sightLine(mc.level, mc.player.getEyePosition(), shipSky.dir()));
+            }
+        });
+        shot(10, "shipyard_10_window_moon");
+        step(5, mc -> mc.options.fov().set(30));
+        shot(20, "shipyard_10b_window_moon_zoom");
+        step(5, mc -> mc.options.fov().set(90));
+        cmd(10, "time set 6000");
+
+        // I. segunda nave: entra, confere que e independente (lampada apagada, baú intacto), olha a Terra pelo piso
+        cmd(10, "spacehorizons ship goto 2");
+        tickerStep(0, waitInYard(2, 700));
+        step(40, mc -> {
+            mc.player.getAbilities().flying = false;
+            mc.player.onUpdateAbilities();
+            var l = ShipDevtest.layout(mc, 2);
+            ShipDevtest.check("jogador dentro da caixa da nave 2", l.box().contains(mc.player.getX(), mc.player.getY(), mc.player.getZ()),
+                    "pos=(" + f(mc.player.getX()) + ", " + f(mc.player.getY()) + ", " + f(mc.player.getZ()) + ")");
+            ShipDevtest.check("a nave 1 continua segurada com o jogador na 2", ShipDevtest.isHeld(mc, 1) && ShipDevtest.isHeld(mc, 2),
+                    "seguradas=" + ShipDevtest.heldCount(mc));
+            ShipDevtest.check("nave 2 independente: lampada apagada, baú com 115 itens", !ShipDevtest.lampLit(mc, 2) && ShipDevtest.chestItems(mc, 2) == 115,
+                    "lampada=" + ShipDevtest.lampLit(mc, 2) + " itens=" + ShipDevtest.chestItems(mc, 2));
+            ShipDevtest.check("nave 1 ainda com a lampada acesa e 105 itens", ShipDevtest.lampLit(mc, 1) && ShipDevtest.chestItems(mc, 1) == 105,
+                    "lampada=" + ShipDevtest.lampLit(mc, 1) + " itens=" + ShipDevtest.chestItems(mc, 1));
+            logShipLight(mc, 2, "I nave 2 na entrada");
+        });
+        look(10, EAST, 5f);
+        shot(30, "shipyard_11_ship2_entry");
+        step(5, mc -> {
+            var l = ShipDevtest.layout(mc, 2);
+            Vec3 stand = new Vec3(l.floorWindowCenter().getX() + 0.5, l.spawn().getY(), l.floorWindowCenter().getZ() + 0.5);
+            mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f 0 90", stand.x, stand.y, stand.z));
+        });
+        look(40, 0f, 90f);
+        shot(10, "shipyard_12_ship2_floor_window_earth");
+        step(100, mc -> ShipDevtest.logStats(mc, "I duas naves seguradas, jogador na nave 2", true));
+        step(100, mc -> ShipDevtest.logStats(mc, "I duas naves seguradas, jogador na nave 2 (segunda amostra)", false));
+
+        // J. sai: de volta a Terra no mesmo ponto
+        cmd(10, "spacehorizons ship leave");
+        tickerStep(0, waitOverworld(700));
+        step(60, mc -> {
+            double d = shipEarthPoint == null ? 99.0 : mc.player.position().distanceTo(shipEarthPoint);
+            ShipDevtest.check("ship leave: de volta a Terra no ponto de onde saiu", d < 3.0, "distancia=" + f(d));
+        });
+        look(10, EAST, 10f);
+        shot(30, "shipyard_13_back_on_earth");
+        step(100, mc -> {
+            shipYardChunksHeld = ShipDevtest.yardChunks(mc);
+            ShipDevtest.logStats(mc, "J jogador na Terra, as duas naves ainda seguradas (sem ninguem dentro)", true);
+        });
+
+        // K. sem ninguem dentro, os tickets caem depois do tempo de espera (reduzido para 100 ticks no teste)
+        step(5, mc -> ShipDevtest.setReleaseTicks(mc, 100));
+        step(300, mc -> {
+            int held = ShipDevtest.heldCount(mc);
+            int chunks = ShipDevtest.yardChunks(mc);
+            ShipDevtest.check("tickets soltos depois do tempo sem ninguem", held == 0, "seguradas=" + held);
+            ShipDevtest.check("chunks do estaleiro descarregados depois da soltura", chunks < shipYardChunksHeld,
+                    "carregados antes=" + shipYardChunksHeld + " depois=" + chunks);
+            ShipDevtest.logStats(mc, "K naves congeladas (tickets soltos)", true);
+            ShipDevtest.setReleaseTicks(mc, com.spacehorizons.ship.ShipChunkTickets.DEFAULT_RELEASE_TICKS);
+        });
+
+        // L. de volta: as naves vem do disco (foram descarregadas): baú, lampada, porta e fornalha como ficaram
+        cmd(10, "spacehorizons ship goto 1");
+        tickerStep(0, waitInYard(1, 700));
+        step(60, mc -> {
+            ShipDevtest.check("nave 1 recarregada do disco: baú com 54 diamantes", ShipDevtest.chestDiamonds(mc, 1) == 54, "diamantes=" + ShipDevtest.chestDiamonds(mc, 1));
+            ShipDevtest.check("nave 1 recarregada do disco: lampada acesa, alavanca ligada, porta aberta",
+                    ShipDevtest.lampLit(mc, 1) && ShipDevtest.leverPowered(mc, 1) && ShipDevtest.doorOpen(mc, 1),
+                    "lampada=" + ShipDevtest.lampLit(mc, 1) + " alavanca=" + ShipDevtest.leverPowered(mc, 1) + " porta=" + ShipDevtest.doorOpen(mc, 1));
+            ShipDevtest.check("nave 1 recarregada do disco: fornalha acesa", ShipDevtest.furnaceLit(mc, 1), ShipDevtest.furnace(mc, 1));
+            ShipDevtest.check("nave 1 segurada de novo ao entrar", ShipDevtest.isHeld(mc, 1), "seguradas=" + ShipDevtest.heldCount(mc));
+            logShipLight(mc, 1, "L nave 1 vinda do disco");
+        });
+        step(5, mc -> {
+            var l = ShipDevtest.layout(mc, 1);
+            mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f -90 0", l.lightProbe().getX() + 0.5,
+                    l.spawn().getY(), l.spawn().getZ() + 0.5));
+        });
+        aimAt(40, 1, l -> Vec3.atCenterOf(l.lamp()));
+        shot(10, "shipyard_14_ship1_from_disk_lamp_on");
+        step(100, mc -> ShipDevtest.logStats(mc, "L nave 1 recarregada, jogador dentro", true));
+
+        // M. fecha e reabre o mundo COM o jogador dentro da nave 1
+        step(10, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "SHIP fechando o mundo com o jogador na nave {}", ShipDevtest.shipAroundPlayer(mc));
+            ShipDevtest.startReload(mc, FRESH_WORLD);
+        });
+        step(400, mc -> {
+            ShipDevtest.check("RELOAD: o mundo reabriu com o jogador no estaleiro", com.spacehorizons.ship.ShipYard.is(mc.level),
+                    String.valueOf(mc.level.dimension().identifier()));
+            ShipDevtest.check("RELOAD: o jogador continua dentro da nave 1", ShipDevtest.shipAroundPlayer(mc) == 1, "nave=" + ShipDevtest.shipAroundPlayer(mc));
+            ShipDevtest.check("RELOAD: as duas naves continuam registradas", ShipDevtest.shipCount(mc) == 2, "naves=" + ShipDevtest.shipCount(mc));
+            ShipDevtest.check("RELOAD: nave 1 segurada de novo (jogador dentro)", ShipDevtest.isHeld(mc, 1), "seguradas=" + ShipDevtest.heldCount(mc));
+        });
+        step(5, mc -> {
+            ShipDevtest.check("RELOAD nave 1: baú com 54 diamantes e 105 itens", ShipDevtest.chestDiamonds(mc, 1) == 54 && ShipDevtest.chestItems(mc, 1) == 105,
+                    "diamantes=" + ShipDevtest.chestDiamonds(mc, 1) + " itens=" + ShipDevtest.chestItems(mc, 1));
+            ShipDevtest.check("RELOAD nave 1: lampada acesa, alavanca ligada, porta aberta",
+                    ShipDevtest.lampLit(mc, 1) && ShipDevtest.leverPowered(mc, 1) && ShipDevtest.doorOpen(mc, 1),
+                    "lampada=" + ShipDevtest.lampLit(mc, 1) + " alavanca=" + ShipDevtest.leverPowered(mc, 1) + " porta=" + ShipDevtest.doorOpen(mc, 1));
+            ShipDevtest.check("RELOAD nave 1: fornalha acesa", ShipDevtest.furnaceLit(mc, 1), ShipDevtest.furnace(mc, 1));
+            logShipLight(mc, 1, "M nave 1 depois de reabrir o mundo");
+        });
+        look(10, EAST, 5f);
+        shot(40, "shipyard_15_after_reload_ship1");
+        step(100, mc -> ShipDevtest.logStats(mc, "M depois de reabrir o mundo, jogador na nave 1", true));
+        cmd(10, "spacehorizons ship goto 2");
+        tickerStep(0, waitInYard(2, 700));
+        step(60, mc -> {
+            ShipDevtest.check("RELOAD nave 2: baú com 115 itens, lampada apagada, fornalha acesa",
+                    ShipDevtest.chestItems(mc, 2) == 115 && !ShipDevtest.lampLit(mc, 2) && ShipDevtest.furnaceLit(mc, 2),
+                    "itens=" + ShipDevtest.chestItems(mc, 2) + " lampada=" + ShipDevtest.lampLit(mc, 2) + " " + ShipDevtest.furnace(mc, 2));
+            ShipDevtest.check("RELOAD: as duas naves seguradas de novo", ShipDevtest.isHeld(mc, 1) && ShipDevtest.isHeld(mc, 2), "seguradas=" + ShipDevtest.heldCount(mc));
+        });
+        look(10, EAST, 5f);
+        shot(30, "shipyard_16_after_reload_ship2");
+
+        // N. sai (o ponto de retorno também foi salvo) e termina
+        cmd(10, "spacehorizons ship leave");
+        tickerStep(0, waitOverworld(700));
+        step(60, mc -> {
+            double d = shipEarthPoint == null ? 99.0 : mc.player.position().distanceTo(shipEarthPoint);
+            ShipDevtest.check("depois de reabrir o mundo, ship leave leva ao ponto salvo na Terra", d < 3.0, "distancia=" + f(d));
+            ShipDevtest.logStats(mc, "N fim (Terra, naves seguradas ate caírem)", false);
+        });
+        cmd(5, "gamerule send_command_feedback true");
+        cmd(5, "gamerule show_advancement_messages true");
+        step(20, mc -> {
+            ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Espera o jogador chegar ao estaleiro, sem tela de carregamento e com o chunk dele carregado. */
+    private Ticker waitInYard(int shipId, int maxTicks) {
+        return new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                boolean there = com.spacehorizons.ship.ShipYard.is(mc.level) && mc.gui.screen() == null
+                        && mc.level.hasChunk(mc.player.blockPosition().getX() >> 4, mc.player.blockPosition().getZ() >> 4);
+                if (there && n > 20) {
+                    int around = ShipDevtest.shipAroundPlayer(mc);
+                    SpaceHorizons.LOGGER.info(TAG + "SHIP chegou ao estaleiro em {} ticks (nave ao redor={}, esperado {})", n, around, shipId);
+                    return true;
+                }
+                if (n > maxTicks) {
+                    ShipDevtest.check("chegada ao estaleiro (nave " + shipId + ")", false, "nao chegou em " + maxTicks + " ticks; dim=" + mc.level.dimension().identifier()
+                            + " tela=" + (mc.gui.screen() == null ? "nenhuma" : mc.gui.screen().getClass().getSimpleName()));
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    private Ticker waitOverworld(int maxTicks) {
+        return new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                boolean there = mc.level.dimension() == net.minecraft.world.level.Level.OVERWORLD && mc.gui.screen() == null
+                        && mc.level.hasChunk(mc.player.blockPosition().getX() >> 4, mc.player.blockPosition().getZ() >> 4);
+                if (there && n > 20) {
+                    SpaceHorizons.LOGGER.info(TAG + "SHIP de volta ao overworld em {} ticks", n);
+                    return true;
+                }
+                if (n > maxTicks) {
+                    ShipDevtest.check("volta ao overworld", false, "nao voltou em " + maxTicks + " ticks; dim=" + mc.level.dimension().identifier());
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    /** Anda de verdade (velocidade horizontal a cada tick, mantendo a gravidade) até o ponto, ou o tempo acabar. */
+    private Ticker walkTo(int shipId, java.util.function.Function<com.spacehorizons.ship.ShipBuilder.Layout, Double> x,
+            java.util.function.Function<com.spacehorizons.ship.ShipBuilder.Layout, Double> z, int maxTicks, String label) {
+        return new Ticker() {
+            int n;
+            double startX;
+            double startZ;
+            double tx;
+            double tz;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                LocalPlayer p = mc.player;
+                if (n == 0) {
+                    var l = ShipDevtest.layout(mc, shipId);
+                    tx = x.apply(l);
+                    tz = z.apply(l);
+                    startX = p.getX();
+                    startZ = p.getZ();
+                }
+                n++;
+                double dx = tx - p.getX();
+                double dz = tz - p.getZ();
+                double dist = Math.hypot(dx, dz);
+                if (dist < 0.3 || n > maxTicks) {
+                    p.setDeltaMovement(0.0, p.getDeltaMovement().y, 0.0);
+                    SpaceHorizons.LOGGER.info(TAG + "SHIP andou {} em {} ticks: de ({}, {}) para ({}, {}), faltam {}", label, n, f(startX), f(startZ), f(p.getX()),
+                            f(p.getZ()), f(dist));
+                    ShipDevtest.check("andou " + label, dist < 0.6 && Math.hypot(p.getX() - startX, p.getZ() - startZ) > 0.5, "faltam " + f(dist));
+                    return true;
+                }
+                double speed = Math.min(0.2, dist);
+                p.setDeltaMovement(dx / dist * speed, p.getDeltaMovement().y, dz / dist * speed);
+                p.setYRot((float) Math.toDegrees(Math.atan2(-dx, dz)));
+                return false;
+            }
+        };
+    }
+
+    /** Aponta a câmera para um ponto da nave. */
+    private void aimAt(int wait, int shipId, java.util.function.Function<com.spacehorizons.ship.ShipBuilder.Layout, Vec3> target) {
+        step(wait, mc -> {
+            Vec3 t = target.apply(ShipDevtest.layout(mc, shipId));
+            Vec3 d = t.subtract(mc.player.getEyePosition());
+            mc.player.setYRot(ShipDevtest.yawOf(d));
+            mc.player.setXRot(ShipDevtest.pitchOf(d));
+        });
+    }
+
+    /** Clique direito de verdade no bloco, pela face dada. */
+    private void useBlock(int wait, int shipId, java.util.function.Function<com.spacehorizons.ship.ShipBuilder.Layout, BlockPos> block, Direction face, String label) {
+        step(wait, mc -> {
+            BlockPos pos = block.apply(ShipDevtest.layout(mc, shipId));
+            Vec3 hit = Vec3.atCenterOf(pos).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
+            var result = mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, new BlockHitResult(hit, face, pos, false));
+            SpaceHorizons.LOGGER.info(TAG + "SHIP clique direito em {} ({}): {}", label, pos, result);
+        });
+    }
+
+    /** Luz de bloco e de céu no ponto de medida da nave, no servidor e no cliente, e a verificação de que não há luz de céu dentro. */
+    private static void logShipLight(Minecraft mc, int shipId, String label) {
+        var l = ShipDevtest.layout(mc, shipId);
+        int[] probe = ShipDevtest.light(mc, shipId, l.lightProbe());
+        int[] spawn = ShipDevtest.light(mc, shipId, l.spawn());
+        SpaceHorizons.LOGGER.info(TAG + "SHIP LUZ {}: ponto da lampada bloco(servidor)={} bloco(cliente)={} ceu(servidor)={} ceu(cliente)={} | centro do salao bloco={}/{} ceu={}/{}",
+                label, probe[0], probe[2], probe[1], probe[3], spawn[0], spawn[2], spawn[1], spawn[3]);
+        ShipDevtest.check("sem luz de ceu dentro da nave (" + label + ")", probe[1] == 0 && probe[3] == 0 && spawn[1] == 0 && spawn[3] == 0,
+                "ceu servidor/cliente=" + probe[1] + "/" + probe[3] + " e " + spawn[1] + "/" + spawn[3]);
     }
 }

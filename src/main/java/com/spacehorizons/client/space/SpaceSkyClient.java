@@ -36,7 +36,7 @@ final class SpaceSkyClient {
     }
 
     private static void onExtractRenderState(ExtractLevelRenderStateEvent event) {
-        if (!SpaceDimension.is(event.getLevel())) {
+        if (!SpaceDimension.is(event.getLevel()) && !com.spacehorizons.ship.ShipYard.is(event.getLevel())) {
             SpaceSun.setInSpace(false);
             return;
         }
@@ -64,7 +64,7 @@ final class SpaceSkyClient {
 
     /** Sem névoa no espaço: o mesmo valor do buffer "sem neblina" do vanilla (como o ramo de vácuo de AtmosphereFog). */
     private static void onRenderFog(ViewportEvent.RenderFog event) {
-        if (!(event.getEnvironment() instanceof AtmosphericFogEnvironment) || !SpaceDimension.is(event.getCamera().entity().level())) {
+        if (!(event.getEnvironment() instanceof AtmosphericFogEnvironment) || !(SpaceDimension.is(event.getCamera().entity().level()) || com.spacehorizons.ship.ShipYard.is(event.getCamera().entity().level()))) {
             return;
         }
         FogData fog = event.getFogData();

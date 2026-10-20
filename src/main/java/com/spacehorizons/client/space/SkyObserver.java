@@ -118,6 +118,10 @@ public record SkyObserver(SolarSystem.@Nullable Body home, double clock, double[
             }
             return Optional.of(forSpace(clock, x, y, z));
         }
+        if (com.spacehorizons.ship.ShipYard.is(level)) {
+            // dentro de uma nave no estaleiro: observador virtual (as coordenadas do estaleiro não são as do espaço)
+            return Optional.of(com.spacehorizons.client.ship.ShipSkyClient.observer(clock));
+        }
         return Optional.empty();
     }
 
