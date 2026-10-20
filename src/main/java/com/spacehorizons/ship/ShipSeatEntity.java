@@ -53,7 +53,9 @@ public class ShipSeatEntity extends Entity {
             seat.setPos(pos.getX() + 0.5, pos.getY() + ShipSeatBlock.SEAT_HEIGHT, pos.getZ() + 0.5);
             level.addFreshEntity(seat);
         }
-        return player.startRiding(seat);
+        boolean rode = player.startRiding(seat);
+        com.spacehorizons.SpaceHorizons.LOGGER.info("[ship] {} senta em {}: {}", player.getName().getString(), pos, rode ? "sentou" : "recusado");
+        return rode;
     }
 
     // ---------------------------------------------------------------- dados e salvar

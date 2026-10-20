@@ -49,6 +49,7 @@ public class ShipSeatBlock extends Block {
             return InteractionResult.PASS;
         }
         if (level instanceof ServerLevel serverLevel) {
+            com.spacehorizons.SpaceHorizons.LOGGER.info("[ship] clique no assento {} por {}", pos, player.getName().getString());
             ShipSeatEntity.sit(serverLevel, pos, player);
         }
         return InteractionResult.SUCCESS;

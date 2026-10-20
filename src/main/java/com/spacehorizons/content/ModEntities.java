@@ -28,7 +28,7 @@ public final class ModEntities {
      */
     public static final DeferredHolder<EntityType<?>, EntityType<ShipSeatEntity>> SHIP_SEAT = TYPES.registerEntityType("ship_seat",
             ShipSeatEntity::new, MobCategory.MISC,
-            builder -> builder.sized(0.1F, 0.1F).clientTrackingRange(8).updateInterval(20).noSummon().noSave().fireImmune());
+            builder -> builder.sized(0.1F, 0.1F).clientTrackingRange(8).updateInterval(20).noSummon().fireImmune());
 
     private ModEntities() {
     }

@@ -253,7 +253,7 @@ public final class ShipBuilder {
             }
         }
         // janelas: a proa (norte) larga e baixa, os dois lados da sala da ponte e do compartimento de carga
-        for (int y = 4; y <= 13; y++) {
+        for (int y = 2; y <= 12; y++) {
             for (int x = 4; x < sx - 4; x++) {
                 put(level, p.set(x0 + x, y0 + y, z0), window, counts);
             }

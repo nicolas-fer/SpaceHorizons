@@ -4336,9 +4336,241 @@ public final class AutoTest {
         });
     }
 
-    /** A nave inteira (1d e 1e). */
+    private com.spacehorizons.ship.ShipBuilder.FlightLayout fl;
+    private ShipPilotDevtest.Live shipLiveRef;
+    private com.spacehorizons.space.flight.V3 shipForwardStart;
+    private Vec3 shipStandPos;
+    private double shipApBefore;
+    private double shipFuelBefore;
+
+    /** Espera a condição (checada a cada tick do cliente) por no máximo {@code maxTicks}; registra se não veio. */
+    private Ticker waitUntil(String label, int maxTicks, java.util.function.Predicate<Minecraft> condition) {
+        return new Ticker() {
+            int n;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                if (condition.test(mc)) {
+                    SpaceHorizons.LOGGER.info(TAG + "SHIP {} em {} ticks", label, n);
+                    return true;
+                }
+                if (n > maxTicks) {
+                    ShipDevtest.check(label, false, "não aconteceu em " + maxTicks + " ticks");
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    /** Segura uma tecla (de movimento ou do piloto) por {@code ticks} ticks do cliente e solta. */
+    private void holdKey(int wait, java.util.function.Function<Minecraft, net.minecraft.client.KeyMapping> key, int ticks) {
+        step(wait, mc -> key.apply(mc).setDown(true));
+        step(ticks, mc -> key.apply(mc).setDown(false));
+    }
+
+    private static void rightClick(Minecraft mc, BlockPos pos, Direction face, String label) {
+        Vec3 hit = Vec3.atCenterOf(pos).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
+        var result = mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, new BlockHitResult(hit, face, pos, false));
+        SpaceHorizons.LOGGER.info(TAG + "SHIP clique direito em {} ({}): {}", label, pos, result);
+    }
+
+    private static void lookAtPoint(Minecraft mc, Vec3 target) {
+        Vec3 d = target.subtract(mc.player.getEyePosition());
+        mc.player.setYRot(ShipDevtest.yawOf(d));
+        mc.player.setXRot(ShipDevtest.pitchOf(d));
+    }
+
+    /**
+     * A nave inteira (fases 1d e 1e): cria a nave de voo, entra, olha o céu pelas janelas (a Terra à direita), senta no assento da ponte, muda o SAS
+     * e gira a atitude com as teclas (o céu gira: a Terra sai da janela da proa; mede o tremor), alinha pelo SAS prógrado, liga o motor com a
+     * alavanca do acelerador (a órbita muda: apoastro e periastro no painel), levanta do assento com a queima ligada e anda pelo interior (abre a eclusa
+     * do anteparo) sem ser empurrado.
+     */
     private void shipScenario() {
+        String c = "SHIP: ";
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        step(5, mc -> mc.options.fov().set(90));
+        cmd(10, "spacehorizons ship create flight");
+        cmd(60, "spacehorizons ship goto 1");
+        tickerStep(0, waitInYard(1, 700));
+        step(60, mc -> {
+            var box = ShipDevtest.onServer(mc, server -> com.spacehorizons.ship.ShipRegistry.get(server).byId(1).box());
+            fl = com.spacehorizons.ship.ShipBuilder.flightLayout(box);
+            mc.player.getAbilities().flying = false;
+            mc.player.onUpdateAbilities();
+            ShipDevtest.check(c + "jogador na sala da ponte, dentro da caixa da nave de voo", box.contains(mc.player.getX(), mc.player.getY(), mc.player.getZ()),
+                    "pos=(" + f(mc.player.getX()) + ", " + f(mc.player.getY()) + ", " + f(mc.player.getZ()) + ")");
+            ShipDevtest.check(c + "o cliente recebe o estado virtual da nave (pacotes)", com.spacehorizons.client.ship.ShipRenderClient.active()
+                    && com.spacehorizons.client.ship.ShipRenderClient.packetCount() > 5, "pacotes=" + com.spacehorizons.client.ship.ShipRenderClient.packetCount());
+            ShipDevtest.check(c + "o céu usa a atitude da nave (fonte externa ligada)", SkyAttitude.current() != null, String.valueOf(SkyAttitude.current()));
+            ShipPilotDevtest.Live live = ShipPilotDevtest.live(mc, 1);
+            shipForwardStart = live.forward();
+            SpaceHorizons.LOGGER.info(TAG + "SHIP estado inicial: {}", ShipPilotDevtest.describe(live));
+        });
+        // A. a proa: a Terra no canto direito do quadro
+        look(10, 180f, 0f);
+        step(30, mc -> {
+            double[] e = ShipPilotDevtest.earthFromView(mc, 180f, 0f);
+            SpaceHorizons.LOGGER.info(TAG + "SHIP olhando a proa (norte): Terra a {} graus do centro do olhar, raio angular {} graus", f(e[0]), f(e[1]));
+            ShipDevtest.check(c + "olhando a proa a Terra está à direita (~90 graus do olhar, a borda dentro do quadro)", e[0] > 80 && e[0] < 100 && e[0] - e[1] < 55.0,
+                    "angulo=" + f(e[0]) + " raio=" + f(e[1]));
+            String sight = ShipDevtest.sightLine(mc.level, mc.player.getEyePosition(), ShipPilotDevtest.lookVec(180f, 0f));
+            ShipDevtest.check(c + "a proa tem janela (a linha de visão passa por vidro da nave e dá no espaço)", sight.startsWith("janela"), sight);
+        });
+        shot(5, "ship_01_hall_bow_earth_right");
+        look(10, -90f, 0f);
+        step(30, mc -> {
+            double[] e = ShipPilotDevtest.earthFromView(mc, -90f, 0f);
+            SpaceHorizons.LOGGER.info(TAG + "SHIP olhando o leste: Terra a {} graus do centro do olhar", f(e[0]));
+            ShipDevtest.check(c + "olhando o leste a Terra está de frente", e[0] < 10.0, "angulo=" + f(e[0]));
+            String sight = ShipDevtest.sightLine(mc.level, mc.player.getEyePosition(), ShipPilotDevtest.lookVec(-90f, 0f));
+            ShipDevtest.check(c + "o lado leste tem janela", sight.startsWith("janela"), sight);
+        });
+        shot(5, "ship_02_hall_east_earth");
+
+        // B. anda até o assento do piloto e senta (clique direito de verdade)
+        tickerStep(0, walkToPoint(mc -> new Vec3(fl.pilotSeat().getX() + 0.5, fl.pilotSeat().getY(), fl.pilotSeat().getZ() + 2.6), 300, "até o assento do piloto"));
+        step(5, mc -> {
+            shipStandPos = mc.player.position();
+            lookAtPoint(mc, Vec3.atCenterOf(fl.pilotSeat()));
+        });
+        step(5, mc -> rightClick(mc, fl.pilotSeat(), Direction.UP, "assento do piloto"));
+        tickerStep(0, waitUntil(c + "sentou no assento da ponte", 60, mc -> mc.player.getVehicle() instanceof com.spacehorizons.ship.ShipSeatEntity));
         step(20, mc -> {
+            boolean seated = mc.player.getVehicle() instanceof com.spacehorizons.ship.ShipSeatEntity;
+            double moved = shipStandPos == null ? 99.0 : Math.hypot(mc.player.getX() - fl.pilotSeat().getX() - 0.5, mc.player.getZ() - fl.pilotSeat().getZ() - 0.5);
+            ShipDevtest.check(c + "sentado no assento (entidade do assento), sem teletransporte: fica sobre o bloco", seated && moved < 0.6 && ShipDevtest.shipAroundPlayer(mc) == 1,
+                    "sentado=" + seated + " distância ao centro do assento=" + f(moved));
+            ShipDevtest.check(c + "o piloto está pilotando no cliente (teclas do foguete ativas)", com.spacehorizons.client.ship.ShipPilot.isPiloting(), "pilotando");
+        });
+        look(5, 180f, 0f);
+        step(60, mc -> {
+            ShipDevtest.check(c + "o cliente manda o comando e recebe a telemetria do servidor", com.spacehorizons.client.ship.ShipPilot.sentCount() > 3
+                    && com.spacehorizons.client.rocket.RocketTelemetryClient.current() != null, "pacotes enviados=" + com.spacehorizons.client.ship.ShipPilot.sentCount()
+                    + " telemetria=" + (com.spacehorizons.client.rocket.RocketTelemetryClient.current() != null));
+            var t = com.spacehorizons.client.rocket.RocketTelemetryClient.current();
+            if (t != null) {
+                SpaceHorizons.LOGGER.info(TAG + "SHIP painel: altitude={} apoastro={} periastro={} combustível={}/{} Δv={} b/t", f(t.altitude()), f(t.apoapsisAltitude()),
+                        f(t.periapsisAltitude()), f(t.fuelMb()), f(t.fuelCapacityMb()), f(t.deltaV()));
+                ShipDevtest.check(c + "o painel mostra a órbita circular a 30.000 (apoastro e periastro)", Math.abs(t.apoapsisAltitude() - 30_000.0) < 5.0
+                        && Math.abs(t.periapsisAltitude() - 30_000.0) < 5.0 && t.fuelMb() > 31_000.0, "ap=" + f(t.apoapsisAltitude()) + " pe=" + f(t.periapsisAltitude()));
+            }
+        });
+        shot(5, "ship_03_seated_panel_bow");
+
+        // C. SAS estabilizar (tecla T) e gira a atitude com a tecla A (guinada à esquerda) até ~90 graus
+        step(5, mc -> CockpitDevtest.click(RocketKeys.NEXT_SAS));
+        step(15, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            ShipDevtest.check(c + "a tecla T chegou ao servidor: SAS estabilizar", l.sas() == 1, "sas=" + l.sas());
+            ShipPilotDevtest.startFrames();
+        });
+        step(5, mc -> mc.options.keyLeft.setDown(true));
+        tickerStep(0, waitUntil(c + "a proa girou 82 graus com a tecla A", 120, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            return ShipPilotDevtest.angleDeg(l.forward(), shipForwardStart) >= 82.0;
+        }));
+        step(0, mc -> mc.options.keyLeft.setDown(false));
+        step(25, mc -> {
+            double[] j = ShipPilotDevtest.stopFrames();
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            double turned = ShipPilotDevtest.angleDeg(l.forward(), shipForwardStart);
+            SpaceHorizons.LOGGER.info(TAG + "SHIP depois do giro: a proa girou {} graus; {}", f(turned), ShipPilotDevtest.describe(l));
+            ShipDevtest.check(c + "a proa girou ~90 graus (SAS estabilizar parou o giro)", turned > 85.0 && turned < 100.0, "girou=" + f(turned));
+            ShipDevtest.check(c + "sem tremor no giro: velocidade angular do céu quadro a quadro varia menos de 15% na janela de giro constante",
+                    j[4] >= 5 && j[3] < 0.15, String.format(java.util.Locale.ROOT, "quadros=%.0f janela=%.0f média=%.1f graus/s desvio máximo=%.1f%%", j[0], j[4], j[2], j[3] * 100.0));
+            double[] e = ShipPilotDevtest.earthFromView(mc, 180f, 0f);
+            SpaceHorizons.LOGGER.info(TAG + "SHIP depois do giro, olhando a proa: Terra a {} graus do olhar (raio {})", f(e[0]), f(e[1]));
+            ShipDevtest.check(c + "depois do giro de 90 graus a Terra saiu da janela da proa (disco todo fora do quadro)", e[0] - e[1] > 60.0, "angulo=" + f(e[0]) + " raio=" + f(e[1]));
+            ShipDevtest.check(c + "ainda sentado depois de segurar A (Shift e sprint mascarados não importam aqui)", mc.player.getVehicle() instanceof com.spacehorizons.ship.ShipSeatEntity, "veiculo=" + mc.player.getVehicle());
+        });
+        shot(5, "ship_04_turned_90_bow_no_earth");
+        look(10, -90f, 0f);
+        shot(20, "ship_05_turned_90_east_window");
+        look(10, 180f, 0f);
+
+        // D. SAS prógrado alinha a proa; liga o motor com a alavanca (Shift sobe o acelerador, que fica onde se deixa)
+        step(5, mc -> CockpitDevtest.click(RocketKeys.NEXT_SAS));
+        tickerStep(0, waitUntil(c + "a proa alinhou com o prógrado (SAS prógrado, menos de 1 grau)", 250, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            return l.sas() == 2 && ShipPilotDevtest.angleDeg(l.forward(), l.velocity()) < 1.0;
+        }));
+        step(10, mc -> {
+            shipLiveRef = ShipPilotDevtest.live(mc, 1);
+            shipApBefore = shipLiveRef.apoapsis();
+            shipFuelBefore = shipLiveRef.fuelMb();
+            SpaceHorizons.LOGGER.info(TAG + "SHIP antes da queima: {}", ShipPilotDevtest.describe(shipLiveRef));
+        });
+        step(5, mc -> mc.options.keyShift.setDown(true));
+        step(7, mc -> mc.options.keyShift.setDown(false));
+        step(10, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            ShipDevtest.check(c + "Shift sobe o acelerador (alavanca) e o jogador continua sentado", l.throttle() > 0.08 && l.throttle() < 0.4
+                    && mc.player.getVehicle() instanceof com.spacehorizons.ship.ShipSeatEntity, "acelerador=" + f(l.throttle()) + " veiculo=" + mc.player.getVehicle());
+            ShipDevtest.check(c + "o acelerador fica onde se deixou depois de soltar Shift", Math.abs(com.spacehorizons.client.ship.ShipPilot.throttle() - l.throttle()) < 0.05,
+                    "painel=" + f(com.spacehorizons.client.ship.ShipPilot.throttle()) + " servidor=" + f(l.throttle()));
+        });
+        step(40, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            var t = com.spacehorizons.client.rocket.RocketTelemetryClient.current();
+            SpaceHorizons.LOGGER.info(TAG + "SHIP queimando: {} | painel: apoastro={} periastro={} combustível={}", ShipPilotDevtest.describe(l), t == null ? "?" : f(t.apoapsisAltitude()),
+                    t == null ? "?" : f(t.periapsisAltitude()), t == null ? "?" : f(t.fuelMb()));
+            ShipDevtest.check(c + "a queima muda a órbita: o apoastro sobe e o combustível cai", l.apoapsis() > shipApBefore + 1_000.0 && l.fuelMb() < shipFuelBefore - 500.0,
+                    String.format(java.util.Locale.ROOT, "apoastro %.0f -> %.0f, combustível %.0f -> %.0f", shipApBefore, l.apoapsis(), shipFuelBefore, l.fuelMb()));
+            ShipDevtest.check(c + "o painel do piloto mostra o apoastro novo e o combustível (telemetria do servidor)", t != null && Math.abs(t.apoapsisAltitude() - l.apoapsis()) < 3_000.0
+                    && Math.abs(t.fuelMb() - l.fuelMb()) < 1_500.0, "painel=" + (t == null ? "?" : f(t.apoapsisAltitude()) + "/" + f(t.fuelMb())));
+        });
+        shot(5, "ship_06_burning_panel_orbit_changing");
+
+        // E. levanta do assento com a queima ligada (tecla G) e anda pelo interior sem ser empurrado
+        step(5, mc -> CockpitDevtest.click(RocketKeys.DISASSEMBLE));
+        step(20, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            ShipDevtest.check(c + "a tecla G levantou o jogador do assento (a queima continua ligada)", mc.player.getVehicle() == null && l.throttle() > 0.08,
+                    "veiculo=" + mc.player.getVehicle() + " acelerador=" + f(l.throttle()));
+            shipStandPos = mc.player.position();
+            SpaceHorizons.LOGGER.info(TAG + "SHIP em pé em ({}, {}, {}) com a queima ligada: {}", f(shipStandPos.x), f(shipStandPos.y), f(shipStandPos.z), ShipPilotDevtest.describe(l));
+        });
+        step(30, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            double drift = mc.player.position().distanceTo(shipStandPos);
+            ShipDevtest.check(c + "parado durante a queima o jogador não é empurrado (deriva menor que 0,05 bloco em 30 ticks, motor ligado)", drift < 0.05 && l.throttle() > 0.08,
+                    "deriva=" + f(drift) + " acelerador=" + f(l.throttle()) + " " + ShipPilotDevtest.describe(l));
+            shipFuelBefore = l.fuelMb();
+        });
+        tickerStep(0, walkToPoint(mc -> new Vec3(fl.bulkheadDoor().getX() + 0.5, fl.hall().getY(), fl.bulkheadDoor().getZ() - 1.6), 400, "até o anteparo, queimando"));
+        step(5, mc -> lookAtPoint(mc, Vec3.atCenterOf(fl.bulkheadDoor())));
+        step(5, mc -> rightClick(mc, fl.bulkheadDoor(), Direction.NORTH, "eclusa de baixo"));
+        step(5, mc -> rightClick(mc, fl.bulkheadDoor().above(), Direction.NORTH, "eclusa de cima"));
+        step(10, mc -> {
+            boolean open = mc.level.getBlockState(fl.bulkheadDoor()).getValue(com.spacehorizons.ship.block.ShipAirlockBlock.OPEN)
+                    && mc.level.getBlockState(fl.bulkheadDoor().above()).getValue(com.spacehorizons.ship.block.ShipAirlockBlock.OPEN);
+            ShipDevtest.check(c + "a eclusa do anteparo abre com o botão direito", open, "aberta=" + open);
+        });
+        shot(5, "ship_07_airlock_open_burning");
+        tickerStep(0, walkToPoint(mc -> new Vec3(fl.bulkheadDoor().getX() + 0.5, fl.hall().getY(), fl.bulkheadDoor().getZ() + 12.5), 500, "pela eclusa até a sala dos motores, queimando"));
+        step(5, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            ShipDevtest.check(c + "o jogador atravessou o anteparo e andou pela nave com o motor ligado", mc.player.getZ() > fl.bulkheadDoor().getZ() + 8.0 && l.throttle() > 0.08
+                    && l.fuelMb() < shipFuelBefore - 200.0, "z=" + f(mc.player.getZ()) + " acelerador=" + f(l.throttle()) + " combustível " + f(shipFuelBefore) + " -> " + f(l.fuelMb()));
+            SpaceHorizons.LOGGER.info(TAG + "SHIP depois de andar: {}", ShipPilotDevtest.describe(l));
+        });
+        look(5, 0f, 5f);
+        shot(20, "ship_08_engine_room_while_burning");
+        step(5, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            ShipDevtest.check(c + "a órbita mudou durante a caminhada (queima contínua, apoastro maior que antes de levantar)", l.apoapsis() > shipApBefore + 3_000.0,
+                    String.format(java.util.Locale.ROOT, "apoastro %.0f -> %.0f", shipApBefore, l.apoapsis()));
+        });
+        cmd(5, "gamerule send_command_feedback true");
+        cmd(5, "gamerule show_advancement_messages true");
+        step(20, mc -> {
+            ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });

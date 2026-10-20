@@ -149,7 +149,7 @@ public final class RocketPanel {
     }
 
     /** Largura de uma linha de rótulo e valor: os dois textos, o respiro dos lados e uma folga entre eles. */
-    private static int needed(Font font, Component label, String value) {
+    public static int needed(Font font, Component label, String value) {
         return font.width(label) + font.width(value) + 18;
     }
 
@@ -234,7 +234,7 @@ public final class RocketPanel {
     }
 
     /** Uma faixa de aviso centrada no topo; devolve o y da próxima. */
-    private static int centeredBanner(GuiGraphicsExtractor g, Font font, Component text, int color, int y) {
+    public static int centeredBanner(GuiGraphicsExtractor g, Font font, Component text, int color, int y) {
         int width = font.width(text) + 12;
         int x = (g.guiWidth() - width) / 2;
         g.fill(x - 1, y - 1, x + width + 1, y + 12, COLOR_BORDER);
@@ -260,7 +260,7 @@ public final class RocketPanel {
     // ---------------------------------------------------------------- textos
 
     /** O nome do corpo dominante; sem telemetria, "—". */
-    static Component bodyName(@Nullable RocketTelemetryPayload t) {
+    public static Component bodyName(@Nullable RocketTelemetryPayload t) {
         return t == null ? Component.literal(RocketPanelModel.NONE)
                 : Component.translatableWithFallback("hud.spacehorizons.rocket.body." + t.body(), t.body());
     }
@@ -279,11 +279,11 @@ public final class RocketPanel {
         return Minecraft.getInstance();
     }
 
-    private static boolean blink(long tick) {
+    public static boolean blink(long tick) {
         return (tick / 5) % 2 == 0;
     }
 
-    private static int toneColor(RocketPanelModel.Tone tone) {
+    public static int toneColor(RocketPanelModel.Tone tone) {
         return switch (tone) {
             case GOOD -> COLOR_GOOD;
             case WARN -> COLOR_WARN;
@@ -292,19 +292,19 @@ public final class RocketPanel {
         };
     }
 
-    private static void box(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+    public static void box(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         g.fill(x - 1, y - 1, x + w + 1, y + h + 1, COLOR_BORDER);
         g.fill(x, y, x + w, y + h, COLOR_BG);
     }
 
     /** Rótulo à esquerda (cinza) e valor alinhado à direita da faixa {@code [x, x + w]}. */
-    private static void row(GuiGraphicsExtractor g, Font font, int x, int y, int w, Component label, String value, int valueColor) {
+    public static void row(GuiGraphicsExtractor g, Font font, int x, int y, int w, Component label, String value, int valueColor) {
         g.text(font, label, x + 5, y, COLOR_LABEL);
         g.text(font, value, x + w - 5 - font.width(value), y, valueColor);
     }
 
     /** Barra vertical que enche de baixo para cima. */
-    private static void verticalBar(GuiGraphicsExtractor g, int x, int y, int w, int h, float fraction, int color) {
+    public static void verticalBar(GuiGraphicsExtractor g, int x, int y, int w, int h, float fraction, int color) {
         g.fill(x - 1, y - 1, x + w + 1, y + h + 1, COLOR_BORDER);
         g.fill(x, y, x + w, y + h, COLOR_BAR_BACK);
         int filled = Math.round(h * Math.max(0.0F, Math.min(1.0F, fraction)));
