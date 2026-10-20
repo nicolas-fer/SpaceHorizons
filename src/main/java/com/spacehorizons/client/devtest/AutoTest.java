@@ -170,6 +170,10 @@ public final class AutoTest {
             skyTestScenario();
             return;
         }
+        if ("sunsky".equals(ONLY)) {
+            sunSkyScenario();
+            return;
+        }
         if ("earthdetail".equals(ONLY)) {
             earthDetailScenario();
             return;
@@ -2951,6 +2955,47 @@ public final class AutoTest {
 
     /** Duração (ticks de cliente) da medição do cenário jump: 40 s a 20 ticks/s. */
     private static final int JUMP_TICKS = 800;
+
+    /** Aponta a câmera para o sol do ponto atual do planeta (yaw e pitch do SunModel no ponto do jogador). */
+    private static void lookAtSun(Minecraft mc, float pitchOffset) {
+        java.util.Optional<com.spacehorizons.planet.PlanetDefinition> planet = Planets.forLevel(mc.level);
+        float[] sun = new float[3];
+        SpaceSun.localAt(mc.level, planet.orElse(Planets.EARTH), mc.player.getX(), mc.player.getZ(), sun);
+        double elevation = Math.toDegrees(Math.asin(Math.max(-1.0, Math.min(1.0, sun[1]))));
+        mc.player.setYRot((float) Math.toDegrees(Math.atan2(-sun[0], sun[2])));
+        mc.player.setXRot((float) Math.max(-90.0, Math.min(90.0, -elevation + pitchOffset)));
+        SpaceHorizons.LOGGER.info(TAG + "SUNSKY sol a elevacao={} graus", f(elevation));
+    }
+
+    /** O sol redondo no céu dos planetas do mod: Terra de dia (sol alto e baixo) e Lua, apontando a câmera para ele. */
+    private void sunSkyScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "gamerule advance_time false");
+        cmd(20, "time set 3000");
+        cmd(10, "tp @s 0 120 0");
+        fly(20);
+        step(10, mc -> lookAtSun(mc, 0f));
+        shot(60, "ss_earth_day_sun");
+        step(10, mc -> lookAtSun(mc, 25f));
+        shot(40, "ss_earth_day_sun_low_in_frame");
+        cmd(10, "time set 11500");
+        step(10, mc -> lookAtSun(mc, 0f));
+        shot(60, "ss_earth_sunset_sun");
+        cmd(10, "time set 6000");
+        step(10, mc -> lookAtSun(mc, 0f));
+        shot(60, "ss_earth_noon_sun_up");
+        cmd(10, "spacehorizons goto moon");
+        cmd(200, "time set 3000");
+        cmd(10, "tp @s ~ ~200 ~");
+        fly(20);
+        step(10, mc -> lookAtSun(mc, 0f));
+        shot(100, "ss_moon_sun");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
 
     /** Ponto de costa com relevo escolhido pelo cenário earthdetail (x, z do mundo). */
     private double[] detailSpot = {0.0, 0.0};

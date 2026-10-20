@@ -46,7 +46,19 @@ public final class SpaceSun {
     /** A câmera está na dimensão de espaço aberto (ligado por SpaceSkyClient a cada frame; lido por SkyRendererMixin). */
     private static boolean inSpace;
 
+    /** A câmera está no céu de um planeta do mod (Terra ou Lua; ligado por BodyClient a cada frame). */
+    private static boolean onPlanet;
+
     private SpaceSun() {
+    }
+
+    /** O sol deste céu é o disco redondo do {@link SunDisc}? Sim no espaço, no estaleiro e nos planetas do mod; fora deles vale o vanilla. */
+    public static boolean roundSun() {
+        return inSpace || onPlanet;
+    }
+
+    static void setOnPlanet(boolean value) {
+        onPlanet = value;
     }
 
     /** Relógio do Overworld agora, em ticks com a parte fracionária (clock + frame), para movimentos suaves entre ticks. */

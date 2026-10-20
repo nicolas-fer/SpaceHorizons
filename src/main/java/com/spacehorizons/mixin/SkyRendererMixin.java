@@ -49,8 +49,8 @@ abstract class SkyRendererMixin {
     }
 
     /**
-     * A pose do sol é empilhada só para ele (o chamador a desempilha): dá para girar sem desfazer. No espaço e no estaleiro o
-     * quadrado de textura do vanilla (que vira losango com a atitude da nave) dá lugar ao disco redondo do {@link SunDisc}, desenhado
+     * A pose do sol é empilhada só para ele (o chamador a desempilha): dá para girar sem desfazer. No espaço, no estaleiro e nos planetas do mod o
+     * quadrado de textura do vanilla (que vira losango com a atitude da nave e quando se olha para cima) dá lugar ao disco redondo do {@link SunDisc}, desenhado
      * na mesma pose.
      */
     @Inject(method = "renderSun", at = @At("HEAD"), cancellable = true)
@@ -59,7 +59,7 @@ abstract class SkyRendererMixin {
         if (tilt != 0.0F) {
             poseStack.last().pose().mulLocal(new Matrix4f().rotationY(tilt));
         }
-        if (SpaceSun.inSpace() && SunDisc.draw(renderPass, poseStack, rainBrightness)) {
+        if (SpaceSun.roundSun() && SunDisc.draw(renderPass, poseStack, rainBrightness)) {
             ci.cancel();
         }
     }

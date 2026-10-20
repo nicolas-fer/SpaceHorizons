@@ -40,7 +40,9 @@ public final class BodyClient {
      */
     private static void onExtractRenderState(ExtractLevelRenderStateEvent event) {
         SkyRenderState sky = event.getRenderState().skyRenderState;
-        if (sky.skybox != DimensionType.Skybox.OVERWORLD || Planets.forLevel(event.getLevel()).isEmpty()) {
+        boolean planetSky = sky.skybox == DimensionType.Skybox.OVERWORLD && Planets.forLevel(event.getLevel()).isPresent();
+        SpaceSun.setOnPlanet(planetSky);
+        if (!planetSky) {
             return;
         }
         sky.moonAngle = (float) Math.PI;
