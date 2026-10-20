@@ -174,6 +174,20 @@ class CockpitCameraTest {
         assertEquals(2.0F + 1.5F * 10, CockpitCamera.thirdPersonDistance(3, 10, 3), 1.0E-5F);
     }
 
+    @Test
+    void olhoDaPrimeiraPessoaFicaNaJanelaForaDoCasco() {
+        // janela para o norte (-Z): o olho fica à frente do plano da janela (z < -0.5), na altura do meio dela, no centro em x
+        Vector3f north = CockpitCamera.windowEye(0, -1);
+        assertEquals(0.0F, north.x, EPS);
+        assertEquals(6.5F / 16.0F - 0.5F, north.y, EPS);
+        assertTrue(north.z < -0.5F && north.z > -0.8F, "o olho fica logo à frente da janela: " + north.z);
+        // virar a janela para o leste leva o recuo para +X
+        Vector3f east = CockpitCamera.windowEye(1, 0);
+        assertEquals(-north.z, east.x, EPS);
+        assertEquals(0.0F, east.z, EPS);
+        assertEquals(north.y, east.y, EPS);
+    }
+
     private static float wrap(float degrees) {
         float d = degrees % 360F;
         if (d > 180F) {
