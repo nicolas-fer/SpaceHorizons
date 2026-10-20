@@ -10,8 +10,7 @@ Saída em src/main/resources/assets/spacehorizons/textures/block/:
 - refinery_side.png     laterais e traseira
 - refinery_top.png      topo e base
 
-A refinaria não está na lista de tools/gerar_texturas.py de propósito: aquele script geraria um xadrez por hash e
-apagaria estas. Quando houver arte de verdade, é só substituir os PNGs (e apagar este script).
+Quando houver arte de verdade, é só substituir os PNGs (e apagar este script).
 """
 import struct
 import zlib

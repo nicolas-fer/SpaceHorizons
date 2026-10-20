@@ -29,9 +29,12 @@
     {"out": "rocket_parachute", "kind": "block", "nome": "Compartimento do Paraquedas", "descricao": "a lateral de um compartimento de paraquedas de foguete", "detalhes": "tecido de lona vermelho e branco dobrado em faixas verticais, preso por tiras de nylon cinza com fivelas metálicas", "cores": "vermelho, vermelho-escuro, branco, cinza-claro, cinza-aço, azul-marinho nas sombras"},
     {"out": "rocket_parachute_top", "kind": "block", "nome": "Tampa do Paraquedas", "descricao": "a tampa de um compartimento de paraquedas de foguete", "detalhes": "tampa de tecido vermelho com um anel de puxar metálico no centro e costuras brancas em cruz", "cores": "vermelho, vermelho-escuro, branco, cinza-claro, cinza-aço, azul-marinho nas sombras"},
 
-    {"out": "steel_ingot", "kind": "recolor", "base": "iron_ingot", "cor": "#7F93A8"},
-    {"out": "steel_nugget", "kind": "recolor", "base": "iron_nugget", "cor": "#7F93A8"},
-    {"out": "steel_blend", "kind": "recolor", "base": "gunpowder", "cor": "#6E7684"},
+    {"out": "steel_ingot", "kind": "recolor", "base": "iron_ingot", "cor": "#7F93A8", "cor_alt": "#6F8197"},
+    {"out": "steel_nugget", "kind": "recolor", "base": "iron_nugget", "cor": "#7F93A8", "cor_alt": "#6F8197"},
+    {"out": "steel_blend", "kind": "recolor", "base": "gunpowder", "cor": "#6E7684", "cor_alt": "#7A8798"},
+
+    {"out": "space_suit_humanoid", "kind": "recolor", "asset": "entity/equipment/humanoid/space_suit.png", "base": "entity/equipment/humanoid/iron", "cor": "#E4E8EE", "cor_alt": "#C3CCD8"},
+    {"out": "space_suit_humanoid_leggings", "kind": "recolor", "asset": "entity/equipment/humanoid_leggings/space_suit.png", "base": "entity/equipment/humanoid_leggings/iron", "cor": "#E4E8EE", "cor_alt": "#C3CCD8"},
     {"out": "steel_plate", "kind": "item", "nome": "Placa de Aço", "descricao": "uma placa quadrada e fina de aço laminado", "detalhes": "uma chapa de aço azulado vista de frente levemente inclinada, com bordas chanfradas claras, quatro furos de rebite nos cantos e reflexo diagonal", "cores": "cinza-aço azulado, cinza-claro, branco-amarelado nos brilhos, azul-ardósia, azul-marinho no contorno", "orientacao": "frontal", "ref": ["iron_ingot", "paper"]},
     {"out": "basic_circuit", "kind": "item", "nome": "Circuito Básico", "descricao": "uma pequena placa de circuito eletrônico", "detalhes": "uma placa de circuito verde com trilhas douradas, um chip preto quadrado no centro, pequenos componentes vermelhos de redstone e pinos dourados nas bordas", "cores": "verde-placa, verde-escuro, dourado, preto-azulado, vermelho-redstone, azul-marinho no contorno", "orientacao": "frontal", "ref": ["comparator", "repeater"]},
     {"out": "forge_hammer", "kind": "item", "nome": "Martelo de Forja", "descricao": "um martelo pesado de ferreiro", "detalhes": "uma cabeça retangular grossa de aço azulado com faces planas, presa a um cabo de madeira escura com empunhadura enrolada em couro", "cores": "cinza-aço azulado, cinza-claro, marrom-madeira, marrom-escuro couro, branco-amarelado nos brilhos, azul-marinho no contorno", "orientacao": "diagonal", "ref": ["iron_axe", "mace"]},
