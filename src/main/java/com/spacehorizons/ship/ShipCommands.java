@@ -56,7 +56,35 @@ final class ShipCommands {
                                         .then(Commands.argument("ms", IntegerArgumentType.integer(0, 1000))
                                                 .executes(ctx -> budget(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "unidades"),
                                                         IntegerArgumentType.getInteger(ctx, "ms"))))))
+                        .then(Commands.literal("census")
+                                .executes(ctx -> census(ctx.getSource(), -1))
+                                .then(Commands.argument("id", IntegerArgumentType.integer(1))
+                                        .executes(ctx -> census(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "id")))))
                         .then(Commands.literal("convstatus").executes(ctx -> convStatus(ctx.getSource())))));
+    }
+
+    /** Conta os blocos da nave (a do id, ou a que cerca o operador) e mostra a especificação: massa, empuxo, Δv e combustível. */
+    private static int census(CommandSourceStack source, int id) {
+        if (requireYard(source) == null) {
+            return 0;
+        }
+        ShipRegistry registry = ShipRegistry.get(source.getServer());
+        ShipRecord ship = id > 0 ? registry.byId(id) : null;
+        if (id <= 0 && source.getPlayer() != null && ShipYard.is(source.getPlayer().level())) {
+            ship = registry.atPosition(source.getPlayer().getX(), source.getPlayer().getZ());
+        }
+        if (ship == null) {
+            source.sendFailure(Component.literal(id > 0 ? "Não existe a nave " + id + " (veja /spacehorizons ship list)."
+                    : "Informe o id da nave ou rode o comando dentro de uma."));
+            return 0;
+        }
+        long start = System.nanoTime();
+        ShipCensusResult result = ShipCensusService.scanNow(source.getServer(), ship);
+        double ms = (System.nanoTime() - start) / 1.0e6;
+        String line = ShipInfo.line(ship, result, result.tankFuelMb()) + String.format(Locale.ROOT, " [censo em %.1f ms]", ms);
+        SpaceHorizons.LOGGER.info("[ship] {}", line);
+        source.sendSuccess(() -> Component.literal(line), false);
+        return ship.id();
     }
 
     private static ServerLevel requireYard(CommandSourceStack source) {

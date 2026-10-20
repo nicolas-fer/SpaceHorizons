@@ -54,6 +54,18 @@ public final class ContentIds {
     public static final String ROCKET_LANDING_LEG = "rocket_landing_leg";
     public static final String ROCKET_HULL = "rocket_hull";
 
+    // --- Naves (fase 1b, docs/PLANO_NAVES.md): blocos especiais; a nave é construída livremente com blocos no estaleiro ---
+    /** Ponte de comando: o núcleo que define a nave; clicar mostra a especificação (massa, empuxo, Δv, combustível). */
+    public static final String SHIP_BRIDGE = "ship_bridge";
+    /** Motor de impulso: empuxo para a proa da nave (a popa é o lado onde ele aponta). */
+    public static final String SHIP_IMPULSE_ENGINE = "ship_impulse_engine";
+    /** Janela de vidro por onde se vê o universo. */
+    public static final String SHIP_WINDOW = "ship_window";
+    /** Assento do piloto: sentar nele liga o modo piloto. */
+    public static final String SHIP_SEAT = "ship_seat";
+    /** Eclusa: porta de uma célula que abre e fecha com o botão direito. */
+    public static final String SHIP_AIRLOCK = "ship_airlock";
+
     /** Itens que não são BlockItems. */
     public static final List<String> ITEMS = List.of(
             STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER,
@@ -62,7 +74,8 @@ public final class ContentIds {
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
     public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR,
-            LAUNCH_PAD, ROCKET_COCKPIT, ROCKET_ENGINE, ROCKET_FUEL_TANK, ROCKET_PARACHUTE, ROCKET_LANDING_LEG, ROCKET_HULL);
+            LAUNCH_PAD, ROCKET_COCKPIT, ROCKET_ENGINE, ROCKET_FUEL_TANK, ROCKET_PARACHUTE, ROCKET_LANDING_LEG, ROCKET_HULL,
+            SHIP_BRIDGE, SHIP_IMPULSE_ENGINE, SHIP_WINDOW, SHIP_SEAT, SHIP_AIRLOCK);
 
     private ContentIds() {
     }

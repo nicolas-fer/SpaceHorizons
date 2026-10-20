@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "spacehorizons:block/ship_bridge",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "spacehorizons:block/ship_bridge"
+    },
+    "facing=south": {
+      "model": "spacehorizons:block/ship_bridge",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "spacehorizons:block/ship_bridge",
+      "y": 270
+    }
+  }
+}

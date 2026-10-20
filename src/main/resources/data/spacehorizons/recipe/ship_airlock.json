@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "S": "spacehorizons:steel_ingot",
+    "C": "spacehorizons:basic_circuit"
+  },
+  "pattern": [
+    "PSP",
+    "PCP",
+    "PSP"
+  ],
+  "result": {
+    "id": "spacehorizons:ship_airlock",
+    "count": 2
+  }
+}

@@ -26,6 +26,7 @@ public final class ShipSetup {
     static void onServerTick(ServerTickEvent.Post event) {
         ShipChunkTickets.tick(event.getServer());
         ShipConversions.tick(event.getServer());
+        ShipCensusService.tick(event.getServer());
     }
 
     /** Os tickets morrem com o servidor: esquece o estado (o mundo seguinte, no mesmo processo, começa limpo). */
@@ -33,5 +34,6 @@ public final class ShipSetup {
     static void onServerStopped(ServerStoppedEvent event) {
         ShipChunkTickets.reset();
         ShipConversions.reset();
+        ShipCensusService.reset();
     }
 }

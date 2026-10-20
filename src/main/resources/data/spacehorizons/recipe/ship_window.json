@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "G": "minecraft:glass"
+  },
+  "pattern": [
+    "PGP",
+    "GGG",
+    "PGP"
+  ],
+  "result": {
+    "id": "spacehorizons:ship_window",
+    "count": 4
+  }
+}

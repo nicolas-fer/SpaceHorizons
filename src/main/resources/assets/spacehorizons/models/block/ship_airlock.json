@@ -1,0 +1,7 @@
+{
+  "credit": "Textura provisoria: reaproveita machine_casing e hazard_stripes; a arte final e feita pela skill minecraft-entity",
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "spacehorizons:block/machine_casing"
+  }
+}

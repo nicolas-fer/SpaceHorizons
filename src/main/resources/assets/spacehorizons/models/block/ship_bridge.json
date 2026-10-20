@@ -1,0 +1,9 @@
+{
+  "credit": "Textura provisoria: reaproveita texturas do cockpit do foguete; a arte final e feita pela skill minecraft-entity",
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "top": "spacehorizons:block/rocket_cockpit_top",
+    "front": "spacehorizons:block/rocket_cockpit",
+    "side": "spacehorizons:block/rocket_cockpit_side"
+  }
+}

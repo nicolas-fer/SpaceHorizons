@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "C": "spacehorizons:basic_circuit",
+    "E": "spacehorizons:rocket_engine",
+    "S": "spacehorizons:steel_ingot"
+  },
+  "pattern": [
+    "PCP",
+    "PEP",
+    "SSS"
+  ],
+  "result": {
+    "id": "spacehorizons:ship_impulse_engine"
+  }
+}
