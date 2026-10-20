@@ -122,6 +122,10 @@ public final class AutoTest {
             contentScenario();
             return;
         }
+        if ("showcase".equals(ONLY)) {
+            showcaseScenario();
+            return;
+        }
         if ("refinery".equals(ONLY)) {
             refineryScenario();
             return;
@@ -418,6 +422,128 @@ public final class AutoTest {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });
+    }
+
+    /** Blocos da vitrine (setblock), lado a lado no eixo X, com a frente virada para o sul (para a câmera). */
+    private static final String[] SHOWCASE_BLOCKS = {"spacehorizons:steel_block", "spacehorizons:rocket_hull",
+        "spacehorizons:launch_pad", "spacehorizons:refinery[facing=south,lit=false]", "spacehorizons:refinery[facing=south,lit=true]",
+        "spacehorizons:oxygen_compressor[facing=south,lit=false]", "spacehorizons:oxygen_compressor[facing=south,lit=true]",
+        "spacehorizons:rocket_cockpit[facing=south]", "spacehorizons:rocket_engine", "spacehorizons:rocket_fuel_tank",
+        "spacehorizons:rocket_parachute", "spacehorizons:rocket_landing_leg"};
+    /** Itens da vitrine (molduras e inventário). */
+    private static final String[] SHOWCASE_ITEMS = {"steel_ingot", "steel_nugget", "steel_blend", "steel_plate", "basic_circuit",
+        "forge_hammer", "fuel_canister", "oxygen_tank_small", "oxygen_tank_large", "space_helmet", "space_chestplate",
+        "space_leggings", "space_boots"};
+
+    /**
+     * Vitrine de texturas e modelos: todos os blocos lado a lado (de longe, de perto e de vários ângulos), as máquinas
+     * empilhadas como num foguete, os itens em molduras e no inventário, e o foguete de teste montado (retrato do
+     * RocketRenderer) parado e deslocado para o alto, para conferir que os modelos com elements renderizam no retrato.
+     */
+    private void showcaseScenario() {
+        int y = 150;
+        int x0 = 20;
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(10, "gamerule send_command_feedback false");
+        cmd(10, "tp @s " + (x0 + 11) + " " + (y + 2) + " 8");
+        fly(20);
+        cmd(10, "fill " + (x0 - 3) + " " + (y - 1) + " -8 " + (x0 + 27) + " " + (y + 8) + " 8 minecraft:air");
+        cmd(10, "fill " + (x0 - 3) + " " + (y - 1) + " -8 " + (x0 + 27) + " " + (y - 1) + " 8 minecraft:smooth_stone");
+        for (int i = 0; i < SHOWCASE_BLOCKS.length; i++) {
+            cmd(3, "setblock " + (x0 + 2 * i) + " " + y + " 0 " + SHOWCASE_BLOCKS[i]);
+        }
+        // pilha de peças como num foguete (motor, tanques, casco, cockpit, paraquedas) e pernas ao lado
+        int sx = x0 + 2;
+        String[] stack = {"rocket_engine", "rocket_fuel_tank", "rocket_fuel_tank", "rocket_hull", "rocket_cockpit[facing=south]",
+            "rocket_parachute"};
+        for (int i = 0; i < stack.length; i++) {
+            cmd(3, "setblock " + sx + " " + (y + i) + " -5 spacehorizons:" + stack[i]);
+        }
+        cmd(3, "setblock " + (sx - 1) + " " + y + " -5 spacehorizons:rocket_landing_leg");
+        cmd(3, "setblock " + (sx + 1) + " " + y + " -5 spacehorizons:rocket_landing_leg");
+        cmd(3, "fill " + (sx + 4) + " " + y + " -6 " + (sx + 6) + " " + y + " -4 spacehorizons:launch_pad");
+        cmd(3, "fill " + (sx + 8) + " " + y + " -6 " + (sx + 9) + " " + (y + 1) + " -5 spacehorizons:rocket_fuel_tank");
+        // parede de molduras com os itens
+        int wx = x0 + 12;
+        cmd(3, "fill " + wx + " " + y + " -6 " + (wx + 12) + " " + (y + 1) + " -6 spacehorizons:steel_block");
+        for (int i = 0; i < SHOWCASE_ITEMS.length; i++) {
+            int fx = wx + (i % 7) * 2;
+            int fy = y + i / 7;
+            cmd(3, "summon item_frame " + fx + " " + fy + " -5 {Facing:3b,Fixed:1b,Item:{id:\"spacehorizons:" + SHOWCASE_ITEMS[i]
+                    + "\",count:1}}");
+        }
+        cmd(10, "clear @s");
+        for (String id : SHOWCASE_ITEMS) {
+            cmd(2, "give @s spacehorizons:" + id);
+        }
+        for (String b : SHOWCASE_BLOCKS) {
+            String id = b.contains("[") ? b.substring(0, b.indexOf('[')) : b;
+            cmd(2, "give @s " + id);
+        }
+
+        // prints do mundo sem HUD (chat, avisos de conquista e hotbar escondidos)
+        step(20, mc -> {
+            mc.gui.hud.getChat().clearMessages(false);
+            hud(mc, false);
+        });
+        // fileira inteira, de longe, e de perto em três trechos (frente para a câmera, olhando ao norte)
+        rocketView("sc_row_wide", x0 + 11, y + 3.5, 9.5, 180f, 14f);
+        for (int part = 0; part < 4; part++) {
+            rocketView("sc_row_close" + part, x0 + 2.5 + part * 6, y + 1.3, 3.2, 180f, 20f);
+        }
+        rocketView("sc_row_oblique_left", x0 - 2.5, y + 2.6, 3.5, 225f, 22f);
+        rocketView("sc_row_oblique_right", x0 + 25.5, y + 2.6, 3.5, 135f, 22f);
+        rocketView("sc_row_back", x0 + 11, y + 2.5, -3.5, 0f, 18f);
+        rocketView("sc_row_top", x0 + 11, y + 7.5, 2.5, 180f, 65f);
+        // pilha e molduras (atrás da fileira)
+        rocketView("sc_stack", sx + 3.5, y + 3.0, 1.5, 200f, 8f);
+        rocketView("sc_stack_low", sx + 2.5, y + 0.3, -1.5, 150f, -10f);
+        rocketView("sc_frames", wx + 6.5, y + 1.0, -2.0, 180f, 4f);
+        // itens no inventário (sobrevivência, para ver todos os itens e blocos dados) e na mão
+        step(10, mc -> {
+            hud(mc, true);
+            mc.gui.hud.getChat().clearMessages(false);
+        });
+        look(10, 180f, 10f);
+        step(10, mc -> mc.player.getInventory().setSelectedSlot(5));
+        shot(30, "sc_item_held");
+        cmd(10, "gamemode survival");
+        step(30, mc -> mc.gui.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player)));
+        shot(40, "sc_inventory");
+        step(10, mc -> mc.gui.setScreen(null));
+        cmd(10, "gamemode creative");
+        fly(10);
+        step(10, mc -> hud(mc, false));
+
+        // foguete de teste montado: retrato assado dos BlockStates (RocketRenderer)
+        double bx = RocketDevtest.BASE.getX() + 0.5;
+        double by = RocketDevtest.BASE.getY();
+        double bz = RocketDevtest.BASE.getZ() + 0.5;
+        cmd(10, RocketDevtest.clearCommand());
+        for (String command : RocketDevtest.buildCommands()) {
+            cmd(4, command);
+        }
+        rocketView("sc_rocket_blocks", bx + 6.0, by + 3.5, bz + 6.0, 135f, 14f);
+        BlockPos cockpit = RocketDevtest.at(new BlockPos(0, 4, 0));
+        cmd(20, "spacehorizons rocket assemble " + cockpit.getX() + " " + cockpit.getY() + " " + cockpit.getZ());
+        rocketView("sc_rocket_portrait", bx + 6.0, by + 3.5, bz + 6.0, 135f, 14f);
+        rocketView("sc_rocket_portrait_close", bx + 3.0, by + 2.5, bz + 3.0, 135f, 10f);
+        cmd(20, "spacehorizons rocket nudge 0 12 0");
+        rocketView("sc_rocket_portrait_air", bx + 7.0, by + 14.0, bz + 7.0, 135f, 8f);
+        rocketView("sc_rocket_portrait_air_below", bx + 4.0, by + 8.0, bz + 4.0, 135f, -35f);
+        step(40, mc -> {
+            hud(mc, true);
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Mostra ou esconde o HUD (como o F1). */
+    private static void hud(Minecraft mc, boolean visible) {
+        if (mc.gui.hud.isHidden() == visible) {
+            mc.gui.hud.toggle();
+        }
     }
 
     /** Conquistas do mod, na ordem da árvore (id sem namespace). */

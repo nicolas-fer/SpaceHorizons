@@ -1,0 +1,621 @@
+{
+	"meta": {
+		"format_version": "5.0",
+		"model_format": "java_block",
+		"box_uv": false
+	},
+	"name": "rocket_parachute",
+	"model_identifier": "",
+	"visible_box": [
+		1,
+		1,
+		0
+	],
+	"resolution": {
+		"width": 16,
+		"height": 16
+	},
+	"elements": [
+		{
+			"uuid": "c664fb90-0534-46ce-bb88-b3c88e6e233b",
+			"name": "base",
+			"origin": [
+				0,
+				0,
+				0
+			],
+			"color": 0,
+			"type": "cube",
+			"from": [
+				0,
+				0,
+				0
+			],
+			"to": [
+				16,
+				3,
+				16
+			],
+			"box_uv": false,
+			"faces": {
+				"north": {
+					"uv": [
+						0,
+						13,
+						16,
+						16
+					],
+					"texture": 2,
+					"cullface": "north"
+				},
+				"east": {
+					"uv": [
+						0,
+						13,
+						16,
+						16
+					],
+					"texture": 2,
+					"cullface": "east"
+				},
+				"south": {
+					"uv": [
+						0,
+						13,
+						16,
+						16
+					],
+					"texture": 2,
+					"cullface": "south"
+				},
+				"west": {
+					"uv": [
+						0,
+						13,
+						16,
+						16
+					],
+					"texture": 2,
+					"cullface": "west"
+				},
+				"up": {
+					"uv": [
+						0,
+						0,
+						16,
+						16
+					],
+					"texture": 2
+				},
+				"down": {
+					"uv": [
+						0,
+						0,
+						16,
+						16
+					],
+					"texture": 2,
+					"cullface": "down"
+				}
+			},
+			"rescale": false,
+			"locked": false,
+			"render_order": "default",
+			"allow_mirror_modeling": true,
+			"autouv": 0
+		},
+		{
+			"uuid": "458852fd-452c-4b29-91a7-5f4b1316f43b",
+			"name": "pacote",
+			"origin": [
+				0,
+				0,
+				0
+			],
+			"color": 1,
+			"type": "cube",
+			"from": [
+				1,
+				3,
+				1
+			],
+			"to": [
+				15,
+				12,
+				15
+			],
+			"box_uv": false,
+			"faces": {
+				"north": {
+					"uv": [
+						1,
+						4,
+						15,
+						13
+					],
+					"texture": 0
+				},
+				"east": {
+					"uv": [
+						1,
+						4,
+						15,
+						13
+					],
+					"texture": 0
+				},
+				"south": {
+					"uv": [
+						1,
+						4,
+						15,
+						13
+					],
+					"texture": 0
+				},
+				"west": {
+					"uv": [
+						1,
+						4,
+						15,
+						13
+					],
+					"texture": 0
+				},
+				"up": {
+					"uv": [
+						1,
+						1,
+						15,
+						15
+					],
+					"texture": 1
+				},
+				"down": {
+					"uv": [
+						0,
+						0,
+						0,
+						0
+					],
+					"texture": null
+				}
+			},
+			"rescale": false,
+			"locked": false,
+			"render_order": "default",
+			"allow_mirror_modeling": true,
+			"autouv": 0
+		},
+		{
+			"uuid": "e2a467d4-01da-4af3-a1ee-44bad63d074e",
+			"name": "domo",
+			"origin": [
+				0,
+				0,
+				0
+			],
+			"color": 2,
+			"type": "cube",
+			"from": [
+				3,
+				12,
+				3
+			],
+			"to": [
+				13,
+				15,
+				13
+			],
+			"box_uv": false,
+			"faces": {
+				"north": {
+					"uv": [
+						3,
+						1,
+						13,
+						4
+					],
+					"texture": 0
+				},
+				"east": {
+					"uv": [
+						3,
+						1,
+						13,
+						4
+					],
+					"texture": 0
+				},
+				"south": {
+					"uv": [
+						3,
+						1,
+						13,
+						4
+					],
+					"texture": 0
+				},
+				"west": {
+					"uv": [
+						3,
+						1,
+						13,
+						4
+					],
+					"texture": 0
+				},
+				"up": {
+					"uv": [
+						3,
+						3,
+						13,
+						13
+					],
+					"texture": 1
+				},
+				"down": {
+					"uv": [
+						0,
+						0,
+						0,
+						0
+					],
+					"texture": null
+				}
+			},
+			"rescale": false,
+			"locked": false,
+			"render_order": "default",
+			"allow_mirror_modeling": true,
+			"autouv": 0
+		},
+		{
+			"uuid": "d73376f3-b56e-4405-9dcb-343b577dbb10",
+			"name": "tampa",
+			"origin": [
+				0,
+				0,
+				0
+			],
+			"color": 3,
+			"type": "cube",
+			"from": [
+				6,
+				15,
+				6
+			],
+			"to": [
+				10,
+				16,
+				10
+			],
+			"box_uv": false,
+			"faces": {
+				"north": {
+					"uv": [
+						6,
+						0,
+						10,
+						1
+					],
+					"texture": 2
+				},
+				"east": {
+					"uv": [
+						6,
+						0,
+						10,
+						1
+					],
+					"texture": 2
+				},
+				"south": {
+					"uv": [
+						6,
+						0,
+						10,
+						1
+					],
+					"texture": 2
+				},
+				"west": {
+					"uv": [
+						6,
+						0,
+						10,
+						1
+					],
+					"texture": 2
+				},
+				"up": {
+					"uv": [
+						6,
+						6,
+						10,
+						10
+					],
+					"texture": 2,
+					"cullface": "up"
+				},
+				"down": {
+					"uv": [
+						0,
+						0,
+						0,
+						0
+					],
+					"texture": null
+				}
+			},
+			"rescale": false,
+			"locked": false,
+			"render_order": "default",
+			"allow_mirror_modeling": true,
+			"autouv": 0
+		},
+		{
+			"uuid": "ae9bc9bc-5724-4a2d-8eb8-af169ac993b6",
+			"name": "cinta_x",
+			"origin": [
+				0,
+				0,
+				0
+			],
+			"color": 4,
+			"type": "cube",
+			"from": [
+				7,
+				3,
+				0.5
+			],
+			"to": [
+				9,
+				12.5,
+				15.5
+			],
+			"box_uv": false,
+			"faces": {
+				"north": {
+					"uv": [
+						7,
+						3.5,
+						9,
+						13
+					],
+					"texture": 2
+				},
+				"east": {
+					"uv": [
+						0.5,
+						3.5,
+						15.5,
+						13
+					],
+					"texture": 2
+				},
+				"south": {
+					"uv": [
+						7,
+						3.5,
+						9,
+						13
+					],
+					"texture": 2
+				},
+				"west": {
+					"uv": [
+						0.5,
+						3.5,
+						15.5,
+						13
+					],
+					"texture": 2
+				},
+				"up": {
+					"uv": [
+						7,
+						0.5,
+						9,
+						15.5
+					],
+					"texture": 2
+				},
+				"down": {
+					"uv": [
+						0,
+						0,
+						0,
+						0
+					],
+					"texture": null
+				}
+			},
+			"rescale": false,
+			"locked": false,
+			"render_order": "default",
+			"allow_mirror_modeling": true,
+			"autouv": 0
+		},
+		{
+			"uuid": "c5ff848e-8a1d-406f-8a85-e2283bee1cbe",
+			"name": "cinta_z",
+			"origin": [
+				0,
+				0,
+				0
+			],
+			"color": 5,
+			"type": "cube",
+			"from": [
+				0.5,
+				3,
+				7
+			],
+			"to": [
+				15.5,
+				12.5,
+				9
+			],
+			"box_uv": false,
+			"faces": {
+				"north": {
+					"uv": [
+						0.5,
+						3.5,
+						15.5,
+						13
+					],
+					"texture": 2
+				},
+				"east": {
+					"uv": [
+						7,
+						3.5,
+						9,
+						13
+					],
+					"texture": 2
+				},
+				"south": {
+					"uv": [
+						0.5,
+						3.5,
+						15.5,
+						13
+					],
+					"texture": 2
+				},
+				"west": {
+					"uv": [
+						7,
+						3.5,
+						9,
+						13
+					],
+					"texture": 2
+				},
+				"up": {
+					"uv": [
+						0.5,
+						7,
+						15.5,
+						9
+					],
+					"texture": 2
+				},
+				"down": {
+					"uv": [
+						0,
+						0,
+						0,
+						0
+					],
+					"texture": null
+				}
+			},
+			"rescale": false,
+			"locked": false,
+			"render_order": "default",
+			"allow_mirror_modeling": true,
+			"autouv": 0
+		}
+	],
+	"groups": [],
+	"outliner": [
+		"c664fb90-0534-46ce-bb88-b3c88e6e233b",
+		"458852fd-452c-4b29-91a7-5f4b1316f43b",
+		"e2a467d4-01da-4af3-a1ee-44bad63d074e",
+		"d73376f3-b56e-4405-9dcb-343b577dbb10",
+		"ae9bc9bc-5724-4a2d-8eb8-af169ac993b6",
+		"c5ff848e-8a1d-406f-8a85-e2283bee1cbe"
+	],
+	"textures": [
+		{
+			"uuid": "3639c45d-b442-45fe-a062-f36236b32df8",
+			"name": "rocket_parachute.png",
+			"source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAlElEQVR4nGOcx8z+nwENxHz/BKaXcPJhiIWqW4Lpw19+gmkmBgoBE6UGsCBzNsppg2mjWw8wFF7DIkZ9F8DAsTNnwPROqItAwIiBgY4uSIkKAdMcyUlwMS01Bdq4gIlSAxinLVgKT4knTlwB0xYWOhgKYXIfd+6kbkpkRM4LsIS0+uZxME2XvMAoJKqNkRtJARS7AAAi4S++36f6dwAAAABJRU5ErkJggg==",
+			"path": "assets/spacehorizons/textures/block/rocket_parachute.png",
+			"width": 16,
+			"height": 16,
+			"uv_width": 16,
+			"uv_height": 16,
+			"folder": "block",
+			"namespace": "spacehorizons",
+			"id": "side",
+			"particle": true,
+			"use_as_default": false,
+			"layers_enabled": false,
+			"sync_to_project": "",
+			"render_mode": "default",
+			"render_sides": "auto",
+			"frame_time": 1,
+			"frame_order_type": "loop",
+			"frame_order": "",
+			"frame_interpolate": false,
+			"visible": true,
+			"internal": true,
+			"saved": true
+		},
+		{
+			"uuid": "2b723c1c-985c-4e51-937b-dc87d4dd5088",
+			"name": "rocket_parachute_top.png",
+			"source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABFklEQVR4nGN8HRn4/2f3FIYbnu4M+jqqDMSCi1duMyy+/ZaB8cmTp/+rVUzgErGqwkQZANIMAkwgm0kBGtt3wjWDDdCHOrv1zhkUk3EBZNeCACMoDGD+QQYgr5xLzoXza5umMkR8e40iD9LDhCwA8792RwNYM0gTCINAc102wwouUbhauBcY0ABMEmYjCCMbgg5Y0AWQnQ0zLJbhH8M5qBjIFSA+TheQCpjwScICFuSqqBAfrGpY0AXQ/Qtz+rI1W5BiQhi3ARHQqIIZhC4Hiz5Y+DDBJGEpDCaxVfofPBZAGMSHeQtmCAgw7tHV+Y8ugS8/gCwCpUaUhESsZhCA5Z3Tr76Bo5QxnkPyPyjlXa1owKsRFwAAPN6SbT6O8KMAAAAASUVORK5CYII=",
+			"path": "assets/spacehorizons/textures/block/rocket_parachute_top.png",
+			"width": 16,
+			"height": 16,
+			"uv_width": 16,
+			"uv_height": 16,
+			"folder": "block",
+			"namespace": "spacehorizons",
+			"id": "top",
+			"particle": false,
+			"use_as_default": false,
+			"layers_enabled": false,
+			"sync_to_project": "",
+			"render_mode": "default",
+			"render_sides": "auto",
+			"frame_time": 1,
+			"frame_order_type": "loop",
+			"frame_order": "",
+			"frame_interpolate": false,
+			"visible": true,
+			"internal": true,
+			"saved": true
+		},
+		{
+			"uuid": "9d8016d3-bcfd-4ce2-a785-ec4a4293c789",
+			"name": "machine_casing.png",
+			"source": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABCUlEQVR4nGPsnDjhPwMZ4MHDF2CaBca5decRg5qKHEGNZ89fZ+Dl5QarXb12L8QAkObvP34xXLxyh+HWzYd4DdDXV2X4/Pkrw7GTlxEuUFORg2uWlhHDqZmdjYXh4sXbYEN+vv0IFmOCSeLTDNIIAyA1IAtFhPlRDcCmCabx568/KDQyYEHmcHNzguk/v3/DFYMMYWFlhYvjNQAGQBpgmpABSAzdECYGCgETLBopMgAGsPkRJAbCX79+Z8AGWLBpwAZAgQmSQw8bFmQOtmjCZgiKAaB8AEqaocHO4NSIywUwAMoHIADSAzZAQV4CzABlDJAhxABQhgoOcGTo7lvKwOjsF/UflL7JBQB9InhMA2zrGgAAAABJRU5ErkJggg==",
+			"path": "assets/spacehorizons/textures/block/machine_casing.png",
+			"width": 16,
+			"height": 16,
+			"uv_width": 16,
+			"uv_height": 16,
+			"folder": "block",
+			"namespace": "spacehorizons",
+			"id": "casing",
+			"particle": false,
+			"use_as_default": false,
+			"layers_enabled": false,
+			"sync_to_project": "",
+			"render_mode": "default",
+			"render_sides": "auto",
+			"frame_time": 1,
+			"frame_order_type": "loop",
+			"frame_order": "",
+			"frame_interpolate": false,
+			"visible": true,
+			"internal": true,
+			"saved": true
+		}
+	],
+	"parent": "minecraft:block/block",
+	"java_block_version": "26.3",
+	"variable_placeholders": "",
+	"variable_placeholder_buttons": [],
+	"timeline_setups": [],
+	"unhandled_root_fields": {},
+	"ai_used": true,
+	"ai_agents": "claude-code"
+}

@@ -1,8 +1,6 @@
 {
-  "parent": "minecraft:block/orientable",
+  "parent": "spacehorizons:block/oxygen_compressor",
   "textures": {
-    "front": "spacehorizons:block/oxygen_compressor_on",
-    "side": "spacehorizons:block/oxygen_compressor_side",
-    "top": "spacehorizons:block/oxygen_compressor_top"
+    "front": "spacehorizons:block/oxygen_compressor_on"
   }
 }

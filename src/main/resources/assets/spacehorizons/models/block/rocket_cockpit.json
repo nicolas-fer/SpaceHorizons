@@ -1,8 +1,424 @@
 {
-  "parent": "minecraft:block/orientable",
-  "textures": {
-    "front": "spacehorizons:block/rocket_cockpit",
-    "side": "spacehorizons:block/rocket_cockpit_side",
-    "top": "spacehorizons:block/rocket_cockpit_top"
-  }
+	"format_version": "26.3",
+	"credit": "Made with Blockbench",
+	"parent": "minecraft:block/block",
+	"textures": {
+		"front": "spacehorizons:block/rocket_cockpit",
+		"side": "spacehorizons:block/rocket_cockpit_side",
+		"top": "spacehorizons:block/rocket_cockpit_top",
+		"glass": "spacehorizons:block/cockpit_glass",
+		"particle": "spacehorizons:block/rocket_hull",
+		"hull": "spacehorizons:block/rocket_hull"
+	},
+	"elements": [
+		{
+			"name": "corpo",
+			"from": [
+				0,
+				0,
+				1
+			],
+			"to": [
+				16,
+				11,
+				16
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						0,
+						5,
+						16,
+						16
+					],
+					"texture": "#front"
+				},
+				"east": {
+					"uv": [
+						0,
+						5,
+						15,
+						16
+					],
+					"texture": "#side",
+					"cullface": "east"
+				},
+				"south": {
+					"uv": [
+						0,
+						5,
+						16,
+						16
+					],
+					"texture": "#side",
+					"cullface": "south"
+				},
+				"west": {
+					"uv": [
+						1,
+						5,
+						16,
+						16
+					],
+					"texture": "#side",
+					"cullface": "west"
+				},
+				"up": {
+					"uv": [
+						0,
+						1,
+						16,
+						16
+					],
+					"texture": "#side"
+				},
+				"down": {
+					"uv": [
+						0,
+						0,
+						16,
+						15
+					],
+					"texture": "#hull",
+					"cullface": "down"
+				}
+			}
+		},
+		{
+			"name": "moldura_baixo",
+			"from": [
+				0,
+				0,
+				0
+			],
+			"to": [
+				16,
+				3,
+				1
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						0,
+						13,
+						16,
+						16
+					],
+					"texture": "#front",
+					"cullface": "north"
+				},
+				"east": {
+					"uv": [
+						15,
+						13,
+						16,
+						16
+					],
+					"texture": "#front",
+					"cullface": "east"
+				},
+				"west": {
+					"uv": [
+						0,
+						13,
+						1,
+						16
+					],
+					"texture": "#front",
+					"cullface": "west"
+				},
+				"up": {
+					"uv": [
+						0,
+						0,
+						16,
+						1
+					],
+					"texture": "#front"
+				},
+				"down": {
+					"uv": [
+						0,
+						15,
+						16,
+						16
+					],
+					"texture": "#front",
+					"cullface": "down"
+				}
+			}
+		},
+		{
+			"name": "moldura_cima",
+			"from": [
+				0,
+				10,
+				0
+			],
+			"to": [
+				16,
+				11,
+				1
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						0,
+						5,
+						16,
+						6
+					],
+					"texture": "#front",
+					"cullface": "north"
+				},
+				"east": {
+					"uv": [
+						15,
+						5,
+						16,
+						6
+					],
+					"texture": "#front",
+					"cullface": "east"
+				},
+				"west": {
+					"uv": [
+						0,
+						5,
+						1,
+						6
+					],
+					"texture": "#front",
+					"cullface": "west"
+				},
+				"up": {
+					"uv": [
+						0,
+						0,
+						16,
+						1
+					],
+					"texture": "#front"
+				},
+				"down": {
+					"uv": [
+						0,
+						15,
+						16,
+						16
+					],
+					"texture": "#front"
+				}
+			}
+		},
+		{
+			"name": "moldura_esq",
+			"from": [
+				13,
+				3,
+				0
+			],
+			"to": [
+				16,
+				10,
+				1
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						0,
+						6,
+						3,
+						13
+					],
+					"texture": "#front",
+					"cullface": "north"
+				},
+				"east": {
+					"uv": [
+						15,
+						6,
+						16,
+						13
+					],
+					"texture": "#front",
+					"cullface": "east"
+				},
+				"west": {
+					"uv": [
+						0,
+						6,
+						1,
+						13
+					],
+					"texture": "#front"
+				}
+			}
+		},
+		{
+			"name": "moldura_dir",
+			"from": [
+				0,
+				3,
+				0
+			],
+			"to": [
+				3,
+				10,
+				1
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						13,
+						6,
+						16,
+						13
+					],
+					"texture": "#front",
+					"cullface": "north"
+				},
+				"east": {
+					"uv": [
+						15,
+						6,
+						16,
+						13
+					],
+					"texture": "#front"
+				},
+				"west": {
+					"uv": [
+						0,
+						6,
+						1,
+						13
+					],
+					"texture": "#front",
+					"cullface": "west"
+				}
+			}
+		},
+		{
+			"name": "ombro",
+			"from": [
+				1,
+				11,
+				1
+			],
+			"to": [
+				15,
+				14,
+				15
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						1,
+						2,
+						15,
+						5
+					],
+					"texture": "#glass"
+				},
+				"east": {
+					"uv": [
+						1,
+						2,
+						15,
+						5
+					],
+					"texture": "#hull"
+				},
+				"south": {
+					"uv": [
+						1,
+						2,
+						15,
+						5
+					],
+					"texture": "#hull"
+				},
+				"west": {
+					"uv": [
+						1,
+						2,
+						15,
+						5
+					],
+					"texture": "#hull"
+				},
+				"up": {
+					"uv": [
+						1,
+						1,
+						15,
+						15
+					],
+					"texture": "#top"
+				}
+			}
+		},
+		{
+			"name": "cupula",
+			"from": [
+				3,
+				14,
+				3
+			],
+			"to": [
+				13,
+				16,
+				13
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						3,
+						0,
+						13,
+						2
+					],
+					"texture": "#hull"
+				},
+				"east": {
+					"uv": [
+						3,
+						0,
+						13,
+						2
+					],
+					"texture": "#hull"
+				},
+				"south": {
+					"uv": [
+						3,
+						0,
+						13,
+						2
+					],
+					"texture": "#hull"
+				},
+				"west": {
+					"uv": [
+						3,
+						0,
+						13,
+						2
+					],
+					"texture": "#hull"
+				},
+				"up": {
+					"uv": [
+						3,
+						3,
+						13,
+						13
+					],
+					"texture": "#top",
+					"cullface": "up"
+				}
+			}
+		}
+	]
 }
