@@ -5,6 +5,7 @@ import org.jspecify.annotations.Nullable;
 
 import com.spacehorizons.rocket.FlightMachine.Snapshot;
 import com.spacehorizons.space.SolarSystem;
+import com.spacehorizons.space.flight.AttitudeMath;
 import com.spacehorizons.space.flight.AttitudeMath.SasMode;
 import com.spacehorizons.space.flight.FlightState;
 import com.spacehorizons.space.flight.FrameBridge;
@@ -66,6 +67,20 @@ public final class RocketFlight {
         Quaterniond attitude = old == null ? new Quaterniond() : old.attitude();
         FlightState state = FrameBridge.fromSpaceDimension(SolarSystem.EARTH, clock, rate, local, fuel);
         this.snapshot = new Snapshot(FlightMode.FLIGHT, state, attitude, V3.ZERO, SasMode.OFF, 0.0, false, null, fuel);
+    }
+
+    /**
+     * Só dev (autoteste "jump", variante na Terra): põe o foguete em voo na dimensão da Terra no ponto e na velocidade dadas (em
+     * coordenadas da dimensão, velocidade ao chão em blocos/tick), de pé, sem acelerar. Chamada a cada tick antes do passo, mantém a
+     * velocidade (o arrasto e a gravidade do passo anterior são descartados), para medir o portão de chunks e a sincronia do cliente
+     * a velocidade constante sobre o terreno de verdade.
+     */
+    public void devtestSetEarthState(FrameBridge.Local local, double clock, double rate) {
+        Snapshot old = this.snapshot;
+        double fuel = old == null ? 0.0 : old.fuelMb();
+        FlightState state = FrameBridge.fromDimension(SolarSystem.EARTH, clock, rate, local, fuel);
+        Quaterniond upright = AttitudeMath.localToInertial(SolarSystem.EARTH, clock, local.x(), local.z(), new Quaterniond());
+        this.snapshot = new Snapshot(FlightMode.FLIGHT, state, upright, V3.ZERO, SasMode.OFF, 0.0, false, SolarSystem.EARTH, fuel);
     }
 
     /** A pré-carga do local de pouso (estado e progresso para a telemetria e o autoteste). */

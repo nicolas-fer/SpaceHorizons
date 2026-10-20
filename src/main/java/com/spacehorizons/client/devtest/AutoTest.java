@@ -2875,9 +2875,11 @@ public final class AutoTest {
             return;
         }
         boolean orbit = "c".equals(m.group(1));
-        double speed = orbit || m.group(1).isEmpty() ? 54.0 : Double.parseDouble(m.group(1));
+        boolean earth = m.group(1).startsWith("e");     // jumpe54: cruzeiro DENTRO da dimensão da Terra
+        String digits = earth ? m.group(1).substring(1) : m.group(1);
+        double speed = orbit || digits.isEmpty() ? 54.0 : Double.parseDouble(digits);
         int view = m.group(2) == null ? 0 : Integer.parseInt(m.group(2));
-        String label = (orbit ? "orbit" : "s" + (int) speed) + (view > 0 ? "_v" + view : "_fast");
+        String label = (orbit ? "orbit" : (earth ? "e" : "s") + (int) speed) + (view > 0 ? "_v" + view : "_fast");
         cmd(5, "gamerule send_command_feedback false");
         cmd(20, "weather clear 1000000");
         cmd(10, "gamemode creative");
@@ -2911,7 +2913,13 @@ public final class AutoTest {
             });
             return;
         }
-        step(5, mc -> FlightDevtest.startCruise(mc, speed));
+        step(5, mc -> {
+            if (earth) {
+                FlightDevtest.startCruiseEarth(mc, speed);
+            } else {
+                FlightDevtest.startCruise(mc, speed);
+            }
+        });
         tickerStep(0, waitFor("cruise_started", 400));
         step(60, mc -> FlightDevtest.clientCheck(mc, "JUMP depois da travessia"));
         thirdPerson();

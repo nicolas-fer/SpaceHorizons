@@ -286,6 +286,45 @@ final class FlightDevtest {
             cruiseTicks = 0;
             cruiseCommand = speed / 0.75; // chute inicial; o controle integral corrige
             cruisePrevX = Double.NaN;
+            cruiseOnEarth = false;
+            cruiseSpeed = speed;
+            if (!cruiseRegistered) {
+                cruiseRegistered = true;
+                NeoForge.EVENT_BUS.addListener(ServerTickEvent.Pre.class, e -> holdCruise(e.getServer()));
+            }
+            mark("cruise_started");
+        });
+    }
+
+    /** O cruzeiro é na dimensão da Terra (cenário jumpe) e não no espaço. */
+    private static volatile boolean cruiseOnEarth;
+    /** Altitude (sobre o nível do mar) do cruzeiro na Terra: acima do contato com o chão (400) e abaixo da saída antecipada (1.000). */
+    private static final double EARTH_CRUISE_ALTITUDE = 700.0;
+
+    /**
+     * Cenário {@code jumpe}: o mesmo cruzeiro, mas DENTRO da dimensão da Terra (sobre o terreno de verdade, ao lado da base), a
+     * {@link #EARTH_CRUISE_ALTITUDE} de altitude, em linha reta para +X. Mede o portão de chunks e a sincronia do foguete com o piloto
+     * onde o foguete continua andando de verdade.
+     */
+    static void startCruiseEarth(Minecraft mc, double speed) {
+        onServer(mc, "cruzeiro na Terra", (server, player) -> {
+            if (!(player.getVehicle() instanceof RocketEntity rocket)) {
+                SpaceHorizons.LOGGER.error("{}CRUZEIRO: o jogador não está no foguete", TAG);
+                mark("failed");
+                return;
+            }
+            double y = com.spacehorizons.planet.Planets.EARTH.seaLevel() + EARTH_CRUISE_ALTITUDE;
+            double clock = SpaceClock.ticks(player.level());
+            Local local = new Local(rocket.getX(), y, rocket.getZ(), speed, 0.0, 0.0);
+            rocket.flight().devtestSetEarthState(local, clock, CLOCK_RATE);
+            rocket.setFlightMode(FlightMode.FLIGHT);
+            rocket.setPos(local.x(), local.y(), local.z());
+            rocket.positionRider(player);
+            SpaceHorizons.LOGGER.info("{}CRUZEIRO NA TERRA começou: {} blocos/tick em ({}, {}, {})", TAG, f(speed), f(local.x()), f(local.y()), f(local.z()));
+            cruiseTicks = 0;
+            cruiseCommand = speed / 0.75;
+            cruisePrevX = Double.NaN;
+            cruiseOnEarth = true;
             cruiseSpeed = speed;
             if (!cruiseRegistered) {
                 cruiseRegistered = true;
@@ -307,7 +346,7 @@ final class FlightDevtest {
             return;
         }
         ServerPlayer player = server.getPlayerList().getPlayers().get(0);
-        if (!(player.getVehicle() instanceof RocketEntity rocket) || !com.spacehorizons.space.SpaceDimension.is(rocket.level())) {
+        if (!(player.getVehicle() instanceof RocketEntity rocket) || com.spacehorizons.space.SpaceDimension.is(rocket.level()) == cruiseOnEarth) {
             return;
         }
         // o cliente real também manda controle (acelerador guardado no cliente): o cruzeiro vale sem empuxo
@@ -319,8 +358,13 @@ final class FlightDevtest {
             cruiseCommand = Math.max(0.0, Math.min(2_000.0, cruiseCommand + 0.7 * (speed - dx)));
         }
         cruisePrevX = rocket.getX();
-        rocket.flight().devtestSetSpaceState(new Local(rocket.getX(), rocket.getY(), rocket.getZ(), cruiseCommand, 0.0, 0.0),
-                SpaceClock.ticks(rocket.level()), CLOCK_RATE);
+        if (cruiseOnEarth) {
+            rocket.flight().devtestSetEarthState(new Local(rocket.getX(), rocket.getY(), rocket.getZ(), cruiseCommand, 0.0, 0.0),
+                    SpaceClock.ticks(rocket.level()), CLOCK_RATE);
+        } else {
+            rocket.flight().devtestSetSpaceState(new Local(rocket.getX(), rocket.getY(), rocket.getZ(), cruiseCommand, 0.0, 0.0),
+                    SpaceClock.ticks(rocket.level()), CLOCK_RATE);
+        }
         if (++cruiseTicks % 100 == 0) {
             SpaceHorizons.LOGGER.info("{}CRUZEIRO tick {}: foguete em ({}, {}, {}) segurado={} comando={} b/tick (alvo de deslocamento {})", TAG, cruiseTicks,
                     f(rocket.getX()), f(rocket.getY()), f(rocket.getZ()), rocket.isHeld(), f(cruiseCommand), f(speed));
