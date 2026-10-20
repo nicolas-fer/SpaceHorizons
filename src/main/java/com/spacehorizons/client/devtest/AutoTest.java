@@ -170,6 +170,10 @@ public final class AutoTest {
             skyTestScenario();
             return;
         }
+        if ("earthdetail".equals(ONLY)) {
+            earthDetailScenario();
+            return;
+        }
         if ("moontrip".equals(ONLY)) {
             moonTripScenario();
             return;
@@ -2947,6 +2951,109 @@ public final class AutoTest {
 
     /** Duração (ticks de cliente) da medição do cenário jump: 40 s a 20 ticks/s. */
     private static final int JUMP_TICKS = 800;
+
+    /** Ponto de costa com relevo escolhido pelo cenário earthdetail (x, z do mundo). */
+    private double[] detailSpot = {0.0, 0.0};
+
+    /**
+     * Detalhe da Terra vista de cima (item de polimento da malha orbital): prints de uma costa com relevo a 1.000 e 3.000 de altitude
+     * (dimensão do planeta, malha orbital) e a 10.000 (dimensão de espaço, esfera do corpo), olhando para baixo e de viés, mais o custo
+     * (fps médio de 100 quadros) de cada vista.
+     */
+    private void earthDetailScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "gamerule advance_time false");
+        step(5, mc -> mc.options.fov().set(70));
+        tickerStep(0, waitForMap(24000));
+        step(5, mc -> {
+            detailSpot = pickCoastSpot();
+            SpaceHorizons.LOGGER.info(TAG + "EARTHDETAIL ponto escolhido x={} z={}", f(detailSpot[0]), f(detailSpot[1]));
+        });
+        for (int altitude : new int[] {1000, 3000}) {
+            step(20, mc -> mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.1f %d %.1f", detailSpot[0],
+                    Planets.EARTH.seaLevel() + altitude, detailSpot[1])));
+            fly(20);
+            look(20, EAST, 90f);
+            shot(500, "ed_" + altitude + "_down");
+            fpsProbe("alt " + altitude + " baixo");
+            look(10, EAST, 40f);
+            shot(120, "ed_" + altitude + "_oblique");
+            fpsProbe("alt " + altitude + " obliquo");
+        }
+        step(20, mc -> {
+            double clock = SpaceSun.clock(mc.level);
+            double[] space = new double[3];
+            SpaceFrame.toSpace(SolarSystem.EARTH, clock, detailSpot[0], Planets.EARTH.seaLevel() + 10_000.0, detailSpot[1], space);
+            double[] dim = new double[3];
+            SpaceDimension.fromSpace(space[0], space[1], space[2], dim);
+            mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "spacehorizons goto space %.1f %.1f %.1f", dim[0], dim[1], dim[2]));
+        });
+        step(200, mc -> lookInSpace(mc, SolarSystem.EARTH));
+        step(5, mc -> logSpace(mc, "EARTHDETAIL a 10.000"));
+        shot(500, "ed_10000_down");
+        fpsProbe("alt 10000 baixo");
+        step(10, mc -> mc.player.setXRot(mc.player.getXRot() - 40f));
+        shot(120, "ed_10000_oblique");
+        fpsProbe("alt 10000 obliquo");
+        cmd(5, "gamerule send_command_feedback true");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Fps médio dos próximos 100 quadros, no log (custo de render da vista atual). */
+    private void fpsProbe(String label) {
+        tickerStep(0, new Ticker() {
+            int n;
+            long sum;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                sum += mc.getFps();
+                if (++n >= 100) {
+                    SpaceHorizons.LOGGER.info(TAG + "EARTHDETAIL fps medio ({}): {}", label, f(sum / (double) n));
+                    return true;
+                }
+                return false;
+            }
+        });
+    }
+
+    /** Procura no mapa da Terra uma costa com montanha por perto (onde a falta de detalhe mais aparece); cai no spawn se não achar. */
+    private static double[] pickCoastSpot() {
+        com.spacehorizons.planet.map.PlanetMap map = PlanetTerrains.map(Planets.EARTH);
+        if (map == null) {
+            return new double[] {0.0, 0.0};
+        }
+        double best = -1.0;
+        double[] spot = {0.0, 0.0};
+        for (int xi = -60; xi <= 60; xi++) {
+            for (int zi = -25; zi <= 25; zi++) {
+                double x = xi * 1_000.0;
+                double z = zi * 1_000.0;
+                boolean center = map.waterAt(x, z);
+                boolean mixed = false;
+                double hmax = -1e9;
+                double hmin = 1e9;
+                for (int d = 0; d < 8; d++) {
+                    double ax = x + 3_000.0 * Math.cos(d * Math.PI / 4);
+                    double az = z + 3_000.0 * Math.sin(d * Math.PI / 4);
+                    mixed |= map.waterAt(ax, az) != center;
+                    hmax = Math.max(hmax, map.heightAt(ax, az));
+                    hmin = Math.min(hmin, map.heightAt(ax, az));
+                }
+                double score = mixed ? hmax - hmin : -1.0;
+                if (score > best) {
+                    best = score;
+                    spot = new double[] {x, z};
+                }
+            }
+        }
+        return spot;
+    }
 
     /**
      * Viagem criativa Terra -> Lua -> Terra com o tempo correndo (o piloto automático voa no referencial preso à Terra e mira o ponto
