@@ -30,12 +30,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class RocketPositionMixin {
     @Shadow
     private ClientLevel level;
-    @Shadow
-    private Minecraft minecraft;
 
     @Inject(method = "handleEntityPositionSync", at = @At("HEAD"), cancellable = true)
     private void spacehorizons$rocketPositionSync(ClientboundEntityPositionSyncPacket packet, CallbackInfo ci) {
-        PacketUtils.ensureRunningOnSameThread(packet, (ClientPacketListener) (Object) this, this.minecraft.packetProcessor());
+        PacketUtils.ensureRunningOnSameThread(packet, (ClientPacketListener) (Object) this, Minecraft.getInstance().packetProcessor());
         if (this.level.getEntity(packet.id()) instanceof RocketEntity rocket) {
             PositionPath path = packet.position();
             rocket.getPositionCodec().setBase(path.endPosition());
@@ -47,7 +45,7 @@ abstract class RocketPositionMixin {
 
     @Inject(method = "handleTeleportEntity", at = @At("HEAD"), cancellable = true)
     private void spacehorizons$rocketTeleport(ClientboundTeleportEntityPacket packet, CallbackInfo ci) {
-        PacketUtils.ensureRunningOnSameThread(packet, (ClientPacketListener) (Object) this, this.minecraft.packetProcessor());
+        PacketUtils.ensureRunningOnSameThread(packet, (ClientPacketListener) (Object) this, Minecraft.getInstance().packetProcessor());
         if (this.level.getEntity(packet.id()) instanceof RocketEntity rocket) {
             PositionMoveRotation now = PositionMoveRotation.of(rocket);
             PositionMoveRotation target = PositionMoveRotation.calculateAbsolute(now, packet.change(), packet.relatives());
@@ -61,7 +59,7 @@ abstract class RocketPositionMixin {
 
     @Inject(method = "handleMoveEntity", at = @At("HEAD"), cancellable = true)
     private void spacehorizons$rocketMove(ClientboundMoveEntityPacket packet, CallbackInfo ci) {
-        PacketUtils.ensureRunningOnSameThread(packet, (ClientPacketListener) (Object) this, this.minecraft.packetProcessor());
+        PacketUtils.ensureRunningOnSameThread(packet, (ClientPacketListener) (Object) this, Minecraft.getInstance().packetProcessor());
         if (packet.getEntity(this.level) instanceof RocketEntity rocket) {
             if (packet.hasPosition()) {
                 var codec = rocket.getPositionCodec();

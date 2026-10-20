@@ -409,6 +409,7 @@ final class RocketFlightController {
             double circumference, double halfExtent) {
         List<ChunkGate.Cell> corridor = ChunkGate.corridor(position.x, position.z, velocity.x, velocity.z, circumference, halfExtent,
                 requester.lookaheadTicks());
+        double scale = ChunkGate.Requester.budgetScale(level.getServer().getAverageTickTimeNanos() / 1.0e6);
         return requester.update(now, corridor, new ChunkGate.Sink() {
             @Override
             public void add(int chunkX, int chunkZ, int radius) {
@@ -419,7 +420,7 @@ final class RocketFlightController {
             public boolean loaded(int chunkX, int chunkZ) {
                 return level.hasChunk(chunkX, chunkZ);
             }
-        });
+        }, scale);
     }
 
     // ---------------------------------------------------------------- terreno

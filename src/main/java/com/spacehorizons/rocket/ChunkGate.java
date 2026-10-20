@@ -168,6 +168,12 @@ public final class ChunkGate {
         public static final int MAX_NEW_PER_TICK = 32;
         /** Chunks pedidos e ainda não carregados, no máximo (a fila do gerador). */
         public static final int MAX_PENDING = 192;
+        /** Pisos do orçamento quando o servidor está lento (o portão sempre pede o que segura o passo). */
+        public static final int MIN_NEW_PER_TICK = 4;
+        public static final int MIN_PENDING = 24;
+        /** Tick médio (ms) até o qual o orçamento é cheio e a partir do qual é o mínimo (entre os dois, linear). */
+        public static final double FULL_BUDGET_TICK_MS = 50.0;
+        public static final double MIN_BUDGET_TICK_MS = 120.0;
         /** Ticks entre renovações de um ticket (o ENDER_PEARL vale 40). */
         public static final int RENEW_TICKS = 15;
         /** Ticks sem renovar depois dos quais o chunk é esquecido (saiu do corredor). */
@@ -196,6 +202,18 @@ public final class ChunkGate {
         private double latency = INITIAL_LATENCY;
         private int pending;
         private int addedLastTick;
+
+        /**
+         * Fração do orçamento que o servidor aguenta, pelo tempo médio do tick (ms): 1 até {@link #FULL_BUDGET_TICK_MS}, 0 a partir de
+         * {@link #MIN_BUDGET_TICK_MS}, linear no meio. Gerar e enviar chunks custa dezenas de ms cada na thread principal; sem este
+         * freio um foguete a 54 blocos por tick levava o servidor a 7 ticks por segundo (medido), para todos os jogadores.
+         */
+        public static double budgetScale(double averageTickMillis) {
+            if (!(averageTickMillis > FULL_BUDGET_TICK_MS)) {
+                return 1.0;
+            }
+            return Math.max(0.0, (MIN_BUDGET_TICK_MS - averageTickMillis) / (MIN_BUDGET_TICK_MS - FULL_BUDGET_TICK_MS));
+        }
 
         /** Antecedência (ticks) do corredor: a janela de segurar mais o dobro da latência medida, entre os limites. */
         public int lookaheadTicks() {
@@ -227,6 +245,17 @@ public final class ChunkGate {
          * Um tick: pede o corredor {@code cells} em {@code sink} e devolve se algum chunk que segura o passo ainda não está carregado.
          */
         public boolean update(long tick, List<Cell> cells, Sink sink) {
+            return update(tick, cells, sink, 1.0);
+        }
+
+        /**
+         * Idem, com o orçamento de pedidos novos e de pendentes multiplicado por {@code budgetScale} (0 a 1, ver {@link #budgetScale}): com
+         * o servidor lento a fila do gerador encolhe e o foguete passa a esperar (o portão segura) em vez de arrastar o tick de todos.
+         */
+        public boolean update(long tick, List<Cell> cells, Sink sink, double budgetScale) {
+            double scale = Math.max(0.0, Math.min(1.0, budgetScale));
+            int maxNew = Math.max(MIN_NEW_PER_TICK, (int) Math.round(MAX_NEW_PER_TICK * scale));
+            int maxPending = Math.max(MIN_PENDING, (int) Math.round(MAX_PENDING * scale));
             int added = 0;
             int newRequests = 0;
             boolean missing = false;
@@ -234,7 +263,7 @@ public final class ChunkGate {
                 long key = key(cell.chunkX(), cell.chunkZ());
                 Entry entry = this.requested.get(key);
                 if (entry == null) {
-                    boolean allowed = cell.gating() || (newRequests < MAX_NEW_PER_TICK && this.pending < MAX_PENDING);
+                    boolean allowed = cell.gating() || (newRequests < maxNew && this.pending < maxPending);
                     if (allowed) {
                         entry = new Entry(tick, cell.radius());
                         entry.loaded = sink.loaded(cell.chunkX(), cell.chunkZ());

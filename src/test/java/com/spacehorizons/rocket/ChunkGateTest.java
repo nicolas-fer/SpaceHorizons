@@ -181,6 +181,24 @@ class ChunkGateTest {
     }
 
     @Test
+    void aSlowServerShrinksTheRequestBudget() {
+        assertEquals(1.0, Requester.budgetScale(20.0), 1e-9);
+        assertEquals(1.0, Requester.budgetScale(Requester.FULL_BUDGET_TICK_MS), 1e-9);
+        assertEquals(0.0, Requester.budgetScale(Requester.MIN_BUDGET_TICK_MS), 1e-9);
+        assertEquals(0.0, Requester.budgetScale(500.0), 1e-9);
+        double mid = Requester.budgetScale((Requester.FULL_BUDGET_TICK_MS + Requester.MIN_BUDGET_TICK_MS) / 2.0);
+        assertEquals(0.5, mid, 1e-9);
+        FakeLevel full = new FakeLevel();
+        FakeLevel slow = new FakeLevel();
+        List<Cell> corridor = ChunkGate.corridor(8.0, 8.0, 90.0, 0.0, 0.0, 0.0, 80);
+        new Requester().update(0, corridor, full, 1.0);
+        new Requester().update(0, corridor, slow, 0.0);
+        assertTrue(slow.adds < full.adds, "o orçamento mínimo pede bem menos: " + slow.adds + " contra " + full.adds);
+        long gating = corridor.stream().filter(Cell::gating).count();
+        assertTrue(slow.adds >= gating, "o que segura o passo é pedido sempre");
+    }
+
+    @Test
     void theRequesterRenewsTicketsBeforeTheyExpire() {
         FakeLevel level = new FakeLevel();
         Requester requester = new Requester();
