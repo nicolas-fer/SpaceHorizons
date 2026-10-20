@@ -29,7 +29,9 @@ public final class TravelServer {
     @SubscribeEvent
     static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
         // sem handler aqui: o handler do cliente é registrado em client/travel (RegisterClientPayloadHandlersEvent)
-        event.registrar("1").playToClient(TravelTransferPayload.TYPE, TravelTransferPayload.CODEC);
+        var registrar = event.registrar("1");
+        registrar.playToClient(TravelTransferPayload.TYPE, TravelTransferPayload.CODEC);
+        registrar.playToClient(AutopilotSkyPayload.TYPE, AutopilotSkyPayload.CODEC);
     }
 
     @SubscribeEvent
@@ -49,10 +51,13 @@ public final class TravelServer {
         if (body == null) {
             // fora de um planeta não há piloto automático nem esfera de influência. No espaço aberto o voo criativo anda pela
             // altitude sobre o corpo mais próximo (a nave de verdade, etapa 3b, é quem vai pilotar ali); nos outros mundos volta ao padrão
-            Autopilot.forget(player.getUUID());
             if (SpaceDimension.is(player.level())) {
+                if (Autopilot.tick(player, null)) {
+                    return;     // piloto automático voando pelo espaço aberto (ver Autopilot)
+                }
                 FlightBoost.updateInSpace(player, SpaceClock.ticks(player.level()));
             } else {
+                Autopilot.forget(player.getUUID());
                 FlightBoost.restore(player);
             }
             return;
@@ -70,6 +75,7 @@ public final class TravelServer {
             // ao sair, grava o jogador com a velocidade de voo padrão
             FlightBoost.restore(player);
             FlightBoost.forget(player.getUUID());
+            Autopilot.stop(player);      // estacionado no espaço: grava o jogador na posição real do voo, não no ponto de estacionamento
             Autopilot.forget(player.getUUID());
             TravelTransfers.forget(player.getUUID());
         }
