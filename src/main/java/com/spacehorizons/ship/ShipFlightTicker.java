@@ -17,6 +17,7 @@ import com.spacehorizons.rocket.RocketTelemetryBuilder;
 import com.spacehorizons.space.SpaceClock;
 import com.spacehorizons.space.flight.FlightState;
 import com.spacehorizons.space.flight.RocketStats;
+import com.spacehorizons.space.flight.V3;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
@@ -47,7 +48,10 @@ public final class ShipFlightTicker {
         ShipFlight.State state;
         final ShipControlState control = new ShipControlState();
         ShipCensus census;
+        /** A proa e os bocais dos motores (do último censo) e o que dela sai: o empuxo líquido, nos eixos canônicos da nave. */
+        ShipArrangement arrangement;
         RocketStats stats;
+        V3 thrustAxis = ShipSpecs.BOW_AXIS;
         List<BlockPos> tanks = List.of();
         double lastClock = Double.NaN;
         long lastDistributedMb = -1;
@@ -56,12 +60,28 @@ public final class ShipFlightTicker {
         boolean devtestPilot;
         int stepsHeld;
 
-        Live(int shipId, ShipFlight.State state, ShipCensus census) {
+        Live(int shipId, ShipFlight.State state, ShipCensus census, ShipArrangement arrangement) {
             this.shipId = shipId;
             this.state = state;
-            this.census = census;
-            this.stats = ShipSpecs.statsFor(census);
             this.control.setThrottle(state.throttle());
+            adopt(census, arrangement);
+        }
+
+        /** Passa a usar este censo e esta disposição: massa, empuxo líquido e o eixo dele. */
+        void adopt(ShipCensus newCensus, ShipArrangement newArrangement) {
+            this.census = newCensus;
+            this.arrangement = newArrangement;
+            this.stats = ShipSpecs.statsFor(newCensus, newArrangement);
+            this.thrustAxis = ShipSpecs.thrustAxis(newCensus, newArrangement);
+        }
+
+        public ShipArrangement arrangement() {
+            return this.arrangement;
+        }
+
+        /** O eixo do empuxo líquido, nos eixos canônicos da nave (a proa é -Z). */
+        public V3 thrustAxis() {
+            return this.thrustAxis;
         }
 
         public ShipFlight.State state() {
@@ -108,8 +128,8 @@ public final class ShipFlightTicker {
         double clock = SpaceClock.ticks(server.overworld());
         ShipFlight.State state = ShipFlight.testState(clock, census.tankFuelMb());
         ShipRegistry registry = ShipRegistry.get(server);
-        registry.update(ship.withFlight(ShipFlightData.of(state, census.census())));
-        Live live = new Live(ship.id(), state, census.census());
+        registry.update(ship.withFlight(ShipFlightData.of(state, census.census(), census.arrangement())));
+        Live live = new Live(ship.id(), state, census.census(), census.arrangement());
         live.tanks = census.tanks();
         live.lastDistributedMb = census.tankFuelMb();
         LIVE.put(ship.id(), live);
@@ -146,8 +166,8 @@ public final class ShipFlightTicker {
 
     static String describe(Live live) {
         FlightState o = live.state.orbit();
-        return String.format(Locale.ROOT, "corpo=%s r=%.0f altitude=%.0f v=%.3f b/t combustível=%.0f mB massa seca=%.2f t empuxo=%.1f", o.body().planet().id().getPath(),
-                o.r().length(), o.altitude(), o.v().length(), o.fuelMb(), live.stats.dryMassT(), live.stats.thrust());
+        return String.format(Locale.ROOT, "corpo=%s r=%.0f altitude=%.0f v=%.3f b/t combustível=%.0f mB massa seca=%.2f t empuxo=%.1f proa=%d", o.body().planet().id().getPath(),
+                o.r().length(), o.altitude(), o.v().length(), o.fuelMb(), live.stats.dryMassT(), live.stats.thrust(), live.arrangement.bow());
     }
 
     // ---------------------------------------------------------------- laço
@@ -200,7 +220,7 @@ public final class ShipFlightTicker {
             SpaceHorizons.LOGGER.warn("[ship] nave {}: o estado de voo salvo aponta para um corpo desconhecido ({}); ignorado", ship.id(), data.body());
             return null;
         }
-        Live live = new Live(ship.id(), state, data.censusValue());
+        Live live = new Live(ship.id(), state, data.censusValue(), data.arrangementValue());
         ShipCensusResult latest = ShipCensusService.latest(ship.id());
         if (latest != null) {
             live.tanks = latest.tanks();
@@ -221,9 +241,8 @@ public final class ShipFlightTicker {
 
         // censo em lotes (adota o resultado novo quando termina; pede outro de tempos em tempos enquanto a nave está carregada)
         ShipCensusResult latest = ShipCensusService.latest(ship.id());
-        if (latest != null && !latest.census().equals(live.census)) {
-            live.census = latest.census();
-            live.stats = ShipSpecs.statsFor(live.census);
+        if (latest != null && (!latest.census().equals(live.census) || !latest.arrangement().equals(live.arrangement))) {
+            live.adopt(latest.census(), latest.arrangement());
         }
         if (latest != null) {
             live.tanks = latest.tanks();
@@ -237,7 +256,7 @@ public final class ShipFlightTicker {
         RocketControlPayload c = live.control.control(now);
         int edges = live.control.takeEdges();
         ShipFlight.Command command = new ShipFlight.Command(c.pitch(), c.yaw(), c.roll(), c.throttle(), (edges & RocketControlPayload.FLAG_NEXT_SAS) != 0);
-        live.state = ShipFlight.step(live.state, command, live.stats, clock, rate);
+        live.state = ShipFlight.step(live.state, command, live.stats, live.thrustAxis, clock, rate);
 
         if (live.ticks % FUEL_INTERVAL == 0) {
             syncFuel(yard, live);
@@ -264,7 +283,8 @@ public final class ShipFlightTicker {
         var q = live.state.attitude();
         return new ShipStatePayload(live.shipId, tick, clock, rate, o.body().planet().id().getPath(), new double[] {o.r().x(), o.r().y(), o.r().z()},
                 new double[] {o.v().x(), o.v().y(), o.v().z()}, new double[] {q.x, q.y, q.z, q.w},
-                new double[] {live.state.spin().x(), live.state.spin().y(), live.state.spin().z()}, (float) live.state.throttle(), (byte) live.state.sas().ordinal());
+                new double[] {live.state.spin().x(), live.state.spin().y(), live.state.spin().z()}, (float) live.state.throttle(), (byte) live.state.sas().ordinal(),
+                (byte) live.arrangement.bow());
     }
 
     /** Os jogadores que estão na célula da nave, no estaleiro. */
@@ -325,7 +345,7 @@ public final class ShipFlightTicker {
     private static void save(ShipRegistry registry, int shipId, Live live) {
         ShipRecord ship = registry.byId(shipId);
         if (ship != null) {
-            registry.update(ship.withFlight(ShipFlightData.of(live.state, live.census)));
+            registry.update(ship.withFlight(ShipFlightData.of(live.state, live.census, live.arrangement)));
         }
     }
 

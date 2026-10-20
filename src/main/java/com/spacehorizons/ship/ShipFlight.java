@@ -3,6 +3,7 @@ package com.spacehorizons.ship;
 import org.joml.Matrix3d;
 import org.joml.Quaterniond;
 import org.joml.Quaterniondc;
+import org.joml.Vector3d;
 
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.space.InertialFrame;
@@ -26,6 +27,7 @@ import com.spacehorizons.rocket.AttitudeControl;
  * (a nave é o referencial; ver {@code ShipTransit} e o estaleiro): aqui só a órbita da nave muda.
  *
  * <h2>Eixos da nave</h2>
+ * (Esta classe trabalha na nave CANÔNICA, abaixo; a proa real vem da ponte e os motores empurram conforme o bocal: ver {@link ShipArrangement}.)
  * Os blocos da nave ficam parados no estaleiro, com os eixos do mundo: x leste (a direita de quem olha para a proa), y cima, z sul.
  * A PROA é o norte ({@code -Z}) e o empuxo sai por ela. O controle de atitude do foguete ({@link AttitudeControl}) tem o nariz em +Y do
  * corpo; para reaproveitá-lo sem mexer, a atitude guardada é a de ESTILO FOGUETE {@code p} (nariz = proa) e a atitude dos eixos do
@@ -103,6 +105,22 @@ public final class ShipFlight {
         return rocketAttitude(new Quaterniond().setFromNormalized(m).normalize());
     }
 
+    /** O eixo {@code axis} da nave canônica (x direita, y cima, z trás) em eixos inerciais, com a atitude {@code p} de estilo foguete. */
+    public static V3 thrustDirection(Quaterniondc p, V3 axis) {
+        Vector3d rocketFrame = BODY_TO_ROCKET.transform(new Vector3d(axis.x(), axis.y(), axis.z()));
+        Vector3d inertial = new Quaterniond(p).transform(rocketFrame);
+        return new V3(inertial.x, inertial.y, inertial.z).unit();
+    }
+
+    /**
+     * A atitude dos eixos do ESTALEIRO (estaleiro para inercial) de uma nave com a proa no lado {@code bow} ({@link ShipArrangement}): é a
+     * atitude canônica {@link #bodyAttitude} composta com a rotação do estaleiro para a nave canônica. É a que o céu usa; com a proa no norte
+     * ({@code bow = 0}) é a de sempre.
+     */
+    public static Quaterniond yardAttitude(Quaterniondc p, int bow) {
+        return bodyAttitude(p).mul(ShipArrangement.yardToCanonical(bow)).normalize();
+    }
+
     // ---------------------------------------------------------------- estado inicial
 
     /**
@@ -138,13 +156,22 @@ public final class ShipFlight {
      * {@code clockRate} os ticks de relógio por tick de jogo.
      */
     public static State step(State s, Command c, RocketStats stats, double clock, double clockRate) {
+        return step(s, c, stats, ShipSpecs.BOW_AXIS, clock, clockRate);
+    }
+
+    /**
+     * O mesmo passo com o empuxo num eixo qualquer da nave: {@code thrustAxis} (unitário) nos eixos canônicos da nave (x direita, y cima,
+     * z trás; a proa é {@code -Z}), por exemplo o empuxo líquido de motores virados para lados diferentes ({@link ShipSpecs#thrustAxis}).
+     * O SAS continua apontando a PROA: o que a ponte define como frente é o que ele alinha.
+     */
+    public static State step(State s, Command c, RocketStats stats, V3 thrustAxis, double clock, double clockRate) {
         SasMode sas = c.nextSas() ? s.sas().next() : s.sas();
         double throttle = Math.max(0.0, Math.min(1.0, Double.isNaN(c.throttle()) ? 0.0 : c.throttle()));
         FlightState orbit = s.orbit();
         // arfagem e guinada com o sinal trocado (ver a documentação da classe)
         AttitudeControl.Result att = AttitudeControl.step(s.attitude(), s.spin(), sas, -c.pitch(), -c.yaw(), c.roll(),
                 AttitudeMath.sasTarget(sas, orbit.v()));
-        Control control = new Control(throttle, AttitudeMath.noseDirection(att.attitude()), false);
+        Control control = new Control(throttle, thrustDirection(att.attitude(), thrustAxis), false);
         FlightState moved = FlightIntegrator.step(orbit, control, stats, clock);
         moved = SoiTracker.update(moved, clock + clockRate, clockRate);
         moved = floor(moved);

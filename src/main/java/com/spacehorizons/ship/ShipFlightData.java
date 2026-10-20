@@ -18,10 +18,11 @@ import com.spacehorizons.space.flight.V3;
  * massa e empuxo logo ao carregar, antes de o primeiro censo em lotes terminar). A conversão de e para {@link ShipFlight.State} é aqui.
  */
 public record ShipFlightData(String body, List<Double> r, List<Double> v, double fuelMb, List<Double> attitude, List<Double> spin, int sas,
-        double throttle, List<Integer> census) {
+        double throttle, List<Integer> census, List<Integer> arrangement) {
     private static final Codec<List<Double>> VEC3 = Codec.DOUBLE.listOf(3, 3);
     private static final Codec<List<Double>> QUAT = Codec.DOUBLE.listOf(4, 4);
     private static final Codec<List<Integer>> CENSUS = Codec.INT.listOf(7, 7);
+    private static final Codec<List<Integer>> ARRANGEMENT = Codec.INT.listOf(5, 5);
 
     public static final Codec<ShipFlightData> CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.STRING.fieldOf("body").forGetter(ShipFlightData::body),
@@ -32,16 +33,24 @@ public record ShipFlightData(String body, List<Double> r, List<Double> v, double
             VEC3.fieldOf("spin").forGetter(ShipFlightData::spin),
             Codec.INT.fieldOf("sas").forGetter(ShipFlightData::sas),
             Codec.DOUBLE.fieldOf("throttle").forGetter(ShipFlightData::throttle),
-            CENSUS.fieldOf("census").forGetter(ShipFlightData::census)
+            CENSUS.fieldOf("census").forGetter(ShipFlightData::census),
+            // naves gravadas antes da proa e dos motores por lado: sem o campo, valem os padrões (proa no norte, motores pela proa)
+            ARRANGEMENT.optionalFieldOf("arrangement", ShipArrangement.DEFAULT.toList()).forGetter(ShipFlightData::arrangement)
     ).apply(i, ShipFlightData::new));
 
-    /** Grava o estado de voo e o censo. */
+    /** Grava o estado de voo e o censo (com a disposição padrão: proa no norte, motores pela proa). */
     public static ShipFlightData of(ShipFlight.State s, ShipCensus census) {
+        return of(s, census, ShipArrangement.DEFAULT);
+    }
+
+    /** Grava o estado de voo, o censo e a disposição da nave. */
+    public static ShipFlightData of(ShipFlight.State s, ShipCensus census, ShipArrangement arrangement) {
         FlightState o = s.orbit();
         Quaterniond q = s.attitude();
         return new ShipFlightData(o.body().planet().id().getPath(), List.of(o.r().x(), o.r().y(), o.r().z()), List.of(o.v().x(), o.v().y(), o.v().z()),
                 o.fuelMb(), List.of(q.x, q.y, q.z, q.w), List.of(s.spin().x(), s.spin().y(), s.spin().z()), s.sas().ordinal(), s.throttle(),
-                List.of(census.bridges(), census.engines(), census.tanks(), census.windows(), census.seats(), census.airlocks(), census.structures()));
+                List.of(census.bridges(), census.engines(), census.tanks(), census.windows(), census.seats(), census.airlocks(), census.structures()),
+                arrangement.toList());
     }
 
     /** O estado de voo (null se o corpo gravado não existe mais). */
@@ -74,5 +83,10 @@ public record ShipFlightData(String body, List<Double> r, List<Double> v, double
     public ShipCensus censusValue() {
         List<Integer> c = this.census;
         return new ShipCensus(c.get(0), c.get(1), c.get(2), c.get(3), c.get(4), c.get(5), c.get(6));
+    }
+
+    /** A última disposição gravada (proa e motores por lado). */
+    public ShipArrangement arrangementValue() {
+        return ShipArrangement.fromList(this.arrangement);
     }
 }

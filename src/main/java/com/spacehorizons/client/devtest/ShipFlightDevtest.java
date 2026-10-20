@@ -5,7 +5,13 @@ import java.util.Locale;
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketControlPayload;
 import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
+import com.spacehorizons.content.ModBlocks;
+import com.spacehorizons.ship.ShipArrangement;
+import com.spacehorizons.ship.ShipBuilder;
 import com.spacehorizons.ship.ShipCensus;
+import com.spacehorizons.ship.ShipSpecs;
+import com.spacehorizons.ship.block.ShipBridgeBlock;
+import com.spacehorizons.ship.block.ShipImpulseEngineBlock;
 import com.spacehorizons.ship.ShipCensusResult;
 import com.spacehorizons.ship.ShipCensusService;
 import com.spacehorizons.ship.ShipFlight;
@@ -22,6 +28,7 @@ import com.spacehorizons.space.flight.Orbit;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.neoforged.neoforge.common.NeoForge;
@@ -244,12 +251,131 @@ final class ShipFlightDevtest {
                             String.format(Locale.ROOT, "gravado=%.1f vivo=%.1f corpo=%s", data.fuelMb(), live.state().fuelMb(), data.body()));
                     ShipDevtest.check("a posição gravada é a de até 100 ticks atrás (a nave anda ~80 b/t)", Math.abs(data.r().get(0) - live.state().orbit().r().x()) < 100 * 100.0,
                             "x gravado=" + data.r().get(0) + " vivo=" + live.state().orbit().r().x());
+                    next(8);
+                }
+            }
+            case 8 -> {
+                // motores em direcoes diferentes: dois viram o bocal para o oeste (empurram para o leste = a direita da nave), dois seguem com o bocal
+                // para o sul (empurram para a proa, norte). A proa continua no norte (a ponte olha para o sul).
+                if (phaseTicks == 1) {
+                    refuel(live);
+                    ServerLevel yard = ShipYard.level(server);
+                    ShipBuilder.FlightLayout layout = ShipBuilder.flightLayout(ShipRegistry.get(server).byId(shipId).box());
+                    for (int i = 0; i < 2; i++) {
+                        yard.setBlock(layout.engines().get(i), ModBlocks.SHIP_IMPULSE_ENGINE.get().defaultBlockState()
+                                .setValue(ShipImpulseEngineBlock.FACING, Direction.WEST), 3);
+                    }
+                    ShipCensusResult census = ShipCensusService.scanNow(server, ShipRegistry.get(server).byId(shipId));
+                    ShipArrangement a = census.arrangement();
+                    ShipDevtest.check("o censo le os bocais: 2 para o sul, 2 para o oeste, proa no norte", a.nozzleSouth() == 2 && a.nozzleWest() == 2 && a.nozzleNorth() == 0
+                            && a.nozzleEast() == 0 && a.bow() == ShipArrangement.NORTH, a.toString());
+                    apply(server, 0.0, 0.0, 0.0, 0.0, 0);
+                } else if (phaseTicks == 5) {
+                    ShipDevtest.check("o voo adotou a nova disposicao (empuxo liquido menor que o de 4 motores)", live.arrangement().nozzleWest() == 2
+                            && Math.abs(live.stats().thrust() - 2.0 * Math.sqrt(2.0) * ShipSpecs.ENGINE_THRUST) < 1.0e-9,
+                            "empuxo=" + live.stats().thrust() + " disposicao=" + live.arrangement());
+                    apply(server, 0.0, 0.0, 0.0, 1.0, 0);
+                } else if (phaseTicks > 5) {
+                    apply(server, 0.0, 0.0, 0.0, 1.0, 0);
+                }
+                if (phaseTicks > 5) {
+                    sampleBurn(live, clock);
+                }
+                if (phaseTicks == 40) {
+                    checkBurnDirection(server, live, "motores para a proa e para a direita", false);
+                    apply(server, 0.0, 0.0, 0.0, 0.0, 0);
+                    next(9);
+                }
+            }
+            case 9 -> {
+                // a ponte define a proa: virar a ponte (facing leste: a proa passa a ser o oeste) muda os eixos da nave e a direcao da queima
+                if (phaseTicks == 1) {
+                    refuel(live);
+                    ServerLevel yard = ShipYard.level(server);
+                    ShipBuilder.FlightLayout layout = ShipBuilder.flightLayout(ShipRegistry.get(server).byId(shipId).box());
+                    yard.setBlock(layout.bridge(), ModBlocks.SHIP_BRIDGE.get().defaultBlockState().setValue(ShipBridgeBlock.FACING, Direction.EAST), 3);
+                    ShipCensusResult census = ShipCensusService.scanNow(server, ShipRegistry.get(server).byId(shipId));
+                    ShipDevtest.check("a proa vem da ponte: facing leste = proa a oeste", census.arrangement().bow() == ShipArrangement.WEST, census.arrangement().toString());
+                    apply(server, 0.0, 0.0, 0.0, 0.0, 0);
+                } else if (phaseTicks == 5) {
+                    ShipDevtest.check("o voo adotou a proa nova", live.arrangement().bow() == ShipArrangement.WEST, live.arrangement().toString());
+                    apply(server, 0.0, 0.0, 0.0, 1.0, 0);
+                } else if (phaseTicks > 5) {
+                    apply(server, 0.0, 0.0, 0.0, 1.0, 0);
+                }
+                if (phaseTicks > 5) {
+                    sampleBurn(live, clock);
+                }
+                if (phaseTicks == 40) {
+                    checkBurnDirection(server, live, "proa a oeste: os motores empurram para a direita e para tras", true);
+                    apply(server, 0.0, 0.0, 0.0, 0.0, 0);
                     ShipFlightTicker.clearDevtestPilot(shipId);
                     done = true;
                     SpaceHorizons.LOGGER.info("{}fim do piloto de teste em {} ticks", TAG, totalTicks);
                 }
             }
             default -> done = true;
+        }
+    }
+
+    /** As fases anteriores gastaram o combustivel: poe 32.000 mB no estado (os tanques de blocos acompanham pela sincronizacao). */
+    private static void refuel(ShipFlightTicker.Live live) {
+        ShipFlightTicker.devtestSetState(shipId, live.state().withOrbit(live.state().orbit().withFuel(32_000.0)));
+    }
+
+    private static com.spacehorizons.ship.ShipFlight.State prevState;
+    private static com.spacehorizons.ship.ShipFlight.State lastState;
+    private static com.spacehorizons.space.flight.V3 lastDv = com.spacehorizons.space.flight.V3.ZERO;
+
+    /** Guarda os dois ultimos estados (um passo do voo entre eles): o dv de UM tick de queima, sem a gravidade, sai da diferenca com o passo sem empuxo. */
+    private static void sampleBurn(ShipFlightTicker.Live live, double clock) {
+        prevState = lastState;
+        lastState = live.state();
+        if (prevState != null && lastState != prevState && live.state().throttle() > 0.5) {
+            com.spacehorizons.ship.ShipFlight.State coast = ShipFlight.step(prevState, ShipFlight.Command.IDLE, live.stats(), live.thrustAxis(), clock - 1.0, 1.0);
+            lastDv = lastState.orbit().v().minus(coast.orbit().v());
+        }
+    }
+
+    /** O dv de um tick tem a direcao esperada pelos blocos (soma dos bocais, escrita aqui de forma independente do codigo de producao) e o modulo F/m. */
+    private static void checkBurnDirection(MinecraftServer server, ShipFlightTicker.Live live, String label, boolean rotated) {
+        ServerLevel yard = ShipYard.level(server);
+        ShipBuilder.FlightLayout layout = ShipBuilder.flightLayout(ShipRegistry.get(server).byId(shipId).box());
+        // soma dos empuxos nos eixos do estaleiro, lida dos blocos: cada motor empurra para o lado oposto ao bocal
+        double nx = 0.0;
+        double nz = 0.0;
+        for (BlockPos pos : layout.engines()) {
+            Direction nozzle = yard.getBlockState(pos).getValue(ShipImpulseEngineBlock.FACING);
+            nx -= nozzle.getStepX();
+            nz -= nozzle.getStepZ();
+        }
+        Direction bridgeFacing = yard.getBlockState(layout.bridge()).getValue(ShipBridgeBlock.FACING);
+        Direction bow = bridgeFacing.getOpposite();
+        double forwardPart = nx * bow.getStepX() + nz * bow.getStepZ();
+        double rightPart = nx * -bow.getStepZ() + nz * bow.getStepX();       // a direita de quem olha a proa: (bx, bz) -> (-bz, bx)
+        // a proa e a direita da nave em eixos inerciais, pela atitude (a canonica: nariz, e +X do corpo)
+        var attitude = live.state().attitude();
+        com.spacehorizons.space.flight.V3 forwardI = ShipFlight.forward(attitude);
+        com.spacehorizons.space.flight.V3 rightI = ShipFlight.thrustDirection(attitude, new com.spacehorizons.space.flight.V3(1.0, 0.0, 0.0));
+        com.spacehorizons.space.flight.V3 expected = forwardI.times(forwardPart).plus(rightI.times(rightPart)).unit();
+        double angle = Math.toDegrees(lastDv.unit().angleTo(expected));
+        double accel = lastDv.length();
+        double fuel = live.state().fuelMb();
+        double expectedAccel = live.stats().thrust() / live.stats().wetMass(fuel + live.stats().fullThrottleFuelMbPerTick());
+        SpaceHorizons.LOGGER.info("{}{}: soma dos bocais (estaleiro) = ({}, {}), proa {}, componentes proa/direita = {}/{}; dv de 1 tick = {} b/t (esperado ~{}), "
+                + "a {} graus da direcao esperada", TAG, label, nx, nz, bow, forwardPart, rightPart, String.format(Locale.ROOT, "%.5f", accel),
+                String.format(Locale.ROOT, "%.5f", expectedAccel), String.format(Locale.ROOT, "%.3f", angle));
+        ShipDevtest.check("queima com " + label + ": o dv de um tick sai na direcao da soma dos bocais (menos de 0,5 grau)", angle < 0.5,
+                String.format(Locale.ROOT, "%.3f graus", angle));
+        ShipDevtest.check("queima com " + label + ": o modulo do dv e F/m com F = modulo da soma (2%)", Math.abs(accel - expectedAccel) < 0.02 * expectedAccel,
+                String.format(Locale.ROOT, "medido=%.6f esperado=%.6f", accel, expectedAccel));
+        if (rotated) {
+            ShipDevtest.check("com a ponte virada o empuxo tem componente negativo na direcao da proa (motores para tras)", forwardPart < 0.0
+                    && lastDv.unit().dot(forwardI) < -0.5, String.format(Locale.ROOT, "componente=%.1f cos=%.3f", forwardPart, lastDv.unit().dot(forwardI)));
+        } else {
+            ShipDevtest.check("com 2 motores para a proa e 2 para a direita, a queima tem os dois componentes positivos", forwardPart > 0.0 && rightPart > 0.0
+                    && lastDv.unit().dot(forwardI) > 0.5 && lastDv.unit().dot(rightI) > 0.5, String.format(Locale.ROOT, "proa=%.3f direita=%.3f",
+                    lastDv.unit().dot(forwardI), lastDv.unit().dot(rightI)));
         }
     }
 

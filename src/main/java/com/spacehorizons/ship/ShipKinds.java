@@ -2,6 +2,7 @@ package com.spacehorizons.ship;
 
 import com.spacehorizons.content.ModBlocks;
 
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -32,5 +33,25 @@ public final class ShipKinds {
             return ShipBlockKind.AIRLOCK;
         }
         return ShipBlockKind.STRUCTURE;
+    }
+
+    /** O lado do estaleiro (0 norte, 1 leste, 2 sul, 3 oeste: {@link ShipArrangement}) de uma direção horizontal; vertical vira o norte. */
+    public static int side(Direction direction) {
+        return switch (direction) {
+            case EAST -> ShipArrangement.EAST;
+            case SOUTH -> ShipArrangement.SOUTH;
+            case WEST -> ShipArrangement.WEST;
+            default -> ShipArrangement.NORTH;
+        };
+    }
+
+    /** A direção horizontal de um lado do estaleiro ({@link ShipArrangement}). */
+    public static Direction direction(int side) {
+        return switch (side & 3) {
+            case ShipArrangement.EAST -> Direction.EAST;
+            case ShipArrangement.SOUTH -> Direction.SOUTH;
+            case ShipArrangement.WEST -> Direction.WEST;
+            default -> Direction.NORTH;
+        };
     }
 }

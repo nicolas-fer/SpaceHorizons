@@ -12,8 +12,8 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 
 /**
- * Motor de impulso da nave. {@code FACING} é para onde o bocal aponta (a popa): a nave anda para o lado oposto. Na fase 1 todo motor
- * da nave empurra pela proa, qualquer que seja a orientação; ela é só visual (o empuxo vem do censo, {@code ShipSpecs}).
+ * Motor de impulso da nave. {@code FACING} é para onde o bocal aponta: a nave é empurrada para o lado oposto. O empuxo da nave é a soma
+ * vetorial dos motores (docs/PLANO_NAVES.md, "Motores e proa"; {@code ShipArrangement}), sem torque.
  */
 public class ShipImpulseEngineBlock extends Block {
     public static final EnumProperty<Direction> FACING = HorizontalDirectionalBlock.FACING;

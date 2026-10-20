@@ -131,7 +131,7 @@ public final class ShipRenderClient {
         if (p == null || stale() || !inShipyard()) {
             return null;
         }
-        Quaterniond qBody = ShipFlight.bodyAttitude(rocketAttitudeAt(p, nowNanos));
+        Quaterniond qBody = ShipFlight.yardAttitude(rocketAttitudeAt(p, nowNanos), p.bow());
         Quaterniond local = AttitudeMath.inertialToSpaceLocal(qBody, clock);
         return SkyAttitude.localToSpaceFrame(local);
     }

@@ -23,6 +23,8 @@ import net.minecraft.world.phys.BlockHitResult;
 /**
  * Ponte de comando: o núcleo que define a nave (docs/PLANO_NAVES.md, seção 1). Clicar com a mão vazia, dentro de uma nave do
  * estaleiro, conta os blocos da nave (censo em lotes) e mostra a especificação: massa, empuxo, Δv e combustível ({@link ShipInfo}).
+ * O {@code facing} da ponte define a PROA da nave: a ponte olha para quem pilota, então a proa é o lado oposto ao facing
+ * ({@code ShipArrangement}).
  * A montagem no chão (a ponte como ponto de partida da busca, como o cockpit do foguete) é da fase 2a.
  */
 public class ShipBridgeBlock extends Block {

@@ -4,10 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
+import com.spacehorizons.ship.block.ShipBridgeBlock;
+import com.spacehorizons.ship.block.ShipImpulseEngineBlock;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 
@@ -28,6 +31,9 @@ final class ShipCensusScanner {
     private final List<BoxSections.Section> sections;
     private final long startTick;
     private final int[] counts = new int[ShipBlockKind.values().length];
+    /** Pontes por lado da proa (o lado oposto ao facing) e motores por lado do bocal (ver {@link ShipArrangement}). */
+    private final int[] bowVotes = new int[4];
+    private final int[] nozzles = new int[4];
     private final List<BlockPos> tanks = new ArrayList<>();
     private long fuelMb;
     private int next;
@@ -57,9 +63,20 @@ final class ShipCensusScanner {
             if (section.hasOnlyAir()) {
                 continue;
             }
-            section.getStates().count((state, n) -> this.counts[ShipKinds.classify(state).ordinal()] += n);
+            section.getStates().count(this::countState);
         }
         return this.next >= this.sections.size();
+    }
+
+    /** Conta {@code n} blocos deste estado: o papel, e a orientação das pontes e dos motores. */
+    private void countState(BlockState state, int n) {
+        ShipBlockKind kind = ShipKinds.classify(state);
+        this.counts[kind.ordinal()] += n;
+        if (kind == ShipBlockKind.BRIDGE) {
+            this.bowVotes[ShipArrangement.opposite(ShipKinds.side(state.getValue(ShipBridgeBlock.FACING)))] += n;
+        } else if (kind == ShipBlockKind.ENGINE) {
+            this.nozzles[ShipKinds.side(state.getValue(ShipImpulseEngineBlock.FACING))] += n;
+        }
     }
 
     /** Os tanques de combustível da coluna que estão dentro da caixa e o combustível deles. */
@@ -78,6 +95,14 @@ final class ShipCensusScanner {
         for (ShipBlockKind kind : ShipBlockKind.values()) {
             census = census.plus(kind, this.counts[kind.ordinal()]);
         }
-        return new ShipCensusResult(census, List.copyOf(this.tanks), this.fuelMb, this.startTick);
+        // a proa é o lado que a maioria das pontes aponta (empate: a primeira na ordem norte, leste, sul, oeste; sem ponte: o norte)
+        int bow = 0;
+        for (int side = 1; side < 4; side++) {
+            if (this.bowVotes[side] > this.bowVotes[bow]) {
+                bow = side;
+            }
+        }
+        ShipArrangement arrangement = new ShipArrangement(bow, this.nozzles[0], this.nozzles[1], this.nozzles[2], this.nozzles[3]);
+        return new ShipCensusResult(census, List.copyOf(this.tanks), this.fuelMb, this.startTick, arrangement);
     }
 }

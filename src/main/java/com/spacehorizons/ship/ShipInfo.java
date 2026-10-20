@@ -15,6 +15,8 @@ public final class ShipInfo {
     /** Ticks por segundo: o Δv sai em blocos por segundo para o jogador (a física é em blocos por tick). */
     private static final double TICKS_PER_SECOND = 20.0;
 
+    private static final String[] SIDE_NAMES = {"norte", "leste", "sul", "oeste"};
+
     private ShipInfo() {
     }
 
@@ -36,7 +38,7 @@ public final class ShipInfo {
 
     /** A especificação em uma frase: blocos, massa seca, empuxo, motores, assentos, combustível e Δv. */
     public static Component describe(ShipRecord ship, ShipCensusResult result, double fuelMb) {
-        RocketStats stats = ShipSpecs.statsFor(result.census());
+        RocketStats stats = ShipSpecs.statsFor(result.census(), result.arrangement());
         return Component.translatable("message.spacehorizons.ship.specs", ship.name(), ship.id(), result.census().total(),
                 String.format(Locale.ROOT, "%.1f", stats.dryMassT()), String.format(Locale.ROOT, "%.1f", stats.thrust()), result.census().engines(),
                 result.census().seats(), String.format(Locale.ROOT, "%.0f", fuelMb), String.format(Locale.ROOT, "%.0f", stats.fuelCapacityMb()),
@@ -45,11 +47,14 @@ public final class ShipInfo {
 
     /** O mesmo em texto puro (log e autoteste). */
     public static String line(ShipRecord ship, ShipCensusResult result, double fuelMb) {
-        RocketStats stats = ShipSpecs.statsFor(result.census());
+        RocketStats stats = ShipSpecs.statsFor(result.census(), result.arrangement());
         ShipCensus c = result.census();
         return String.format(Locale.ROOT, "nave %d: %d blocos (ponte %d, motores %d, tanques %d, janelas %d, assentos %d, eclusas %d, estrutura %d), massa seca %.2f t, "
-                + "empuxo %.1f, Isp %.0f ticks, combustível %.0f/%.0f mB, Δv %.2f b/tick (%.1f b/s)", ship.id(), c.total(), c.bridges(), c.engines(),
+                + "empuxo líquido %.1f, Isp efetivo %.0f ticks, combustível %.0f/%.0f mB, Δv %.2f b/tick (%.1f b/s); proa %s, motores com o bocal para "
+                + "N/L/S/O %d/%d/%d/%d, eficiência %.0f%%", ship.id(), c.total(), c.bridges(), c.engines(),
                 c.tanks(), c.windows(), c.seats(), c.airlocks(), c.structures(), stats.dryMassT(), stats.thrust(), stats.ispTicks(), fuelMb,
-                stats.fuelCapacityMb(), stats.deltaV(fuelMb), stats.deltaV(fuelMb) * TICKS_PER_SECOND);
+                stats.fuelCapacityMb(), stats.deltaV(fuelMb), stats.deltaV(fuelMb) * TICKS_PER_SECOND, SIDE_NAMES[result.arrangement().bow()],
+                result.arrangement().nozzleNorth(), result.arrangement().nozzleEast(), result.arrangement().nozzleSouth(), result.arrangement().nozzleWest(),
+                ShipSpecs.engineEfficiency(c, result.arrangement()) * 100.0);
     }
 }

@@ -245,8 +245,34 @@ Só o `ShipRecord.flight` muda (3.2, 2.5). Os jogadores andam normal no estaleir
 4. **Interior muito escuro**: só a luz de bloco (D8); a nave de teste tem poucas sea lanterns no teto, então a sala dos motores quase não se vê nos prints. Uma nave real precisa de iluminação.
 5. **Chão da fase 1**: a nave não desce a um planeta; abaixo da altitude de entrada ela é segurada (a descida é a fase 2b). Não há colisão com a Lua nem entrada na dimensão do corpo.
 6. A nave é integrada a cada tick mesmo vazia (sem passo grosso por Kepler); o custo medido de uma nave é desprezível, mas muitas naves não foram testadas. O censo roda em lotes só quando pedido (comando, ponte, 600 ticks com a nave carregada); uma edição da nave pode levar até 30 s para entrar na massa e no empuxo.
-7. Os motores empurram todos pela proa qualquer que seja a orientação do bloco (a orientação é só visual); a proa é fixa no norte do estaleiro (a ponte não define a frente).
+7. (Resolvido em "Motores e proa", abaixo.) Antes: motores todos pela proa e proa fixa no norte.
 8. Não verificado: reabrir o mundo com a nave em voo (a gravação periódica e a carga do estado são cobertas por teste unitário do codec e pela leitura do registro no autoteste, não por fechar e reabrir), servidor dedicado, naves de 128x128x256 no censo em lotes, o painel com telemetria atrasada em rede ruim.
+
+## Motores e proa (20/10/2026)
+
+**Regra.** A PROA é o lado oposto ao `facing` da ponte (`ship_bridge`: a ponte olha para quem pilota, que olha para a proa; na nave de teste
+a ponte tem facing sul, a proa é o norte). Cada `ship_impulse_engine` empurra a nave para o lado OPOSTO ao bocal (`facing` é para onde o bocal
+aponta). A soma vetorial dos empuxos (T = 8 por motor) é o empuxo da nave; o censo lê as duas coisas pela paleta das seções
+(`ShipCensusScanner.countState`: pontes por lado e motores por lado do bocal) e guarda em `ShipCensusResult.arrangement`
+(`ShipArrangement`: proa e quatro contagens N/L/S/O; gravada em `ShipFlightData.arrangement`, campo opcional: naves antigas valem proa norte
+e todos os motores pela proa). Vários motores horizontais; o `facing` do motor é horizontal (4 lados), então o empuxo líquido é sempre
+horizontal nos eixos do estaleiro.
+
+**Física.** A física continua numa nave CANÔNICA (proa -Z, direita +X): `ShipArrangement.yaw` liga os eixos do estaleiro aos canônicos
+(rotação em Y), então atitude, SAS, controles (W/S, A/D, Q/E) e painel não mudaram. Mudou: (a) o empuxo sai em `thrustAxis` (soma dos
+motores nos eixos canônicos) em vez de sempre pela proa (`ShipFlight.step` com o eixo; a antiga assinatura usa a proa); (b) o céu usa
+`ShipFlight.yardAttitude(p, bow)` = atitude canônica x rotação estaleiro→canônico (`ShipStatePayload.bow`, um byte novo); (c) estatísticas:
+`ShipSpecs.statsFor(census, arrangement)` dá empuxo = |Σ T·dᵢ| e Isp efetivo = Isp·|Σ|/(n·T), que mantém a vazão de massa de n motores
+(motores que se opõem gastam combustível sem empurrar; se se anulam exatamente o empuxo é 0 e nada queima). O SAS continua alinhando a PROA
+(o que a ponte define como frente); empurrar de lado exige girar a nave. **Sem torque**: o empuxo atua no centro de massa, a atitude só
+muda pelos controles e pelo SAS, que continua estável (a atitude não depende da disposição dos motores). Um torque simples (braço entre o
+motor e o centro de massa) fica para depois e exigiria incluir o centro de massa no censo.
+
+**Verificado.** `ShipArrangementTest` (9 testes: rotação da proa, soma vetorial, anulação, Isp efetivo, vazão, passo de voo para o lado,
+atitude do céu, codec e registro antigo) e `-PshOnly=shipflight`: com 2 motores com o bocal para o sul e 2 para o oeste (empurram para a
+proa e para a direita) o Δv de um tick sai a 0,000° da soma dos bocais lida dos blocos, com módulo F/m (0,13544 contra 0,13527 esperado);
+virando a ponte (facing leste, proa oeste) o censo e o voo adotam a proa e a queima sai para a direita e para trás, outra vez a 0,000°.
+`-PshOnly=ship`: depois de virar 2 motores a queima sobe o apoastro de 103.550 para 129.030 e o periastro muda de 30.039 para 30.306.
 
 ## 8. Fases, entregas e critérios de aceite
 

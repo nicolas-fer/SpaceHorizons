@@ -24,9 +24,10 @@ import net.minecraft.resources.Identifier;
  * @param spin giro em eixos do corpo (rad/tick)
  * @param throttle acelerador aplicado (0 a 1)
  * @param sas modo do SAS (ordinal)
+ * @param bow lado da proa no estaleiro (0 norte, 1 leste, 2 sul, 3 oeste; {@link ShipArrangement}): a ponte define a frente da nave
  */
 public record ShipStatePayload(int shipId, long tick, double clock, double clockRate, String body, double[] r, double[] v, double[] attitude, double[] spin,
-        float throttle, byte sas) implements CustomPacketPayload {
+        float throttle, byte sas, byte bow) implements CustomPacketPayload {
     public static final Type<ShipStatePayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "ship_state"));
 
     public static final StreamCodec<ByteBuf, ShipStatePayload> CODEC = StreamCodec.of((buf, p) -> p.write(new FriendlyByteBuf(buf)),
@@ -44,11 +45,12 @@ public record ShipStatePayload(int shipId, long tick, double clock, double clock
         writeAll(buf, this.spin);
         buf.writeFloat(this.throttle);
         buf.writeByte(this.sas);
+        buf.writeByte(this.bow);
     }
 
     private static ShipStatePayload read(FriendlyByteBuf buf) {
         return new ShipStatePayload(buf.readVarInt(), buf.readVarLong(), buf.readDouble(), buf.readDouble(), buf.readUtf(32), readAll(buf, 3), readAll(buf, 3), readAll(buf, 4),
-                readAll(buf, 3), buf.readFloat(), buf.readByte());
+                readAll(buf, 3), buf.readFloat(), buf.readByte(), buf.readByte());
     }
 
     private static void writeAll(FriendlyByteBuf buf, double[] a) {

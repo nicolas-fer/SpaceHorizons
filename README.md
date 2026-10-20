@@ -252,14 +252,15 @@ dentro anda normalmente (gravidade interna sempre ligada, luz só de bloco) e N�
 pelas janelas (Terra, Lua, sol redondo, estrelas) gira com a atitude da nave.
 
 - **Blocos** (aba "Space Horizons"): `ship_bridge` (ponte de comando; clicar mostra massa, empuxo, Δv e combustível do censo), `ship_impulse_engine`
-  (8 de empuxo, Isp 1.000), `ship_window`, `ship_seat` (assento do piloto) e `ship_airlock` (eclusa de uma célula, abre e fecha com o botão
+  (8 de empuxo, Isp 1.000; empurra para o lado oposto ao bocal), `ship_window` (textura conectada: `docs/TEXTURAS_CONECTADAS.md`), `ship_seat` (assento do piloto) e `ship_airlock` (eclusa de uma célula, abre e fecha com o botão
   direito; o modelo é o mesmo aberta ou fechada). O combustível é o dos tanques do foguete (`rocket_fuel_tank`). Receitas simples e entradas no JEI.
 - **Censo e especificação** (`ShipCensus`, `ShipSpecs`, `ShipCensusScanner`): conta os blocos da caixa da nave por papel, em lotes, lendo a paleta
   de cada seção; massa por bloco (ponte 2 t, motor 1,5 t, tanque 0,3 t, qualquer outro bloco 0,02 t), empuxo dos motores e capacidade dos tanques
   viram o mesmo `RocketStats` do foguete (Δv, TWR). `/spacehorizons ship census [id]` imprime os números.
 - **Voo virtual** (`ShipFlight`, `ShipFlightTicker`): a cada tick do servidor cada nave que voa avança um passo; o estado fica no `ShipRecord`
   (grava de 100 em 100 ticks e ao parar o servidor); o combustível do voo e o dos tanques de blocos se acompanham (um galão despejado num tanque
-  entra no voo). A proa da nave é o norte (-Z) do estaleiro. O servidor manda o estado virtual a quem está dentro a cada 2 ticks
+  entra no voo). A PROA é definida pela ponte (o lado oposto ao `facing` dela) e cada motor de impulso empurra para o lado oposto ao bocal
+  (`facing`); a soma vetorial dos motores é o empuxo (`ShipArrangement`, sem torque). O servidor manda o estado virtual a quem está dentro a cada 2 ticks
   (`ShipStatePayload`) e a telemetria ao piloto a cada 4.
 - **Pilotar** (`ShipSeatEntity`, `client/ship/ShipPilot`, `ShipPanel`): clique direito no assento senta (uma entidade invisível e parada carrega o
   jogador; ninguém é teletransportado). As teclas são as do foguete: W/S arfagem, A/D guinada, Q/E rolagem, Shift/Ctrl sobem e descem o acelerador

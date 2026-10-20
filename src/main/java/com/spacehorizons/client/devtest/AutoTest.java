@@ -4590,6 +4590,43 @@ public final class AutoTest {
             ShipDevtest.check(c + "a órbita mudou durante a caminhada (queima contínua, apoastro maior que antes de levantar)", l.apoapsis() > shipApBefore + 3_000.0,
                     String.format(java.util.Locale.ROOT, "apoastro %.0f -> %.0f", shipApBefore, l.apoapsis()));
         });
+
+        // F. motores em direcoes diferentes: dois viram o bocal para o oeste (empurram para o leste = a direita da nave, a Terra) e dois seguem
+        // empurrando pela proa. A queima continua ligada: o apoastro continua subindo (componente pela proa) e o periastro cai (componente para a Terra).
+        step(5, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            shipApBefore = l.apoapsis();
+            shipPeBefore = l.periapsis();
+            String census = ShipDevtest.onServer(mc, server -> {
+                var yard = com.spacehorizons.ship.ShipYard.level(server);
+                for (int i = 0; i < 2; i++) {
+                    yard.setBlock(fl.engines().get(i), ModBlocks.SHIP_IMPULSE_ENGINE.get().defaultBlockState()
+                            .setValue(com.spacehorizons.ship.block.ShipImpulseEngineBlock.FACING, Direction.WEST), 3);
+                }
+                var result = com.spacehorizons.ship.ShipCensusService.scanNow(server, com.spacehorizons.ship.ShipRegistry.get(server).byId(1));
+                return result.arrangement().toString();
+            });
+            SpaceHorizons.LOGGER.info(TAG + "SHIP dois motores viraram o bocal para o oeste: {} | antes: apoastro={} periastro={}", census, f(shipApBefore), f(shipPeBefore));
+        });
+        look(5, 0f, 5f);
+        step(20, mc -> {
+            String line = ShipDevtest.onServer(mc, server -> {
+                var live = com.spacehorizons.ship.ShipFlightTicker.live(1);
+                return live == null ? "?" : live.arrangement() + " empuxo=" + live.stats().thrust();
+            });
+            ShipDevtest.check(c + "o voo adotou os motores em direcoes diferentes (2 para o sul, 2 para o oeste: empuxo liquido 2*raiz(2)*8)", line.contains("nozzleWest=2")
+                    && line.contains("nozzleSouth=2") && line.contains("empuxo=22.6"), line);
+        });
+        shot(5, "ship_09_engines_two_directions_burning");
+        step(120, mc -> {
+            ShipPilotDevtest.Live l = ShipPilotDevtest.live(mc, 1);
+            SpaceHorizons.LOGGER.info(TAG + "SHIP depois da queima com motores em duas direcoes: apoastro {} -> {}, periastro {} -> {}", f(shipApBefore), f(l.apoapsis()),
+                    f(shipPeBefore), f(l.periapsis()));
+            ShipDevtest.check(c + "motores em duas direcoes: o apoastro sobe (componente pela proa) e o periastro tambem muda (componente para a Terra, a direita)",
+                    l.apoapsis() > shipApBefore + 500.0 && Math.abs(l.periapsis() - shipPeBefore) > 100.0,
+                    String.format(java.util.Locale.ROOT, "apoastro %.0f -> %.0f, periastro %.0f -> %.0f", shipApBefore, l.apoapsis(), shipPeBefore, l.periapsis()));
+        });
+        shot(5, "ship_10_after_mixed_burn_panel");
         cmd(5, "gamerule send_command_feedback true");
         cmd(5, "gamerule show_advancement_messages true");
         step(20, mc -> {
@@ -4598,4 +4635,6 @@ public final class AutoTest {
             mc.stop();
         });
     }
+
+    private double shipPeBefore;
 }
