@@ -39,6 +39,9 @@ import com.spacehorizons.space.SpaceFrame;
 import com.spacehorizons.space.SunModel;
 import com.spacehorizons.space.travel.TravelMath;
 
+import org.lwjgl.sdl.SDLVideo;
+
+import net.minecraft.client.InactivityFpsLimit;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.core.BlockPos;
@@ -95,6 +98,7 @@ public final class AutoTest {
     /** Com -PshOnly=NOME roda só um trecho do roteiro (hoje: clouds). */
     private static final String ONLY = System.getProperty("spacehorizons.autotest.only");
     private boolean freshRequested;
+    private boolean windowPrepared;
     private int menuTicks;
     private int index;
     private Ticker active;
@@ -3224,6 +3228,22 @@ public final class AutoTest {
         return String.format("%.2f", v);
     }
 
+    /**
+     * Janela e opções iguais em todo autoteste: janela maximizada, escala da interface 2, sem pausar ao perder o
+     * foco (a janela sem foco abria o menu e estragava os prints), sem limite de fps fora de foco e sem a tela de
+     * acessibilidade da primeira execução. Roda no primeiro tick do cliente (thread da janela).
+     */
+    private void prepareWindow(Minecraft mc) {
+        windowPrepared = true;
+        SDLVideo.SDL_MaximizeWindow(mc.getWindow().handle());
+        mc.options.guiScale().set(2);
+        mc.options.pauseOnLostFocus = false;
+        mc.options.onboardAccessibility = false;
+        mc.options.inactivityFpsLimit().set(InactivityFpsLimit.MINIMIZED);
+        mc.options.save();
+        SpaceHorizons.LOGGER.info(TAG + "janela maximizada, escala da interface 2");
+    }
+
     public static void register() {
         AutoTest test = new AutoTest();
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, e -> test.tick());
@@ -3232,6 +3252,9 @@ public final class AutoTest {
 
     private void tick() {
         Minecraft mc = Minecraft.getInstance();
+        if (!windowPrepared) {
+            prepareWindow(mc);
+        }
         if (FRESH_WORLD != null && !freshRequested && mc.level == null && mc.gui.screen() instanceof TitleScreen) {
             freshRequested = true;
             createFreshWorld(mc);
