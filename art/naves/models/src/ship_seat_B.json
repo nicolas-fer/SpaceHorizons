@@ -1,0 +1,504 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "spacehorizons:block/ship_seat_frame",
+    "seat": "spacehorizons:block/ship_seat",
+    "frame": "spacehorizons:block/ship_seat_frame",
+    "casing": "spacehorizons:block/machine_casing"
+  },
+  "elements": [
+    {
+      "name": "base",
+      "from": [
+        2,
+        0,
+        2
+      ],
+      "to": [
+        14,
+        5,
+        14
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            2,
+            11,
+            14,
+            16
+          ],
+          "texture": "#frame"
+        },
+        "east": {
+          "uv": [
+            2,
+            11,
+            14,
+            16
+          ],
+          "texture": "#frame"
+        },
+        "south": {
+          "uv": [
+            2,
+            11,
+            14,
+            16
+          ],
+          "texture": "#frame"
+        },
+        "west": {
+          "uv": [
+            2,
+            11,
+            14,
+            16
+          ],
+          "texture": "#frame"
+        },
+        "up": {
+          "uv": [
+            2,
+            2,
+            14,
+            14
+          ],
+          "texture": "#frame"
+        },
+        "down": {
+          "uv": [
+            2,
+            2,
+            14,
+            14
+          ],
+          "texture": "#frame",
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "name": "assento",
+      "from": [
+        2,
+        5,
+        1
+      ],
+      "to": [
+        14,
+        7,
+        13
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            2,
+            9,
+            14,
+            11
+          ],
+          "texture": "#seat"
+        },
+        "east": {
+          "uv": [
+            3,
+            9,
+            15,
+            11
+          ],
+          "texture": "#seat"
+        },
+        "south": {
+          "uv": [
+            2,
+            9,
+            14,
+            11
+          ],
+          "texture": "#seat"
+        },
+        "west": {
+          "uv": [
+            1,
+            9,
+            13,
+            11
+          ],
+          "texture": "#seat"
+        },
+        "up": {
+          "uv": [
+            2,
+            1,
+            14,
+            13
+          ],
+          "texture": "#seat"
+        }
+      }
+    },
+    {
+      "name": "encosto",
+      "from": [
+        3,
+        7,
+        12
+      ],
+      "to": [
+        13,
+        14,
+        14
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            3,
+            2,
+            13,
+            9
+          ],
+          "texture": "#seat"
+        },
+        "east": {
+          "uv": [
+            2,
+            2,
+            4,
+            9
+          ],
+          "texture": "#seat"
+        },
+        "south": {
+          "uv": [
+            3,
+            2,
+            13,
+            9
+          ],
+          "texture": "#seat"
+        },
+        "west": {
+          "uv": [
+            12,
+            2,
+            14,
+            9
+          ],
+          "texture": "#seat"
+        },
+        "up": {
+          "uv": [
+            3,
+            12,
+            13,
+            14
+          ],
+          "texture": "#seat"
+        }
+      }
+    },
+    {
+      "name": "aba_esq",
+      "from": [
+        2,
+        7,
+        10
+      ],
+      "to": [
+        3,
+        13,
+        14
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            13,
+            3,
+            14,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "east": {
+          "uv": [
+            2,
+            3,
+            6,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "south": {
+          "uv": [
+            2,
+            3,
+            3,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "west": {
+          "uv": [
+            10,
+            3,
+            14,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "up": {
+          "uv": [
+            2,
+            10,
+            3,
+            14
+          ],
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "aba_dir",
+      "from": [
+        13,
+        7,
+        10
+      ],
+      "to": [
+        14,
+        13,
+        14
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            2,
+            3,
+            3,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "east": {
+          "uv": [
+            2,
+            3,
+            6,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "south": {
+          "uv": [
+            13,
+            3,
+            14,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "west": {
+          "uv": [
+            10,
+            3,
+            14,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "up": {
+          "uv": [
+            13,
+            10,
+            14,
+            14
+          ],
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "cabeca",
+      "from": [
+        5,
+        14,
+        12
+      ],
+      "to": [
+        11,
+        16,
+        14
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            5,
+            0,
+            11,
+            2
+          ],
+          "texture": "#seat"
+        },
+        "east": {
+          "uv": [
+            2,
+            0,
+            4,
+            2
+          ],
+          "texture": "#seat"
+        },
+        "south": {
+          "uv": [
+            5,
+            0,
+            11,
+            2
+          ],
+          "texture": "#seat"
+        },
+        "west": {
+          "uv": [
+            12,
+            0,
+            14,
+            2
+          ],
+          "texture": "#seat"
+        },
+        "up": {
+          "uv": [
+            5,
+            12,
+            11,
+            14
+          ],
+          "texture": "#seat",
+          "cullface": "up"
+        }
+      }
+    },
+    {
+      "name": "console_esq",
+      "from": [
+        0,
+        5,
+        4
+      ],
+      "to": [
+        2,
+        8,
+        10
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            14,
+            8,
+            16,
+            11
+          ],
+          "texture": "#casing"
+        },
+        "east": {
+          "uv": [
+            6,
+            8,
+            12,
+            11
+          ],
+          "texture": "#casing"
+        },
+        "south": {
+          "uv": [
+            0,
+            8,
+            2,
+            11
+          ],
+          "texture": "#casing"
+        },
+        "west": {
+          "uv": [
+            4,
+            8,
+            10,
+            11
+          ],
+          "texture": "#casing",
+          "cullface": "west"
+        },
+        "up": {
+          "uv": [
+            0,
+            4,
+            2,
+            10
+          ],
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "console_dir",
+      "from": [
+        14,
+        5,
+        4
+      ],
+      "to": [
+        16,
+        8,
+        10
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            8,
+            2,
+            11
+          ],
+          "texture": "#casing"
+        },
+        "east": {
+          "uv": [
+            6,
+            8,
+            12,
+            11
+          ],
+          "texture": "#casing",
+          "cullface": "east"
+        },
+        "south": {
+          "uv": [
+            14,
+            8,
+            16,
+            11
+          ],
+          "texture": "#casing"
+        },
+        "west": {
+          "uv": [
+            4,
+            8,
+            10,
+            11
+          ],
+          "texture": "#casing"
+        },
+        "up": {
+          "uv": [
+            14,
+            4,
+            16,
+            10
+          ],
+          "texture": "#frame"
+        }
+      }
+    }
+  ]
+}

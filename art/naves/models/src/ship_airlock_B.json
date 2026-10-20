@@ -1,0 +1,315 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "spacehorizons:block/ship_airlock_side",
+    "front": "spacehorizons:block/ship_airlock",
+    "side": "spacehorizons:block/ship_airlock_side",
+    "casing": "spacehorizons:block/machine_casing",
+    "hazard": "spacehorizons:block/hazard_stripes"
+  },
+  "elements": [
+    {
+      "name": "porta",
+      "from": [
+        0,
+        0,
+        3
+      ],
+      "to": [
+        16,
+        16,
+        13
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#front"
+        },
+        "east": {
+          "uv": [
+            3,
+            0,
+            13,
+            16
+          ],
+          "texture": "#side",
+          "cullface": "east"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#front"
+        },
+        "west": {
+          "uv": [
+            3,
+            0,
+            13,
+            16
+          ],
+          "texture": "#side",
+          "cullface": "west"
+        },
+        "up": {
+          "uv": [
+            0,
+            3,
+            16,
+            13
+          ],
+          "texture": "#side",
+          "cullface": "up"
+        },
+        "down": {
+          "uv": [
+            0,
+            3,
+            16,
+            13
+          ],
+          "texture": "#side",
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "name": "travessa",
+      "from": [
+        0,
+        13,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        3
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ],
+          "texture": "#hazard",
+          "cullface": "north"
+        },
+        "east": {
+          "uv": [
+            13,
+            0,
+            16,
+            3
+          ],
+          "texture": "#casing",
+          "cullface": "east"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            3,
+            3
+          ],
+          "texture": "#casing",
+          "cullface": "west"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ],
+          "texture": "#casing",
+          "cullface": "up"
+        },
+        "down": {
+          "uv": [
+            0,
+            13,
+            16,
+            16
+          ],
+          "texture": "#casing"
+        }
+      }
+    },
+    {
+      "name": "pistao_esq",
+      "from": [
+        0.5,
+        1,
+        1
+      ],
+      "to": [
+        2.5,
+        13,
+        3
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            13.5,
+            3,
+            15.5,
+            15
+          ],
+          "texture": "#casing"
+        },
+        "east": {
+          "uv": [
+            13,
+            3,
+            15,
+            15
+          ],
+          "texture": "#casing"
+        },
+        "west": {
+          "uv": [
+            1,
+            3,
+            3,
+            15
+          ],
+          "texture": "#casing"
+        },
+        "down": {
+          "uv": [
+            0.5,
+            13,
+            2.5,
+            15
+          ],
+          "texture": "#casing"
+        }
+      }
+    },
+    {
+      "name": "pistao_dir",
+      "from": [
+        13.5,
+        1,
+        1
+      ],
+      "to": [
+        15.5,
+        13,
+        3
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0.5,
+            3,
+            2.5,
+            15
+          ],
+          "texture": "#casing"
+        },
+        "east": {
+          "uv": [
+            13,
+            3,
+            15,
+            15
+          ],
+          "texture": "#casing"
+        },
+        "west": {
+          "uv": [
+            1,
+            3,
+            3,
+            15
+          ],
+          "texture": "#casing"
+        },
+        "down": {
+          "uv": [
+            13.5,
+            13,
+            15.5,
+            15
+          ],
+          "texture": "#casing"
+        }
+      }
+    },
+    {
+      "name": "soleira",
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        1,
+        3
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            15,
+            16,
+            16
+          ],
+          "texture": "#casing",
+          "cullface": "north"
+        },
+        "east": {
+          "uv": [
+            13,
+            15,
+            16,
+            16
+          ],
+          "texture": "#casing",
+          "cullface": "east"
+        },
+        "west": {
+          "uv": [
+            0,
+            15,
+            3,
+            16
+          ],
+          "texture": "#casing",
+          "cullface": "west"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "down": {
+          "uv": [
+            0,
+            13,
+            16,
+            16
+          ],
+          "texture": "#casing",
+          "cullface": "down"
+        }
+      }
+    }
+  ]
+}
