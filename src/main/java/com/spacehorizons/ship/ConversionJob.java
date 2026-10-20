@@ -20,6 +20,8 @@ abstract class ConversionJob {
     private double serverMsTotal;
     private double serverMsMax;
     private int serverSamples;
+    /** Os números dos ticks do servidor em que o job trabalhou (o tempo de cada um só existe no fim dele: ver {@link #sampleServerTicks}). */
+    private final List<Integer> jobTickIds = new ArrayList<>();
     final List<String> losses = new ArrayList<>();
     final List<String> notes = new ArrayList<>();
     String error;
@@ -45,15 +47,7 @@ abstract class ConversionJob {
     /** Chamado pelo gerenciador a cada tick: mede o passo. */
     final boolean run(MinecraftServer server, ConversionBudget budget) {
         long t0 = System.nanoTime();
-        // o tick anterior do servidor já terminou (o próprio inclui o nosso trabalho, que roda no fim do tick): é a melhor amostra do custo total
-        long[] times = server.getTickTimesNanos();
-        long previous = times[(int) Math.floorMod((long) server.getTickCount() - 1L, (long) times.length)];
-        if (this.ticks > 0 && previous > 0L) {
-            double ms = previous / 1.0e6;
-            this.serverMsTotal += ms;
-            this.serverMsMax = Math.max(this.serverMsMax, ms);
-            this.serverSamples++;
-        }
+        this.jobTickIds.add(server.getTickCount());
         boolean done;
         try {
             done = step(server, budget);
@@ -72,6 +66,23 @@ abstract class ConversionJob {
         this.jobMsTotal += ms;
         this.jobMsMax = Math.max(this.jobMsMax, ms);
         return done;
+    }
+
+    /**
+     * Lê o tempo do tick COMPLETO do servidor de cada tick em que o job trabalhou (inclui o nosso trabalho, que roda no fim do tick). Só
+     * vale a partir do tick seguinte ao último do job, e só para os últimos 95 ticks (o servidor guarda 100).
+     */
+    final void sampleServerTicks(MinecraftServer server) {
+        long[] times = server.getTickTimesNanos();
+        int now = server.getTickCount();
+        for (int id : this.jobTickIds) {
+            if (id < now && now - id <= 95) {
+                double ms = times[Math.floorMod(id, times.length)] / 1.0e6;
+                this.serverMsTotal += ms;
+                this.serverMsMax = Math.max(this.serverMsMax, ms);
+                this.serverSamples++;
+            }
+        }
     }
 
     final ConversionReport report() {

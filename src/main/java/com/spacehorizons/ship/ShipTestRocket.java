@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
 
+import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.content.ModBlocks;
 import com.spacehorizons.content.ModEntities;
 import com.spacehorizons.rocket.PortraitGrid;
@@ -114,7 +115,9 @@ public final class ShipTestRocket {
                     BlockState state = hull;
                     boolean side = (x == 0 || x == sx - 1) != (z == 0 || z == sz - 1);
                     if (y == 0) {
-                        state = Math.abs(x - cx) <= 1 && Math.abs(z - cz) <= 1 && (x != cx || z != cz) ? engine : brick;
+                        boolean engineCell = Math.abs(x - cx) <= 1 && Math.abs(z - cz) <= 1 && (x != cx || z != cz);
+                        // lanternas no piso (a luz de bloco de uma nave grande não chega do teto até o chão)
+                        state = engineCell ? engine : (x % 5 == 2 && z % 5 == 2 ? lantern : brick);
                     } else if (y == sy - 1 && x % 6 == 3 && z % 6 == 3) {
                         state = lantern;
                     } else if (side && (y == sy / 2 || y == sy / 2 + 1) && ((x == 0 || x == sx - 1) ? z >= 3 && z <= sz - 4 : x >= 3 && x <= sx - 4)) {
@@ -146,14 +149,25 @@ public final class ShipTestRocket {
             blockEntities.put(at.asLong(), ShipBlockKeys.nbtOf(tank, registries));
         }
 
-        // fornalha (sem combustível, para não mudar de estado sozinha) e barril
+        // fornalha ACESA e com progresso (o estado que a conversão tem de preservar): minério, carvão e as contagens do cozimento
         BlockPos furnacePos = new BlockPos(cx, 1, 2);
-        BlockState furnaceState = Blocks.FURNACE.defaultBlockState().setValue(AbstractFurnaceBlock.FACING, Direction.SOUTH);
+        BlockState furnaceState = Blocks.FURNACE.defaultBlockState().setValue(AbstractFurnaceBlock.FACING, Direction.SOUTH).setValue(AbstractFurnaceBlock.LIT, true);
         put(grid, palette, index, furnacePos.getX(), furnacePos.getY(), furnacePos.getZ(), furnaceState);
         FurnaceBlockEntity furnace = new FurnaceBlockEntity(furnacePos, furnaceState);
         furnace.setItem(0, new ItemStack(Items.RAW_IRON, 64));
+        furnace.setItem(1, new ItemStack(Items.COAL, 32));
         furnace.setItem(2, new ItemStack(Items.IRON_INGOT, 12));
-        blockEntities.put(furnacePos.asLong(), ShipBlockKeys.nbtOf(furnace, registries));
+        CompoundTag furnaceTag = ShipBlockKeys.nbtOf(furnace, registries);
+        for (String[] kv : new String[][] {{"lit_time_remaining", "1200"}, {"lit_total_time", "1600"}, {"cooking_time_spent", "57"}, {"cooking_total_time", "200"}}) {
+            net.minecraft.nbt.Tag current = furnaceTag.get(kv[0]);
+            if (current instanceof net.minecraft.nbt.ShortTag) {
+                furnaceTag.putShort(kv[0], Short.parseShort(kv[1]));     // mesmo tipo que o salvamento do jogo usa (a conferência estrita é sensível ao tipo)
+            } else if (current != null) {
+                furnaceTag.putInt(kv[0], Integer.parseInt(kv[1]));
+            }
+        }
+        SpaceHorizons.LOGGER.info("[ship-conv] NBT da fornalha de teste: {}", furnaceTag);
+        blockEntities.put(furnacePos.asLong(), furnaceTag);
 
         BlockPos barrelPos = new BlockPos(cx, 1, sz - 3);
         BlockState barrelState = Blocks.BARREL.defaultBlockState();

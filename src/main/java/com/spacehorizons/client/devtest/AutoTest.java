@@ -3749,10 +3749,13 @@ public final class AutoTest {
         step(60, mc -> logPos(mc, "CONV posição de partida"));
 
         convertCycle("c0500", 500, false, false, 1500, 20);
+        packetGuardCycle();
         convertCycle("c8000", 8000, false, false, 1500, 20);
+        convertCycle("c8000_um_tick", 8000, false, false, 1_000_000, 0);
         convertCycle("c4000", 4000, true, true, 1500, 20);
         convertCycle("c4000_lotes_pequenos", 4000, false, false, 400, 20);
         convertCycle("c4000_um_tick", 4000, false, false, 1_000_000, 0);
+        reloadMidConversionCycle();
 
         cmd(5, "spacehorizons ship budget 1500 20");
         cmd(5, "gamerule send_command_feedback true");
@@ -4023,5 +4026,115 @@ public final class AutoTest {
                 return false;
             }
         };
+    }
+
+    /**
+     * A guarda do pacote: com o teto do pacote de spawn baixado para 10.000 bytes, a nave de 500 blocos (24.500 bytes) NÃO volta a foguete: a
+     * conversão recusa, a nave continua no estaleiro intacta e nenhuma entidade aparece. Com o teto de volta ao normal, volta e pousa.
+     */
+    private void packetGuardCycle() {
+        String c = "CONV guarda_pacote: ";
+        cmd(5, "spacehorizons ship budget 1500 20");
+        step(10, mc -> ShipConvertDevtest.spawn(mc, 500));
+        cmd(40, "spacehorizons ship fromrocket");
+        tickerStep(0, waitConversion(c + "entidade -> blocos", 3000));
+        step(30, mc -> {
+            convShipId = ShipConvertDevtest.firstShipId(mc);
+            ShipDevtest.check(c + "nave pronta no estaleiro", convShipId > 0 && ShipConvertDevtest.shipPhase(mc, convShipId).equals("READY+snapshot"),
+                    "id=" + convShipId + " fase=" + ShipConvertDevtest.shipPhase(mc, convShipId));
+            ShipConvertDevtest.setMaxPacket(mc, 10_000);
+        });
+        step(5, mc -> mc.player.connection.sendCommand("spacehorizons ship torocket " + convShipId));
+        tickerStep(0, waitConversion(c + "blocos -> entidade (tem de ser recusada)", 3000));
+        step(40, mc -> {
+            com.spacehorizons.ship.ConversionReport r = ShipConvertDevtest.lastReport(mc);
+            ShipConvertDevtest.logReport("guarda_pacote recusada", r);
+            ShipDevtest.check(c + "a conversão foi recusada citando o pacote", r != null && !r.ok() && r.error().contains("pacote"), r == null ? "sem relatório" : r.error());
+            ShipDevtest.check(c + "a nave continua pronta no estaleiro", ShipConvertDevtest.shipPhase(mc, convShipId).equals("READY+snapshot"),
+                    "fase=" + ShipConvertDevtest.shipPhase(mc, convShipId));
+            ShipDevtest.check(c + "nenhuma entidade de foguete apareceu", !ShipConvertDevtest.rocketEntityExists(mc), "existe=" + ShipConvertDevtest.rocketEntityExists(mc));
+            Object[] chk = ShipConvertDevtest.yardCheck(mc, convShipId);
+            ShipDevtest.check(c + "a nave segue intacta (itens exatos, células iguais, combustível igual)",
+                    "".equals(chk[0]) && ((Integer) chk[1]) == 0 && ((Integer) chk[2]) == expectedFuel(), "itens=[" + chk[0] + "] células=" + chk[1] + " combustível=" + chk[2]);
+            ShipConvertDevtest.setMaxPacket(mc, 1 << 20);
+        });
+        step(5, mc -> mc.player.connection.sendCommand("spacehorizons ship torocket " + convShipId));
+        tickerStep(0, waitConversion(c + "blocos -> entidade (com o teto normal)", 3000));
+        step(40, mc -> {
+            com.spacehorizons.ship.ConversionReport r = ShipConvertDevtest.lastReport(mc);
+            ShipDevtest.check(c + "com o teto normal a nave volta a foguete sem perdas", r != null && r.ok() && r.losses().isEmpty() && ShipConvertDevtest.rocketEntityExists(mc),
+                    r == null ? "sem relatório" : r.losses() + " " + r.error());
+        });
+        landAndCleanup(c);
+    }
+
+    /** Pousa o foguete (entidade) no chão, confere os blocos, os itens e o combustível, e limpa o lugar. */
+    private void landAndCleanup(String c) {
+        step(10, mc -> {
+            String err = ShipConvertDevtest.land(mc);
+            ShipDevtest.check(c + "o foguete desmontou no chão (RocketLanding)", "".equals(err), "erro=" + err);
+            if ("".equals(err)) {
+                Object[] chk = ShipConvertDevtest.landedCheck(mc);
+                ShipDevtest.check(c + "no chão: itens EXATOS depois da ida e volta", "".equals(chk[0]), "diferenças=[" + chk[0] + "]");
+                ShipDevtest.check(c + "no chão: todas as células iguais ao retrato original", ((Integer) chk[1]) == 0, "diferentes=" + chk[1]);
+                ShipDevtest.check(c + "no chão: combustível dos tanques igual", ((Integer) chk[2]) == expectedFuel(), "tanques=" + chk[2]);
+            }
+        });
+        step(10, mc -> ShipConvertDevtest.clearLanded(mc));
+        step(20, mc -> ShipConvertDevtest.discardRocket(mc));
+    }
+
+    /**
+     * Fecha e reabre o mundo NO MEIO de uma conversão entidade -> blocos (orçamento minúsculo, a nave ainda em FILLING com blocos pela
+     * metade): ao reabrir, a recuperação limpa a caixa e esquece a nave, a entidade segue inteira (ela era a verdade) e uma conversão nova
+     * funciona normalmente, ida e volta e pouso sem perdas.
+     */
+    private void reloadMidConversionCycle() {
+        String c = "CONV reload_no_meio: ";
+        cmd(5, "spacehorizons ship budget 25 0");
+        step(10, mc -> ShipConvertDevtest.spawn(mc, 4000));
+        cmd(40, "spacehorizons ship fromrocket");
+        step(40, mc -> {
+            convShipId = ShipConvertDevtest.firstShipId(mc);
+            String phase = ShipConvertDevtest.shipPhase(mc, convShipId);
+            ShipDevtest.check(c + "a conversão está em andamento e a nave em FILLING", ShipConvertDevtest.busy(mc) && phase.startsWith("FILLING"),
+                    "ocupado=" + ShipConvertDevtest.busy(mc) + " fase=" + phase);
+            convBox = ShipConvertDevtest.boxOf(mc, convShipId);
+            SpaceHorizons.LOGGER.info(TAG + "SHIPCONV fechando o mundo NO MEIO da conversão (nave {} em {})", convShipId, phase);
+            ShipDevtest.startReload(mc, FRESH_WORLD);
+        });
+        step(400, mc -> SpaceHorizons.LOGGER.info(TAG + "SHIPCONV mundo reaberto depois de fechar no meio da conversão"));
+        tickerStep(0, waitConversion(c + "limpeza de recuperação", 3000));
+        step(40, mc -> {
+            com.spacehorizons.ship.ConversionReport r = ShipConvertDevtest.lastReport(mc);
+            ShipConvertDevtest.logReport("reload_no_meio recuperação", r);
+            ShipDevtest.check(c + "a recuperação limpou a caixa e esqueceu a nave", ShipDevtest.shipCount(mc) == 0 && ShipDevtest.heldCount(mc) == 0
+                    && ShipConvertDevtest.nonAirInBox(mc, convBox) == 0, "naves=" + ShipDevtest.shipCount(mc) + " seguradas=" + ShipDevtest.heldCount(mc)
+                    + " blocos na caixa=" + ShipConvertDevtest.nonAirInBox(mc, convBox));
+            String info = ShipConvertDevtest.rocketInfo(mc);
+            ShipDevtest.check(c + "a entidade do foguete continua inteira no overworld", info != null && info.contains("blocos=" + ShipConvertDevtest.current.portrait().blockCount()),
+                    String.valueOf(info));
+        });
+        cmd(5, "spacehorizons ship budget 1500 20");
+        cmd(10, "spacehorizons ship fromrocket");
+        tickerStep(0, waitConversion(c + "entidade -> blocos (depois da recuperação)", 3000));
+        step(30, mc -> {
+            com.spacehorizons.ship.ConversionReport r = ShipConvertDevtest.lastReport(mc);
+            convShipId = ShipConvertDevtest.firstShipId(mc);
+            ShipDevtest.check(c + "nova conversão entidade -> blocos sem perdas", r != null && r.ok() && r.losses().isEmpty(), r == null ? "sem relatório" : r.losses() + " " + r.error());
+            Object[] chk = ShipConvertDevtest.yardCheck(mc, convShipId);
+            ShipDevtest.check(c + "no estaleiro: itens exatos, células iguais, combustível igual", "".equals(chk[0]) && ((Integer) chk[1]) == 0 && ((Integer) chk[2]) == expectedFuel(),
+                    "itens=[" + chk[0] + "] células=" + chk[1] + " combustível=" + chk[2]);
+        });
+        step(5, mc -> mc.player.connection.sendCommand("spacehorizons ship torocket " + convShipId));
+        tickerStep(0, waitConversion(c + "blocos -> entidade (depois da recuperação)", 3000));
+        step(30, mc -> {
+            com.spacehorizons.ship.ConversionReport r = ShipConvertDevtest.lastReport(mc);
+            ShipDevtest.check(c + "nova conversão blocos -> entidade sem perdas", r != null && r.ok() && r.losses().isEmpty() && ShipConvertDevtest.rocketEntityExists(mc),
+                    r == null ? "sem relatório" : r.losses() + " " + r.error());
+        });
+        landAndCleanup(c);
+        cmd(10, "tp @s 0 200 0");
+        fly(20);
     }
 }

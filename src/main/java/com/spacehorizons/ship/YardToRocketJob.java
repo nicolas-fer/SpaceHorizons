@@ -248,6 +248,12 @@ final class YardToRocketJob extends ConversionJob {
         RocketPortrait portrait = new RocketPortrait(UUID.randomUUID(), grid, palette, blockEntities, cockpit);
         this.packetBytes = RocketPortrait.encodedSize(portrait);
         this.after = builder.build();
+        if (this.packetBytes > ShipConversions.maxPacketBytes()) {
+            // o pacote de spawn do foguete tem 1 MiB no máximo (o cliente recusa e desconecta): a nave continua no estaleiro, intacta
+            fail("o retrato da nave tem " + this.packetBytes + " bytes no pacote de spawn, acima do limite de " + ShipConversions.maxPacketBytes()
+                    + " (muitos block entities com inventário cheio); a nave fica no estaleiro");
+            return;
+        }
         this.losses.addAll(this.snapshot.manifest().diff(this.after));
         if (this.snapshot.manifest().volatileBlockEntities() > 0) {
             this.notes.add(this.after.volatileBlockEntities() + " fornalha(s): itens " + this.snapshot.manifest().volatileItems() + " -> " + this.after.volatileItems()

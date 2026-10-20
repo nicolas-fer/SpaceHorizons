@@ -26,6 +26,10 @@ public final class ShipConversions {
     private static final Set<UUID> FROZEN = new HashSet<>();
     private static final List<ConversionReport> REPORTS = new ArrayList<>();
     private static boolean recovered;
+    /** O job que acabou no tick anterior: o tempo do tick dele só fica disponível no tick seguinte (ver {@link ConversionJob#sampleServerTicks}). */
+    private static ConversionJob tail;
+    /** Teto do retrato no pacote de spawn do foguete (1 MiB do plugin do cliente); configurável só para teste. */
+    private static int maxPacketBytes = com.spacehorizons.rocket.RocketAssembler.MAX_PACKET_BYTES;
 
     private ShipConversions() {
     }
@@ -69,19 +73,38 @@ public final class ShipConversions {
             recovered = true;
             recover(server);
         }
+        if (tail != null) {
+            publish(server, tail);
+            tail = null;
+        }
         ConversionJob job = JOBS.peekFirst();
         if (job == null) {
             return;
         }
         if (job.run(server, ConversionBudget.forTick())) {
             JOBS.pollFirst();
-            ConversionReport report = job.report();
-            REPORTS.add(report);
-            SpaceHorizons.LOGGER.info("[ship-conv] {}", report.line());
             if (job instanceof RocketToYardJob toYard) {
                 FROZEN.remove(toYard.rocketUuid());
             }
+            tail = job;
         }
+    }
+
+    private static void publish(MinecraftServer server, ConversionJob job) {
+        job.sampleServerTicks(server);
+        ConversionReport report = job.report();
+        REPORTS.add(report);
+        SpaceHorizons.LOGGER.info("[ship-conv] {}", report.line());
+    }
+
+    /** Teto, em bytes, do retrato no pacote de spawn: acima disso a nave NÃO volta a foguete (o cliente recusaria o pacote). */
+    public static int maxPacketBytes() {
+        return maxPacketBytes;
+    }
+
+    /** Só para teste: baixa o teto para provar a recusa. */
+    public static void setMaxPacketBytes(int bytes) {
+        maxPacketBytes = Math.max(1, bytes);
     }
 
     /** O foguete está sendo convertido (o voo dele não deve tickar)? Chamado de {@code RocketEntity.tick}. */
@@ -133,5 +156,7 @@ public final class ShipConversions {
         FROZEN.clear();
         REPORTS.clear();
         recovered = false;
+        tail = null;
+        maxPacketBytes = com.spacehorizons.rocket.RocketAssembler.MAX_PACKET_BYTES;
     }
 }

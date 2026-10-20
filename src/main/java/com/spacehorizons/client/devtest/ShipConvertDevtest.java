@@ -131,6 +131,13 @@ final class ShipConvertDevtest {
 
     // ---- estado da conversão ----
 
+    static void setMaxPacket(Minecraft mc, int bytes) {
+        ShipDevtest.onServer(mc, server -> {
+            ShipConversions.setMaxPacketBytes(bytes);
+            return null;
+        });
+    }
+
     static boolean busy(Minecraft mc) {
         return ShipDevtest.onServer(mc, server -> ShipConversions.busy());
     }
