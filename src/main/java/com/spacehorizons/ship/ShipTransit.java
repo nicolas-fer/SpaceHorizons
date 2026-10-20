@@ -26,6 +26,10 @@ public final class ShipTransit {
             return false;
         }
         // nave vinda de um foguete (S3): perto do cockpit; nave de teste (S2): o salão do layout
+        if (ship.flies() && ship.snapshot().isEmpty()) {
+            // nave de voo de teste (1c): a sala da ponte, olhando para a proa (norte, yaw 180)
+            return enterAt(player, ship, ShipBuilder.flightLayout(ship.box()).hallPoint(), 180.0F, 0.0F);
+        }
         Vec3 at = ship.snapshot().isPresent() ? ShipSpots.nearCockpit(yard, ship) : ShipBuilder.layout(ship.box()).spawnPoint();
         return enterAt(player, ship, at, -90.0F, 0.0F);
     }

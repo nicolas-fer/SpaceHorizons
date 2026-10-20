@@ -1,0 +1,347 @@
+package com.spacehorizons.ship;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import org.jspecify.annotations.Nullable;
+
+import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.rocket.FlightMode;
+import com.spacehorizons.rocket.RocketControlPayload;
+import com.spacehorizons.rocket.RocketFuel;
+import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
+import com.spacehorizons.rocket.RocketTelemetryBuilder;
+import com.spacehorizons.space.SpaceClock;
+import com.spacehorizons.space.flight.FlightState;
+import com.spacehorizons.space.flight.RocketStats;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.PacketDistributor;
+
+/**
+ * O voo das naves no servidor (plano 2.5, fase 1c): a cada tick avança o {@link ShipFlight.State} de cada nave que voa (as do registro com
+ * {@link ShipRecord#flight}), lê o comando do piloto ({@link ShipControlState}), mantém o combustível dos tanques de blocos de acordo com o
+ * do voo, grava o estado no {@link ShipRegistry} e manda o estado virtual ({@link ShipStatePayload}) a quem está dentro da nave e a telemetria
+ * ao piloto. Nenhuma entidade se move e ninguém dentro é empurrado: a nave é o referencial (plano 6).
+ *
+ * <p>Todas as naves que voam são integradas a cada tick, mesmo sem ninguém dentro: um passo de integrador custa poucas dezenas de operações,
+ * então não há passo grosso (o plano previa Kepler para naves vazias; o custo medido não justifica o código a mais na fase 1).
+ */
+public final class ShipFlightTicker {
+    /** De quantos em quantos ticks: estado aos clientes, telemetria ao piloto, combustível nos tanques, gravação e novo censo. */
+    static final int STATE_INTERVAL = 2;
+    static final int TELEMETRY_INTERVAL = 4;
+    static final int FUEL_INTERVAL = 10;
+    static final int SAVE_INTERVAL = 100;
+    static final int CENSUS_INTERVAL = 600;
+
+    /** O voo vivo de uma nave (memória do servidor; o que persiste é o {@link ShipFlightData} do registro). */
+    public static final class Live {
+        final int shipId;
+        ShipFlight.State state;
+        final ShipControlState control = new ShipControlState();
+        ShipCensus census;
+        RocketStats stats;
+        List<BlockPos> tanks = List.of();
+        double lastClock = Double.NaN;
+        long lastDistributedMb = -1;
+        long ticks;
+        /** O piloto de teste do servidor (autoteste): conta como piloto a bordo sem ninguém no assento. */
+        boolean devtestPilot;
+        int stepsHeld;
+
+        Live(int shipId, ShipFlight.State state, ShipCensus census) {
+            this.shipId = shipId;
+            this.state = state;
+            this.census = census;
+            this.stats = ShipSpecs.statsFor(census);
+            this.control.setThrottle(state.throttle());
+        }
+
+        public ShipFlight.State state() {
+            return this.state;
+        }
+
+        public RocketStats stats() {
+            return this.stats;
+        }
+
+        public ShipCensus census() {
+            return this.census;
+        }
+
+        public ShipControlState control() {
+            return this.control;
+        }
+
+        public long ticks() {
+            return this.ticks;
+        }
+    }
+
+    private static final Map<Integer, Live> LIVE = new HashMap<>();
+
+    private ShipFlightTicker() {
+    }
+
+    // ---------------------------------------------------------------- consulta e controle
+
+    /** O voo vivo da nave, ou null se ela não voa (ou ainda não foi carregada neste servidor). */
+    public static @Nullable Live live(int shipId) {
+        return LIVE.get(shipId);
+    }
+
+    /** O combustível em mB: o do voo se a nave voa, senão o dos tanques do último censo. */
+    public static double fuelMb(int shipId, ShipCensusResult census) {
+        Live live = LIVE.get(shipId);
+        return live != null ? live.state.fuelMb() : census.tankFuelMb();
+    }
+
+    /** Liga o voo da nave: estado inicial de teste (órbita circular da Terra, ver {@link ShipFlight#testState}) com o combustível dos tanques. */
+    public static void start(MinecraftServer server, ShipRecord ship, ShipCensusResult census) {
+        double clock = SpaceClock.ticks(server.overworld());
+        ShipFlight.State state = ShipFlight.testState(clock, census.tankFuelMb());
+        ShipRegistry registry = ShipRegistry.get(server);
+        registry.update(ship.withFlight(ShipFlightData.of(state, census.census())));
+        Live live = new Live(ship.id(), state, census.census());
+        live.tanks = census.tanks();
+        live.lastDistributedMb = census.tankFuelMb();
+        LIVE.put(ship.id(), live);
+        SpaceHorizons.LOGGER.info("[ship] voo da nave {} ligado: {}", ship.id(), describe(live));
+    }
+
+    /** Recebe o comando do piloto da nave (pacote do cliente ou piloto de teste do servidor). */
+    public static void applyControl(int shipId, RocketControlPayload payload, long tick, boolean devtest) {
+        Live live = LIVE.get(shipId);
+        if (live == null) {
+            return;
+        }
+        live.control.apply(payload, tick);
+        if (devtest) {
+            live.devtestPilot = true;
+        }
+    }
+
+    /** Só dev: tira o piloto de teste do servidor (volta a valer só o assento). */
+    public static void clearDevtestPilot(int shipId) {
+        Live live = LIVE.get(shipId);
+        if (live != null) {
+            live.devtestPilot = false;
+        }
+    }
+
+    /** Só dev: põe o estado de voo (por exemplo, uma atitude de teste). */
+    public static void devtestSetState(int shipId, ShipFlight.State state) {
+        Live live = LIVE.get(shipId);
+        if (live != null) {
+            live.state = state;
+        }
+    }
+
+    static String describe(Live live) {
+        FlightState o = live.state.orbit();
+        return String.format(Locale.ROOT, "corpo=%s r=%.0f altitude=%.0f v=%.3f b/t combustível=%.0f mB massa seca=%.2f t empuxo=%.1f", o.body().planet().id().getPath(),
+                o.r().length(), o.altitude(), o.v().length(), o.fuelMb(), live.stats.dryMassT(), live.stats.thrust());
+    }
+
+    // ---------------------------------------------------------------- laço
+
+    /** A cada tick do servidor (fim do tick): avança o voo de cada nave que voa. */
+    public static void tick(MinecraftServer server) {
+        ServerLevel yard = ShipYard.level(server);
+        if (yard == null) {
+            return;
+        }
+        ShipRegistry registry = ShipRegistry.get(server);
+        List<ShipRecord> flying = null;
+        for (ShipRecord ship : registry.all()) {
+            if (ship.flies()) {
+                if (flying == null) {
+                    flying = new ArrayList<>();
+                }
+                flying.add(ship);
+            }
+        }
+        if (flying == null) {
+            LIVE.clear();
+            return;
+        }
+        ServerLevel overworld = server.overworld();
+        long now = overworld.getGameTime();
+        double clock = SpaceClock.ticks(overworld);
+        LIVE.keySet().removeIf(id -> registry.byId(id) == null || !registry.byId(id).flies());
+        for (ShipRecord ship : flying) {
+            Live live = LIVE.get(ship.id());
+            if (live == null) {
+                live = hydrate(server, ship);
+                if (live == null) {
+                    continue;
+                }
+                LIVE.put(ship.id(), live);
+            }
+            try {
+                stepOne(server, yard, registry, ship, live, now, clock);
+            } catch (RuntimeException e) {
+                SpaceHorizons.LOGGER.error("[ship] o voo da nave {} falhou neste tick", ship.id(), e);
+            }
+        }
+    }
+
+    private static @Nullable Live hydrate(MinecraftServer server, ShipRecord ship) {
+        ShipFlightData data = ship.flight().orElseThrow();
+        ShipFlight.State state = data.toState();
+        if (state == null) {
+            SpaceHorizons.LOGGER.warn("[ship] nave {}: o estado de voo salvo aponta para um corpo desconhecido ({}); ignorado", ship.id(), data.body());
+            return null;
+        }
+        Live live = new Live(ship.id(), state, data.censusValue());
+        ShipCensusResult latest = ShipCensusService.latest(ship.id());
+        if (latest != null) {
+            live.tanks = latest.tanks();
+        } else {
+            ShipCensusService.request(server, ship);
+        }
+        SpaceHorizons.LOGGER.info("[ship] voo da nave {} retomado do disco: {}", ship.id(), describe(live));
+        return live;
+    }
+
+    private static void stepOne(MinecraftServer server, ServerLevel yard, ShipRegistry registry, ShipRecord ship, Live live, long now, double clock) {
+        double rate = Double.isNaN(live.lastClock) ? 1.0 : clock - live.lastClock;
+        if (!(rate >= 0.0 && rate <= 4.0)) {
+            rate = 1.0;      // /time set e afins: não é a taxa do relógio
+        }
+        live.lastClock = clock;
+        live.ticks++;
+
+        // censo em lotes (adota o resultado novo quando termina; pede outro de tempos em tempos enquanto a nave está carregada)
+        ShipCensusResult latest = ShipCensusService.latest(ship.id());
+        if (latest != null && !latest.census().equals(live.census)) {
+            live.census = latest.census();
+            live.stats = ShipSpecs.statsFor(live.census);
+        }
+        if (latest != null) {
+            live.tanks = latest.tanks();
+        }
+        if (live.ticks % CENSUS_INTERVAL == 1 && ShipChunkTickets.isHeld(ship.id())) {
+            ShipCensusService.request(server, ship);
+        }
+
+        ServerPlayer pilot = ShipPilots.pilotOf(server, ship);
+        live.control.trackPilot(pilot != null || live.devtestPilot);
+        RocketControlPayload c = live.control.control(now);
+        int edges = live.control.takeEdges();
+        ShipFlight.Command command = new ShipFlight.Command(c.pitch(), c.yaw(), c.roll(), c.throttle(), (edges & RocketControlPayload.FLAG_NEXT_SAS) != 0);
+        live.state = ShipFlight.step(live.state, command, live.stats, clock, rate);
+
+        if (live.ticks % FUEL_INTERVAL == 0) {
+            syncFuel(yard, live);
+        }
+        List<ServerPlayer> inside = playersInside(server, ship);
+        if (live.ticks % STATE_INTERVAL == 0 && !inside.isEmpty()) {
+            ShipStatePayload payload = statePayload(live, now, clock + rate, rate);
+            for (ServerPlayer player : inside) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
+        }
+        if (pilot != null && live.ticks % TELEMETRY_INTERVAL == 0) {
+            PacketDistributor.sendToPlayer(pilot, RocketTelemetryBuilder.build(live.state.orbit(), FlightMode.FLIGHT, live.state.sas(), live.state.throttle(), true,
+                    live.stats, clock + rate, rate, false));
+        }
+        if (live.ticks % SAVE_INTERVAL == 0) {
+            save(registry, ship.id(), live);
+        }
+    }
+
+    /** O estado virtual como o cliente o recebe, no relógio {@code clock} (o do fim do passo). */
+    static ShipStatePayload statePayload(Live live, long tick, double clock, double rate) {
+        FlightState o = live.state.orbit();
+        var q = live.state.attitude();
+        return new ShipStatePayload(live.shipId, tick, clock, rate, o.body().planet().id().getPath(), new double[] {o.r().x(), o.r().y(), o.r().z()},
+                new double[] {o.v().x(), o.v().y(), o.v().z()}, new double[] {q.x, q.y, q.z, q.w},
+                new double[] {live.state.spin().x(), live.state.spin().y(), live.state.spin().z()}, (float) live.state.throttle(), (byte) live.state.sas().ordinal());
+    }
+
+    /** Os jogadores que estão na célula da nave, no estaleiro. */
+    static List<ServerPlayer> playersInside(MinecraftServer server, ShipRecord ship) {
+        List<ServerPlayer> out = null;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (ShipYard.is(player.level()) && ShipYard.cellContains(ship.cell(), player.getX(), player.getZ())) {
+                if (out == null) {
+                    out = new ArrayList<>(2);
+                }
+                out.add(player);
+            }
+        }
+        return out == null ? List.of() : out;
+    }
+
+    // ---------------------------------------------------------------- combustível e gravação
+
+    /**
+     * Leva o combustível do voo aos tanques de blocos e traz deles o que mudou por fora (galão despejado, tanque quebrado ou posto). Só age
+     * com todos os chunks dos tanques carregados; sem tanques, o combustível é zero.
+     */
+    private static void syncFuel(ServerLevel yard, Live live) {
+        if (live.tanks.isEmpty()) {
+            if (live.state.fuelMb() > 0.0) {
+                live.state = live.state.withOrbit(live.state.orbit().withFuel(0.0));
+            }
+            return;
+        }
+        List<RocketFuelTankBlockEntity> entities = new ArrayList<>(live.tanks.size());
+        long sum = 0;
+        for (BlockPos pos : live.tanks) {
+            if (yard.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4) == null) {
+                return;      // nave descarregada: o voo segue, os tanques são acertados quando carregar
+            }
+            if (yard.getBlockEntity(pos) instanceof RocketFuelTankBlockEntity tank) {
+                entities.add(tank);
+                sum += tank.fuelMb();
+            }
+        }
+        if (live.lastDistributedMb < 0) {
+            live.lastDistributedMb = sum;
+        }
+        double capacity = (double) entities.size() * ShipSpecs.TANK_CAPACITY_MB;
+        double fuel = ShipFuel.reconcile(live.state.fuelMb(), live.lastDistributedMb, sum, capacity);
+        live.state = live.state.withOrbit(live.state.orbit().withFuel(fuel));
+        int[] caps = new int[entities.size()];
+        java.util.Arrays.fill(caps, ShipSpecs.TANK_CAPACITY_MB);
+        int[] amounts = RocketFuel.distribute((int) Math.round(fuel), caps);
+        long given = 0;
+        for (int i = 0; i < amounts.length; i++) {
+            entities.get(i).setFuel(amounts[i]);
+            given += amounts[i];
+        }
+        live.lastDistributedMb = given;
+    }
+
+    private static void save(ShipRegistry registry, int shipId, Live live) {
+        ShipRecord ship = registry.byId(shipId);
+        if (ship != null) {
+            registry.update(ship.withFlight(ShipFlightData.of(live.state, live.census)));
+        }
+    }
+
+    /** O servidor vai parar: grava o estado de todas as naves que voam. */
+    public static void flush(MinecraftServer server) {
+        if (LIVE.isEmpty() || ShipYard.level(server) == null) {
+            return;
+        }
+        ShipRegistry registry = ShipRegistry.get(server);
+        for (Live live : LIVE.values()) {
+            save(registry, live.shipId, live);
+        }
+    }
+
+    /** O servidor parou: esquece o voo vivo (o mundo seguinte, no mesmo processo, começa limpo). */
+    public static void reset() {
+        LIVE.clear();
+    }
+}

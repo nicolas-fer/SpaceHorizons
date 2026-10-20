@@ -8,10 +8,11 @@ import org.joml.Quaterniond;
 import org.joml.Quaterniondc;
 
 /**
- * O céu visto de dentro de uma nave no estaleiro (spike S2): as coordenadas do estaleiro não têm relação com o espaço, então o
- * observador é VIRTUAL, não sai da posição da câmera. Por enquanto (sem voo) é uma posição fixa de teste perto da Terra, sobre o
- * spawn dela, com a atitude identidade; o modo de teste {@code /spacehorizons skytest} do spike S1 também vale aqui (atitude
- * falsa). Quando a nave voar, o estado virtual dela (posição e atitude sincronizadas) entra no lugar da posição fixa.
+ * O céu visto de dentro de uma nave no estaleiro: as coordenadas do estaleiro não têm relação com o espaço, então o observador é VIRTUAL, não
+ * sai da posição da câmera. Numa nave que voa (fase 1c) a posição e a atitude vêm do estado virtual que o servidor manda
+ * ({@link ShipRenderClient}): o céu inteiro (Terra, Lua, sol, estrelas) gira com a atitude da nave. Numa nave sem voo (as de teste do S2) a posição
+ * é uma posição fixa de teste perto da Terra, sobre o spawn dela, com a atitude identidade; o modo de teste {@code /spacehorizons skytest} do
+ * spike S1 também vale aqui (atitude falsa).
  */
 public final class ShipSkyClient {
     /** Altitude da posição virtual de teste sobre o spawn da Terra, em blocos. */
@@ -25,9 +26,13 @@ public final class ShipSkyClient {
         return new double[] {Planets.EARTH.radius() + TEST_ALTITUDE, 0.0, 0.0};
     }
 
-    /** O observador do céu dentro do estaleiro, no relógio {@code clock}: posição virtual de teste e a atitude do modo skytest (ou identidade). */
+    /**
+     * O observador do céu dentro do estaleiro, no relógio {@code clock}: a posição e a atitude da nave que voa (estado do servidor), ou a posição
+     * de teste e a atitude do modo skytest (ou identidade).
+     */
     public static SkyObserver observer(double clock) {
+        double[] flight = ShipRenderClient.positionE(clock, System.nanoTime());
         Quaterniondc attitude = SkyAttitude.current();
-        return SkyObserver.forShip(clock, testPosition(), attitude != null ? attitude : new Quaterniond());
+        return SkyObserver.forShip(clock, flight != null ? flight : testPosition(), attitude != null ? attitude : new Quaterniond());
     }
 }

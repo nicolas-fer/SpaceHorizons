@@ -8,10 +8,17 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import com.spacehorizons.SpaceHorizons;
 
@@ -41,6 +48,53 @@ class ContentResourcesTest {
 
     private static void exige(String caminho) throws IOException {
         assertTrue(ler(caminho) != null, "recurso ausente: " + caminho);
+    }
+
+    /**
+     * O bloco tem textura: o PNG próprio ({@code textures/block/<id>.png}) ou, nos blocos com textura PROVISÓRIA (a arte final ainda não
+     * existe, as naves da fase 1b), um modelo cujas texturas (as do próprio modelo e as dos modelos pais) existem de verdade.
+     */
+    private static void exigeTexturaDoBloco(String id) throws IOException {
+        if (getResource(ASSETS + "textures/block/" + id + ".png")) {
+            return;
+        }
+        Set<String> texturas = new HashSet<>();
+        coletaTexturas("models/block/" + id, texturas, 0);
+        assertFalse(texturas.isEmpty(), "bloco " + id + " sem textures/block/" + id + ".png e sem texturas no modelo");
+        for (String textura : texturas) {
+            String ns = textura.contains(":") ? textura.substring(0, textura.indexOf(':')) : "minecraft";
+            String caminho = textura.contains(":") ? textura.substring(textura.indexOf(':') + 1) : textura;
+            assertTrue(getResource("assets/" + ns + "/textures/" + caminho + ".png"), "textura provisória ausente de " + id + ": " + textura);
+        }
+    }
+
+    private static boolean getResource(String caminho) {
+        return ContentResourcesTest.class.getClassLoader().getResource(caminho) != null;
+    }
+
+    /** Junta as texturas (sem as referências "#x") do modelo e dos pais; {@code modelo} é o caminho sob assets/&lt;ns&gt;/. */
+    private static void coletaTexturas(String modelo, Set<String> out, int fundo) throws IOException {
+        assertTrue(fundo < 8, "cadeia de modelos pais longa demais em " + modelo);
+        String json = ler(ASSETS + modelo + ".json");
+        if (json == null) {
+            return;      // pai do vanilla (cube_all, orientable...): as texturas dele são referências "#x" preenchidas pelo filho
+        }
+        JsonObject o = JsonParser.parseString(json).getAsJsonObject();
+        if (o.has("textures")) {
+            for (Map.Entry<String, JsonElement> e : o.getAsJsonObject("textures").entrySet()) {
+                JsonElement v = e.getValue();
+                String textura = v.isJsonObject() ? v.getAsJsonObject().get("sprite").getAsString() : v.getAsString();
+                if (!textura.startsWith("#")) {
+                    out.add(textura);
+                }
+            }
+        }
+        if (o.has("parent")) {
+            String pai = o.get("parent").getAsString();
+            if (pai.startsWith(SpaceHorizons.MODID + ":")) {
+                coletaTexturas("models/" + pai.substring(SpaceHorizons.MODID.length() + 1), out, fundo + 1);
+            }
+        }
     }
 
     @Test
@@ -73,7 +127,7 @@ class ContentResourcesTest {
             exige(ASSETS + "items/" + id + ".json");
             if (blockIds().contains(id)) {
                 exige(ASSETS + "models/block/" + id + ".json");
-                exige(ASSETS + "textures/block/" + id + ".png");
+                exigeTexturaDoBloco(id);
             } else {
                 exige(ASSETS + "models/item/" + id + ".json");
                 exige(ASSETS + "textures/item/" + id + ".png");

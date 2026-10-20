@@ -9,6 +9,11 @@
     "spacehorizons:rocket_fuel_tank",
     "spacehorizons:rocket_parachute",
     "spacehorizons:rocket_landing_leg",
-    "spacehorizons:rocket_hull"
+    "spacehorizons:rocket_hull",
+    "spacehorizons:ship_bridge",
+    "spacehorizons:ship_impulse_engine",
+    "spacehorizons:ship_window",
+    "spacehorizons:ship_seat",
+    "spacehorizons:ship_airlock"
   ]
 }

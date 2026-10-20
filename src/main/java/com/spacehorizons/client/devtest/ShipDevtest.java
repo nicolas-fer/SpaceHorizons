@@ -384,7 +384,7 @@ final class ShipDevtest {
             BlockState state = level.getBlockState(pos);
             if (state.isAir()) {
                 inGlass = false;
-            } else if (state.is(Blocks.GLASS)) {
+            } else if (state.is(Blocks.GLASS) || state.is(com.spacehorizons.content.ModBlocks.SHIP_WINDOW.get())) {
                 if (!inGlass) {
                     glass++;
                 }

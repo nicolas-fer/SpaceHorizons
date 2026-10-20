@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "spacehorizons:block/ship_impulse_engine",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "spacehorizons:block/ship_impulse_engine"
+    },
+    "facing=south": {
+      "model": "spacehorizons:block/ship_impulse_engine",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "spacehorizons:block/ship_impulse_engine",
+      "y": 270
+    }
+  }
+}

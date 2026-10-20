@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "S": "spacehorizons:steel_ingot",
+    "W": "minecraft:white_wool"
+  },
+  "pattern": [
+    "P  ",
+    "PWP",
+    "S S"
+  ],
+  "result": {
+    "id": "spacehorizons:ship_seat"
+  }
+}

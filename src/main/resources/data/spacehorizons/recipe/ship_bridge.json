@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "C": "spacehorizons:basic_circuit",
+    "K": "spacehorizons:rocket_cockpit"
+  },
+  "pattern": [
+    "PCP",
+    "CKC",
+    "PPP"
+  ],
+  "result": {
+    "id": "spacehorizons:ship_bridge"
+  }
+}

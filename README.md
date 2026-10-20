@@ -244,6 +244,34 @@ chegada à Lua, calcula a correção de meio de curso e a queima de volta.
   do mundo o jogador volta ao ponto real. O terreno do ponto de chegada é pedido (raio 2) enquanto o voo ainda está no espaço. Medido
   (`-PshOnly=moontrip`): 14 avisos antes, 0 depois, na ida e na volta.
 
+## Naves (fase 1 do `docs/PLANO_NAVES.md`)
+
+Naves de blocos andáveis, que voam no espaço. A nave é feita de blocos REAIS parados numa célula do estaleiro (`spacehorizons:shipyard`) e o que
+voa é o estado virtual dela (órbita e atitude, `ship/ShipFlight`), com a mesma física do foguete (integrador, SAS, esfera de influência). Quem está
+dentro anda normalmente (gravidade interna sempre ligada, luz só de bloco) e NÃO é empurrado pela aceleração: a nave é o referencial; o céu
+pelas janelas (Terra, Lua, sol redondo, estrelas) gira com a atitude da nave.
+
+- **Blocos** (aba "Space Horizons"): `ship_bridge` (ponte de comando; clicar mostra massa, empuxo, Δv e combustível do censo), `ship_impulse_engine`
+  (8 de empuxo, Isp 1.000), `ship_window`, `ship_seat` (assento do piloto) e `ship_airlock` (eclusa de uma célula, abre e fecha com o botão
+  direito; o modelo é o mesmo aberta ou fechada). O combustível é o dos tanques do foguete (`rocket_fuel_tank`). Receitas simples e entradas no JEI.
+- **Censo e especificação** (`ShipCensus`, `ShipSpecs`, `ShipCensusScanner`): conta os blocos da caixa da nave por papel, em lotes, lendo a paleta
+  de cada seção; massa por bloco (ponte 2 t, motor 1,5 t, tanque 0,3 t, qualquer outro bloco 0,02 t), empuxo dos motores e capacidade dos tanques
+  viram o mesmo `RocketStats` do foguete (Δv, TWR). `/spacehorizons ship census [id]` imprime os números.
+- **Voo virtual** (`ShipFlight`, `ShipFlightTicker`): a cada tick do servidor cada nave que voa avança um passo; o estado fica no `ShipRecord`
+  (grava de 100 em 100 ticks e ao parar o servidor); o combustível do voo e o dos tanques de blocos se acompanham (um galão despejado num tanque
+  entra no voo). A proa da nave é o norte (-Z) do estaleiro. O servidor manda o estado virtual a quem está dentro a cada 2 ticks
+  (`ShipStatePayload`) e a telemetria ao piloto a cada 4.
+- **Pilotar** (`ShipSeatEntity`, `client/ship/ShipPilot`, `ShipPanel`): clique direito no assento senta (uma entidade invisível e parada carrega o
+  jogador; ninguém é teletransportado). As teclas são as do foguete: W/S arfagem, A/D guinada, Q/E rolagem, Shift/Ctrl sobem e descem o acelerador
+  (alavanca: fica onde se deixa), Z cheio, X corta, T muda o SAS, G levanta do assento. O painel mostra altitude, velocidades, apoastro, periastro,
+  inclinação, tempo até o apoastro, acelerador, combustível, TWR, Δv e SAS. Um piloto por nave; os outros andam livres. Quem se levanta deixa a
+  queima ligada por 30 s (depois a nave corta o motor sozinha).
+- **Nave de teste de criativo**: `/spacehorizons ship create flight` cria uma nave de 32x20x56 com ponte, três assentos, quatro motores, oito
+  tanques cheios, janelas e um anteparo com eclusa, já em órbita circular da Terra a 30.000 blocos (a Terra à direita); `ship goto <id>` entra.
+
+Autotestes: `-PshOnly=shipflight` (piloto de teste no servidor: censo, órbita estável, atitude, SAS, queima, combustível, gravação) e
+`-PshOnly=ship` (a nave inteira em jogo: janelas, sentar, girar com as teclas, SAS prógrado, queimar, levantar e andar durante a queima).
+
 ## Como rodar
 
 Requisitos: JDK 25 (o Gradle baixa o toolchain se preciso).

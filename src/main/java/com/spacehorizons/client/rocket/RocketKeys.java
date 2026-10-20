@@ -29,7 +29,8 @@ public final class RocketKeys {
 
         @Override
         public boolean isActive() {
-            return RocketPilot.isPiloting() && net.minecraft.client.Minecraft.getInstance().gui.screen() == null;
+            return (RocketPilot.isPiloting() || com.spacehorizons.client.ship.ShipPilot.isPiloting())
+                    && net.minecraft.client.Minecraft.getInstance().gui.screen() == null;
         }
 
         @Override

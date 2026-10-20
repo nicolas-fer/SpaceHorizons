@@ -20,9 +20,10 @@ import net.minecraft.core.UUIDUtil;
  * @param createdTick tempo de jogo da criação
  * @param phase em que ponto de uma conversão entidade/blocos a nave está (spike S3); {@link Phase#READY} é a nave parada e inteira
  * @param snapshot o foguete que virou esta nave (spike S3): vazio nas naves de teste criadas por {@code ship create}
+ * @param flight o estado de voo virtual da nave no espaço (fase 1c): vazio nas naves que ainda não voam
  */
 public record ShipRecord(int id, int cell, String name, int sizeX, int sizeY, int sizeZ, Optional<UUID> owner, long createdTick, Phase phase,
-        Optional<ShipFlightSnapshot> snapshot) {
+        Optional<ShipFlightSnapshot> snapshot, Optional<ShipFlightData> flight) {
     /**
      * Estado da conversão. Só {@code READY} é estável; os outros existem em memória durante um job e são gravados para a recuperação
      * depois de um fechamento no meio: {@code FILLING} (entidade → blocos, a entidade ainda existe) e {@code REMOVING} (blocos →
@@ -50,12 +51,13 @@ public record ShipRecord(int id, int cell, String name, int sizeX, int sizeY, in
             UUIDUtil.CODEC.optionalFieldOf("owner").forGetter(ShipRecord::owner),
             Codec.LONG.fieldOf("created").forGetter(ShipRecord::createdTick),
             PHASE_CODEC.optionalFieldOf("phase", Phase.READY).forGetter(ShipRecord::phase),
-            ShipFlightSnapshot.CODEC.optionalFieldOf("snapshot").forGetter(ShipRecord::snapshot)
+            ShipFlightSnapshot.CODEC.optionalFieldOf("snapshot").forGetter(ShipRecord::snapshot),
+            ShipFlightData.CODEC.optionalFieldOf("flight").forGetter(ShipRecord::flight)
     ).apply(i, ShipRecord::new));
 
-    /** Nave sem foguete de origem (a de teste do S2). */
+    /** Nave sem foguete de origem (a de teste do S2) e sem voo. */
     public ShipRecord(int id, int cell, String name, int sizeX, int sizeY, int sizeZ, Optional<UUID> owner, long createdTick) {
-        this(id, cell, name, sizeX, sizeY, sizeZ, owner, createdTick, Phase.READY, Optional.empty());
+        this(id, cell, name, sizeX, sizeY, sizeZ, owner, createdTick, Phase.READY, Optional.empty(), Optional.empty());
     }
 
     /** A caixa da nave no estaleiro. */
@@ -64,10 +66,20 @@ public record ShipRecord(int id, int cell, String name, int sizeX, int sizeY, in
     }
 
     public ShipRecord withPhase(Phase newPhase) {
-        return new ShipRecord(id, cell, name, sizeX, sizeY, sizeZ, owner, createdTick, newPhase, snapshot);
+        return new ShipRecord(id, cell, name, sizeX, sizeY, sizeZ, owner, createdTick, newPhase, snapshot, flight);
     }
 
     public ShipRecord withSnapshot(ShipFlightSnapshot newSnapshot) {
-        return new ShipRecord(id, cell, name, sizeX, sizeY, sizeZ, owner, createdTick, phase, Optional.of(newSnapshot));
+        return new ShipRecord(id, cell, name, sizeX, sizeY, sizeZ, owner, createdTick, phase, Optional.of(newSnapshot), flight);
+    }
+
+    /** A nave com o estado de voo dado (fase 1c). */
+    public ShipRecord withFlight(ShipFlightData newFlight) {
+        return new ShipRecord(id, cell, name, sizeX, sizeY, sizeZ, owner, createdTick, phase, snapshot, Optional.of(newFlight));
+    }
+
+    /** A nave tem estado de voo virtual (voa no espaço)? */
+    public boolean flies() {
+        return flight.isPresent();
     }
 }

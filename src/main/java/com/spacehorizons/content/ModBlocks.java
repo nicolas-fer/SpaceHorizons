@@ -6,6 +6,11 @@ import java.util.function.UnaryOperator;
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketCockpitBlock;
 import com.spacehorizons.rocket.RocketFuelTankBlock;
+import com.spacehorizons.ship.block.ShipAirlockBlock;
+import com.spacehorizons.ship.block.ShipBridgeBlock;
+import com.spacehorizons.ship.block.ShipImpulseEngineBlock;
+import com.spacehorizons.ship.block.ShipSeatBlock;
+import com.spacehorizons.ship.block.ShipWindowBlock;
 import com.spacehorizons.survival.compressor.OxygenCompressorBlock;
 import com.spacehorizons.survival.fuel.RefineryBlock;
 
@@ -70,6 +75,31 @@ public final class ModBlocks {
     /** Casco de aço: a estrutura do foguete. */
     public static final DeferredBlock<Block> ROCKET_HULL = registerWithItem(ContentIds.ROCKET_HULL,
             props -> props.mapColor(MapColor.METAL).strength(3.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops());
+
+    // --- Naves (fase 1b): blocos especiais da nave de blocos (ver com.spacehorizons.ship) ---
+
+    /** Ponte de comando: o núcleo que define a nave (cubo cheio, frente com a tela). */
+    public static final DeferredBlock<ShipBridgeBlock> SHIP_BRIDGE = registerBlockWithItem(ContentIds.SHIP_BRIDGE, ShipBridgeBlock::new,
+            props -> props.mapColor(MapColor.METAL).strength(4.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops());
+
+    /** Motor de impulso: modelo com partes recuadas (noOcclusion), como o motor do foguete. */
+    public static final DeferredBlock<ShipImpulseEngineBlock> SHIP_IMPULSE_ENGINE = registerBlockWithItem(ContentIds.SHIP_IMPULSE_ENGINE,
+            ShipImpulseEngineBlock::new, props -> props.mapColor(MapColor.METAL).strength(4.0F, 6.0F).sound(SoundType.METAL)
+                    .requiresCorrectToolForDrops().noOcclusion());
+
+    /** Janela: vidro translúcido que não sufoca nem conduz redstone (como o vidro do vanilla). */
+    public static final DeferredBlock<ShipWindowBlock> SHIP_WINDOW = registerBlockWithItem(ContentIds.SHIP_WINDOW, ShipWindowBlock::new,
+            props -> props.mapColor(MapColor.COLOR_LIGHT_BLUE).strength(1.5F, 3.0F).sound(SoundType.GLASS).noOcclusion()
+                    .isValidSpawn((state, level, pos, type) -> false).isRedstoneConductor((state, level, pos) -> false)
+                    .isSuffocating((state, level, pos) -> false));
+
+    /** Assento: modelo baixo (a colisão é a do assento, não o cubo cheio). */
+    public static final DeferredBlock<ShipSeatBlock> SHIP_SEAT = registerBlockWithItem(ContentIds.SHIP_SEAT, ShipSeatBlock::new,
+            props -> props.mapColor(MapColor.METAL).strength(2.5F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion());
+
+    /** Eclusa: fechada é parede, aberta deixa passar. */
+    public static final DeferredBlock<ShipAirlockBlock> SHIP_AIRLOCK = registerBlockWithItem(ContentIds.SHIP_AIRLOCK, ShipAirlockBlock::new,
+            props -> props.mapColor(MapColor.METAL).strength(3.5F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion());
 
     private ModBlocks() {
     }

@@ -79,6 +79,12 @@ public class SpaceHorizonsJeiPlugin implements IModPlugin {
                 Component.translatable("jei.spacehorizons.info.fuel_canister"));
         registration.addIngredientInfo(ModItems.FORGE_HAMMER.get(),
                 Component.translatable("jei.spacehorizons.info.forge_hammer"));
+        // blocos das naves (fase 1b do plano das naves)
+        registration.addIngredientInfo(ModBlocks.SHIP_BRIDGE.get(), Component.translatable("jei.spacehorizons.info.ship_bridge"));
+        registration.addIngredientInfo(ModBlocks.SHIP_IMPULSE_ENGINE.get(), Component.translatable("jei.spacehorizons.info.ship_impulse_engine"));
+        registration.addIngredientInfo(ModBlocks.SHIP_WINDOW.get(), Component.translatable("jei.spacehorizons.info.ship_window"));
+        registration.addIngredientInfo(ModBlocks.SHIP_SEAT.get(), Component.translatable("jei.spacehorizons.info.ship_seat"));
+        registration.addIngredientInfo(ModBlocks.SHIP_AIRLOCK.get(), Component.translatable("jei.spacehorizons.info.ship_airlock"));
 
         // compressor: um tanque vazio virando um cheio, por tamanho de tanque; e a informação curta dos tanques
         Item small = ModItems.OXYGEN_TANK_SMALL.get();

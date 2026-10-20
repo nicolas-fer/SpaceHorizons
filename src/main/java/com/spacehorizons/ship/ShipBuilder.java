@@ -162,6 +162,160 @@ public final class ShipBuilder {
         return layout;
     }
 
+    // ---------------------------------------------------------------- nave de voo (fase 1c): ponte, assentos, motores, tanques, janelas
+
+    /** Tamanho padrão da nave de voo de teste: 32 de largura (X), 20 de altura (Y) e 56 de comprimento (Z); a proa é o norte. */
+    public static final int FLIGHT_SX = 32;
+    public static final int FLIGHT_SY = 20;
+    public static final int FLIGHT_SZ = 56;
+    /** Quantos de cada peça a nave de voo tem (o que o censo precisa achar). */
+    public static final int FLIGHT_ENGINES = 4;
+    public static final int FLIGHT_TANKS = 8;
+    public static final int FLIGHT_SEATS = 3;
+    public static final int FLIGHT_AIRLOCKS = 4;
+
+    /**
+     * Posições e contagem esperada da nave de voo de teste. {@code pilotSeat} é o assento da ponte (olhando para a proa, norte),
+     * {@code bridge} o console na frente dele, {@code hall} onde o jogador aparece em pé (sala da ponte), {@code bulkheadDoor} o canto
+     * de baixo/oeste da abertura do anteparo (2 de largura e 2 de altura, de eclusas), e {@code expected} o censo que o scanner deve achar.
+     */
+    public record FlightLayout(ShipYard.Box box, BlockPos bridge, BlockPos pilotSeat, java.util.List<BlockPos> seats, BlockPos hall, BlockPos bulkheadDoor,
+            java.util.List<BlockPos> engines, java.util.List<BlockPos> tanks, int tankFuelMb, ShipCensus expected) {
+        public Vec3 hallPoint() {
+            return new Vec3(hall.getX() + 0.5, hall.getY(), hall.getZ() + 0.5);
+        }
+    }
+
+    /** O layout da nave de voo na caixa (sem escrever nada); o censo esperado só vale depois de {@link #buildFlightShip}. */
+    public static FlightLayout flightLayout(ShipYard.Box box) {
+        int x0 = box.minX();
+        int y0 = box.minY() + 1;
+        int z0 = box.minZ();
+        int cx = box.sizeX() / 2;
+        BlockPos pilot = new BlockPos(x0 + cx, y0, z0 + 6);
+        java.util.List<BlockPos> seats = java.util.List.of(pilot, new BlockPos(x0 + cx - 3, y0, z0 + 6), new BlockPos(x0 + cx + 3, y0, z0 + 6));
+        java.util.List<BlockPos> engines = new java.util.ArrayList<>();
+        for (int dx : new int[] {-8, -4, 3, 7}) {
+            engines.add(new BlockPos(x0 + cx + dx, y0, z0 + box.sizeZ() - 2));
+        }
+        java.util.List<BlockPos> tanks = new java.util.ArrayList<>();
+        for (int side = 0; side < 2; side++) {
+            for (int i = 0; i < 4; i++) {
+                tanks.add(new BlockPos(x0 + (side == 0 ? 2 : box.sizeX() - 3), y0, z0 + 24 + i * 2));
+            }
+        }
+        return new FlightLayout(box, new BlockPos(x0 + cx, y0, z0 + 3), pilot, seats, new BlockPos(x0 + cx, y0, z0 + 11),
+                new BlockPos(x0 + cx - 1, y0, z0 + 20), engines, tanks, 4000, ShipCensus.EMPTY);
+    }
+
+    /**
+     * Escreve a nave de voo de teste na caixa: casco de aço oco, janelas de nave nas paredes (a proa e os dois lados, para ver o céu girar),
+     * a ponte e três assentos na sala da frente, um anteparo com uma eclusa (quatro células) no meio, e atrás dele oito tanques cheios e
+     * quatro motores de impulso virados para a popa; sea lanterns no teto. A caixa precisa ser a de {@link #FLIGHT_SX} x {@link #FLIGHT_SY} x
+     * {@link #FLIGHT_SZ} (ou maior em X e Z, centrada na célula como todas). Devolve o layout com o censo esperado.
+     */
+    public static FlightLayout buildFlightShip(ServerLevel level, ShipYard.Box box) {
+        if (box.sizeX() < FLIGHT_SX || box.sizeY() < FLIGHT_SY || box.sizeZ() < FLIGHT_SZ) {
+            throw new IllegalArgumentException("a nave de voo precisa de pelo menos " + FLIGHT_SX + "x" + FLIGHT_SY + "x" + FLIGHT_SZ);
+        }
+        FlightLayout layout = flightLayout(box);
+        for (int cx = box.chunkMinX(); cx <= box.chunkMaxX(); cx++) {
+            for (int cz = box.chunkMinZ(); cz <= box.chunkMaxZ(); cz++) {
+                level.getChunk(cx, cz);
+            }
+        }
+        BlockState hull = com.spacehorizons.content.ModBlocks.ROCKET_HULL.get().defaultBlockState();
+        BlockState window = com.spacehorizons.content.ModBlocks.SHIP_WINDOW.get().defaultBlockState();
+        BlockState lantern = Blocks.SEA_LANTERN.defaultBlockState();
+        int x0 = box.minX();
+        int y0 = box.minY();
+        int z0 = box.minZ();
+        int sx = box.sizeX();
+        int sy = box.sizeY();
+        int sz = box.sizeZ();
+        int[] counts = new int[ShipBlockKind.values().length];
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        // casco: piso, teto e quatro paredes
+        for (int x = 0; x < sx; x++) {
+            for (int z = 0; z < sz; z++) {
+                put(level, p.set(x0 + x, y0, z0 + z), hull, counts);
+                put(level, p.set(x0 + x, y0 + sy - 1, z0 + z), hull, counts);
+            }
+        }
+        for (int y = 1; y < sy - 1; y++) {
+            for (int x = 0; x < sx; x++) {
+                put(level, p.set(x0 + x, y0 + y, z0), hull, counts);
+                put(level, p.set(x0 + x, y0 + y, z0 + sz - 1), hull, counts);
+            }
+            for (int z = 1; z < sz - 1; z++) {
+                put(level, p.set(x0, y0 + y, z0 + z), hull, counts);
+                put(level, p.set(x0 + sx - 1, y0 + y, z0 + z), hull, counts);
+            }
+        }
+        // janelas: a proa (norte) larga e baixa, os dois lados da sala da ponte e do compartimento de carga
+        for (int y = 2; y <= 12; y++) {
+            for (int x = 4; x < sx - 4; x++) {
+                put(level, p.set(x0 + x, y0 + y, z0), window, counts);
+            }
+            for (int z = 6; z <= 40; z++) {
+                put(level, p.set(x0, y0 + y, z0 + z), window, counts);
+                put(level, p.set(x0 + sx - 1, y0 + y, z0 + z), window, counts);
+            }
+        }
+        // anteparo no meio (z = 20) com a abertura de 2x2 fechada por eclusas
+        for (int y = 1; y < sy - 1; y++) {
+            for (int x = 1; x < sx - 1; x++) {
+                put(level, p.set(x0 + x, y0 + y, z0 + 20), hull, counts);
+            }
+        }
+        BlockState airlock = com.spacehorizons.content.ModBlocks.SHIP_AIRLOCK.get().defaultBlockState();
+        for (int dx = 0; dx < 2; dx++) {
+            for (int dy = 0; dy < 2; dy++) {
+                put(level, p.set(layout.bulkheadDoor().getX() + dx, layout.bulkheadDoor().getY() + dy, layout.bulkheadDoor().getZ()), airlock, counts);
+            }
+        }
+        // luzes: sea lanterns no teto, a cada 8 blocos (fora do anteparo)
+        for (int x = 4; x < sx - 3; x += 8) {
+            for (int z = 4; z < sz - 3; z += 8) {
+                if (z != 20 && z != 21 && z != 19) {
+                    put(level, p.set(x0 + x, y0 + sy - 1, z0 + z), lantern, counts);
+                }
+            }
+        }
+        // ponte, assentos, motores e tanques
+        put(level, layout.bridge(), com.spacehorizons.content.ModBlocks.SHIP_BRIDGE.get().defaultBlockState()
+                .setValue(com.spacehorizons.ship.block.ShipBridgeBlock.FACING, Direction.SOUTH), counts);
+        BlockState seat = com.spacehorizons.content.ModBlocks.SHIP_SEAT.get().defaultBlockState()
+                .setValue(com.spacehorizons.ship.block.ShipSeatBlock.FACING, Direction.NORTH);
+        for (BlockPos pos : layout.seats()) {
+            put(level, pos, seat, counts);
+        }
+        BlockState engine = com.spacehorizons.content.ModBlocks.SHIP_IMPULSE_ENGINE.get().defaultBlockState()
+                .setValue(com.spacehorizons.ship.block.ShipImpulseEngineBlock.FACING, Direction.SOUTH);
+        for (BlockPos pos : layout.engines()) {
+            put(level, pos, engine, counts);
+        }
+        for (BlockPos pos : layout.tanks()) {
+            put(level, pos, com.spacehorizons.content.ModBlocks.ROCKET_FUEL_TANK.get().defaultBlockState(), counts);
+            if (level.getBlockEntity(pos) instanceof com.spacehorizons.rocket.RocketFuelTankBlockEntity tank) {
+                tank.setFuel(layout.tankFuelMb());
+            }
+        }
+        ShipCensus expected = ShipCensus.EMPTY;
+        for (ShipBlockKind kind : ShipBlockKind.values()) {
+            expected = expected.plus(kind, counts[kind.ordinal()]);
+        }
+        return new FlightLayout(box, layout.bridge(), layout.pilotSeat(), layout.seats(), layout.hall(), layout.bulkheadDoor(), layout.engines(),
+                layout.tanks(), layout.tankFuelMb(), expected);
+    }
+
+    /** Escreve um bloco e o conta pelo papel dele (o censo esperado). */
+    private static void put(ServerLevel level, BlockPos pos, BlockState state, int[] counts) {
+        counts[ShipKinds.classify(level.getBlockState(pos)).ordinal()]--;       // o que estava aqui deixa de contar
+        level.setBlock(pos, state, HULL_FLAGS);
+        counts[ShipKinds.classify(state).ordinal()]++;
+    }
+
     private static void buildCabin(ServerLevel level, Layout layout, BlockState wall, BlockState roof) {
         BlockPos min = layout.cabinMin();
         BlockPos max = layout.cabinMax();
