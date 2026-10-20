@@ -179,7 +179,7 @@ public final class AutoTest {
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
             return;
         }
-        if (ONLY != null && ONLY.matches("jump(c|\\d*)(v\\d+)?")) {
+        if (ONLY != null && ONLY.matches("jump(c|e?\\d*)(v\\d+)?")) {
             // jump54 = cruzeiro a 54 blocos/tick no espaço, 3a pessoa (jump20, jump90...); jump54v10 = o mesmo com voo rápido desligado e distância 10;
             // jumpc = o voo C real (órbita, física e atitude de verdade) medido da decolagem à órbita estável
             jumpScenario(ONLY);
@@ -2870,7 +2870,7 @@ public final class AutoTest {
      * {@code v}, o voo rápido é desligado e a distância de visão e de simulação do cliente fixadas no valor dado.
      */
     private void jumpScenario(String name) {
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("jump(c|\\d*)(?:v(\\d+))?").matcher(name);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("jump(c|e?\\d*)(?:v(\\d+))?").matcher(name);
         if (!m.matches()) {
             return;
         }
