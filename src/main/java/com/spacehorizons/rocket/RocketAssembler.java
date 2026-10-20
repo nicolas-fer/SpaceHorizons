@@ -41,6 +41,8 @@ public final class RocketAssembler {
      * do limite do cliente); acima, vai em partes ({@link PortraitParts}), um pacote por parte, depois do spawn.
      */
     public static final int INLINE_PORTRAIT_BYTES = MAX_PACKET_BYTES - 64 * 1024;
+    /** O limite em vigor (só o autoteste o baixa, para provar o envio em partes sem precisar de centenas de baús cheios). */
+    private static volatile int inlineLimit = INLINE_PORTRAIT_BYTES;
     /**
      * Teto do retrato codificado (a nave da D2 tem até {@link RocketAssembly#MAX_BLOCKS} blocos; com baús cheios, ~1,65 KB cada, dá
      * ~13 MB no pior caso). Acima disso a montagem é recusada ({@link RocketException.Reason#PACKET_TOO_LARGE}): é memória do servidor e
@@ -49,6 +51,16 @@ public final class RocketAssembler {
     public static final int MAX_PORTRAIT_BYTES = 16 << 20;
 
     private RocketAssembler() {
+    }
+
+    /** O tamanho acima do qual o retrato vai em partes (normalmente {@link #INLINE_PORTRAIT_BYTES}). */
+    public static int inlineLimit() {
+        return inlineLimit;
+    }
+
+    /** Só para teste: baixa (ou restaura, com {@link #INLINE_PORTRAIT_BYTES}) o limite do pacote de spawn. */
+    public static void setInlineLimitForTest(int bytes) {
+        inlineLimit = Math.max(1, bytes);
     }
 
     /** O mundo como a busca da montagem o vê (a mesma para a montagem e para o painel de projeto da plataforma, {@link RocketDesign}). */

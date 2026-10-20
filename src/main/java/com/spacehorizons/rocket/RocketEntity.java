@@ -525,7 +525,7 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
      */
     @Override
     public void writeSpawnData(RegistryFriendlyByteBuf buffer) {
-        boolean deferred = RocketPortrait.encodedSize(this.portrait) > RocketAssembler.INLINE_PORTRAIT_BYTES;
+        boolean deferred = RocketPortrait.encodedSize(this.portrait) > RocketAssembler.inlineLimit();
         buffer.writeBoolean(deferred);
         if (deferred) {
             buffer.writeUUID(this.portrait.id());
@@ -562,10 +562,10 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     @Override
     public void startSeenByPlayer(net.minecraft.server.level.ServerPlayer player) {
         super.startSeenByPlayer(player);
-        if (this.portrait.isEmpty() || RocketPortrait.encodedSize(this.portrait) <= RocketAssembler.INLINE_PORTRAIT_BYTES) {
+        if (this.portrait.isEmpty() || RocketPortrait.encodedSize(this.portrait) <= RocketAssembler.inlineLimit()) {
             return;
         }
-        List<byte[]> parts = PortraitParts.split(this.portrait.encoded(), PortraitParts.PART_BYTES);
+        List<byte[]> parts = PortraitParts.split(this.portrait.encoded(), PortraitParts.partBytes());
         for (int i = 0; i < parts.size(); i++) {
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,
                     new RocketPortraitPartPayload(this.portrait.id(), i, parts.size(), parts.get(i)));

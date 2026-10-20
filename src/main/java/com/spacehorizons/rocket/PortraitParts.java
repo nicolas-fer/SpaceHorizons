@@ -23,7 +23,20 @@ public final class PortraitParts {
     /** Teto de partes (o retrato de {@link RocketAssembler#MAX_PORTRAIT_BYTES} em partes de {@link #PART_BYTES}, mais folga). */
     public static final int MAX_PARTS = RocketAssembler.MAX_PORTRAIT_BYTES / PART_BYTES + 4;
 
+    /** O tamanho em vigor (só o autoteste o baixa, para provar vários pacotes sem um retrato de megabytes). */
+    private static volatile int partBytes = PART_BYTES;
+
     private PortraitParts() {
+    }
+
+    /** O tamanho de parte que o servidor usa (normalmente {@link #PART_BYTES}). */
+    public static int partBytes() {
+        return partBytes;
+    }
+
+    /** Só para teste: muda o tamanho de parte (restaura com {@link #PART_BYTES}). */
+    public static void setPartBytesForTest(int bytes) {
+        partBytes = Math.max(64, bytes);
     }
 
     /** Corta {@code data} em partes de no máximo {@code partBytes}; dados vazios dão uma parte vazia. */

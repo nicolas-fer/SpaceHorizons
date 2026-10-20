@@ -116,4 +116,75 @@ class MissionBudgetTest {
         assertTrue(MissionSim.ROCKET_A.deltaV(MissionSim.ROCKET_A.fuelCapacityMb()) < MissionBudget.required(Destination.MOON_LANDING_RETURN));
         assertTrue(MissionSim.ROCKET_M.deltaV(MissionSim.ROCKET_M.fuelCapacityMb()) >= MissionBudget.required(Destination.MOON_LANDING_RETURN));
     }
+
+    // ---------------------------------------------------------------- projetos do painel contra o simulador
+
+    private record Built(RocketStats stats, com.spacehorizons.rocket.RocketCensus census, com.spacehorizons.rocket.FlightMachine.Box box) {
+    }
+
+    private static Built build(int engineSide, int tankW, int tankH, int tankD, int hulls, boolean parachute) {
+        var report = com.spacehorizons.rocket.TestWorld.design(engineSide, tankW, tankH, tankD, hulls, parachute).analyze();
+        var result = report.result();
+        RocketStats stats = com.spacehorizons.rocket.RocketSpecs.statsFor(result.census());
+        var box = new com.spacehorizons.rocket.FlightMachine.Box(Math.max(result.sizeX(), result.sizeZ()) / 2.0, result.sizeY() / 2.0,
+                Math.max(result.sizeX(), result.sizeZ()) / 2.0);
+        return new Built(stats, result.census(), box);
+    }
+
+    private static Destination promised(Built b) {
+        return classify(b.stats());
+    }
+
+    @Test
+    void projetoQueNaoDecolaFicaNoChaoNoSimulador() {
+        Built b = build(1, 3, 10, 3, 0, true);
+        assertEquals(Destination.NO_LIFTOFF, promised(b));
+        MissionSim sim = new MissionSim(b.stats(), b.box(), CLOCK, line -> { });
+        sim.run(3_000);
+        assertEquals(com.spacehorizons.rocket.FlightMode.LANDED, sim.snap.mode(), "o empuxo não vence o peso: continua no chão");
+        assertTrue(sim.events.isEmpty(), sim.events.toString());
+    }
+
+    @Test
+    void projetoDeSaltoSuborbitalSobeAcimaDaAtmosferaNoSimulador() {
+        Built b = build(1, 1, 8, 1, 0, true);
+        assertEquals(Destination.SUBORBITAL, promised(b), "TWR " + twrOf(b.stats()) + " entre 1 e 1,2: só o salto");
+        MissionSim sim = new MissionSim(b.stats(), b.box(), CLOCK, line -> { });
+        sim.run(25_000);
+        assertTrue(sim.events.stream().anyMatch(e -> e.contains("LEAVE_ZONE")), "passou da altitude de saída (5.000): " + sim.events);
+    }
+
+    @Test
+    void projetoDeOrbitaChegaAOrbitaNoSimulador() {
+        Built b = build(2, 1, 4, 1, 0, true);
+        assertEquals(Destination.ORBIT, promised(b), "Δv " + b.stats().deltaV(b.stats().fuelCapacityMb()));
+        MissionSim sim = new MissionSim(b.stats(), b.box(), CLOCK, line -> { });
+        sim.runUntil(MissionPilot.Phase.LEO_WAIT, 40_000);
+        assertFalse(sim.crashed, sim.crashInfo);
+        assertEquals(MissionPilot.Phase.LEO_WAIT, sim.pilot.phase(), sim.events + " " + sim.pilot.phase());
+    }
+
+    @Test
+    void projetoDeLuaEVoltaFechaALuaEVoltaNoSimulador() {
+        Built b = build(3, 2, 8, 2, 20, true);
+        assertEquals(Destination.MOON_RETURN, promised(b), "Δv " + b.stats().deltaV(b.stats().fuelCapacityMb()));
+        MissionSim sim = new MissionSim(b.stats(), b.box(), CLOCK, line -> { });
+        sim.runUntil(MissionPilot.Phase.LUNAR_ORBIT, 120_000);
+        assertFalse(sim.crashed, sim.crashInfo);
+        sim.pilot.forcePhase(MissionPilot.Phase.TEI_WAIT);
+        sim.run(160_000);
+        assertFalse(sim.crashed, sim.crashInfo + " " + sim.events);
+        assertEquals(MissionPilot.Phase.DONE, sim.pilot.phase(), sim.events + " " + sim.pilot.phase());
+    }
+
+    @Test
+    void projetoDeLuaPousoEVoltaFechaAMissaoInteiraNoSimulador() {
+        // como o foguete da missão (camada 3x3 de motores avulsos e coluna 3x3x5), mas com a coluna formada (casco mais leve)
+        Built b = build(0, 3, 5, 3, 8, true);
+        assertEquals(Destination.MOON_LANDING_RETURN, promised(b), "Δv " + b.stats().deltaV(b.stats().fuelCapacityMb()));
+        MissionSim sim = new MissionSim(b.stats(), b.box(), CLOCK, line -> { });
+        sim.run(160_000);
+        assertFalse(sim.crashed, sim.crashInfo + " " + sim.events);
+        assertEquals(MissionPilot.Phase.DONE, sim.pilot.phase(), sim.events + " " + sim.pilot.phase());
+    }
 }

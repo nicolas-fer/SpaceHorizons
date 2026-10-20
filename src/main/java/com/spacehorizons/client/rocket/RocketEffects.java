@@ -120,7 +120,8 @@ public final class RocketEffects {
             for (int y = 0; y < portrait.sizeY; y++) {
                 for (int z = 0; z < portrait.sizeZ; z++) {
                     for (int x = 0; x < portrait.sizeX; x++) {
-                        if (isEngine[portrait.grid().get(x, y, z)]) {
+                        // só o bocal de baixo: num motor formado (2x2x2, 3x3x3) a chama sai da camada de baixo, não de cada bloco
+                        if (isEngine[portrait.grid().get(x, y, z)] && !(y > 0 && isEngine[portrait.grid().get(x, y - 1, z)])) {
                             list.add(new Vector3f(x + 0.5F, y, z + 0.5F));
                         }
                     }

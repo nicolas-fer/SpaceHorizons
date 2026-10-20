@@ -206,6 +206,10 @@ public final class AutoTest {
             shipScenario();
             return;
         }
+        if ("multiblock".equals(ONLY)) {
+            multiblockScenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
@@ -3208,6 +3212,107 @@ public final class AutoTest {
         step(20, mc -> FlightDevtest.clientCheck(mc, "M pousado na Terra"));
         cmd(2, "tick rate 20");
         step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /**
+     * Multiblocos de tanque e motor, painel de projeto e foguetes grandes (etapa 1 do docs/PLANO_TIERS.md): a formação no mundo (motor 2x2x2 e
+     * 3x3x3 ao pôr e quebrar blocos), o galão numa estrutura de tanques, um projeto com defeitos (o painel aponta cada um no bloco certo) e,
+     * para cada projeto (não decola, salto, órbita, Lua e volta, Lua pouso e volta, foguete grande e gigante): construir sobre a plataforma,
+     * abrir o painel (números e destinos, prints), montar, voar uma subida curta com o modelo grande, pousar e conferir que as estruturas
+     * voltam formadas e o combustível bate. O grande e o gigante vão ao cliente em PARTES (limite do pacote de spawn baixado de propósito).
+     */
+    private void multiblockScenario() {
+        BlockPos pad = MultiblockDevtest.BASE;
+        double bx = pad.getX() + 0.5;
+        double by = pad.getY();
+        double bz = pad.getZ() + 0.5;
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(5, "time set 6000");
+        cmd(5, "gamerule advance_time true");
+        fly(10);
+        cmd(10, "clear @s");
+
+        // A. a formação dos motores no mundo (pôr e quebrar blocos) e o galão numa estrutura de tanques
+        cmd(10, "tp @s " + (bx + 9.0) + " " + (by + 6.0) + " " + (bz + 9.0));
+        fly(10);
+        step(10, MultiblockDevtest::formingInWorld);
+        look(30, -45f, 20f);
+        shot(40, "mb_a1_forming_in_world");
+        cmd(10, "tp @s " + (bx - 9.5) + " " + (by + 9.0) + " " + (bz + 1.5));
+        fly(10);
+        look(20, 90f, 12f);
+        shot(20, "mb_a2_tank_column_empty");
+        cmd(5, "give @s spacehorizons:fuel_canister[spacehorizons:fuel_mb=1000]");
+        cmd(5, "give @s spacehorizons:fuel_canister[spacehorizons:fuel_mb=1000]");
+        BlockPos column = MultiblockDevtest.TANK_COLUMN;
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(0);
+            useOnBlock(mc, column.offset(1, 7, 1), Direction.EAST);
+        });
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(1);
+            useOnBlock(mc, column.offset(0, 0, 0), Direction.WEST);
+        });
+        step(20, mc -> MultiblockDevtest.structureFuel(mc, "dois galões (no bloco de cima e no de baixo)", 2000));
+        step(5, mc -> MultiblockDevtest.structureText(mc, column.offset(0, 3, 1)));
+        shot(10, "mb_a3_tank_column_filled");
+
+        // B. o projeto com defeitos: o painel aponta cada um no bloco certo
+        cmd(10, "tp @s " + (bx + 12.0) + " " + (by + 4.0) + " " + (bz + 1.0));
+        fly(10);
+        step(10, MultiblockDevtest::buildFlawed);
+        tickerStep(5, waitFor("built_flawed", 200));
+        look(10, 90f, 8f);
+        step(5, mc -> MultiblockDevtest.pinPanel(true));
+        shot(60, "mb_b1_flawed_panel_and_highlights");
+        step(0, MultiblockDevtest::flawedPanel);
+        step(20, mc -> MultiblockDevtest.pinPanel(false));
+
+        // C. cada projeto
+        for (String key : MultiblockDevtest.keys()) {
+            boolean big = key.equals("big") || key.equals("giant");
+            if (key.equals("big")) {
+                step(5, mc -> MultiblockDevtest.forceParts(true));
+            }
+            double dist = key.equals("giant") ? 44.0 : key.equals("big") ? 34.0 : 16.0;
+            double eyeY = key.equals("giant") ? by + 18.0 : key.equals("big") ? by + 12.0 : by + 8.0;
+            step(10, mc -> MultiblockDevtest.build(mc, key));
+            cmd(20, "tp @s " + (bx + dist) + " " + eyeY + " " + (bz + 0.5));
+            fly(10);
+            look(10, 90f, 0f);
+            step(5, mc -> MultiblockDevtest.pinPanel(true));
+            shot(60, "mb_" + key + "_a_panel");
+            step(0, mc -> MultiblockDevtest.panel(mc, key));
+            step(5, mc -> MultiblockDevtest.pinPanel(false));
+            step(10, mc -> MultiblockDevtest.assemble(mc, key));
+            tickerStep(10, waitFor("assembled_" + key, 200));
+            step(40, mc -> MultiblockDevtest.clientView(mc, key, big));
+            cmd(5, "tp @s " + (bx + dist) + " " + eyeY + " " + (bz + 0.5));
+            look(10, 90f, 0f);
+            shot(20, "mb_" + key + "_b_assembled");
+            step(10, mc -> MultiblockDevtest.fly(mc, key));
+            tickerStep(5, waitFor("burning_" + key, 600));
+            thirdPerson();
+            shot(5, "mb_" + key + "_c_flight");
+            tickerStep(0, waitFor("landed_" + key, 6_000));
+            if (!key.equals("none")) {
+                step(20, mc -> MultiblockDevtest.afterLand(mc, key));
+                tickerStep(5, waitFor("land_checked_" + key, 200));
+                step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
+                cmd(5, "tp @s " + (bx + dist) + " " + eyeY + " " + (bz + 0.5));
+                look(10, 90f, 0f);
+            }
+            if (key.equals("giant")) {
+                step(5, mc -> MultiblockDevtest.forceParts(false));
+            }
+        }
+        step(20, mc -> {
+            MultiblockDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });
