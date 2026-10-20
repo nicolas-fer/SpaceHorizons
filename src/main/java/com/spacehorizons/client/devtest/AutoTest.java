@@ -182,6 +182,10 @@ public final class AutoTest {
             shipYardScenario();
             return;
         }
+        if ("shipconvert".equals(ONLY)) {
+            shipConvertScenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
@@ -3709,5 +3713,315 @@ public final class AutoTest {
         ShipDevtest.logIntegrity(mc, shipId, label);
         ShipDevtest.check("sem luz de ceu dentro da nave (" + label + ")", probe[1] == 0 && probe[3] == 0 && spawn[1] == 0 && spawn[3] == 0,
                 "ceu servidor/cliente=" + probe[1] + "/" + probe[3] + " e " + spawn[1] + "/" + spawn[3]);
+    }
+
+    // ===================================================================================================================
+    // SHIPCONVERT (spike S3 das naves): -PshOnly=shipconvert. Bloco separado; as conferências ficam em ShipConvertDevtest.
+    // ===================================================================================================================
+
+    /** Id da nave criada pela conversão em andamento e o baú escolhido para abrir ({x, y, z, total no servidor}). */
+    private int convShipId;
+    private int[] convChest;
+    private double convRowZ;
+    private Vec3 convWalkStart;
+    private com.spacehorizons.ship.ShipYard.Box convBox;
+
+    /**
+     * Spike S3: gera por código foguetes grandes (~500, ~8.000 e ~4.000 blocos, com dezenas de baús cheios, tanques com carga, fornalha e
+     * barril), converte cada um em nave no estaleiro e de volta, e confere tudo: o retrato chegou inteiro ao cliente, o romaneio não tem
+     * perdas, os itens batem com a contagem exata da geração, o NBT, o combustível, e o pouso final devolve os mesmos blocos. O de 4.000
+     * leva o piloto sentado (anda e abre um baú na nave, fecha e reabre o mundo com a nave no estaleiro e só então a devolve). O de 4.000
+     * se repete com orçamentos diferentes (lotes pequenos e um tick só) para medir o hitch.
+     */
+    private void shipConvertScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        step(5, mc -> mc.options.fov().set(70));
+        step(100, mc -> {
+            ShipDevtest.check("CONV: dimensao spacehorizons:shipyard existe no mundo novo", ShipDevtest.hasYard(mc), "world preset");
+            ShipDevtest.check("CONV: sem naves no mundo novo", ShipDevtest.shipCount(mc) == 0, "naves=" + ShipDevtest.shipCount(mc));
+            ShipDevtest.logStats(mc, "CONV linha de base (Terra, sem naves)", true);
+        });
+        cmd(20, "tp @s 0 200 0");
+        fly(20);
+        step(60, mc -> logPos(mc, "CONV posição de partida"));
+
+        convertCycle("c0500", 500, false, false, 1500, 20);
+        convertCycle("c8000", 8000, false, false, 1500, 20);
+        convertCycle("c4000", 4000, true, true, 1500, 20);
+        convertCycle("c4000_lotes_pequenos", 4000, false, false, 400, 20);
+        convertCycle("c4000_um_tick", 4000, false, false, 1_000_000, 0);
+
+        cmd(5, "spacehorizons ship budget 1500 20");
+        cmd(5, "gamerule send_command_feedback true");
+        cmd(5, "gamerule show_advancement_messages true");
+        step(20, mc -> {
+            ShipDevtest.logStats(mc, "CONV fim (Terra)", true);
+            ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /**
+     * Um ciclo completo: gera o foguete, converte em nave, confere, (com piloto: anda, abre o baú, e com {@code reload} fecha e reabre o
+     * mundo), converte de volta, confere, pousa no chão e confere os blocos, os itens e o combustível outra vez.
+     */
+    private void convertCycle(String tag, int blocks, boolean pilot, boolean reload, int units, int millis) {
+        String c = "CONV " + tag + ": ";
+        cmd(5, "spacehorizons ship budget " + units + " " + millis);
+        step(10, mc -> ShipConvertDevtest.spawn(mc, blocks));
+        step(60, mc -> {
+            int got = ShipConvertDevtest.clientBlocks(mc);
+            int expected = ShipConvertDevtest.current.portrait().blockCount();
+            ShipDevtest.check(c + "o retrato chegou ao cliente com todos os blocos (pacote de spawn de " + ShipConvertDevtest.packetBytes() + " bytes)", got == expected,
+                    "cliente=" + got + " esperado=" + expected);
+            ShipDevtest.check(c + "o pacote do retrato cabe no limite de 1 MiB", ShipConvertDevtest.packetBytes() < (1 << 20), ShipConvertDevtest.packetBytes() + " bytes");
+            // o foguete inteiro à vista, de longe
+            Vec3 center = ShipConvertDevtest.rocketCenter;
+            Vec3 from = new Vec3(center.x - ShipConvertDevtest.currentSpec.sx() / 2.0 - 30.0, center.y, center.z);
+            mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f -90 0", from.x, from.y, from.z));
+        });
+        shot(60, "shipconvert_" + tag + "_01_rocket_outside");
+        if (pilot) {
+            step(10, mc -> ShipConvertDevtest.seatPlayer(mc));
+            step(10, mc -> ShipDevtest.check(c + "o piloto está sentado no foguete", ShipConvertDevtest.playerRidesRocket(mc), ShipConvertDevtest.playerState(mc)));
+        }
+
+        // ---- entidade -> blocos ----
+        cmd(5, "spacehorizons ship fromrocket");
+        tickerStep(0, waitConversion(c + "entidade -> blocos", 6000));
+        step(40, mc -> {
+            com.spacehorizons.ship.ConversionReport r = ShipConvertDevtest.lastReport(mc);
+            convShipId = ShipConvertDevtest.firstShipId(mc);
+            ShipConvertDevtest.logReport(tag + " entidade->blocos", r);
+            ShipDevtest.check(c + "conversão entidade -> blocos terminou sem erro e sem perdas",
+                    r != null && r.ok() && r.losses().isEmpty() && r.blocks() == ShipConvertDevtest.current.portrait().blockCount(),
+                    r == null ? "sem relatório" : r.losses().toString() + " " + r.error());
+            ShipDevtest.check(c + "nave registrada, pronta e com o snapshot do voo", convShipId > 0 && ShipConvertDevtest.shipPhase(mc, convShipId).equals("READY+snapshot"),
+                    "id=" + convShipId + " fase=" + ShipConvertDevtest.shipPhase(mc, convShipId));
+            ShipDevtest.check(c + "a entidade do foguete foi removida", !ShipConvertDevtest.rocketEntityExists(mc), "existe=" + ShipConvertDevtest.rocketEntityExists(mc));
+            Object[] chk = ShipConvertDevtest.yardCheck(mc, convShipId);
+            ShipDevtest.check(c + "no estaleiro: itens dos baús e do barril EXATOS (" + ShipConvertDevtest.current.expectedTotalItems() + " itens contados à parte)", "".equals(chk[0]),
+                    "diferenças=[" + chk[0] + "]");
+            ShipDevtest.check(c + "no estaleiro: todas as células iguais ao retrato (estado a estado)", ((Integer) chk[1]) == 0, "diferentes=" + chk[1]);
+            ShipDevtest.check(c + "no estaleiro: combustível dos tanques = piso do combustível da entidade (" + expectedFuel() + " mB)",
+                    ((Integer) chk[2]) == expectedFuel(), "tanques=" + chk[2]);
+            if (pilot) {
+                ShipDevtest.check(c + "o piloto foi para dentro da nave, no estaleiro", com.spacehorizons.ship.ShipYard.is(mc.level) || ShipConvertDevtest.playerState(mc).contains("shipyard"),
+                        ShipConvertDevtest.playerState(mc));
+            }
+        });
+
+        if (pilot) {
+            tickerStep(0, waitInYard(1, 900));
+            step(40, mc -> {
+                mc.player.getAbilities().flying = false;
+                mc.player.onUpdateAbilities();
+                ShipDevtest.check(c + "o jogador está dentro da caixa da nave no cliente", com.spacehorizons.ship.ShipYard.is(mc.level)
+                        && ShipConvertDevtest.playerState(mc).contains("shipyard"), ShipConvertDevtest.playerState(mc));
+                SpaceHorizons.LOGGER.info(TAG + "SHIPCONV jogador na nave: {}", ShipConvertDevtest.playerState(mc));
+            });
+            look(10, 0f, 10f);
+            shot(40, "shipconvert_" + tag + "_02_inside_cockpit_south");
+            look(10, 90f, 10f);
+            shot(20, "shipconvert_" + tag + "_03_inside_west");
+            look(10, EAST, 0f);
+            shot(20, "shipconvert_" + tag + "_04_inside_east");
+            look(10, 180f, 60f);
+            shot(20, "shipconvert_" + tag + "_05_inside_floor_tanks");
+            // anda de verdade até a parede leste (a fileira z = centro + 1 está livre dos tanques) e abre um baú de lá
+            step(5, mc -> {
+                var box = ShipConvertDevtest.boxOf(mc, convShipId);
+                Vec3 from = new Vec3(box.maxX() - 1, mc.player.getY(), box.minZ() + ShipConvertDevtest.currentSpec.sz() / 2.0 + 1.0);
+                convChest = ShipConvertDevtest.nearestChest(mc, convShipId, from);
+                SpaceHorizons.LOGGER.info(TAG + "SHIPCONV baú escolhido: {}", convChest == null ? "nenhum" : java.util.Arrays.toString(convChest));
+                ShipDevtest.check(c + "há um baú cheio na parede leste da nave", convChest != null && convChest[3] > 0, "baú=" + (convChest == null ? "null" : java.util.Arrays.toString(convChest)));
+            });
+            step(1, mc -> {
+                var box = ShipConvertDevtest.boxOf(mc, convShipId);
+                convRowZ = box.minZ() + ShipConvertDevtest.currentSpec.sz() / 2 + 1.5;
+                convWalkStart = mc.player.position();
+            });
+            tickerStep(0, walkToPoint(mc -> new Vec3(mc.player.getX(), mc.player.getY(), convRowZ), 60, "para a fileira livre dos tanques"));
+            tickerStep(0, walkToPoint(mc -> new Vec3(convChest[0] - 3.0, mc.player.getY(), convRowZ), 400, "pela fileira ate a parede leste"));
+            tickerStep(0, walkToPoint(mc -> new Vec3(convChest[0] - 1.5, mc.player.getY(), convChest[2] + 0.5), 200, "ate o baú"));
+            step(5, mc -> {
+                Vec3 t = Vec3.atCenterOf(new BlockPos(convChest[0], convChest[1], convChest[2]));
+                Vec3 d = t.subtract(mc.player.getEyePosition());
+                mc.player.setYRot(ShipDevtest.yawOf(d));
+                mc.player.setXRot(ShipDevtest.pitchOf(d));
+            });
+            step(15, mc -> {
+                BlockPos pos = new BlockPos(convChest[0], convChest[1], convChest[2]);
+                Vec3 hit = Vec3.atCenterOf(pos).add(-0.5, 0.0, 0.0);
+                var result = mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, new BlockHitResult(hit, Direction.WEST, pos, false));
+                SpaceHorizons.LOGGER.info(TAG + "SHIPCONV clique direito no baú {}: {}", pos, result);
+            });
+            step(30, mc -> {
+                boolean open = mc.player.containerMenu != mc.player.inventoryMenu;
+                int total = 0;
+                if (open) {
+                    for (int i = 0; i < 27; i++) {
+                        total += mc.player.containerMenu.getSlot(i).getItem().getCount();
+                    }
+                }
+                ShipDevtest.check(c + "baú aberto no cliente com os itens vindos do foguete (27 pilhas, soma igual à do servidor)", open && total == convChest[3] && total > 0,
+                        "aberto=" + open + " cliente=" + total + " servidor=" + convChest[3]);
+            });
+            shot(5, "shipconvert_" + tag + "_06_chest_open_in_ship");
+            step(10, mc -> mc.player.closeContainer());
+            step(5, mc -> {
+                double moved = convWalkStart == null ? 0.0 : Math.hypot(mc.player.getX() - convWalkStart.x, mc.player.getZ() - convWalkStart.z);
+                ShipDevtest.check(c + "andou dentro da nave de verdade (mais de 5 blocos no estaleiro)", moved > 5.0, "andou " + f(moved) + " blocos");
+            });
+        }
+
+        if (reload) {
+            step(10, mc -> {
+                SpaceHorizons.LOGGER.info(TAG + "SHIPCONV fechando o mundo com a nave {} no estaleiro", convShipId);
+                ShipDevtest.startReload(mc, FRESH_WORLD);
+            });
+            step(400, mc -> {
+                ShipDevtest.check(c + "RELOAD: o mundo reabriu com o jogador no estaleiro", com.spacehorizons.ship.ShipYard.is(mc.level), String.valueOf(mc.level.dimension().identifier()));
+                ShipDevtest.check(c + "RELOAD: a nave continua registrada, pronta e com o snapshot do voo", ShipConvertDevtest.shipPhase(mc, convShipId).equals("READY+snapshot"),
+                        "fase=" + ShipConvertDevtest.shipPhase(mc, convShipId));
+                Object[] chk = ShipConvertDevtest.yardCheck(mc, convShipId);
+                ShipDevtest.check(c + "RELOAD: itens exatos depois de salvar e reabrir", "".equals(chk[0]), "diferenças=[" + chk[0] + "]");
+                ShipDevtest.check(c + "RELOAD: células iguais ao retrato", ((Integer) chk[1]) == 0, "diferentes=" + chk[1]);
+                ShipDevtest.check(c + "RELOAD: combustível dos tanques igual", ((Integer) chk[2]) == expectedFuel(), "tanques=" + chk[2]);
+            });
+            look(10, EAST, 5f);
+            shot(40, "shipconvert_" + tag + "_07_after_reload_in_ship");
+        }
+
+        // ---- blocos -> entidade ----
+        step(5, mc -> {
+            convBox = ShipConvertDevtest.boxOf(mc, convShipId);
+            SpaceHorizons.LOGGER.info(TAG + "SHIPCONV devolvendo a nave {} ao foguete", convShipId);
+            mc.player.connection.sendCommand("spacehorizons ship torocket " + convShipId);
+        });
+        tickerStep(0, waitConversion(c + "blocos -> entidade", 6000));
+        if (pilot) {
+            tickerStep(0, waitOverworld(900));
+        }
+        step(60, mc -> {
+            com.spacehorizons.ship.ConversionReport r = ShipConvertDevtest.lastReport(mc);
+            ShipConvertDevtest.logReport(tag + " blocos->entidade", r);
+            ShipDevtest.check(c + "conversão blocos -> entidade terminou sem erro e sem perdas em relação à entrada",
+                    r != null && r.ok() && r.losses().isEmpty() && r.blocks() == ShipConvertDevtest.current.portrait().blockCount(),
+                    r == null ? "sem relatório" : r.losses().toString() + " " + r.error());
+            ShipDevtest.check(c + "a entidade do foguete voltou", ShipConvertDevtest.rocketEntityExists(mc), String.valueOf(ShipConvertDevtest.rocketInfo(mc)));
+            Vec3 at = ShipConvertDevtest.serverRocketPos(mc);
+            ShipDevtest.check(c + "o foguete voltou ao lugar de onde saiu", at != null && at.distanceTo(ShipConvertDevtest.rocketCenter) < 0.01,
+                    "pos=" + at + " original=" + ShipConvertDevtest.rocketCenter);
+            double fuel = ShipConvertDevtest.serverRocketFuel(mc);
+            ShipDevtest.check(c + "combustível da entidade = soma dos tanques (" + expectedFuel() + " mB)", Math.floor(fuel) == expectedFuel(), "combustivel=" + fuel);
+            ShipDevtest.check(c + "a nave saiu do registro e a célula foi liberada", ShipDevtest.shipCount(mc) == 0 && ShipDevtest.heldCount(mc) == 0,
+                    "naves=" + ShipDevtest.shipCount(mc) + " seguradas=" + ShipDevtest.heldCount(mc));
+            ShipDevtest.check(c + "o retrato chegou de novo ao cliente com todos os blocos", ShipConvertDevtest.clientBlocks(mc) == ShipConvertDevtest.current.portrait().blockCount(),
+                    "cliente=" + ShipConvertDevtest.clientBlocks(mc));
+            if (pilot) {
+                ShipDevtest.check(c + "o piloto voltou sentado no foguete, no overworld", ShipConvertDevtest.playerRidesRocket(mc), ShipConvertDevtest.playerState(mc));
+            }
+        });
+        step(5, mc -> {
+            // a caixa do estaleiro ficou vazia (a célula liberada)
+            int left = ShipConvertDevtest.nonAirInBox(mc, convBox);
+            ShipDevtest.check(c + "a caixa do estaleiro ficou vazia depois da devolução", left == 0, "blocos que sobraram=" + left);
+        });
+        if (pilot) {
+            shot(20, "shipconvert_" + tag + "_08_back_as_entity_from_cockpit");
+            step(10, mc -> ShipConvertDevtest.dismountPlayer(mc));
+            step(20, mc -> {
+                Vec3 center = ShipConvertDevtest.rocketCenter;
+                Vec3 from = new Vec3(center.x - ShipConvertDevtest.currentSpec.sx() / 2.0 - 30.0, center.y, center.z);
+                mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f -90 0", from.x, from.y, from.z));
+                mc.player.getAbilities().flying = true;
+                mc.player.onUpdateAbilities();
+            });
+        }
+        shot(40, "shipconvert_" + tag + "_09_back_as_entity_outside");
+
+        // ---- pouso no chão: os blocos de volta ----
+        step(10, mc -> {
+            String err = ShipConvertDevtest.land(mc);
+            ShipDevtest.check(c + "o foguete desmontou no chão (RocketLanding)", "".equals(err), "erro=" + err);
+            if ("".equals(err)) {
+                Object[] chk = ShipConvertDevtest.landedCheck(mc);
+                ShipDevtest.check(c + "no chão: itens EXATOS depois da ida e volta (" + ShipConvertDevtest.current.expectedTotalItems() + " contados à parte)", "".equals(chk[0]),
+                        "diferenças=[" + chk[0] + "]");
+                ShipDevtest.check(c + "no chão: todas as células iguais ao retrato original", ((Integer) chk[1]) == 0, "diferentes=" + chk[1]);
+                ShipDevtest.check(c + "no chão: combustível dos tanques igual", ((Integer) chk[2]) == expectedFuel(), "tanques=" + chk[2]);
+            }
+        });
+        shot(60, "shipconvert_" + tag + "_10_landed_blocks");
+        step(10, mc -> ShipConvertDevtest.clearLanded(mc));
+        step(20, mc -> ShipConvertDevtest.discardRocket(mc));
+        cmd(10, "tp @s 0 200 0");
+        fly(20);
+    }
+
+    private static int expectedFuel() {
+        return com.spacehorizons.ship.ShipTestRocket.expectedFuelMb(ShipConvertDevtest.current);
+    }
+
+    /** Espera a conversão terminar (a fila do servidor vazia), com o limite de ticks; o relatório é lido depois. */
+    private Ticker waitConversion(String label, int maxTicks) {
+        return new Ticker() {
+            int n;
+            boolean started;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                n++;
+                boolean busy = ShipConvertDevtest.busy(mc);
+                started |= busy;
+                if ((started && !busy) || (n > 40 && !busy)) {
+                    SpaceHorizons.LOGGER.info(TAG + "SHIPCONV {}: terminou em {} ticks de cliente", label, n);
+                    return true;
+                }
+                if (n > maxTicks) {
+                    ShipDevtest.check(label + ": terminou no tempo", false, "ainda ocupado depois de " + maxTicks + " ticks");
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    /** Anda de verdade até o ponto (calculado na hora), ou o tempo acabar. */
+    private Ticker walkToPoint(java.util.function.Function<Minecraft, Vec3> target, int maxTicks, String label) {
+        return new Ticker() {
+            int n;
+            Vec3 goal;
+            Vec3 start;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                LocalPlayer p = mc.player;
+                if (n == 0) {
+                    goal = target.apply(mc);
+                    start = p.position();
+                }
+                n++;
+                double dx = goal.x - p.getX();
+                double dz = goal.z - p.getZ();
+                double dist = Math.hypot(dx, dz);
+                if (dist < 0.3 || n > maxTicks) {
+                    p.setDeltaMovement(0.0, p.getDeltaMovement().y, 0.0);
+                    SpaceHorizons.LOGGER.info(TAG + "SHIPCONV andou {} em {} ticks: de ({}, {}) para ({}, {}), faltam {}", label, n, f(start.x), f(start.z), f(p.getX()),
+                            f(p.getZ()), f(dist));
+                    ShipDevtest.check("CONV andou " + label, dist < 0.8, "faltam " + f(dist));
+                    return true;
+                }
+                double speed = Math.min(0.2, dist);
+                p.setDeltaMovement(dx / dist * speed, p.getDeltaMovement().y, dz / dist * speed);
+                p.setYRot((float) Math.toDegrees(Math.atan2(-dx, dz)));
+                return false;
+            }
+        };
     }
 }

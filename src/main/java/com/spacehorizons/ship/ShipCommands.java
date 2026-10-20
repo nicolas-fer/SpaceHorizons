@@ -13,6 +13,9 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
+
+import com.spacehorizons.rocket.RocketEntity;
 
 /**
  * Comandos de desenvolvimento das naves (operadores), spike S2: {@code /spacehorizons ship create [tamanho]} (nave de teste
@@ -38,7 +41,22 @@ final class ShipCommands {
                                 .then(Commands.argument("id", IntegerArgumentType.integer(1))
                                         .executes(ctx -> go(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "id")))))
                         .then(Commands.literal("leave").executes(ctx -> leave(ctx.getSource())))
-                        .then(Commands.literal("info").executes(ctx -> info(ctx.getSource())))));
+                        .then(Commands.literal("info").executes(ctx -> info(ctx.getSource())))
+                        .then(Commands.literal("fromrocket").executes(ctx -> fromRocket(ctx.getSource())))
+                        .then(Commands.literal("torocket")
+                                .then(Commands.argument("id", IntegerArgumentType.integer(1))
+                                        .executes(ctx -> toRocket(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "id")))))
+                        .then(Commands.literal("genrocket")
+                                .then(Commands.argument("blocos", IntegerArgumentType.integer(100, 12_000))
+                                        .executes(ctx -> genRocket(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "blocos")))))
+                        .then(Commands.literal("budget")
+                                .executes(ctx -> budget(ctx.getSource(), -1, -1))
+                                .then(Commands.argument("unidades", IntegerArgumentType.integer(1, 1_000_000))
+                                        .executes(ctx -> budget(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "unidades"), -1))
+                                        .then(Commands.argument("ms", IntegerArgumentType.integer(0, 1000))
+                                                .executes(ctx -> budget(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "unidades"),
+                                                        IntegerArgumentType.getInteger(ctx, "ms"))))))
+                        .then(Commands.literal("convstatus").executes(ctx -> convStatus(ctx.getSource())))));
     }
 
     private static ServerLevel requireYard(CommandSourceStack source) {
@@ -126,5 +144,99 @@ final class ShipCommands {
         source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "Você está na nave %d (%s), %s, tickets: %d.", ship.id(), ship.name(),
                 ShipChunkTickets.isHeld(ship.id()) ? "carregada" : "congelada", ShipChunkTickets.held().size())), false);
         return ship.id();
+    }
+
+    // ---------------------------------------------------------------- conversão entidade <-> blocos (spike S3)
+
+    /** O foguete que o jogador olha (o raio de visão até 128 blocos), ou o mais perto dentro de 64 blocos. */
+    private static RocketEntity findRocket(ServerPlayer player) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 end = eye.add(player.getLookAngle().scale(128.0));
+        RocketEntity best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (RocketEntity rocket : player.level().getEntitiesOfClass(RocketEntity.class, player.getBoundingBox().inflate(160.0))) {
+            java.util.Optional<Vec3> hit = rocket.getBoundingBox().clip(eye, end);
+            if (hit.isPresent() && eye.distanceToSqr(hit.get()) < bestDist) {
+                bestDist = eye.distanceToSqr(hit.get());
+                best = rocket;
+            }
+        }
+        if (best == null) {
+            for (RocketEntity rocket : player.level().getEntitiesOfClass(RocketEntity.class, player.getBoundingBox().inflate(64.0))) {
+                double d = rocket.distanceToSqr(player);
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = rocket;
+                }
+            }
+        }
+        return best;
+    }
+
+    private static int fromRocket(CommandSourceStack source) throws CommandSyntaxException {
+        if (requireYard(source) == null) {
+            return 0;
+        }
+        ServerPlayer player = source.getPlayerOrException();
+        RocketEntity rocket = findRocket(player);
+        if (rocket == null) {
+            source.sendFailure(Component.literal("Nenhum foguete à vista (olhe para um) nem a menos de 64 blocos."));
+            return 0;
+        }
+        try {
+            int id = ShipConversions.startRocketToYard((ServerLevel) player.level(), rocket);
+            source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "Convertendo o foguete (%d blocos) na nave %d, em lotes de %d blocos/tick (teto %d ms/tick).",
+                    rocket.portrait().blockCount(), id, ConversionBudget.unitsPerTick(), ConversionBudget.millisPerTick())), true);
+            return id;
+        } catch (ShipConversionException e) {
+            source.sendFailure(Component.literal(e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int toRocket(CommandSourceStack source, int id) {
+        if (requireYard(source) == null) {
+            return 0;
+        }
+        try {
+            ShipConversions.startYardToRocket(source.getServer(), id);
+            source.sendSuccess(() -> Component.literal("Devolvendo a nave " + id + " ao foguete, em lotes."), true);
+            return id;
+        } catch (ShipConversionException e) {
+            source.sendFailure(Component.literal(e.getMessage()));
+            return 0;
+        }
+    }
+
+    private static int genRocket(CommandSourceStack source, int blocks) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = (ServerLevel) player.level();
+        ShipTestRocket.Spec spec = ShipTestRocket.preset(blocks);
+        long t0 = System.nanoTime();
+        ShipTestRocket.Built built = ShipTestRocket.build(level.registryAccess(), spec);
+        Vec3 center = new Vec3(player.getX() + 10 + spec.sx() / 2.0, player.getY() + spec.sy() / 2.0, player.getZ());
+        ShipTestRocket.spawn(level, center, built);
+        double ms = (System.nanoTime() - t0) / 1.0e6;
+        source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "Foguete de teste: %d blocos (%dx%dx%d), %d baús, %d itens, %d mB nos tanques, gerado em %.0f ms.",
+                built.portrait().blockCount(), spec.sx(), spec.sy(), spec.sz(), built.chests(), built.expectedTotalItems(), built.tankFuelMb(), ms)), true);
+        return built.portrait().blockCount();
+    }
+
+    private static int budget(CommandSourceStack source, int units, int ms) {
+        if (units > 0) {
+            ConversionBudget.configure(units, ms >= 0 ? ms : ConversionBudget.millisPerTick());
+        }
+        source.sendSuccess(() -> Component.literal("Orçamento da conversão: " + ConversionBudget.unitsPerTick() + " blocos por tick, teto de "
+                + ConversionBudget.millisPerTick() + " ms por tick (0 = sem teto)."), false);
+        return ConversionBudget.unitsPerTick();
+    }
+
+    private static int convStatus(CommandSourceStack source) {
+        var reports = ShipConversions.reports();
+        source.sendSuccess(() -> Component.literal("Conversão em andamento: " + ShipConversions.busy() + "; relatórios nesta sessão: " + reports.size()), false);
+        if (!reports.isEmpty()) {
+            source.sendSuccess(() -> Component.literal(reports.get(reports.size() - 1).line()), false);
+        }
+        return reports.size();
     }
 }

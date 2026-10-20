@@ -336,7 +336,8 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
             if (this.jumped) {
                 this.setOldPosAndRot();
             }
-        } else {
+        } else if (!com.spacehorizons.ship.ShipConversions.isFrozen(this)) {
+            // congelado enquanto a nave vira blocos no estaleiro (S3): o voo não anda até a conversão terminar
             this.flight.tick(this);
             this.entityData.set(FLIGHT_MODE, this.flight.mode().id());
         }

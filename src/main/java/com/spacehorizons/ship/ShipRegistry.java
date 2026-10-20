@@ -131,6 +131,14 @@ public final class ShipRegistry extends SavedData {
         return true;
     }
 
+    /** Troca o registro de uma nave existente (fase da conversão, snapshot do voo); marca o estado como sujo para salvar. */
+    public void update(ShipRecord ship) {
+        if (ships.containsKey(ship.id())) {
+            ships.put(ship.id(), ship);
+            setDirty();
+        }
+    }
+
     public @Nullable ShipRecord byId(int id) {
         return ships.get(id);
     }

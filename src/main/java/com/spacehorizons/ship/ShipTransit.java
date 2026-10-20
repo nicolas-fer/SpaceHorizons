@@ -25,17 +25,30 @@ public final class ShipTransit {
         if (yard == null) {
             return false;
         }
+        // nave vinda de um foguete (S3): perto do cockpit; nave de teste (S2): o salão do layout
+        Vec3 at = ship.snapshot().isPresent() ? ShipSpots.nearCockpit(yard, ship) : ShipBuilder.layout(ship.box()).spawnPoint();
+        return enterAt(player, ship, at, -90.0F, 0.0F);
+    }
+
+    /**
+     * Leva o jogador a um ponto da nave (o da conversão: perto do cockpit, com a vista no referencial local). Guarda o ponto de
+     * retorno, segura a nave e carrega de forma síncrona o chunk de destino. Devolve false se o mundo não tem o estaleiro.
+     */
+    public static boolean enterAt(ServerPlayer player, ShipRecord ship, Vec3 at, float yaw, float pitch) {
+        MinecraftServer server = player.level().getServer();
+        ServerLevel yard = ShipYard.level(server);
+        if (yard == null) {
+            return false;
+        }
         ShipRegistry registry = ShipRegistry.get(server);
-        // guarda de onde veio (só se ainda não está no estaleiro: de nave para nave o ponto de retorno continua o original)
         if (!ShipYard.is(player.level())) {
             registry.setReturn(player.getUUID(), ShipRegistry.ReturnPoint.of(player.level().dimension(), player.getX(), player.getY(),
                     player.getZ(), player.getYRot(), player.getXRot()));
         }
         ShipChunkTickets.hold(yard, ship, yard.getGameTime());
-        Vec3 at = ShipBuilder.layout(ship.box()).spawnPoint();
         yard.getChunk(BlockPos.containing(at));      // carrega (síncrono) o chunk onde o jogador vai aparecer
         SpaceHorizons.LOGGER.info("[ship] {} entra na nave {} em {}", player.getGameProfile().name(), ship.id(), at);
-        player.teleport(new TeleportTransition(yard, at, Vec3.ZERO, -90.0F, 0.0F, TeleportTransition.DO_NOTHING));
+        player.teleport(new TeleportTransition(yard, at, Vec3.ZERO, yaw, pitch, TeleportTransition.DO_NOTHING));
         return true;
     }
 
