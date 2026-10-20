@@ -2,19 +2,21 @@
 
 Todas as texturas de bloco e de item do mod (16x16) foram refeitas com a skill `minecraft-entity`
 (modo rápido de textura): os prompts padrão do usuário (estilo "Vanilla Moderno", templates da skill)
-são preenchidos com os campos de cada textura, o Gemini gera 3 variantes e o resultado é convertido em
-pixel art 16x16 de verdade, com no máximo 7 cores.
+são preenchidos com os campos de cada textura, o Gemini gera 4 variantes e o resultado é convertido em
+pixel art 16x16 de verdade, com no máximo 7 cores. A variante de cada textura é escolhida pelo usuário na
+página de escolha (`escolha.py`), não pelo agente.
 
 ## Arquivos
 
 | Arquivo | O que é |
 |---|---|
 | `jobs.json` | Os campos de prompt de cada textura (`nome`, `descricao`, `detalhes`, `cores`, `orientacao`, `ref`) ou o recolor (`base`, `cor`). É o registro dos prompts usados. |
-| `run_jobs.py` | Roda todos os jobs (ou só os citados) em paralelo com o `texture.py` da skill. Saída de trabalho em `art/_work/` (fora do git). |
+| `run_jobs.py` | Roda todos os jobs (ou só os citados) em paralelo com o `texture.py` da skill (4 variantes; `--variants N`). Saída de trabalho em `art/_work/` (fora do git). Recolor com `cor_alt` roda duas vezes (6 variantes). |
+| `escolha.py` | Monta `art/_work/escolha/index.html`: cada textura com as variantes (letras) e a atual, ampliadas, em mosaico 3x3 e, nas texturas dos modelos de `art/models/`, o render do modelo com a variante. Gera também `escolhas_modelo.json` (tudo "atual"). |
 | `reduce16.py` | Redução alternativa do bruto do Gemini: média de área (BOX) + quantização a 7 cores. Preserva melhor a estrutura de blocos (painéis, juntas) que a redução por voto quando o gerador desenha 40 a 80 células. |
 | `candidates.py` | Monta a folha de candidatas de cada textura: 1-3 = variantes do `texture.py` (voto), 4-6 = os mesmos brutos pelo `reduce16.py`, em mosaico 2x2 para ver a emenda. |
-| `picks.json` | A variante escolhida de cada textura (1-6). |
-| `apply_picks.py` | Copia as escolhidas para `src/main/resources/assets/spacehorizons/textures/` e deriva as frentes acesas. |
+| `picks.json` | Formato antigo (números 1-6, referentes a brutos que não existem mais). |
+| `apply_picks.py` | Copia as escolhidas (letras do `escolhas_modelo.json`; "atual" mantém) para `src/main/resources/assets/spacehorizons/textures/` e deriva as frentes acesas quando a frente muda. |
 
 ## Refazer
 
@@ -22,9 +24,9 @@ pixel art 16x16 de verdade, com no máximo 7 cores.
 # GEMINI_API_KEY no ambiente (variável de usuário); modelo padrão da skill: gemini-3.1-flash-image
 python art/textures/run_jobs.py art/textures/jobs.json            # todos (≈30 s cada, 6 em paralelo)
 python art/textures/run_jobs.py art/textures/jobs.json refinery   # só um
-python art/textures/candidates.py refinery                         # folha em art/_work/cand/refinery.png
-# escolha a variante em picks.json e aplique
-python art/textures/apply_picks.py
+python art/textures/escolha.py                                     # página art/_work/escolha/index.html
+# troque "atual" pela letra escolhida em art/_work/escolha/escolhas_modelo.json e aplique
+python art/textures/apply_picks.py art/_work/escolha/escolhas_modelo.json
 ```
 
 ## Paleta comum
@@ -49,7 +51,8 @@ o aço azulado `#7F93A8` / `#6E7684` (variante de hue shifting escolhida em `pic
 `machine_casing` (carcaça de aço grafite), `hazard_stripes` (faixa de alerta), `cockpit_glass`
 (vidro da cabine), `copper_tank` (coluna de destilação de cobre) e `oxygen_cylinder` (cilindro ciano).
 
-## Fora do escopo
+## Armadura vestida
 
-As texturas da armadura vestida (`textures/entity/equipment/.../space_suit.png`) não foram refeitas:
-são texturas de entidade (layout de armadura), não de bloco/item.
+`space_suit_humanoid` e `space_suit_humanoid_leggings` (`textures/entity/equipment/{humanoid,humanoid_leggings}/space_suit.png`,
+64x32) são recolor das camadas de ferro vanilla (mesmo layout), em branco e cinza-azulado (seção "equipment"
+da escolha). A camada atual tem a viseira desenhada; o recolor do ferro não tem.

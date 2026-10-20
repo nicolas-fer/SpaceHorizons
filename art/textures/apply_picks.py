@@ -1,6 +1,11 @@
-"""Copia as variantes escolhidas (picks.json) para assets/ e deriva as frentes acesas (_on).
+"""Copia as variantes escolhidas para assets/ e deriva as frentes acesas (_on).
 
-Uso (raiz do repo): python art/textures/apply_picks.py
+Uso (raiz do repo):
+  python art/textures/apply_picks.py art/_work/escolha/escolhas_modelo.json   # escolha feita na página
+  python art/textures/apply_picks.py                                          # picks.json (formato antigo)
+Valores: letra (A-H) = art/_work/escolha/var/<nome>/<letra>.png (montado por escolha.py); "atual" = mantém
+a textura de assets/; número (1-6) = formato antigo (variantes/N.png ou area_{N-3}.png em art/_work/out).
+Seções: "block", "item" e "equipment" (destino pelo campo "asset" do job em jobs.json).
 As frentes acesas saem da frente apagada escolhida, para as duas ficarem idênticas fora da
 parte que acende: refinery_on pinta o interior escuro da fornalha com um degradê de fogo;
 oxygen_compressor_on clareia a grade da ventoinha e os tons ciano (luz de funcionamento).
@@ -14,10 +19,13 @@ from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 WORK = Path("art/_work/out/_texturas")
+ESCOLHA = Path("art/_work/escolha/var")
 ASSETS = Path("src/main/resources/assets/spacehorizons/textures")
 
 
 def source(name, n):
+    if isinstance(n, str):
+        return ESCOLHA / name / f"{n}.png"
     d = WORK / name
     return d / "variantes" / f"{n}.png" if n <= 3 else d / f"area_{n - 3}.png"
 
@@ -83,15 +91,29 @@ def compressor_on(src, dst):
 
 
 def main():
-    picks = json.loads((HERE / "picks.json").read_text(encoding="utf-8"))
-    for kind in ("block", "item"):
-        for name, n in picks[kind].items():
-            dst = ASSETS / kind / f"{name}.png"
-            shutil.copyfile(source(name, n), dst)
+    import sys
+    picks_file = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE / "picks.json"
+    picks = json.loads(picks_file.read_text(encoding="utf-8"))
+    jobs = {j["out"]: j for j in json.loads((HERE / "jobs.json").read_text(encoding="utf-8"))["jobs"]}
+    changed = set()
+    for kind in ("block", "item", "equipment"):
+        for name, n in picks.get(kind, {}).items():
+            if n == "atual":
+                continue
+            rel = jobs[name]["asset"] if kind == "equipment" else f"{kind}/{name}.png"
+            src = source(name, n)
+            if not src.exists():
+                raise SystemExit(f"{name}: variante {n} não existe ({src})")
+            dst = ASSETS / rel
+            shutil.copyfile(src, dst)
+            changed.add(name)
             print(dst)
-    refinery_on(ASSETS / "block/refinery.png", ASSETS / "block/refinery_on.png")
-    compressor_on(ASSETS / "block/oxygen_compressor.png", ASSETS / "block/oxygen_compressor_on.png")
-    print("frentes acesas geradas")
+    if "refinery" in changed:
+        refinery_on(ASSETS / "block/refinery.png", ASSETS / "block/refinery_on.png")
+        print("refinery_on derivada")
+    if "oxygen_compressor" in changed:
+        compressor_on(ASSETS / "block/oxygen_compressor.png", ASSETS / "block/oxygen_compressor_on.png")
+        print("oxygen_compressor_on derivada")
 
 
 if __name__ == "__main__":
