@@ -4,6 +4,7 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.rocket.LaunchPadBlock;
 import com.spacehorizons.rocket.RocketCockpitBlock;
 import com.spacehorizons.rocket.RocketEngineBlock;
 import com.spacehorizons.rocket.RocketFuelTankBlock;
@@ -47,7 +48,7 @@ public final class ModBlocks {
     // --- Foguete de blocos (etapa 3a): todas as peças precisam de picareta; ver tags em data/spacehorizons/tags/block ---
 
     /** Plataforma de lançamento: o foguete se monta sobre ela e a deixa para trás. */
-    public static final DeferredBlock<Block> LAUNCH_PAD = registerWithItem(ContentIds.LAUNCH_PAD,
+    public static final DeferredBlock<LaunchPadBlock> LAUNCH_PAD = registerBlockWithItem(ContentIds.LAUNCH_PAD, LaunchPadBlock::new,
             props -> props.mapColor(MapColor.COLOR_GRAY).strength(4.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops()
                     .noOcclusion());
 

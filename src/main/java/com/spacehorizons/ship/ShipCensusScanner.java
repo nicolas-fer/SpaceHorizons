@@ -103,6 +103,12 @@ final class ShipCensusScanner {
             }
         }
         ShipArrangement arrangement = new ShipArrangement(bow, this.nozzles[0], this.nozzles[1], this.nozzles[2], this.nozzles[3]);
+        // as colunas de tanque formadas, pela mesma partição do foguete (Multiblocks), sobre as posições dos tanques achados
+        long[] packed = new long[this.tanks.size()];
+        for (int i = 0; i < packed.length; i++) {
+            packed[i] = this.tanks.get(i).asLong();
+        }
+        census = census.withTankStructures(com.spacehorizons.rocket.Multiblocks.tileTanks(packed).boxes());
         return new ShipCensusResult(census, List.copyOf(this.tanks), this.fuelMb, this.startTick, arrangement);
     }
 }

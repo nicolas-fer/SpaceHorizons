@@ -68,8 +68,12 @@ public final class RocketSpecs {
 
     /** Massa seca de uma coluna de tanques formada, em toneladas. */
     public static double tankStructureMassT(Multiblocks.Box box) {
-        double factor = TANK_HULL_FLOOR + (1.0 - TANK_HULL_FLOOR) * box.surface() / (6.0 * box.volume());
-        return TANK_DRY_MASS_T * box.volume() * factor;
+        return TANK_DRY_MASS_T * box.volume() * tankHullFactor(box);
+    }
+
+    /** Fator do casco por bloco de uma coluna formada: {@code 0,4 + 0,6 * A / (6 V)} (1 num cubo isolado, 0,55 numa coluna 3x3x12). */
+    public static double tankHullFactor(Multiblocks.Box box) {
+        return TANK_HULL_FLOOR + (1.0 - TANK_HULL_FLOOR) * box.surface() / (6.0 * box.volume());
     }
 
     /** Capacidade de combustível de uma coluna de tanques formada, em mB. */

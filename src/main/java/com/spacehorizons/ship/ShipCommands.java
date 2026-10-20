@@ -136,7 +136,7 @@ final class ShipCommands {
         ShipCensusResult census = ShipCensusService.scanNow(source.getServer(), ship);
         ShipFlightTicker.start(source.getServer(), ship, census);
         double ms = (System.nanoTime() - start) / 1.0e6;
-        boolean same = census.census().equals(layout.expected());
+        boolean same = census.census().sameCounts(layout.expected());
         String line = ShipInfo.line(ship, census, census.tankFuelMb());
         SpaceHorizons.LOGGER.info("[ship] nave de voo {} criada em {} ms; censo {} o esperado ({}); {}", ship.id(), String.format(Locale.ROOT, "%.0f", ms),
                 same ? "igual a" : "DIFERENTE do", layout.expected(), line);

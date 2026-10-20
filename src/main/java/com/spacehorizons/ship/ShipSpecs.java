@@ -52,8 +52,20 @@ public final class ShipSpecs {
 
     /** Massa seca total de uma nave com esta contagem, em toneladas. */
     public static double dryMassT(ShipCensus c) {
-        return c.bridges() * BRIDGE_MASS_T + c.engines() * ENGINE_MASS_T + c.tanks() * TANK_DRY_MASS_T + c.windows() * WINDOW_MASS_T
+        double dry = c.bridges() * BRIDGE_MASS_T + c.engines() * ENGINE_MASS_T + c.looseTanks() * TANK_DRY_MASS_T + c.windows() * WINDOW_MASS_T
                 + c.seats() * SEAT_MASS_T + c.airlocks() * AIRLOCK_MASS_T + c.structures() * STRUCTURE_MASS_T;
+        for (com.spacehorizons.rocket.Multiblocks.Box box : c.tankStructures()) {
+            dry += tankStructureMassT(box);
+        }
+        return dry;
+    }
+
+    /**
+     * Massa seca de uma coluna de tanques formada (as mesmas colunas do foguete, {@code Multiblocks}): a do tanque da nave por bloco vezes o
+     * fator de casco do foguete ({@code RocketSpecs.tankHullFactor}), que cai quanto maior a coluna. A capacidade é a de sempre (4.000 mB por bloco).
+     */
+    public static double tankStructureMassT(com.spacehorizons.rocket.Multiblocks.Box box) {
+        return TANK_DRY_MASS_T * box.volume() * com.spacehorizons.rocket.RocketSpecs.tankHullFactor(box);
     }
 
     /** Abaixo disto o empuxo líquido dos motores conta como zero (motores que se anulam). */

@@ -125,4 +125,30 @@ class ShipSpecsTest {
         assertEquals(soma, ShipSpecs.dryMassT(c), EPS);
         assertEquals(0.0, ShipSpecs.massOf(ShipBlockKind.AIR), EPS);
     }
+
+    @Test
+    void colunaDeTanquesFormadaNaNaveTemACapacidadePeloVolumeECascoMaisLeve() {
+        com.spacehorizons.rocket.Multiblocks.Box column = new com.spacehorizons.rocket.Multiblocks.Box(0, 0, 0, 2, 8, 2);
+        ShipCensus loose = new ShipCensus(1, 1, 32, 0, 1, 0, 0);
+        ShipCensus formed = loose.withTankStructures(java.util.List.of(column));
+        assertEquals(32, formed.formedTankBlocks());
+        assertEquals(0, formed.looseTanks());
+        assertTrue(formed.sameCounts(loose), "as contagens por papel são as mesmas");
+        assertEquals(128_000.0, ShipSpecs.statsFor(formed).fuelCapacityMb(), EPS, "a capacidade sai do volume, igual ao avulso");
+        // 0,3 t * 32 * (0,4 + 0,6 * 72 / 192) = 6,0 t contra 9,6 t avulsos
+        assertEquals(6.0, ShipSpecs.tankStructureMassT(column), EPS);
+        assertEquals(ShipSpecs.dryMassT(loose) - 9.6 + 6.0, ShipSpecs.dryMassT(formed), EPS);
+        assertTrue(ShipSpecs.statsFor(formed).deltaV(128_000.0) > ShipSpecs.statsFor(loose).deltaV(128_000.0));
+    }
+
+    @Test
+    void censoDeNaveCarregaAsColunasNoRegistroDeVoo() {
+        com.spacehorizons.rocket.Multiblocks.Box column = new com.spacehorizons.rocket.Multiblocks.Box(3, 4, 5, 3, 10, 3);
+        ShipCensus census = new ShipCensus(1, 2, 90, 0, 1, 0, 10).withTankStructures(java.util.List.of(column));
+        ShipFlightData data = ShipFlightData.of(ShipFlight.testState(0.0, 100.0), census);
+        ShipFlightData back = ShipFlightData.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE,
+                ShipFlightData.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, data).getOrThrow()).getOrThrow();
+        assertEquals(census, back.censusValue());
+        assertEquals(java.util.List.of(column), back.censusValue().tankStructures());
+    }
 }

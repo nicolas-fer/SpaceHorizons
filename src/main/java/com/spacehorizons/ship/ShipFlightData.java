@@ -18,11 +18,19 @@ import com.spacehorizons.space.flight.V3;
  * massa e empuxo logo ao carregar, antes de o primeiro censo em lotes terminar). A conversão de e para {@link ShipFlight.State} é aqui.
  */
 public record ShipFlightData(String body, List<Double> r, List<Double> v, double fuelMb, List<Double> attitude, List<Double> spin, int sas,
-        double throttle, List<Integer> census, List<Integer> arrangement) {
+        double throttle, List<Integer> census, List<Integer> arrangement, List<List<Integer>> tankStructures) {
+    /** Naves gravadas antes das colunas de tanque: sem estruturas. */
+    public ShipFlightData(String body, List<Double> r, List<Double> v, double fuelMb, List<Double> attitude, List<Double> spin, int sas,
+            double throttle, List<Integer> census, List<Integer> arrangement) {
+        this(body, r, v, fuelMb, attitude, spin, sas, throttle, census, arrangement, List.of());
+    }
+
     private static final Codec<List<Double>> VEC3 = Codec.DOUBLE.listOf(3, 3);
     private static final Codec<List<Double>> QUAT = Codec.DOUBLE.listOf(4, 4);
     private static final Codec<List<Integer>> CENSUS = Codec.INT.listOf(7, 7);
     private static final Codec<List<Integer>> ARRANGEMENT = Codec.INT.listOf(5, 5);
+    /** Cada coluna de tanque formada: x, y, z, largura, altura, profundidade. */
+    private static final Codec<List<List<Integer>>> TANK_STRUCTURES = Codec.INT.listOf(6, 6).listOf();
 
     public static final Codec<ShipFlightData> CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.STRING.fieldOf("body").forGetter(ShipFlightData::body),
@@ -35,7 +43,8 @@ public record ShipFlightData(String body, List<Double> r, List<Double> v, double
             Codec.DOUBLE.fieldOf("throttle").forGetter(ShipFlightData::throttle),
             CENSUS.fieldOf("census").forGetter(ShipFlightData::census),
             // naves gravadas antes da proa e dos motores por lado: sem o campo, valem os padrões (proa no norte, motores pela proa)
-            ARRANGEMENT.optionalFieldOf("arrangement", ShipArrangement.DEFAULT.toList()).forGetter(ShipFlightData::arrangement)
+            ARRANGEMENT.optionalFieldOf("arrangement", ShipArrangement.DEFAULT.toList()).forGetter(ShipFlightData::arrangement),
+            TANK_STRUCTURES.optionalFieldOf("tank_structures", List.of()).forGetter(ShipFlightData::tankStructures)
     ).apply(i, ShipFlightData::new));
 
     /** Grava o estado de voo e o censo (com a disposição padrão: proa no norte, motores pela proa). */
@@ -50,7 +59,8 @@ public record ShipFlightData(String body, List<Double> r, List<Double> v, double
         return new ShipFlightData(o.body().planet().id().getPath(), List.of(o.r().x(), o.r().y(), o.r().z()), List.of(o.v().x(), o.v().y(), o.v().z()),
                 o.fuelMb(), List.of(q.x, q.y, q.z, q.w), List.of(s.spin().x(), s.spin().y(), s.spin().z()), s.sas().ordinal(), s.throttle(),
                 List.of(census.bridges(), census.engines(), census.tanks(), census.windows(), census.seats(), census.airlocks(), census.structures()),
-                arrangement.toList());
+                arrangement.toList(), census.tankStructures().stream()
+                        .map(b -> List.of(b.x(), b.y(), b.z(), b.w(), b.h(), b.d())).toList());
     }
 
     /** O estado de voo (null se o corpo gravado não existe mais). */
@@ -82,7 +92,8 @@ public record ShipFlightData(String body, List<Double> r, List<Double> v, double
     /** O último censo gravado. */
     public ShipCensus censusValue() {
         List<Integer> c = this.census;
-        return new ShipCensus(c.get(0), c.get(1), c.get(2), c.get(3), c.get(4), c.get(5), c.get(6));
+        return new ShipCensus(c.get(0), c.get(1), c.get(2), c.get(3), c.get(4), c.get(5), c.get(6), this.tankStructures.stream()
+                .map(b -> new com.spacehorizons.rocket.Multiblocks.Box(b.get(0), b.get(1), b.get(2), b.get(3), b.get(4), b.get(5))).toList());
     }
 
     /** A última disposição gravada (proa e motores por lado). */

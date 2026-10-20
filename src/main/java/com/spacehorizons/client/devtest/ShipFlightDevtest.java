@@ -418,8 +418,8 @@ final class ShipFlightDevtest {
             manual = manual.plus(kind, counts[kind.ordinal()]);
         }
         ShipCensusResult scanned = ShipCensusService.scanNow(server, ship);
-        ShipDevtest.check("censo por paleta (lotes) igual à contagem célula a célula", scanned.census().equals(manual), scanned.census() + " contra " + manual);
-        ShipDevtest.check("o voo usa esse censo", live.census().equals(manual), live.census() + " contra " + manual);
+        ShipDevtest.check("censo por paleta (lotes) igual à contagem célula a célula", scanned.census().sameCounts(manual), scanned.census() + " contra " + manual);
+        ShipDevtest.check("o voo usa esse censo", live.census().sameCounts(manual), live.census() + " contra " + manual);
         ShipDevtest.check("a nave tem 1 ponte, 4 motores, 8 tanques, 3 assentos e 4 eclusas", manual.bridges() == 1 && manual.engines() == 4 && manual.tanks() == 8
                 && manual.seats() == 3 && manual.airlocks() == 4, manual.toString());
         before0Fuel = live.state().fuelMb();

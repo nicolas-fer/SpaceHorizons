@@ -51,6 +51,21 @@ public final class RocketAssembler {
     private RocketAssembler() {
     }
 
+    /** O mundo como a busca da montagem o vê (a mesma para a montagem e para o painel de projeto da plataforma, {@link RocketDesign}). */
+    public static RocketAssembly.Grid worldGrid(net.minecraft.world.level.Level level) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        return (x, y, z) -> {
+            cursor.set(x, y, z);
+            if (!level.isInsideBuildHeight(cursor)) {
+                return RocketBlockKind.FORBIDDEN;
+            }
+            if (!level.isLoaded(cursor)) {
+                return RocketBlockKind.UNLOADED;
+            }
+            return RocketKinds.classify(level, cursor, level.getBlockState(cursor));
+        };
+    }
+
     /** O clique no cockpit: monta e conta ao jogador o que aconteceu. */
     public static void assembleFor(ServerLevel level, BlockPos cockpit, Player player) {
         try {
@@ -69,17 +84,7 @@ public final class RocketAssembler {
      * recusar a montagem. {@code player} (pode ser null, como no comando de teste) é conferido contra a proteção de spawn.
      */
     public static RocketEntity assemble(ServerLevel level, BlockPos cockpit, @Nullable Player player) throws RocketException {
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        RocketAssembly.Result found = RocketAssembly.scan((x, y, z) -> {
-            cursor.set(x, y, z);
-            if (!level.isInsideBuildHeight(cursor)) {
-                return RocketBlockKind.FORBIDDEN;
-            }
-            if (!level.isLoaded(cursor)) {
-                return RocketBlockKind.UNLOADED;
-            }
-            return RocketKinds.classify(level, cursor, level.getBlockState(cursor));
-        }, cockpit.getX(), cockpit.getY(), cockpit.getZ());
+        RocketAssembly.Result found = RocketAssembly.scan(worldGrid(level), cockpit.getX(), cockpit.getY(), cockpit.getZ());
 
         if (player != null) {
             for (RocketAssembly.Cell cell : found.cells()) {
