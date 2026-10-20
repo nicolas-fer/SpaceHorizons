@@ -202,6 +202,12 @@ Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D 
 
 Autoteste do voo: `./gradlew runClientTest -PshOnly=flight` (salto suborbital, batida, órbita completa com reentrada e o voo D, a mesma descida sem o freio de horizontal no espaço).
 
+**Missão completa à Lua e de volta** (`-PshOnly=mission`, provada em jogo): órbita baixa, TLI, captura, pouso suave na Lua, decolagem, volta, reentrada
+e pouso suave na Terra, 52.289 ticks, 263 b/t de Δv (órbita baixa 79, TLI 27, correções 3, captura 10, pouso lunar 24, decolagem 23, volta 8, reentrada
+e pouso 90). O foguete de teste A (253 b/t) não fecha a volta; o da missão tem 292 b/t. Números por fase, roteiro para o jogador e o que a
+missão mostrou (a janela da TLI precisa da Lua perto do plano do equador na chegada) em `docs/MISSAO_LUA.md`. `space/flight/LunarPlanner` prevê a
+chegada à Lua, calcula a correção de meio de curso e a queima de volta.
+
 ## Como rodar
 
 Requisitos: JDK 25 (o Gradle baixa o toolchain se preciso).
@@ -376,6 +382,12 @@ Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D 
 (estabilizar, prógrado, retrógrado), P paraquedas, V câmera, G desmontar (pousado).
 
 Autoteste do voo: `./gradlew runClientTest -PshOnly=flight` (salto suborbital, batida, órbita completa com reentrada e o voo D, a mesma descida sem o freio de horizontal no espaço).
+
+**Missão completa à Lua e de volta** (`-PshOnly=mission`, provada em jogo): órbita baixa, TLI, captura, pouso suave na Lua, decolagem, volta, reentrada
+e pouso suave na Terra, 52.289 ticks, 263 b/t de Δv (órbita baixa 79, TLI 27, correções 3, captura 10, pouso lunar 24, decolagem 23, volta 8, reentrada
+e pouso 90). O foguete de teste A (253 b/t) não fecha a volta; o da missão tem 292 b/t. Números por fase, roteiro para o jogador e o que a
+missão mostrou (a janela da TLI precisa da Lua perto do plano do equador na chegada) em `docs/MISSAO_LUA.md`. `space/flight/LunarPlanner` prevê a
+chegada à Lua, calcula a correção de meio de curso e a queima de volta.
 
 ## Como rodar
 

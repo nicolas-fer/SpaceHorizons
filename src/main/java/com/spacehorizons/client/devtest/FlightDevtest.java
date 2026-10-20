@@ -99,7 +99,7 @@ final class FlightDevtest {
         return MILESTONES.contains(milestone);
     }
 
-    private static void mark(String milestone) {
+    static void mark(String milestone) {
         if (MILESTONES.add(milestone)) {
             SpaceHorizons.LOGGER.info("{}MARCO '{}' no tick {} do voo {}", TAG, milestone, totalTicks, variant);
         }
@@ -163,6 +163,25 @@ final class FlightDevtest {
                 put(level, 0, 2, 0, ModBlocks.ROCKET_FUEL_TANK.get().defaultBlockState());
                 put(level, 0, 3, 0, ModBlocks.ROCKET_COCKPIT.get().defaultBlockState());
                 cockpit = BASE.offset(0, 3, 0);
+            } else if (which == 'M') {
+                // o foguete da MISSÃO COMPLETA (cenário mission): 9 motores (3x3), 45 tanques (3x3x5), cockpit e 8 cascos no andar de cima, 1 paraquedas e 2 pernas
+                // (Δv ~292 b/t cheio: o foguete A, de 253, não fecha a ida e volta à Lua; ver docs/MISSAO_LUA.md)
+                for (int x = -1; x <= 1; x++) {
+                    for (int z = -1; z <= 1; z++) {
+                        put(level, x, 1, z, ModBlocks.ROCKET_ENGINE.get().defaultBlockState());
+                        for (int y = 2; y <= 6; y++) {
+                            put(level, x, y, z, ModBlocks.ROCKET_FUEL_TANK.get().defaultBlockState());
+                        }
+                        if (x != 0 || z != 0) {
+                            put(level, x, 7, z, ModBlocks.ROCKET_HULL.get().defaultBlockState());
+                        }
+                    }
+                }
+                put(level, 0, 7, 0, ModBlocks.ROCKET_COCKPIT.get().defaultBlockState());
+                put(level, 0, 8, 0, ModBlocks.ROCKET_PARACHUTE.get().defaultBlockState());
+                put(level, -2, 1, 0, ModBlocks.ROCKET_LANDING_LEG.get().defaultBlockState());
+                put(level, 2, 1, 0, ModBlocks.ROCKET_LANDING_LEG.get().defaultBlockState());
+                cockpit = BASE.offset(0, 7, 0);
             } else {
                 // 4 motores (2x2), 12 tanques (2x2x3), cockpit e 3 cascos, 1 paraquedas e 2 pernas
                 for (int x = 0; x <= 1; x++) {
@@ -183,8 +202,8 @@ final class FlightDevtest {
                 cockpit = BASE.offset(0, 5, 0);
             }
             // abastece todos os tanques ("por comando": direto no block entity)
-            for (int x = -1; x <= 2; x++) {
-                for (int y = 1; y <= 6; y++) {
+            for (int x = -2; x <= 2; x++) {
+                for (int y = 1; y <= 8; y++) {
                     for (int z = -1; z <= 2; z++) {
                         if (level.getBlockEntity(BASE.offset(x, y, z)) instanceof RocketFuelTankBlockEntity tank) {
                             tank.setFuel(4000);

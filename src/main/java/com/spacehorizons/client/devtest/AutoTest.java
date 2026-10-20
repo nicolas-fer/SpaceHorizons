@@ -174,6 +174,10 @@ public final class AutoTest {
             moonTripScenario();
             return;
         }
+        if ("mission".equals(ONLY)) {
+            missionScenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
@@ -2979,6 +2983,81 @@ public final class AutoTest {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });
+    }
+
+    /**
+     * Relógio (ticks do Overworld) do lançamento da MISSÃO: com ele a Lua cruza o plano do equador perto da chegada, então a janela da TLI
+     * (o primeiro depois da órbita baixa) já sai quase no plano e a correção de meio de curso é só a do lado de passagem. Em qualquer outro relógio
+     * a janela existe, mas a Lua chega a até 100.000 blocos fora do plano do equador e a correção custa dezenas de blocos/tick (ver docs/MISSAO_LUA.md).
+     */
+    private static final int MISSION_CLOCK = 68_300;
+    /** Ticks por segundo da missão: o servidor anda mais depressa que o tempo real para os ~55.000 ticks caberem em minutos. */
+    private static final int MISSION_RATE = 300;
+
+    /**
+     * A MISSÃO COMPLETA com o foguete de verdade (ver {@link MissionDevtest}): Terra, órbita baixa, TLI, chegada e captura na Lua, pouso, decolagem,
+     * volta, reentrada e pouso na Terra. O piloto roda no servidor a {@value #MISSION_RATE} ticks/s; em cada marco o ritmo volta a 20 ticks/s
+     * por um momento, para o cliente desenhar o quadro do print.
+     */
+    private void missionScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(5, "time set " + MISSION_CLOCK);
+        cmd(5, "gamerule advance_time true");
+        fly(10);
+        step(10, mc -> FlightDevtest.build(mc, 'M'));
+        tickerStep(10, waitFor("built_m", 300));
+        thirdPerson();
+        step(5, mc -> FlightDevtest.clientCheck(mc, "M na plataforma"));
+        shot(40, "ms_01_pad");
+        step(0, MissionDevtest::go);
+        missionShot("phase_ASCENT", "ms_02_liftoff", 400);
+        missionShot("phase_COAST_TO_APOAPSIS", "ms_03_ascent_cutoff", 2_000);
+        missionShot("phase_LEO_WAIT", "ms_04_leo", 3_000);
+        missionShot("phase_TLI", "ms_05_tli_burn", 20_000);
+        missionShot("phase_COAST_TO_MOON", "ms_06_tli_done", 1_000);
+        missionShot("phase_CAPTURE_COAST", "ms_07_moon_soi", 60_000);
+        missionShot("phase_CAPTURE", "ms_08_capture_burn", 20_000);
+        missionShot("phase_LUNAR_ORBIT", "ms_09_lunar_orbit", 2_000);
+        missionShot("phase_LUNAR_DESCENT", "ms_10_lunar_descent", 4_000);
+        missionShot("phase_MOON_LANDED", "ms_11_moon_landed", 6_000);
+        step(0, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
+        shot(20, "ms_11b_moon_landed_first_person");
+        step(0, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK));
+        missionShot("phase_LUNAR_ASCENT", "ms_12_moon_liftoff", 2_000);
+        missionShot("phase_LUNAR_ORBIT_2", "ms_13_lunar_orbit_after_liftoff", 4_000);
+        missionShot("phase_TEI", "ms_14_return_burn", 20_000);
+        missionShot("phase_COAST_HOME", "ms_15_return_coast", 1_000);
+        missionShot("phase_EARTH_ENTRY", "ms_16_earth_arrival", 60_000);
+        missionShot("phase_EARTH_LANDING", "ms_17_reentry", 6_000);
+        missionShot("phase_DONE", "ms_18_earth_landed", 6_000);
+        tickerStep(0, waitFor("end", 6_000));
+        step(20, mc -> FlightDevtest.clientCheck(mc, "M pousado na Terra"));
+        cmd(2, "tick rate 20");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Espera o marco {@code marker} da missão e tira o print {@code name} com o jogo no ritmo normal (depois volta ao ritmo rápido). */
+    private void missionShot(String marker, String name, int maxTicks) {
+        int[] waited = {0};
+        tickerStep(0, mc -> {
+            if (FlightDevtest.reached(marker) || FlightDevtest.reached("failed")) {
+                return true;
+            }
+            if (++waited[0] > maxTicks * 20) {
+                SpaceHorizons.LOGGER.error(TAG + "tempo esgotado esperando o marco '{}'", marker);
+                return true;
+            }
+            return false;
+        });
+        cmd(1, "tick rate 20");
+        step(50, mc -> FlightDevtest.clientCheck(mc, name));
+        shot(5, name);
+        cmd(1, "tick rate " + MISSION_RATE);
     }
 
     private static String f(double v) {
