@@ -198,6 +198,12 @@ public final class RocketFlight {
         out.putDouble("Fuel", st.fuelMb());
         out.putDouble("Heat", st.heat());
         out.putDouble("Chute", st.chute());
+        if (s.zoneBody() == null && this.spacePos != null) {
+            // a posição real no espaço (a entidade fica estacionada) atravessa a recriação da entidade na troca de dimensão
+            out.putDouble("SpaceX", this.spacePos.x);
+            out.putDouble("SpaceY", this.spacePos.y);
+            out.putDouble("SpaceZ", this.spacePos.z);
+        }
         Quaterniond q = s.attitude();
         out.putDouble("Qx", q.x);
         out.putDouble("Qy", q.y);
@@ -231,6 +237,8 @@ public final class RocketFlight {
                     in.getDoubleOr("Throttle", 0.0), in.getBooleanOr("ChuteWanted", false), zone, state.fuelMb());
             // o acelerador atravessa a troca de dimensão (a entidade é recriada): vale até o primeiro pacote do piloto
             this.control = new RocketControlPayload(0.0F, 0.0F, 0.0F, (float) Math.max(0.0, Math.min(1.0, in.getDoubleOr("Throttle", 0.0))), (byte) 0);
+            double spaceY = in.getDoubleOr("SpaceY", Double.NaN);
+            this.spacePos = zone == null && !Double.isNaN(spaceY) ? new Vec3(in.getDoubleOr("SpaceX", 0.0), spaceY, in.getDoubleOr("SpaceZ", 0.0)) : null;
             this.arrivalPending = true;
             this.arrivalTicks = 0;
         });
