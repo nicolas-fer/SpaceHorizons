@@ -1,8 +1,505 @@
 {
-  "parent": "minecraft:block/cube_bottom_top",
-  "textures": {
-    "top": "spacehorizons:block/rocket_landing_leg_top",
-    "side": "spacehorizons:block/rocket_landing_leg",
-    "bottom": "spacehorizons:block/rocket_landing_leg"
-  }
+	"format_version": "26.3",
+	"credit": "Made with Blockbench",
+	"parent": "minecraft:block/block",
+	"textures": {
+		"particle": "spacehorizons:block/rocket_landing_leg",
+		"leg": "spacehorizons:block/rocket_landing_leg",
+		"foot": "spacehorizons:block/rocket_landing_leg_top",
+		"casing": "spacehorizons:block/machine_casing",
+		"hazard": "spacehorizons:block/hazard_stripes"
+	},
+	"elements": [
+		{
+			"name": "montagem",
+			"from": [
+				1,
+				13,
+				1
+			],
+			"to": [
+				15,
+				16,
+				15
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						1,
+						0,
+						15,
+						3
+					],
+					"texture": "#hazard"
+				},
+				"east": {
+					"uv": [
+						1,
+						0,
+						15,
+						3
+					],
+					"texture": "#hazard"
+				},
+				"south": {
+					"uv": [
+						1,
+						0,
+						15,
+						3
+					],
+					"texture": "#hazard"
+				},
+				"west": {
+					"uv": [
+						1,
+						0,
+						15,
+						3
+					],
+					"texture": "#hazard"
+				},
+				"up": {
+					"uv": [
+						1,
+						1,
+						15,
+						15
+					],
+					"texture": "#casing",
+					"cullface": "up"
+				},
+				"down": {
+					"uv": [
+						1,
+						1,
+						15,
+						15
+					],
+					"texture": "#casing"
+				}
+			}
+		},
+		{
+			"name": "cilindro",
+			"from": [
+				5,
+				5,
+				5
+			],
+			"to": [
+				11,
+				13,
+				11
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						5,
+						3,
+						11,
+						11
+					],
+					"texture": "#leg"
+				},
+				"east": {
+					"uv": [
+						5,
+						3,
+						11,
+						11
+					],
+					"texture": "#leg"
+				},
+				"south": {
+					"uv": [
+						5,
+						3,
+						11,
+						11
+					],
+					"texture": "#leg"
+				},
+				"west": {
+					"uv": [
+						5,
+						3,
+						11,
+						11
+					],
+					"texture": "#leg"
+				},
+				"down": {
+					"uv": [
+						5,
+						5,
+						11,
+						11
+					],
+					"texture": "#leg"
+				}
+			}
+		},
+		{
+			"name": "pistao",
+			"from": [
+				6.5,
+				2,
+				6.5
+			],
+			"to": [
+				9.5,
+				5,
+				9.5
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						6.5,
+						11,
+						9.5,
+						14
+					],
+					"texture": "#leg"
+				},
+				"east": {
+					"uv": [
+						6.5,
+						11,
+						9.5,
+						14
+					],
+					"texture": "#leg"
+				},
+				"south": {
+					"uv": [
+						6.5,
+						11,
+						9.5,
+						14
+					],
+					"texture": "#leg"
+				},
+				"west": {
+					"uv": [
+						6.5,
+						11,
+						9.5,
+						14
+					],
+					"texture": "#leg"
+				}
+			}
+		},
+		{
+			"name": "sapata",
+			"from": [
+				1,
+				0,
+				1
+			],
+			"to": [
+				15,
+				2,
+				15
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						1,
+						14,
+						15,
+						16
+					],
+					"texture": "#casing"
+				},
+				"east": {
+					"uv": [
+						1,
+						14,
+						15,
+						16
+					],
+					"texture": "#casing"
+				},
+				"south": {
+					"uv": [
+						1,
+						14,
+						15,
+						16
+					],
+					"texture": "#casing"
+				},
+				"west": {
+					"uv": [
+						1,
+						14,
+						15,
+						16
+					],
+					"texture": "#casing"
+				},
+				"up": {
+					"uv": [
+						1,
+						1,
+						15,
+						15
+					],
+					"texture": "#foot"
+				},
+				"down": {
+					"uv": [
+						1,
+						1,
+						15,
+						15
+					],
+					"texture": "#foot",
+					"cullface": "down"
+				}
+			}
+		},
+		{
+			"name": "escora_n",
+			"from": [
+				7,
+				1.5,
+				3
+			],
+			"to": [
+				9,
+				13.5,
+				4.5
+			],
+			"rotation": {
+				"angle": 22.5,
+				"axis": "x",
+				"origin": [
+					8,
+					7.5,
+					3.75
+				]
+			},
+			"faces": {
+				"north": {
+					"uv": [
+						7,
+						2.5,
+						9,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"east": {
+					"uv": [
+						11.5,
+						2.5,
+						13,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"south": {
+					"uv": [
+						7,
+						2.5,
+						9,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"west": {
+					"uv": [
+						3,
+						2.5,
+						4.5,
+						14.5
+					],
+					"texture": "#casing"
+				}
+			}
+		},
+		{
+			"name": "escora_s",
+			"from": [
+				7,
+				1.5,
+				11.5
+			],
+			"to": [
+				9,
+				13.5,
+				13
+			],
+			"rotation": {
+				"angle": -22.5,
+				"axis": "x",
+				"origin": [
+					8,
+					7.5,
+					12.25
+				]
+			},
+			"faces": {
+				"north": {
+					"uv": [
+						7,
+						2.5,
+						9,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"east": {
+					"uv": [
+						3,
+						2.5,
+						4.5,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"south": {
+					"uv": [
+						7,
+						2.5,
+						9,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"west": {
+					"uv": [
+						11.5,
+						2.5,
+						13,
+						14.5
+					],
+					"texture": "#casing"
+				}
+			}
+		},
+		{
+			"name": "escora_o",
+			"from": [
+				3,
+				1.5,
+				7
+			],
+			"to": [
+				4.5,
+				13.5,
+				9
+			],
+			"rotation": {
+				"angle": -22.5,
+				"axis": "z",
+				"origin": [
+					3.75,
+					7.5,
+					8
+				]
+			},
+			"faces": {
+				"north": {
+					"uv": [
+						11.5,
+						2.5,
+						13,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"east": {
+					"uv": [
+						7,
+						2.5,
+						9,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"south": {
+					"uv": [
+						3,
+						2.5,
+						4.5,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"west": {
+					"uv": [
+						7,
+						2.5,
+						9,
+						14.5
+					],
+					"texture": "#casing"
+				}
+			}
+		},
+		{
+			"name": "escora_l",
+			"from": [
+				11.5,
+				1.5,
+				7
+			],
+			"to": [
+				13,
+				13.5,
+				9
+			],
+			"rotation": {
+				"angle": 22.5,
+				"axis": "z",
+				"origin": [
+					12.25,
+					7.5,
+					8
+				]
+			},
+			"faces": {
+				"north": {
+					"uv": [
+						3,
+						2.5,
+						4.5,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"east": {
+					"uv": [
+						7,
+						2.5,
+						9,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"south": {
+					"uv": [
+						11.5,
+						2.5,
+						13,
+						14.5
+					],
+					"texture": "#casing"
+				},
+				"west": {
+					"uv": [
+						7,
+						2.5,
+						9,
+						14.5
+					],
+					"texture": "#casing"
+				}
+			}
+		}
+	]
 }

@@ -1,0 +1,551 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "spacehorizons:block/oxygen_compressor_side",
+    "front": "spacehorizons:block/oxygen_compressor",
+    "side": "spacehorizons:block/oxygen_compressor_side",
+    "top": "spacehorizons:block/oxygen_compressor_top",
+    "casing": "spacehorizons:block/machine_casing",
+    "cylinder": "spacehorizons:block/oxygen_cylinder"
+  },
+  "elements": [
+    {
+      "name": "base",
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        1,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            15,
+            16,
+            16
+          ],
+          "texture": "#casing",
+          "cullface": "north"
+        },
+        "east": {
+          "uv": [
+            0,
+            15,
+            16,
+            16
+          ],
+          "texture": "#casing",
+          "cullface": "east"
+        },
+        "south": {
+          "uv": [
+            0,
+            15,
+            16,
+            16
+          ],
+          "texture": "#casing",
+          "cullface": "south"
+        },
+        "west": {
+          "uv": [
+            0,
+            15,
+            16,
+            16
+          ],
+          "texture": "#casing",
+          "cullface": "west"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#casing"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#casing",
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "name": "corpo",
+      "from": [
+        3,
+        1,
+        1
+      ],
+      "to": [
+        13,
+        13,
+        15
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            3,
+            3,
+            13,
+            15
+          ],
+          "texture": "#front"
+        },
+        "east": {
+          "uv": [
+            1,
+            3,
+            15,
+            15
+          ],
+          "texture": "#side"
+        },
+        "south": {
+          "uv": [
+            3,
+            3,
+            13,
+            15
+          ],
+          "texture": "#side"
+        },
+        "west": {
+          "uv": [
+            1,
+            3,
+            15,
+            15
+          ],
+          "texture": "#side"
+        },
+        "up": {
+          "uv": [
+            3,
+            1,
+            13,
+            15
+          ],
+          "texture": "#top"
+        }
+      }
+    },
+    {
+      "name": "topo",
+      "from": [
+        4,
+        13,
+        3
+      ],
+      "to": [
+        12,
+        15,
+        13
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            4,
+            1,
+            12,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "east": {
+          "uv": [
+            3,
+            1,
+            13,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "south": {
+          "uv": [
+            4,
+            1,
+            12,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "west": {
+          "uv": [
+            3,
+            1,
+            13,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "up": {
+          "uv": [
+            4,
+            3,
+            12,
+            13
+          ],
+          "texture": "#top"
+        }
+      }
+    },
+    {
+      "name": "cilindro_esq",
+      "from": [
+        0,
+        1,
+        5
+      ],
+      "to": [
+        3,
+        13,
+        10
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            13,
+            3,
+            16,
+            15
+          ],
+          "texture": "#cylinder"
+        },
+        "east": {
+          "uv": [
+            6,
+            3,
+            11,
+            15
+          ],
+          "texture": "#cylinder"
+        },
+        "south": {
+          "uv": [
+            0,
+            3,
+            3,
+            15
+          ],
+          "texture": "#cylinder"
+        },
+        "west": {
+          "uv": [
+            5,
+            3,
+            10,
+            15
+          ],
+          "texture": "#cylinder",
+          "cullface": "west"
+        },
+        "up": {
+          "uv": [
+            0,
+            5,
+            3,
+            10
+          ],
+          "texture": "#cylinder"
+        }
+      }
+    },
+    {
+      "name": "cilindro_dir",
+      "from": [
+        13,
+        1,
+        5
+      ],
+      "to": [
+        16,
+        13,
+        10
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            3,
+            3,
+            15
+          ],
+          "texture": "#cylinder"
+        },
+        "east": {
+          "uv": [
+            6,
+            3,
+            11,
+            15
+          ],
+          "texture": "#cylinder",
+          "cullface": "east"
+        },
+        "south": {
+          "uv": [
+            13,
+            3,
+            16,
+            15
+          ],
+          "texture": "#cylinder"
+        },
+        "west": {
+          "uv": [
+            5,
+            3,
+            10,
+            15
+          ],
+          "texture": "#cylinder"
+        },
+        "up": {
+          "uv": [
+            13,
+            5,
+            16,
+            10
+          ],
+          "texture": "#cylinder"
+        }
+      }
+    },
+    {
+      "name": "valvula_esq",
+      "from": [
+        0.5,
+        13,
+        6
+      ],
+      "to": [
+        2.5,
+        14.5,
+        9
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            13.5,
+            1.5,
+            15.5,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "east": {
+          "uv": [
+            7,
+            1.5,
+            10,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "south": {
+          "uv": [
+            0.5,
+            1.5,
+            2.5,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "west": {
+          "uv": [
+            6,
+            1.5,
+            9,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "up": {
+          "uv": [
+            0.5,
+            6,
+            2.5,
+            9
+          ],
+          "texture": "#casing"
+        }
+      }
+    },
+    {
+      "name": "valvula_dir",
+      "from": [
+        13.5,
+        13,
+        6
+      ],
+      "to": [
+        15.5,
+        14.5,
+        9
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0.5,
+            1.5,
+            2.5,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "east": {
+          "uv": [
+            7,
+            1.5,
+            10,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "south": {
+          "uv": [
+            13.5,
+            1.5,
+            15.5,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "west": {
+          "uv": [
+            6,
+            1.5,
+            9,
+            3
+          ],
+          "texture": "#casing"
+        },
+        "up": {
+          "uv": [
+            13.5,
+            6,
+            15.5,
+            9
+          ],
+          "texture": "#casing"
+        }
+      }
+    },
+    {
+      "name": "tubo_esq",
+      "from": [
+        2.5,
+        13.5,
+        7
+      ],
+      "to": [
+        4,
+        14.5,
+        8
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            12,
+            1.5,
+            13.5,
+            2.5
+          ],
+          "texture": "#casing"
+        },
+        "south": {
+          "uv": [
+            2.5,
+            1.5,
+            4,
+            2.5
+          ],
+          "texture": "#casing"
+        },
+        "up": {
+          "uv": [
+            2.5,
+            7,
+            4,
+            8
+          ],
+          "texture": "#casing"
+        },
+        "down": {
+          "uv": [
+            2.5,
+            8,
+            4,
+            9
+          ],
+          "texture": "#casing"
+        }
+      }
+    },
+    {
+      "name": "tubo_dir",
+      "from": [
+        12,
+        13.5,
+        7
+      ],
+      "to": [
+        13.5,
+        14.5,
+        8
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            2.5,
+            1.5,
+            4,
+            2.5
+          ],
+          "texture": "#casing"
+        },
+        "south": {
+          "uv": [
+            12,
+            1.5,
+            13.5,
+            2.5
+          ],
+          "texture": "#casing"
+        },
+        "up": {
+          "uv": [
+            12,
+            7,
+            13.5,
+            8
+          ],
+          "texture": "#casing"
+        },
+        "down": {
+          "uv": [
+            12,
+            8,
+            13.5,
+            9
+          ],
+          "texture": "#casing"
+        }
+      }
+    }
+  ]
+}

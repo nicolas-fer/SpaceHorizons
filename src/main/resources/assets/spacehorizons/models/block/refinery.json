@@ -1,8 +1,669 @@
 {
-  "parent": "minecraft:block/orientable",
-  "textures": {
-    "front": "spacehorizons:block/refinery",
-    "side": "spacehorizons:block/refinery_side",
-    "top": "spacehorizons:block/refinery_top"
-  }
+	"format_version": "26.3",
+	"credit": "Made with Blockbench",
+	"parent": "minecraft:block/block",
+	"textures": {
+		"front": "spacehorizons:block/refinery",
+		"particle": "spacehorizons:block/refinery_side",
+		"side": "spacehorizons:block/refinery_side",
+		"top": "spacehorizons:block/refinery_top",
+		"casing": "spacehorizons:block/machine_casing",
+		"copper": "spacehorizons:block/copper_tank",
+		"hazard": "spacehorizons:block/hazard_stripes"
+	},
+	"elements": [
+		{
+			"name": "base",
+			"from": [
+				0,
+				0,
+				0
+			],
+			"to": [
+				16,
+				2,
+				16
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						0,
+						14,
+						16,
+						16
+					],
+					"texture": "#casing",
+					"cullface": "north"
+				},
+				"east": {
+					"uv": [
+						0,
+						14,
+						16,
+						16
+					],
+					"texture": "#casing",
+					"cullface": "east"
+				},
+				"south": {
+					"uv": [
+						0,
+						14,
+						16,
+						16
+					],
+					"texture": "#casing",
+					"cullface": "south"
+				},
+				"west": {
+					"uv": [
+						0,
+						14,
+						16,
+						16
+					],
+					"texture": "#casing",
+					"cullface": "west"
+				},
+				"up": {
+					"uv": [
+						0,
+						0,
+						16,
+						16
+					],
+					"texture": "#casing"
+				},
+				"down": {
+					"uv": [
+						0,
+						0,
+						16,
+						16
+					],
+					"texture": "#casing",
+					"cullface": "down"
+				}
+			}
+		},
+		{
+			"name": "corpo",
+			"from": [
+				1,
+				2,
+				1
+			],
+			"to": [
+				15,
+				12,
+				15
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						1,
+						4,
+						15,
+						14
+					],
+					"texture": "#front"
+				},
+				"east": {
+					"uv": [
+						1,
+						4,
+						15,
+						14
+					],
+					"texture": "#side"
+				},
+				"south": {
+					"uv": [
+						1,
+						4,
+						15,
+						14
+					],
+					"texture": "#side"
+				},
+				"west": {
+					"uv": [
+						1,
+						4,
+						15,
+						14
+					],
+					"texture": "#side"
+				},
+				"up": {
+					"uv": [
+						1,
+						1,
+						15,
+						15
+					],
+					"texture": "#top"
+				}
+			}
+		},
+		{
+			"name": "faixa",
+			"from": [
+				1,
+				12,
+				1
+			],
+			"to": [
+				15,
+				13,
+				15
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						1,
+						3,
+						15,
+						4
+					],
+					"texture": "#hazard"
+				},
+				"east": {
+					"uv": [
+						1,
+						3,
+						15,
+						4
+					],
+					"texture": "#hazard"
+				},
+				"south": {
+					"uv": [
+						1,
+						3,
+						15,
+						4
+					],
+					"texture": "#hazard"
+				},
+				"west": {
+					"uv": [
+						1,
+						3,
+						15,
+						4
+					],
+					"texture": "#hazard"
+				},
+				"up": {
+					"uv": [
+						1,
+						1,
+						15,
+						15
+					],
+					"texture": "#top"
+				}
+			}
+		},
+		{
+			"name": "coluna",
+			"from": [
+				8,
+				13,
+				7
+			],
+			"to": [
+				14,
+				16,
+				13
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						2,
+						0,
+						8,
+						3
+					],
+					"texture": "#copper"
+				},
+				"east": {
+					"uv": [
+						3,
+						0,
+						9,
+						3
+					],
+					"texture": "#copper"
+				},
+				"south": {
+					"uv": [
+						8,
+						0,
+						14,
+						3
+					],
+					"texture": "#copper"
+				},
+				"west": {
+					"uv": [
+						7,
+						0,
+						13,
+						3
+					],
+					"texture": "#copper"
+				},
+				"up": {
+					"uv": [
+						8,
+						7,
+						14,
+						13
+					],
+					"texture": "#top",
+					"cullface": "up"
+				}
+			}
+		},
+		{
+			"name": "anel_coluna",
+			"from": [
+				7.5,
+				14,
+				6.5
+			],
+			"to": [
+				14.5,
+				15,
+				13.5
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						1.5,
+						1,
+						8.5,
+						2
+					],
+					"texture": "#casing"
+				},
+				"east": {
+					"uv": [
+						2.5,
+						1,
+						9.5,
+						2
+					],
+					"texture": "#casing"
+				},
+				"south": {
+					"uv": [
+						7.5,
+						1,
+						14.5,
+						2
+					],
+					"texture": "#casing"
+				},
+				"west": {
+					"uv": [
+						6.5,
+						1,
+						13.5,
+						2
+					],
+					"texture": "#casing"
+				}
+			}
+		},
+		{
+			"name": "chamine",
+			"from": [
+				2,
+				13,
+				9
+			],
+			"to": [
+				5,
+				16,
+				12
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						11,
+						0,
+						14,
+						3
+					],
+					"texture": "#casing"
+				},
+				"east": {
+					"uv": [
+						4,
+						0,
+						7,
+						3
+					],
+					"texture": "#casing"
+				},
+				"south": {
+					"uv": [
+						2,
+						0,
+						5,
+						3
+					],
+					"texture": "#casing"
+				},
+				"west": {
+					"uv": [
+						9,
+						0,
+						12,
+						3
+					],
+					"texture": "#casing"
+				},
+				"up": {
+					"uv": [
+						2,
+						9,
+						5,
+						12
+					],
+					"texture": "#casing",
+					"cullface": "up"
+				}
+			}
+		},
+		{
+			"name": "tubo_lateral",
+			"from": [
+				15,
+				2,
+				9
+			],
+			"to": [
+				16,
+				11,
+				11
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						0,
+						5,
+						1,
+						14
+					],
+					"texture": "#copper"
+				},
+				"east": {
+					"uv": [
+						5,
+						5,
+						7,
+						14
+					],
+					"texture": "#copper",
+					"cullface": "east"
+				},
+				"south": {
+					"uv": [
+						15,
+						5,
+						16,
+						14
+					],
+					"texture": "#copper"
+				},
+				"west": {
+					"uv": [
+						9,
+						5,
+						11,
+						14
+					],
+					"texture": "#copper"
+				},
+				"up": {
+					"uv": [
+						15,
+						9,
+						16,
+						11
+					],
+					"texture": "#copper"
+				}
+			}
+		},
+		{
+			"name": "tubo_cotovelo",
+			"from": [
+				14,
+				11,
+				9
+			],
+			"to": [
+				16,
+				13,
+				11
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						0,
+						3,
+						2,
+						5
+					],
+					"texture": "#copper"
+				},
+				"east": {
+					"uv": [
+						5,
+						3,
+						7,
+						5
+					],
+					"texture": "#copper",
+					"cullface": "east"
+				},
+				"south": {
+					"uv": [
+						14,
+						3,
+						16,
+						5
+					],
+					"texture": "#copper"
+				},
+				"west": {
+					"uv": [
+						9,
+						3,
+						11,
+						5
+					],
+					"texture": "#copper"
+				},
+				"up": {
+					"uv": [
+						14,
+						9,
+						16,
+						11
+					],
+					"texture": "#copper"
+				}
+			}
+		},
+		{
+			"name": "tubo_topo",
+			"from": [
+				13,
+				13,
+				9
+			],
+			"to": [
+				15,
+				14.5,
+				11
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						1,
+						1.5,
+						3,
+						3
+					],
+					"texture": "#copper"
+				},
+				"east": {
+					"uv": [
+						5,
+						1.5,
+						7,
+						3
+					],
+					"texture": "#copper"
+				},
+				"south": {
+					"uv": [
+						13,
+						1.5,
+						15,
+						3
+					],
+					"texture": "#copper"
+				},
+				"west": {
+					"uv": [
+						9,
+						1.5,
+						11,
+						3
+					],
+					"texture": "#copper"
+				},
+				"up": {
+					"uv": [
+						13,
+						9,
+						15,
+						11
+					],
+					"texture": "#copper"
+				}
+			}
+		},
+		{
+			"name": "pe_frente_esq",
+			"from": [
+				1,
+				2,
+				0
+			],
+			"to": [
+				3,
+				4,
+				1
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						13,
+						12,
+						15,
+						14
+					],
+					"texture": "#casing",
+					"cullface": "north"
+				},
+				"east": {
+					"uv": [
+						15,
+						12,
+						16,
+						14
+					],
+					"texture": "#casing"
+				},
+				"south": {
+					"uv": [
+						1,
+						12,
+						3,
+						14
+					],
+					"texture": "#casing"
+				},
+				"west": {
+					"uv": [
+						0,
+						12,
+						1,
+						14
+					],
+					"texture": "#casing"
+				}
+			}
+		},
+		{
+			"name": "pe_frente_dir",
+			"from": [
+				13,
+				2,
+				0
+			],
+			"to": [
+				15,
+				4,
+				1
+			],
+			"faces": {
+				"north": {
+					"uv": [
+						1,
+						12,
+						3,
+						14
+					],
+					"texture": "#casing",
+					"cullface": "north"
+				},
+				"east": {
+					"uv": [
+						15,
+						12,
+						16,
+						14
+					],
+					"texture": "#casing"
+				},
+				"south": {
+					"uv": [
+						13,
+						12,
+						15,
+						14
+					],
+					"texture": "#casing"
+				},
+				"west": {
+					"uv": [
+						0,
+						12,
+						1,
+						14
+					],
+					"texture": "#casing"
+				}
+			}
+		}
+	]
 }

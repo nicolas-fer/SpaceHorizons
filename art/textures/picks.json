@@ -1,0 +1,19 @@
+{
+  "_doc": "Variante escolhida por textura. 1-3 = variantes do texture.py (redução por voto); 4-6 = o bruto 1-3 reduzido por média de área (reduce16.py). Aplicar: python art/textures/apply_picks.py",
+  "block": {
+    "steel_block": 5, "rocket_hull": 1, "machine_casing": 6, "hazard_stripes": 4, "cockpit_glass": 2,
+    "launch_pad": 5, "launch_pad_side": 2,
+    "refinery": 2, "refinery_side": 1, "refinery_top": 3, "copper_tank": 2,
+    "oxygen_compressor": 2, "oxygen_compressor_side": 2, "oxygen_compressor_top": 3, "oxygen_cylinder": 2,
+    "rocket_cockpit": 1, "rocket_cockpit_side": 3, "rocket_cockpit_top": 3,
+    "rocket_engine": 2, "rocket_engine_top": 5, "rocket_engine_bottom": 3,
+    "rocket_fuel_tank": 5, "rocket_fuel_tank_top": 2,
+    "rocket_landing_leg": 3, "rocket_landing_leg_top": 4,
+    "rocket_parachute": 1, "rocket_parachute_top": 2
+  },
+  "item": {
+    "steel_ingot": 3, "steel_nugget": 3, "steel_blend": 2, "steel_plate": 3, "basic_circuit": 2,
+    "forge_hammer": 3, "fuel_canister": 1, "oxygen_tank_small": 2, "oxygen_tank_large": 1,
+    "space_helmet": 3, "space_chestplate": 1, "space_leggings": 3, "space_boots": 2
+  }
+}

@@ -1,8 +1,6 @@
 {
-  "parent": "minecraft:block/orientable",
+  "parent": "spacehorizons:block/refinery",
   "textures": {
-    "front": "spacehorizons:block/refinery_on",
-    "side": "spacehorizons:block/refinery_side",
-    "top": "spacehorizons:block/refinery_top"
+    "front": "spacehorizons:block/refinery_on"
   }
 }
