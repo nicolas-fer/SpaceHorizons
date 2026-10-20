@@ -39,6 +39,11 @@ public final class RocketFlight {
 
     @Nullable Snapshot snapshot;
     final ChunkGate gate = new ChunkGate();
+    /** Pedidos do corredor de chunks à frente, na dimensão do corpo onde o foguete anda, e na do corpo abaixo (pré-carga da entrada). */
+    final ChunkGate.Requester ahead = new ChunkGate.Requester();
+    final ChunkGate.Requester below = new ChunkGate.Requester();
+    /** No espaço: a posição REAL do foguete (coordenadas da dimensão de espaço); a entidade fica estacionada ({@link SpaceParking}). */
+    @Nullable Vec3 spacePos;
     /** Pré-carga do local de pouso previsto (tickets do trecho final da descida, ver {@link LandingPreloadDriver}). */
     final LandingPreloader landing = new LandingPreloader();
     /** Level em que a pré-carga pediu tickets (para soltá-los no mesmo level) e contador de ticks dela. */
@@ -59,7 +64,7 @@ public final class RocketFlight {
      * Só dev (autoteste "jump"): põe o foguete em voo no espaço aberto no ponto e na velocidade dadas, em coordenadas da dimensão
      * de espaço (velocidade ABSOLUTA em E, blocos/tick), sem acelerar nem decolar. Chamada a cada tick antes do passo, mantém
      * a velocidade constante (a gravidade do passo anterior é descartada), para medir a dessincronia do cliente em voo rápido
-     * sem depender da órbita real. Mantém a atitude e o combustível do instantâneo atual.
+     * sem depender da órbita real. {@code local} é a posição REAL (a entidade fica estacionada, ver {@link #spacePosition}). Mantém a atitude e o combustível do instantâneo atual.
      */
     public void devtestSetSpaceState(FrameBridge.Local local, double clock, double rate) {
         Snapshot old = this.snapshot;
@@ -67,6 +72,7 @@ public final class RocketFlight {
         Quaterniond attitude = old == null ? new Quaterniond() : old.attitude();
         FlightState state = FrameBridge.fromSpaceDimension(SolarSystem.EARTH, clock, rate, local, fuel);
         this.snapshot = new Snapshot(FlightMode.FLIGHT, state, attitude, V3.ZERO, SasMode.OFF, 0.0, false, null, fuel);
+        this.spacePos = new Vec3(local.x(), local.y(), local.z());
     }
 
     /**
@@ -81,6 +87,11 @@ public final class RocketFlight {
         FlightState state = FrameBridge.fromDimension(SolarSystem.EARTH, clock, rate, local, fuel);
         Quaterniond upright = AttitudeMath.localToInertial(SolarSystem.EARTH, clock, local.x(), local.z(), new Quaterniond());
         this.snapshot = new Snapshot(FlightMode.FLIGHT, state, upright, V3.ZERO, SasMode.OFF, 0.0, false, SolarSystem.EARTH, fuel);
+    }
+
+    /** No espaço aberto, a posição real do foguete (coordenadas da dimensão de espaço, as mesmas de antes do estacionamento); null fora dele. */
+    public @Nullable Vec3 spacePosition() {
+        return this.spacePos;
     }
 
     /** A pré-carga do local de pouso (estado e progresso para a telemetria e o autoteste). */

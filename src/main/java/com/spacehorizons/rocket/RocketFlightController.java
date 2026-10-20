@@ -111,15 +111,25 @@ final class RocketFlightController {
         if (!snap.flying()) {
             LandingPreloadDriver.release(f);
             rocket.setHeld(false);
+            f.ahead.reset();
+            f.below.reset();
+            f.spacePos = null;
+            rocket.setVirtualSpacePosition(null);
         }
         if (snap.flying()) {
             if (f.arrivalPending && f.arrivalTicks == 0) {
                 f.lastVelocity = rocket.getDeltaMovement();
             }
             double circumference = zone != null ? zone.planet().circumferenceBlocks() : 0.0;
-            boolean missing = requestChunksAhead(level, rocket.position(), f.lastVelocity, circumference, footprint(rocket));
+            boolean missing = false;
+            if (zone == null) {
+                // espaço aberto: o foguete fica estacionado num ponto fixo; só o chunk dele precisa estar carregado, e nada anda
+                keepParkingLoaded(level, SpaceParking.pointFor(rocket.getUUID()));
+            } else {
+                missing = requestChunksAhead(f.ahead, level, now, rocket.position(), f.lastVelocity, circumference, footprint(rocket));
+            }
             if (zone == null && snap.state() != null) {
-                preloadBelow(server, snap.state(), clock, rate, footprint(rocket));
+                preloadBelow(server, f.below, now, snap.state(), clock, rate, footprint(rocket));
             }
             LandingPreloadDriver.tick(server, rocket, f, snap);
             if (pilot != null) {
@@ -203,12 +213,15 @@ final class RocketFlightController {
             if (dest == null) {
                 return;
             }
-            ChunkPos arrival = new ChunkPos(Mth.floor(center.x) >> 4, Mth.floor(center.z) >> 4);
+            // no espaço o foguete chega ao ponto de estacionamento (a posição real fica no estado de voo), não à posição real
+            boolean toSpace = r.toBody() == null;
+            Vec3 destCenter = toSpace ? SpaceParking.pointFor(rocket.getUUID()) : center;
+            ChunkPos arrival = new ChunkPos(Mth.floor(destCenter.x) >> 4, Mth.floor(destCenter.z) >> 4);
             dest.getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, arrival, ChunkGate.NEAR_RADIUS);
             // a chegada só vale com carregados os chunks que a pegada do foguete toca e o do ASSENTO do piloto (o positionRider do vanilla
             // bloqueia no getChunk do que falta)
-            Vec3 seatAt = pilot == null ? center : rocket.passengerPositionAt(center, toFloat(r.localAttitude()), pilot);
-            boolean arrivalReady = arrivalLoaded(dest, center, footprint(rocket)) && arrivalLoaded(dest, seatAt, 1.0);
+            Vec3 seatAt = pilot == null ? destCenter : rocket.passengerPositionAt(destCenter, toFloat(r.localAttitude()), pilot);
+            boolean arrivalReady = arrivalLoaded(dest, destCenter, footprint(rocket)) && arrivalLoaded(dest, seatAt, 1.0);
             dest.getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, new ChunkPos(Mth.floor(seatAt.x) >> 4, Mth.floor(seatAt.z) >> 4), 0);
             ChunkGate.Decision decision = f.gate.decide(!arrivalReady);
             if (decision == ChunkGate.Decision.HOLD) {
@@ -218,8 +231,8 @@ final class RocketFlightController {
                 telemetry(rocket, pilot, now, snap, landedLocal, clock, rate, true);
                 return;
             }
-            Vec3 destVelocity = r.toBody() == null ? new Vec3(loc.vx(), loc.vy(), loc.vz()) : toVec(loc.coordinateVelocity(r.toBody()));
-            transfer(rocket, f, dest, r, pilot, snap, destVelocity, now, clock, rate);
+            Vec3 destVelocity = toSpace ? Vec3.ZERO : toVec(loc.coordinateVelocity(r.toBody()));
+            transfer(rocket, f, dest, r, destCenter, toSpace ? center : null, pilot, snap, destVelocity, now, clock, rate);
             return;
         }
 
@@ -229,7 +242,20 @@ final class RocketFlightController {
         boolean seam = zone != null && Math.abs(delta.x) > zone.planet().halfCircumference();
         boolean moving = next.flying() || r.event() == Event.SOFT_LANDING;
         Vec3 velocity = r.event() == Event.SOFT_LANDING ? Vec3.ZERO : seam ? f.lastVelocity : delta;
-        if (moving) {
+        if (zone == null && next.flying()) {
+            // espaço aberto: estacionado; a posição real vai só no estado de voo e no dado sincronizado do céu
+            Vec3 realBefore = f.spacePos;
+            velocity = realBefore == null ? Vec3.ZERO : center.subtract(realBefore);
+            f.spacePos = center;
+            Vec3 park = SpaceParking.pointFor(rocket.getUUID());
+            if (rocket.position().distanceToSqr(park) > 1.0e-6) {
+                rocket.setPos(park);
+            }
+            rocket.setDeltaMovement(Vec3.ZERO);
+            rocket.setVirtualSpacePosition(center);
+        } else if (moving) {
+            f.spacePos = null;
+            rocket.setVirtualSpacePosition(null);
             if (seam) {
                 rocket.teleport(new TeleportTransition(level, center, velocity, rocket.getYRot(), rocket.getXRot(), TeleportTransition.DO_NOTHING));
             } else {
@@ -314,16 +340,17 @@ final class RocketFlightController {
      * entidade por NBT; o piloto é avisado (sem tela de carregamento) com a posição do ASSENTO no destino; depois
      * {@code rocket.teleport} leva o foguete e o passageiro. Se o teleporte for recusado, volta ao instantâneo anterior.
      */
-    private static void transfer(RocketEntity rocket, RocketFlight f, ServerLevel dest, FlightMachine.Result r, @Nullable ServerPlayer pilot,
-            Snapshot previous, Vec3 destVelocity, long now, double clock, double rate) {
+    private static void transfer(RocketEntity rocket, RocketFlight f, ServerLevel dest, FlightMachine.Result r, Vec3 center,
+            @Nullable Vec3 realInSpace, @Nullable ServerPlayer pilot, Snapshot previous, Vec3 destVelocity, long now, double clock, double rate) {
         f.snapshot = r.next();
         Quaternionf localAttitude = toFloat(r.localAttitude());
         rocket.setAttitude(localAttitude);
         rocket.setThrottle((float) r.next().throttle());
         rocket.syncFlightData(r.next().mode(), (byte) r.next().sas().ordinal(), r.next().state() != null ? (float) r.next().state().heat() : 0.0F);
         rocket.setFuelMb(r.next().fuelMb());
-        Local loc = r.local();
-        Vec3 center = new Vec3(loc.x(), loc.y(), loc.z());
+        // indo ao espaço, a posição real acompanha o foguete (o dado sincronizado e o NBT da recriação); vindo dele, o foguete volta a andar
+        f.spacePos = realInSpace;
+        rocket.setVirtualSpacePosition(realInSpace);
         if (pilot != null) {
             Vec3 seat = rocket.passengerPositionAt(center, localAttitude, pilot);
             PacketDistributor.sendToPlayer(pilot, new TravelTransferPayload(seat.x, seat.y, seat.z, pilot.getYRot(), pilot.getXRot()));
@@ -348,7 +375,8 @@ final class RocketFlightController {
      * na dimensão do corpo, os chunks por onde o foguete vai entrar, para a troca não esperar a geração (nunca gateia o voo
      * do espaço: a espera, se faltar chunk, é a de {@code transfer}).
      */
-    private static void preloadBelow(MinecraftServer server, FlightState state, double clock, double rate, double halfExtent) {
+    private static void preloadBelow(MinecraftServer server, ChunkGate.Requester requester, long now, FlightState state, double clock, double rate,
+            double halfExtent) {
         SolarSystem.Body body = state.body();
         PlanetDefinition planet = body.planet();
         double altitude = state.r().length() - planet.radius();
@@ -364,23 +392,34 @@ final class RocketFlightController {
             return;
         }
         V3 cv = l.coordinateVelocity(body);
-        requestChunksAhead(below, new Vec3(l.x(), l.y(), l.z()), new Vec3(cv.x(), 0.0, cv.z()), planet.circumferenceBlocks(), halfExtent);
+        requestChunksAhead(requester, below, now, new Vec3(l.x(), l.y(), l.z()), new Vec3(cv.x(), 0.0, cv.z()), planet.circumferenceBlocks(), halfExtent);
+    }
+
+    /** O chunk do ponto de estacionamento do foguete no espaço fica carregado (ticket com o raio dos chunks mais próximos do corredor). */
+    private static void keepParkingLoaded(ServerLevel level, Vec3 park) {
+        level.getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, new ChunkPos(Mth.floor(park.x) >> 4, Mth.floor(park.z) >> 4), ChunkGate.NEAR_RADIUS);
     }
 
     /**
-     * Pede os chunks à frente (tickets ENDER_PEARL) e devolve true se algum dos chunks dos próximos
-     * {@link ChunkGate#GATING_STEPS} ticks ainda não está carregado.
+     * Pede o corredor contínuo de chunks à frente (tickets ENDER_PEARL, ver {@link ChunkGate.Requester}) com antecedência proporcional
+     * à latência de geração medida, e devolve true se algum dos chunks dos próximos {@link ChunkGate#GATING_STEPS} ticks ainda não está
+     * carregado.
      */
-    private static boolean requestChunksAhead(ServerLevel level, Vec3 position, Vec3 velocity, double circumference, double halfExtent) {
-        boolean missing = false;
-        List<ChunkGate.Probe> probes = ChunkGate.probes(position.x, position.z, velocity.x, velocity.z, circumference, halfExtent);
-        for (ChunkGate.Probe probe : probes) {
-            level.getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, new ChunkPos(probe.chunkX(), probe.chunkZ()), probe.radius());
-            if (probe.gating() && !level.hasChunk(probe.chunkX(), probe.chunkZ())) {
-                missing = true;
+    private static boolean requestChunksAhead(ChunkGate.Requester requester, ServerLevel level, long now, Vec3 position, Vec3 velocity,
+            double circumference, double halfExtent) {
+        List<ChunkGate.Cell> corridor = ChunkGate.corridor(position.x, position.z, velocity.x, velocity.z, circumference, halfExtent,
+                requester.lookaheadTicks());
+        return requester.update(now, corridor, new ChunkGate.Sink() {
+            @Override
+            public void add(int chunkX, int chunkZ, int radius) {
+                level.getChunkSource().addTicketWithRadius(TicketType.ENDER_PEARL, new ChunkPos(chunkX, chunkZ), radius);
             }
-        }
-        return missing;
+
+            @Override
+            public boolean loaded(int chunkX, int chunkZ) {
+                return level.hasChunk(chunkX, chunkZ);
+            }
+        });
     }
 
     // ---------------------------------------------------------------- terreno

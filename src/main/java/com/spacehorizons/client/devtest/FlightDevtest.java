@@ -275,11 +275,14 @@ final class FlightDevtest {
             Local local = new Local(0.0, y, 0.0, speed, 0.0, 0.0);
             rocket.flight().devtestSetSpaceState(local, clock, CLOCK_RATE);
             rocket.setFlightMode(FlightMode.FLIGHT);
+            // no espaço o foguete fica estacionado (SpaceParking); a posição real vai no estado de voo e no dado do céu
             Vec3 center = new Vec3(local.x(), local.y(), local.z());
-            Vec3 seat = rocket.passengerPositionAt(center, rocket.attitude(), player);
+            Vec3 park = com.spacehorizons.rocket.SpaceParking.pointFor(rocket.getUUID());
+            rocket.setVirtualSpacePosition(center);
+            Vec3 seat = rocket.passengerPositionAt(park, rocket.attitude(), player);
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,
                     new com.spacehorizons.space.travel.TravelTransferPayload(seat.x, seat.y, seat.z, player.getYRot(), player.getXRot()));
-            var moved = rocket.teleport(new net.minecraft.world.level.portal.TeleportTransition(space, center, new Vec3(speed, 0.0, 0.0), rocket.getYRot(),
+            var moved = rocket.teleport(new net.minecraft.world.level.portal.TeleportTransition(space, park, Vec3.ZERO, rocket.getYRot(),
                     rocket.getXRot(), net.minecraft.world.level.portal.TeleportTransition.DO_NOTHING));
             SpaceHorizons.LOGGER.info("{}CRUZEIRO começou: {} blocos/tick em ({}, {}, {}), teleporte={}", TAG, f(speed), f(center.x), f(center.y), f(center.z),
                     moved != null);
@@ -353,21 +356,23 @@ final class FlightDevtest {
         rocket.applyControl(new RocketControlPayload(0.0F, 0.0F, 0.0F, 0.0F, (byte) 0));
         // o arrasto do passo (e o ar que gira com a Terra) faz o deslocamento diferir do comando; controle integral sobre o deslocamento
         // medido do passo anterior (só os passos em que o servidor andou: o segurado não move o foguete)
-        double dx = rocket.getX() - cruisePrevX;
+        // (no espaço a entidade fica estacionada: a posição que anda é a real, do estado de voo)
+        Vec3 at = !cruiseOnEarth && rocket.flight().spacePosition() != null ? rocket.flight().spacePosition() : rocket.position();
+        double dx = at.x - cruisePrevX;
         if (cruisePrevX == cruisePrevX && dx > 0.01) {
             cruiseCommand = Math.max(0.0, Math.min(2_000.0, cruiseCommand + 0.7 * (speed - dx)));
         }
-        cruisePrevX = rocket.getX();
+        cruisePrevX = at.x;
         if (cruiseOnEarth) {
-            rocket.flight().devtestSetEarthState(new Local(rocket.getX(), rocket.getY(), rocket.getZ(), cruiseCommand, 0.0, 0.0),
+            rocket.flight().devtestSetEarthState(new Local(at.x, at.y, at.z, cruiseCommand, 0.0, 0.0),
                     SpaceClock.ticks(rocket.level()), CLOCK_RATE);
         } else {
-            rocket.flight().devtestSetSpaceState(new Local(rocket.getX(), rocket.getY(), rocket.getZ(), cruiseCommand, 0.0, 0.0),
+            rocket.flight().devtestSetSpaceState(new Local(at.x, at.y, at.z, cruiseCommand, 0.0, 0.0),
                     SpaceClock.ticks(rocket.level()), CLOCK_RATE);
         }
         if (++cruiseTicks % 100 == 0) {
             SpaceHorizons.LOGGER.info("{}CRUZEIRO tick {}: foguete em ({}, {}, {}) segurado={} comando={} b/tick (alvo de deslocamento {})", TAG, cruiseTicks,
-                    f(rocket.getX()), f(rocket.getY()), f(rocket.getZ()), rocket.isHeld(), f(cruiseCommand), f(speed));
+                    f(at.x), f(at.y), f(at.z), rocket.isHeld(), f(cruiseCommand), f(speed));
         }
     }
 

@@ -217,14 +217,16 @@ public final class JumpProbe {
         String rocket = "NaN,NaN,NaN,-1";
         String miss = "-";
         if (player.getVehicle() instanceof RocketEntity r) {
-            if (lastX == lastX && Math.hypot(r.getX() - lastX, r.getZ() - lastZ) > 0.5) {
-                lastVx = r.getX() - lastX;
-                lastVz = r.getZ() - lastZ;
+            // no espaço o foguete fica estacionado: a posição que vale (a do voo) é a real
+            net.minecraft.world.phys.Vec3 at = r.flight().spacePosition() != null && r.isVirtual() ? r.flight().spacePosition() : r.position();
+            if (lastX == lastX && Math.hypot(at.x - lastX, at.z - lastZ) > 0.5) {
+                lastVx = at.x - lastX;
+                lastVz = at.z - lastZ;
             }
-            lastX = r.getX();
-            lastZ = r.getZ();
-            miss = missingAhead(level, r);
-            rocket = f(r.getX()) + "," + f(r.getY()) + "," + f(r.getZ()) + "," + (r.isHeld() ? 1 : 0);
+            lastX = at.x;
+            lastZ = at.z;
+            miss = r.isVirtual() ? "-" : missingAhead(level, r);
+            rocket = f(at.x) + "," + f(at.y) + "," + f(at.z) + "," + (r.isHeld() ? 1 : 0);
         }
         row("S," + t() + "," + level.getGameTime() + "," + rocket + "," + f(player.getX()) + "," + f(player.getZ()) + "," + loads + "," + fresh + ","
                 + level.getChunkSource().getLoadedChunksCount() + "," + (tracked ? 1 : 0) + "," + f(ms) + "," + level.dimension().identifier().getPath() + "," + miss);
@@ -237,10 +239,16 @@ public final class JumpProbe {
     private static String missingAhead(ServerLevel level, RocketEntity r) {
         double half = Math.max(r.portrait().sizeX, r.portrait().sizeZ) / 2.0 + 2.0;
         java.util.TreeMap<Integer, int[]> bySteps = new java.util.TreeMap<>();
-        for (var probe : com.spacehorizons.rocket.ChunkGate.probes(r.getX(), r.getZ(), lastVx, lastVz, 0.0, half)) {
-            int[] c = bySteps.computeIfAbsent(probe.step(), k -> new int[2]);
+        double circumference = com.spacehorizons.planet.Planets.forLevel(level).map(p -> (double) p.circumferenceBlocks()).orElse(0.0);
+        for (var cell : com.spacehorizons.rocket.ChunkGate.corridor(r.getX(), r.getZ(), lastVx, lastVz, circumference, half, 32)) {
+            // baldes de ticks à frente (0, 1, 2, 4, 8, 16, 32): o que o analisador espera
+            int bucket = 0;
+            while (bucket < cell.ticksAhead()) {
+                bucket = bucket == 0 ? 1 : bucket * 2;
+            }
+            int[] c = bySteps.computeIfAbsent(bucket, k -> new int[2]);
             c[1]++;
-            if (!level.hasChunk(probe.chunkX(), probe.chunkZ())) {
+            if (!level.hasChunk(cell.chunkX(), cell.chunkZ())) {
                 c[0]++;
             }
         }

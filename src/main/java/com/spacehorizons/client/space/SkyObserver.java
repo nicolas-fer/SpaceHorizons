@@ -37,6 +37,8 @@ import org.jspecify.annotations.Nullable;
  * @param localToSpace matriz 3x3 (ordem de linhas): vetor nos eixos locais da câmera → eixos do espaço
  */
 public record SkyObserver(SolarSystem.@Nullable Body home, double clock, double[] pos, double[] localToSpace) {
+    /** Atitude identidade: a da orientação de referência da dimensão. */
+    private static final Quaterniondc IDENTITY = new org.joml.Quaterniond();
 
     /** Observador no planeta {@code home}, com a câmera no ponto (x, y, z) da dimensão dele. */
     public static SkyObserver forPlanet(SolarSystem.Body home, double clock, double x, double y, double z) {
@@ -102,12 +104,17 @@ public record SkyObserver(SolarSystem.@Nullable Body home, double clock, double[
             return SolarSystem.bodyOf(planet.get()).map(body -> forPlanet(body, clock, x, y, z));
         }
         if (SpaceDimension.is(level)) {
+            // câmera num foguete estacionado: o observador é a posição REAL do voo, com a atitude identidade (o céu não gira com o foguete)
+            double[] ship = ShipView.positionInSpace();
             // modo de teste do céu (comando skytest): a nave virtual gira; sem ele, a orientação fixa da dimensão
             Quaterniondc attitude = SkyAttitude.current();
-            if (attitude != null) {
-                double[] s = new double[3];
-                SpaceDimension.toSpace(x, y, z, s);
-                return Optional.of(forShip(clock, s, attitude));
+            if (ship != null || attitude != null) {
+                double[] s = ship;
+                if (s == null) {
+                    s = new double[3];
+                    SpaceDimension.toSpace(x, y, z, s);
+                }
+                return Optional.of(forShip(clock, s, attitude != null ? attitude : IDENTITY));
             }
             return Optional.of(forSpace(clock, x, y, z));
         }

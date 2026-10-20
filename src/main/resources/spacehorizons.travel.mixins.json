@@ -10,7 +10,8 @@
   ],
   "client": [
     "ClientPacketListenerMixin",
-    "ClientPacketProbeMixin"
+    "ClientPacketProbeMixin",
+    "RocketPositionMixin"
   ],
   "injectors": {
     "defaultRequire": 1

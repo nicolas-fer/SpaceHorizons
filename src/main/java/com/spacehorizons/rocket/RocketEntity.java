@@ -12,6 +12,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -31,7 +32,9 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.IEntityWithComplexSpawn;
 import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
+import org.joml.Vector3d;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -55,6 +58,14 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     private static final EntityDataAccessor<Float> HEAT = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.FLOAT);
     /** O servidor está segurando o passo do voo (espera de chunks): o cliente não interpola nem prevê movimento além da posição real. */
     private static final EntityDataAccessor<Boolean> HELD = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.BOOLEAN);
+    /**
+     * Na dimensão de espaço o foguete fica ESTACIONADO num ponto fixo ({@link SpaceParking}) e a posição real do voo vive só no estado de
+     * voo; este dado é a posição real (coordenadas da dimensão de espaço, em float: o céu é desenhado dali) e o outro diz se vale.
+     */
+    private static final EntityDataAccessor<Boolean> VIRTUAL = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Vector3fc> VIRTUAL_POS = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.VECTOR3);
+    /** Salto de posição (blocos) num tick de cliente acima do qual é uma costura do planeta ou um teleporte, não um passo de voo. */
+    private static final double JUMP_DISTANCE = 2_000.0;
 
     /** Pouso com a inclinação máxima (graus) para voltar a blocos; acima disso a desmontagem é recusada. */
     private static final double MAX_TILT_TO_LAND_DEGREES = 15.0;
@@ -70,6 +81,13 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     private final Quaternionf attitudeCur = new Quaternionf();
     private final Quaternionf attitudeTarget = new Quaternionf();
     private boolean attitudeSeeded;
+    /** Cliente: posição virtual (espaço) do tick anterior e do atual, para interpolar entre ticks como a atitude; e o alvo sincronizado. */
+    private final Vector3d virtualPrev = new Vector3d();
+    private final Vector3d virtualCur = new Vector3d();
+    private final Vector3d virtualTarget = new Vector3d();
+    private boolean virtualSeeded;
+    /** Cliente: neste tick o foguete deu um salto (costura do planeta, teleporte): o passageiro também não interpola até a nova posição. */
+    private boolean jumped;
 
     public RocketEntity(EntityType<? extends RocketEntity> type, Level level) {
         super(type, level);
@@ -86,6 +104,8 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         builder.define(SAS_MODE, (byte) 0);
         builder.define(HEAT, 0.0F);
         builder.define(HELD, false);
+        builder.define(VIRTUAL, false);
+        builder.define(VIRTUAL_POS, new Vector3f());
     }
 
     @Override
@@ -98,6 +118,16 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
                 this.attitudeSeeded = true;
                 this.attitudePrev.set(this.attitudeTarget);
                 this.attitudeCur.set(this.attitudeTarget);
+            }
+        }
+        if (VIRTUAL_POS.equals(accessor) || VIRTUAL.equals(accessor)) {
+            Vector3fc v = this.entityData.get(VIRTUAL_POS);
+            this.virtualTarget.set(v.x(), v.y(), v.z());
+            if (!this.virtualSeeded && this.entityData.get(VIRTUAL)) {
+                // primeiro valor: sem varredura a partir da origem
+                this.virtualSeeded = true;
+                this.virtualPrev.set(this.virtualTarget);
+                this.virtualCur.set(this.virtualTarget);
             }
         }
     }
@@ -188,6 +218,37 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         return this.entityData.get(HELD);
     }
 
+    /**
+     * Servidor: marca o foguete como estacionado no espaço, com a posição real {@code real} (coordenadas da dimensão de espaço), ou
+     * (null) como andando de verdade (na dimensão de um corpo). O dado só é reenviado quando o valor muda.
+     */
+    public void setVirtualSpacePosition(@Nullable Vec3 real) {
+        if (real == null) {
+            this.entityData.set(VIRTUAL, false);
+            return;
+        }
+        this.entityData.set(VIRTUAL, true);
+        this.entityData.set(VIRTUAL_POS, new Vector3f((float) real.x, (float) real.y, (float) real.z));
+    }
+
+    /** O foguete está estacionado no espaço (a posição da entidade é o ponto fixo; a real é {@link #virtualSpacePosition}). */
+    public boolean isVirtual() {
+        return this.entityData.get(VIRTUAL);
+    }
+
+    /**
+     * Cliente: a posição real do foguete no espaço (coordenadas da dimensão de espaço, interpolada entre ticks), de onde o céu é visto; null
+     * se o foguete não está estacionado.
+     */
+    public @Nullable Vec3 virtualSpacePosition(float partialTick) {
+        if (!this.isVirtual()) {
+            return null;
+        }
+        double t = partialTick;
+        return new Vec3(Mth.lerp(t, this.virtualPrev.x, this.virtualCur.x), Mth.lerp(t, this.virtualPrev.y, this.virtualCur.y),
+                Mth.lerp(t, this.virtualPrev.z, this.virtualCur.z));
+    }
+
     /** Define a atitude (servidor): guarda e sincroniza uma cópia (o dado só marca "sujo" se o valor mudar). */
     public void setAttitude(Quaternionfc q) {
         this.attitude.set(q).normalize();
@@ -265,8 +326,15 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         if (this.level().isClientSide()) {
             this.attitudePrev.set(this.attitudeCur);
             this.attitudeCur.set(this.attitudeTarget);
+            this.virtualPrev.set(this.virtualCur);
+            this.virtualCur.set(this.virtualTarget);
             if (this.isHeld()) {
                 freezeAtTarget();
+            }
+            // salto de posição (costura do planeta, teleporte): sem interpolar de uma ponta à outra, nem o foguete nem o passageiro
+            this.jumped = this.position().distanceToSqr(this.oldPosition()) > JUMP_DISTANCE * JUMP_DISTANCE;
+            if (this.jumped) {
+                this.setOldPosAndRot();
             }
         } else {
             this.flight.tick(this);
@@ -308,6 +376,9 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     protected void positionRider(Entity passenger, Entity.MoveFunction moveFunction) {
         Vec3 at = this.passengerPositionAt(this.position(), this.level().isClientSide() ? this.attitudeCur : this.attitude, passenger);
         moveFunction.accept(passenger, at.x, at.y, at.z);
+        if (this.jumped && this.level().isClientSide()) {
+            passenger.setOldPosAndRot();
+        }
     }
 
     /** Onde o passageiro fica (posição da entidade dele) com o foguete em {@code center} e a atitude local {@code attitude}. */
@@ -368,7 +439,10 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
 
     @Override
     protected InterpolationHandler createInterpolationHandler() {
-        return LinearInterpolationHandler.create(this, 2);
+        // UM passo: a cada tick o foguete vai ao último ponto recebido (junto com o piloto, que é posicionado a partir dele no mesmo tick), e o
+        // desenho interpola entre dois ticks. Mais passos deixavam o foguete 2 passos atrás do piloto a 50 blocos por tick; o
+        // handler vanilla ainda daria snapTo acima de 64 blocos (ver RocketPositionMixin, que impede isso).
+        return LinearInterpolationHandler.create(this, 1);
     }
 
     /** Clicável (sentar) mas sem colisão de entidade: o jogador vai sentado e nada empurra o foguete. */
@@ -459,6 +533,13 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         output.putByte("SasMode", this.sasMode());
         output.putFloat("Heat", this.heat());
         output.store("Attitude", QUATERNION_CODEC, List.of(this.attitude.x, this.attitude.y, this.attitude.z, this.attitude.w));
+        if (this.isVirtual()) {
+            // a posição real (virtual) acompanha a entidade na troca de dimensão, que a recria por NBT, até o primeiro passo do voo
+            Vector3fc v = this.entityData.get(VIRTUAL_POS);
+            output.putDouble("VirtualX", v.x());
+            output.putDouble("VirtualY", v.y());
+            output.putDouble("VirtualZ", v.z());
+        }
         this.flight.save(output);
     }
 
@@ -478,5 +559,9 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         this.entityData.set(HEAT, input.getFloatOr("Heat", 0.0F));
         input.read("Attitude", QUATERNION_CODEC).ifPresent(q -> this.setAttitude(new Quaternionf(q.get(0), q.get(1), q.get(2), q.get(3))));
         this.flight.load(input);
+        double virtualY = input.getDoubleOr("VirtualY", Double.NaN);
+        if (!Double.isNaN(virtualY)) {
+            this.setVirtualSpacePosition(new Vec3(input.getDoubleOr("VirtualX", 0.0), virtualY, input.getDoubleOr("VirtualZ", 0.0)));
+        }
     }
 }
