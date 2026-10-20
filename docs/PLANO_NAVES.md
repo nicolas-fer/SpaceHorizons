@@ -1,5 +1,9 @@
 # Plano das naves do SpaceHorizons (v1)
 
+> **Progressão por tiers** (20/10/2026): as naves andáveis deste plano são o **Tier 3** de `docs/PLANO_TIERS.md`, com voo
+> assistido no estilo das naves do No Man's Sky; a fase 3 daqui (dobra) vira o **Tier 4**, com sistemas estelares procedurais
+> e um spike de dimensão criada em tempo real antes de comprometer.
+
 Base: `docs/PLANO_SOBREVIVENCIA.md`, `docs/DESIGN_FOGUETE.md` e `docs/pesquisa/foguete-4-dimensao-espaco.md`. Este plano estende o foguete de blocos para **naves grandes, andáveis por dentro**, que operam no espaço. O céu virtual (4.1, 4.2) e o estacionamento do foguete no espaço (seção 4.3) já existem para o `RocketEntity`; o resto não foi implementado. Os números de escala (Terra R ≈ 104.303, Lua R ≈ 26.076 a 600.000 de distância) vêm da escala 10× em andamento.
 
 ## 1. Decisões fixas e visão geral

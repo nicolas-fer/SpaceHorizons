@@ -1,5 +1,9 @@
 # Plano de sobrevivência do SpaceHorizons (v3)
 
+> **Progressão por tiers** (20/10/2026): este plano é o **Tier 1** de `docs/PLANO_TIERS.md` (foguetes reais, Lua e Marte).
+> Marte e a separação de estágios (etapa 6) seguem lá; tanques e motores viram multiblocos e a montagem ganha guias
+> (painel de projeto e plantas holográficas), também descritos lá.
+
 ## Decisões
 
 - História média: diários e terminais em estruturas abandonadas, contada também por conquistas.
