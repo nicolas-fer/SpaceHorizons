@@ -1,0 +1,37 @@
+{
+ "ship_bridge": {
+  "modelo": "A",
+  "texturas": {
+   "ship_bridge": "A",
+   "ship_bridge_side": "C",
+   "ship_bridge_top": "A"
+  }
+ },
+ "ship_impulse_engine": {
+  "modelo": "A",
+  "texturas": {
+   "ship_impulse_engine": "G",
+   "ship_impulse_engine_side": "A"
+  }
+ },
+ "ship_seat": {
+  "modelo": "A",
+  "texturas": {
+   "ship_seat": "E",
+   "ship_seat_frame": "A"
+  }
+ },
+ "ship_airlock": {
+  "modelo": "B",
+  "texturas": {
+   "ship_airlock": "C",
+   "ship_airlock_side": "A"
+  }
+ },
+ "ship_window": {
+  "modelo": "cubo",
+  "texturas": {
+   "ship_window": "F"
+  }
+ }
+}

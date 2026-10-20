@@ -4,7 +4,7 @@
       "model": "spacehorizons:block/ship_airlock"
     },
     "open=true": {
-      "model": "spacehorizons:block/ship_airlock_open"
+      "model": "spacehorizons:block/ship_airlock"
     }
   }
 }

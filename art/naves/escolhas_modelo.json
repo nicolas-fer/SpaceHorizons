@@ -1,0 +1,38 @@
+{
+  "_doc": "Preencha cada campo com a letra escolhida (veja index.html). 'modelo': A/B (proposta de forma) ou 'cubo'; 'texturas': letra A-H por textura. Campo vazio = não aplica. Aplicar: python art/naves/apply_escolha.py art/_work/escolha_naves/escolhas.json",
+  "ship_bridge": {
+    "modelo": "",
+    "texturas": {
+      "ship_bridge": "",
+      "ship_bridge_side": "",
+      "ship_bridge_top": ""
+    }
+  },
+  "ship_impulse_engine": {
+    "modelo": "",
+    "texturas": {
+      "ship_impulse_engine": "",
+      "ship_impulse_engine_side": ""
+    }
+  },
+  "ship_window": {
+    "modelo": "cubo",
+    "texturas": {
+      "ship_window": ""
+    }
+  },
+  "ship_seat": {
+    "modelo": "",
+    "texturas": {
+      "ship_seat": "",
+      "ship_seat_frame": ""
+    }
+  },
+  "ship_airlock": {
+    "modelo": "",
+    "texturas": {
+      "ship_airlock": "",
+      "ship_airlock_side": ""
+    }
+  }
+}

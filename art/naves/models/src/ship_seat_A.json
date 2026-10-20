@@ -1,0 +1,504 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "spacehorizons:block/ship_seat_frame",
+    "seat": "spacehorizons:block/ship_seat",
+    "frame": "spacehorizons:block/ship_seat_frame",
+    "casing": "spacehorizons:block/machine_casing"
+  },
+  "elements": [
+    {
+      "name": "base",
+      "from": [
+        4,
+        0,
+        4
+      ],
+      "to": [
+        12,
+        1,
+        12
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            4,
+            15,
+            12,
+            16
+          ],
+          "texture": "#casing"
+        },
+        "east": {
+          "uv": [
+            4,
+            15,
+            12,
+            16
+          ],
+          "texture": "#casing"
+        },
+        "south": {
+          "uv": [
+            4,
+            15,
+            12,
+            16
+          ],
+          "texture": "#casing"
+        },
+        "west": {
+          "uv": [
+            4,
+            15,
+            12,
+            16
+          ],
+          "texture": "#casing"
+        },
+        "up": {
+          "uv": [
+            4,
+            4,
+            12,
+            12
+          ],
+          "texture": "#casing"
+        },
+        "down": {
+          "uv": [
+            4,
+            4,
+            12,
+            12
+          ],
+          "texture": "#casing",
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "name": "pedestal",
+      "from": [
+        6.5,
+        1,
+        6.5
+      ],
+      "to": [
+        9.5,
+        5,
+        9.5
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            6.5,
+            11,
+            9.5,
+            15
+          ],
+          "texture": "#frame"
+        },
+        "east": {
+          "uv": [
+            6.5,
+            11,
+            9.5,
+            15
+          ],
+          "texture": "#frame"
+        },
+        "south": {
+          "uv": [
+            6.5,
+            11,
+            9.5,
+            15
+          ],
+          "texture": "#frame"
+        },
+        "west": {
+          "uv": [
+            6.5,
+            11,
+            9.5,
+            15
+          ],
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "assento",
+      "from": [
+        2,
+        5,
+        2
+      ],
+      "to": [
+        14,
+        8,
+        13
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            2,
+            8,
+            14,
+            11
+          ],
+          "texture": "#seat"
+        },
+        "east": {
+          "uv": [
+            3,
+            8,
+            14,
+            11
+          ],
+          "texture": "#seat"
+        },
+        "south": {
+          "uv": [
+            2,
+            8,
+            14,
+            11
+          ],
+          "texture": "#seat"
+        },
+        "west": {
+          "uv": [
+            2,
+            8,
+            13,
+            11
+          ],
+          "texture": "#seat"
+        },
+        "up": {
+          "uv": [
+            2,
+            2,
+            14,
+            13
+          ],
+          "texture": "#seat"
+        },
+        "down": {
+          "uv": [
+            2,
+            3,
+            14,
+            14
+          ],
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "encosto",
+      "from": [
+        2,
+        8,
+        12
+      ],
+      "to": [
+        14,
+        16,
+        15
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            2,
+            0,
+            14,
+            8
+          ],
+          "texture": "#seat"
+        },
+        "east": {
+          "uv": [
+            1,
+            0,
+            4,
+            8
+          ],
+          "texture": "#seat"
+        },
+        "south": {
+          "uv": [
+            2,
+            0,
+            14,
+            8
+          ],
+          "texture": "#seat"
+        },
+        "west": {
+          "uv": [
+            12,
+            0,
+            15,
+            8
+          ],
+          "texture": "#seat"
+        },
+        "up": {
+          "uv": [
+            2,
+            12,
+            14,
+            15
+          ],
+          "texture": "#seat",
+          "cullface": "up"
+        }
+      }
+    },
+    {
+      "name": "braco_esq",
+      "from": [
+        0,
+        7,
+        3
+      ],
+      "to": [
+        2,
+        10,
+        13
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            14,
+            6,
+            16,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "east": {
+          "uv": [
+            3,
+            6,
+            13,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "south": {
+          "uv": [
+            0,
+            6,
+            2,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "west": {
+          "uv": [
+            3,
+            6,
+            13,
+            9
+          ],
+          "texture": "#frame",
+          "cullface": "west"
+        },
+        "up": {
+          "uv": [
+            0,
+            3,
+            2,
+            13
+          ],
+          "texture": "#frame"
+        },
+        "down": {
+          "uv": [
+            0,
+            3,
+            2,
+            13
+          ],
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "braco_dir",
+      "from": [
+        14,
+        7,
+        3
+      ],
+      "to": [
+        16,
+        10,
+        13
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            6,
+            2,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "east": {
+          "uv": [
+            3,
+            6,
+            13,
+            9
+          ],
+          "texture": "#frame",
+          "cullface": "east"
+        },
+        "south": {
+          "uv": [
+            14,
+            6,
+            16,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "west": {
+          "uv": [
+            3,
+            6,
+            13,
+            9
+          ],
+          "texture": "#frame"
+        },
+        "up": {
+          "uv": [
+            14,
+            3,
+            16,
+            13
+          ],
+          "texture": "#frame"
+        },
+        "down": {
+          "uv": [
+            14,
+            3,
+            16,
+            13
+          ],
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "apoio_esq",
+      "from": [
+        0.5,
+        5,
+        9
+      ],
+      "to": [
+        1.5,
+        7,
+        11
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            14.5,
+            9,
+            15.5,
+            11
+          ],
+          "texture": "#frame"
+        },
+        "east": {
+          "uv": [
+            5,
+            9,
+            7,
+            11
+          ],
+          "texture": "#frame"
+        },
+        "south": {
+          "uv": [
+            0.5,
+            9,
+            1.5,
+            11
+          ],
+          "texture": "#frame"
+        },
+        "west": {
+          "uv": [
+            9,
+            9,
+            11,
+            11
+          ],
+          "texture": "#frame"
+        }
+      }
+    },
+    {
+      "name": "apoio_dir",
+      "from": [
+        14.5,
+        5,
+        9
+      ],
+      "to": [
+        15.5,
+        7,
+        11
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0.5,
+            9,
+            1.5,
+            11
+          ],
+          "texture": "#frame"
+        },
+        "east": {
+          "uv": [
+            5,
+            9,
+            7,
+            11
+          ],
+          "texture": "#frame"
+        },
+        "south": {
+          "uv": [
+            14.5,
+            9,
+            15.5,
+            11
+          ],
+          "texture": "#frame"
+        },
+        "west": {
+          "uv": [
+            9,
+            9,
+            11,
+            11
+          ],
+          "texture": "#frame"
+        }
+      }
+    }
+  ]
+}

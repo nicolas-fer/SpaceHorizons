@@ -1,4 +1,206 @@
 {
-  "credit": "Textura provisoria: reaproveita o modelo e as texturas do motor do foguete; a arte final e feita pela skill minecraft-entity",
-  "parent": "spacehorizons:block/rocket_engine"
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "spacehorizons:block/ship_impulse_engine_side",
+    "front": "spacehorizons:block/ship_impulse_engine",
+    "side": "spacehorizons:block/ship_impulse_engine_side",
+    "casing": "spacehorizons:block/machine_casing"
+  },
+  "elements": [
+    {
+      "name": "carcaca",
+      "from": [
+        0,
+        0,
+        4
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#casing"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            12,
+            16
+          ],
+          "texture": "#side",
+          "cullface": "east"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#side",
+          "cullface": "south"
+        },
+        "west": {
+          "uv": [
+            4,
+            0,
+            16,
+            16
+          ],
+          "texture": "#side",
+          "cullface": "west"
+        },
+        "up": {
+          "uv": [
+            0,
+            4,
+            16,
+            16
+          ],
+          "texture": "#side",
+          "cullface": "up"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            12
+          ],
+          "texture": "#side",
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "name": "anel",
+      "from": [
+        1,
+        1,
+        2
+      ],
+      "to": [
+        15,
+        15,
+        4
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1,
+            1,
+            15,
+            15
+          ],
+          "texture": "#front"
+        },
+        "east": {
+          "uv": [
+            12,
+            1,
+            14,
+            15
+          ],
+          "texture": "#casing"
+        },
+        "west": {
+          "uv": [
+            2,
+            1,
+            4,
+            15
+          ],
+          "texture": "#casing"
+        },
+        "up": {
+          "uv": [
+            1,
+            2,
+            15,
+            4
+          ],
+          "texture": "#casing"
+        },
+        "down": {
+          "uv": [
+            1,
+            12,
+            15,
+            14
+          ],
+          "texture": "#casing"
+        }
+      }
+    },
+    {
+      "name": "bocal",
+      "from": [
+        3,
+        3,
+        0
+      ],
+      "to": [
+        13,
+        13,
+        2
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ],
+          "texture": "#front",
+          "cullface": "north"
+        },
+        "east": {
+          "uv": [
+            14,
+            3,
+            16,
+            13
+          ],
+          "texture": "#casing"
+        },
+        "west": {
+          "uv": [
+            0,
+            3,
+            2,
+            13
+          ],
+          "texture": "#casing"
+        },
+        "up": {
+          "uv": [
+            3,
+            0,
+            13,
+            2
+          ],
+          "texture": "#casing"
+        },
+        "down": {
+          "uv": [
+            3,
+            14,
+            13,
+            16
+          ],
+          "texture": "#casing"
+        }
+      }
+    }
+  ]
 }

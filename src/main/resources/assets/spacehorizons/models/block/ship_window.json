@@ -1,10 +1,7 @@
 {
-  "credit": "Textura provisoria: vidro do vanilla (as texturas do mod sao opacas); a arte final e feita pela skill minecraft-entity",
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": {
-      "force_translucent": true,
-      "sprite": "minecraft:block/glass"
-    }
-  }
+    "all": "spacehorizons:block/ship_window"
+  },
+  "render_type": "minecraft:translucent"
 }
