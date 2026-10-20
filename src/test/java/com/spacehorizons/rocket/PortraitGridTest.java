@@ -101,7 +101,8 @@ class PortraitGridTest {
 
     @Test
     void tamanhoAbsurdoEhRecusado() {
-        assertThrows(IllegalArgumentException.class, () -> PortraitGrid.empty(65, 65, 65));
+        assertThrows(IllegalArgumentException.class, () -> PortraitGrid.empty(129, 257, 129));
+        assertThrows(IllegalArgumentException.class, () -> PortraitGrid.empty(200, 200, 200), "8 milhões de células passam do teto de 4.194.304");
         assertThrows(IllegalArgumentException.class, () -> PortraitGrid.empty(-1, 2, 2));
     }
 

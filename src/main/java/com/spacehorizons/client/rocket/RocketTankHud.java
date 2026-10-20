@@ -40,8 +40,8 @@ public final class RocketTankHud {
         if (mc.level == null || !(mc.hitResult instanceof BlockHitResult hit) || hit.getType() != HitResult.Type.BLOCK) {
             return null;
         }
-        if (mc.level.getBlockEntity(hit.getBlockPos()) instanceof RocketFuelTankBlockEntity tank) {
-            return RocketFuelTankBlock.levelMessage(tank);
+        if (mc.level.getBlockEntity(hit.getBlockPos()) instanceof RocketFuelTankBlockEntity) {
+            return RocketFuelTankBlock.levelMessage(mc.level, hit.getBlockPos());
         }
         return null;
     }

@@ -70,7 +70,7 @@ public final class RocketLanding {
             passenger.teleportTo(level, target.x, target.y, target.z, Set.of(), passenger.getYRot(), passenger.getXRot(), true);
         }
 
-        commit(level, plan);
+        EngineForming.suspended(() -> commit(level, plan));
         rocket.discard();
         SpaceHorizons.LOGGER.info("Foguete pousou em {}: {} blocos, giro de {} quarto(s) de volta, {} mB de combustível devolvidos",
                 origin.toShortString(), rotated.blockCount(), turns, fuel);
@@ -78,7 +78,8 @@ public final class RocketLanding {
 
     /** Recoloca um retrato (já girado) com o canto mínimo em {@code origin}; usado pelo pouso e pela volta de uma montagem que falhou. */
     public static void place(ServerLevel level, RocketPortrait portrait, BlockPos origin, int fuelMb) throws RocketException {
-        commit(level, plan(level, portrait, origin, fuelMb));
+        List<Placement> plan = plan(level, portrait, origin, fuelMb);
+        EngineForming.suspended(() -> commit(level, plan));
     }
 
     /** Confere o espaço (chunks carregados, nada que não possa ser substituído) e prepara as colocações. Não toca no mundo. */

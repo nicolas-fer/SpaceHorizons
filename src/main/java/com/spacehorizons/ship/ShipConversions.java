@@ -28,8 +28,8 @@ public final class ShipConversions {
     private static boolean recovered;
     /** O job que acabou no tick anterior: o tempo do tick dele só fica disponível no tick seguinte (ver {@link ConversionJob#sampleServerTicks}). */
     private static ConversionJob tail;
-    /** Teto do retrato no pacote de spawn do foguete (1 MiB do plugin do cliente); configurável só para teste. */
-    private static int maxPacketBytes = com.spacehorizons.rocket.RocketAssembler.MAX_PACKET_BYTES;
+    /** Teto do retrato codificado do foguete (acima do pacote de spawn de 1 MiB o retrato vai em partes); configurável só para teste. */
+    private static int maxPacketBytes = com.spacehorizons.rocket.RocketAssembler.MAX_PORTRAIT_BYTES;
 
     private ShipConversions() {
     }
@@ -97,7 +97,7 @@ public final class ShipConversions {
         SpaceHorizons.LOGGER.info("[ship-conv] {}", report.line());
     }
 
-    /** Teto, em bytes, do retrato no pacote de spawn: acima disso a nave NÃO volta a foguete (o cliente recusaria o pacote). */
+    /** Teto, em bytes, do retrato codificado: acima disso a nave NÃO volta a foguete (o retrato grande vai em partes, mas há um teto). */
     public static int maxPacketBytes() {
         return maxPacketBytes;
     }
@@ -157,6 +157,6 @@ public final class ShipConversions {
         REPORTS.clear();
         recovered = false;
         tail = null;
-        maxPacketBytes = com.spacehorizons.rocket.RocketAssembler.MAX_PACKET_BYTES;
+        maxPacketBytes = com.spacehorizons.rocket.RocketAssembler.MAX_PORTRAIT_BYTES;
     }
 }

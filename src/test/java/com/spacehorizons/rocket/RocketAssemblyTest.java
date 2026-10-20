@@ -152,12 +152,15 @@ class RocketAssemblyTest {
     }
 
     @Test
-    void tetoDeExtensaoEDeIteracoesSaoRespeitados() {
+    void tetoDeExtensaoEDeIteracoesSaoRespeitados() throws Exception {
         World alto = simpleRocket();
         for (int y = 5; y < 70; y++) {
             alto.put(0, y, 0, RocketBlockKind.HULL);
         }
-        assertEquals(Reason.TOO_LARGE, reasonOf(alto, 0, 4, 0), "mais de 64 blocos de altura");
+        assertEquals(Reason.TOO_LARGE, assertThrows(RocketException.class, () -> RocketAssembly.scan(alto, 0, 4, 0, 1024, 100_000, 64)).reason(),
+                "mais de 64 blocos de altura num teto de 64");
+        // o teto padrão é de 256 em altura e 128 de lado: 69 blocos de altura (y de 1 a 69) passam
+        assertEquals(69, RocketAssembly.scan(alto, 0, 4, 0).sizeY(), "altura em blocos");
 
         assertEquals(Reason.TOO_LARGE, assertThrows(RocketException.class,
                 () -> RocketAssembly.scan(simpleRocket(), 0, 4, 0, 1024, 3, 64)).reason(), "poucas iterações");
@@ -170,6 +173,110 @@ class RocketAssemblyTest {
         // sobra o tanque de cima + cockpit, sem motor
         assertEquals(Reason.NO_ENGINE, reasonOf(w, 0, 4, 0));
         assertFalse(w.kindAt(0, 2, 0).isPart());
+    }
+
+    /** Plataforma 4x4, motor 2x2x2 (y 1 a 2), coluna de tanques 2x2x4 (y 3 a 6) e cockpit em cima (y 7). */
+    private static World structuredRocket() {
+        World w = new World();
+        for (int x = -1; x <= 2; x++) {
+            for (int z = -1; z <= 2; z++) {
+                w.put(x, 0, z, RocketBlockKind.PAD);
+            }
+        }
+        for (int x = 0; x <= 1; x++) {
+            for (int z = 0; z <= 1; z++) {
+                for (int y = 1; y <= 2; y++) {
+                    w.put(x, y, z, RocketBlockKind.ENGINE);
+                }
+                for (int y = 3; y <= 6; y++) {
+                    w.put(x, y, z, RocketBlockKind.FUEL_TANK);
+                }
+            }
+        }
+        return w.put(0, 7, 0, RocketBlockKind.COCKPIT);
+    }
+
+    @Test
+    void censoDaMontagemContaAsEstruturasMultibloco() throws Exception {
+        RocketAssembly.Result r = RocketAssembly.scan(structuredRocket(), 0, 7, 0);
+        assertEquals(8, r.census().engines(), "blocos de motor");
+        assertEquals(16, r.census().tanks(), "blocos de tanque");
+        assertEquals(java.util.List.of(new Multiblocks.Box(0, 1, 0, 2, 2, 2)), r.census().engineStructures());
+        assertEquals(java.util.List.of(new Multiblocks.Box(0, 3, 0, 2, 4, 2)), r.census().tankStructures());
+        assertEquals(0, r.census().soloEngines());
+        assertEquals(0, r.census().looseTanks());
+        assertEquals(r.census(), RocketAssembly.analyze(structuredRocket(), java.util.List.of(new int[] {0, 7, 0})).result().census(),
+                "o painel (analyze) e a montagem (scan) contam igual");
+        // os números saem do mesmo censo
+        var stats = RocketSpecs.statsFor(r.census());
+        assertEquals(24.0, stats.thrust(), 1.0E-9);
+        assertEquals(16 * 4000.0, stats.fuelCapacityMb(), 1.0E-9);
+    }
+
+    @Test
+    void analyzeJuntaTodosOsProblemasEScanSoLancaOPrimeiro() {
+        // sem paraquedas não impede; mas terreno, bloco proibido e dois cockpits somam problemas
+        World w = structuredRocket().put(0, 8, 0, RocketBlockKind.COCKPIT).put(2, 3, 0, RocketBlockKind.TERRAIN)
+                .put(-1, 4, 0, RocketBlockKind.FORBIDDEN);
+        RocketAssembly.Report report = RocketAssembly.analyze(w, java.util.List.of(new int[] {0, 7, 0}));
+        assertFalse(report.assemblable());
+        java.util.List<Reason> reasons = report.blockers().stream().map(RocketAssembly.Blocker::reason).toList();
+        assertTrue(reasons.contains(Reason.TOUCHES_TERRAIN) && reasons.contains(Reason.FORBIDDEN_BLOCK) && reasons.contains(Reason.MULTIPLE_COCKPITS),
+                reasons.toString());
+        RocketAssembly.Blocker terrain = report.blockers().stream().filter(b -> b.reason() == Reason.TOUCHES_TERRAIN).findFirst().orElseThrow();
+        assertEquals(java.util.List.of(2, 3, 0), java.util.List.of(terrain.x(), terrain.y(), terrain.z()), "a posição do bloco de terreno");
+        assertEquals(report.blockers().get(0).reason(), reasonOf(w, 0, 7, 0), "scan recusa pelo primeiro problema que o analyze achou");
+    }
+
+    @Test
+    void analyzeSemCockpitAindaContaOQueAchou() {
+        World w = structuredRocket().put(0, 7, 0, RocketBlockKind.HULL);
+        RocketAssembly.Report report = RocketAssembly.analyze(w, java.util.List.of(new int[] {0, 6, 0}));
+        assertEquals(0, report.result().census().cockpits());
+        assertTrue(report.blockers().stream().anyMatch(b -> b.reason() == Reason.NO_COCKPIT));
+        assertEquals(8, report.result().census().engines());
+        assertEquals(1, report.result().census().hulls());
+    }
+
+    @Test
+    void foguetesGrandesPassamDe1024BlocosAte8192() throws Exception {
+        // casco 20x20x24 oco (parede de 1 bloco) ~ 3.100 blocos: antes o teto era 1.024
+        World w = new World();
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                w.put(x, 0, z, RocketBlockKind.PAD);
+            }
+        }
+        w.put(0, 1, 0, RocketBlockKind.ENGINE);
+        int blocks = 1;
+        for (int y = 2; y <= 25; y++) {
+            for (int x = -10; x < 10; x++) {
+                for (int z = -10; z < 10; z++) {
+                    boolean shell = x == -10 || x == 9 || z == -10 || z == 9 || y == 2 || y == 25;
+                    if (shell) {
+                        w.put(x, y, z, RocketBlockKind.HULL);
+                        blocks++;
+                    }
+                }
+            }
+        }
+        w.put(0, 2, 0, RocketBlockKind.FUEL_TANK).put(0, 3, 0, RocketBlockKind.COCKPIT);
+        w.put(0, 4, 0, RocketBlockKind.AIR);
+        // o motor e o tanque ligam ao casco pelo piso (y=2): tudo é um corpo só
+        RocketAssembly.Result r = RocketAssembly.scan(w, 0, 3, 0);
+        assertTrue(r.cells().size() > 1024, "mais de 1.024 blocos: " + r.cells().size());
+        assertTrue(r.cells().size() <= RocketAssembly.MAX_BLOCKS);
+        assertEquals(20, r.sizeX());
+        assertEquals(25, r.sizeY());
+        assertTrue(blocks > 1024);
+    }
+
+    @Test
+    void tetosDaMontagemSaoOsDaNaveDaD2() {
+        assertEquals(8192, RocketAssembly.MAX_BLOCKS);
+        assertEquals(128, RocketAssembly.MAX_EXTENT_XZ);
+        assertEquals(256, RocketAssembly.MAX_EXTENT_Y);
+        assertEquals(128 * 128 * 256, PortraitGrid.MAX_VOLUME);
     }
 
     @Test

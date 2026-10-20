@@ -1,6 +1,7 @@
 package com.spacehorizons.rocket;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.mojang.serialization.Codec;
 import com.spacehorizons.SpaceHorizons;
@@ -71,6 +72,8 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     private static final double MAX_TILT_TO_LAND_DEGREES = 15.0;
 
     private RocketPortrait portrait = RocketPortrait.EMPTY;
+    /** Cliente: o retrato é grande e chega em partes ({@link PortraitParts}); este é o id que se espera, ou null. */
+    private @Nullable UUID pendingPortraitId;
     private RocketStats stats = RocketSpecs.statsFor(RocketCensus.EMPTY);
     private final RocketFlight flight = new RocketFlight();
     /** Combustível em mB com fração (o consumo do voo é fracionário); o dado sincronizado é só o valor arredondado para baixo. */
@@ -324,6 +327,9 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     public void tick() {
         super.tick();
         if (this.level().isClientSide()) {
+            if (this.pendingPortraitId != null) {
+                receivePendingPortrait();
+            }
             this.attitudePrev.set(this.attitudeCur);
             this.attitudeCur.set(this.attitudeTarget);
             this.virtualPrev.set(this.virtualCur);
@@ -513,14 +519,59 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
 
     // ---------------------------------------------------------------- spawn e salvar
 
+    /**
+     * O retrato vai no pacote de spawn se couber ({@link RocketAssembler#INLINE_PORTRAIT_BYTES}); senão só o id vai, e as partes seguem em
+     * pacotes próprios quando o jogador passa a ver o foguete ({@link #startSeenByPlayer}).
+     */
     @Override
     public void writeSpawnData(RegistryFriendlyByteBuf buffer) {
-        RocketPortrait.write(buffer, this.portrait);
+        boolean deferred = RocketPortrait.encodedSize(this.portrait) > RocketAssembler.INLINE_PORTRAIT_BYTES;
+        buffer.writeBoolean(deferred);
+        if (deferred) {
+            buffer.writeUUID(this.portrait.id());
+        } else {
+            RocketPortrait.write(buffer, this.portrait);
+        }
     }
 
     @Override
     public void readSpawnData(RegistryFriendlyByteBuf buffer) {
-        this.setPortrait(RocketPortrait.read(buffer));
+        if (buffer.readBoolean()) {
+            this.pendingPortraitId = buffer.readUUID();
+            receivePendingPortrait();
+        } else {
+            this.setPortrait(RocketPortrait.read(buffer));
+        }
+    }
+
+    /** Cliente: se as partes do retrato esperado já chegaram, monta o retrato. */
+    private void receivePendingPortrait() {
+        byte[] bytes = PortraitParts.CLIENT.take(this.pendingPortraitId);
+        if (bytes == null) {
+            return;
+        }
+        this.pendingPortraitId = null;
+        try {
+            this.setPortrait(RocketPortrait.read(io.netty.buffer.Unpooled.wrappedBuffer(bytes)));
+        } catch (RuntimeException e) {
+            SpaceHorizons.LOGGER.error("Retrato do foguete recebido em partes está corrompido", e);
+        }
+    }
+
+    /** O retrato grande demais para o pacote de spawn segue em partes para quem passa a ver o foguete. */
+    @Override
+    public void startSeenByPlayer(net.minecraft.server.level.ServerPlayer player) {
+        super.startSeenByPlayer(player);
+        if (this.portrait.isEmpty() || RocketPortrait.encodedSize(this.portrait) <= RocketAssembler.INLINE_PORTRAIT_BYTES) {
+            return;
+        }
+        List<byte[]> parts = PortraitParts.split(this.portrait.encoded(), PortraitParts.PART_BYTES);
+        for (int i = 0; i < parts.size(); i++) {
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,
+                    new RocketPortraitPartPayload(this.portrait.id(), i, parts.size(), parts.get(i)));
+        }
+        SpaceHorizons.LOGGER.info("Retrato grande do foguete ({} bytes) enviado a {} em {} parte(s)", this.portrait.encoded().length,
+                player.getGameProfile().name(), parts.size());
     }
 
     private static final Codec<List<Float>> QUATERNION_CODEC = Codec.FLOAT.listOf(4, 4);

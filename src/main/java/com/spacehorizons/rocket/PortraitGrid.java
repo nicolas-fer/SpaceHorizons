@@ -17,15 +17,18 @@ import net.minecraft.network.VarInt;
  * um quarto de volta é horário vista de cima (o norte vira leste), o mesmo sentido em que o yaw do Minecraft cresce.
  */
 public final class PortraitGrid {
-    /** Teto de células de um retrato (64 x 64 x 64 seria 262.144; o teto da montagem já limita cada lado a 64). */
-    public static final int MAX_VOLUME = RocketAssembly.MAX_EXTENT * RocketAssembly.MAX_EXTENT * RocketAssembly.MAX_EXTENT;
+    /**
+     * Teto de células de um retrato: a caixa da nave da D2 (128 x 128 x 256 = 4.194.304 células). A grade é densa mas guarda cada
+     * célula em 16 bits (a paleta tem no máximo {@link RocketAssembly#MAX_BLOCKS} + 1 estados), então a caixa cheia custa 8 MiB.
+     */
+    public static final int MAX_VOLUME = RocketAssembly.MAX_EXTENT_XZ * RocketAssembly.MAX_EXTENT_XZ * RocketAssembly.MAX_EXTENT_Y;
 
     public final int sizeX;
     public final int sizeY;
     public final int sizeZ;
-    private final int[] cells;
+    private final char[] cells;
 
-    private PortraitGrid(int sizeX, int sizeY, int sizeZ, int[] cells) {
+    private PortraitGrid(int sizeX, int sizeY, int sizeZ, char[] cells) {
         this.sizeX = sizeX;
         this.sizeY = sizeY;
         this.sizeZ = sizeZ;
@@ -36,7 +39,7 @@ public final class PortraitGrid {
         if (sizeX < 0 || sizeY < 0 || sizeZ < 0 || (long) sizeX * sizeY * sizeZ > MAX_VOLUME) {
             throw new IllegalArgumentException("tamanho de retrato inválido: " + sizeX + "x" + sizeY + "x" + sizeZ);
         }
-        return new PortraitGrid(sizeX, sizeY, sizeZ, new int[sizeX * sizeY * sizeZ]);
+        return new PortraitGrid(sizeX, sizeY, sizeZ, new char[sizeX * sizeY * sizeZ]);
     }
 
     public int volume() {
@@ -60,13 +63,16 @@ public final class PortraitGrid {
         if (!this.inside(x, y, z)) {
             throw new IndexOutOfBoundsException("célula fora do retrato: " + x + ", " + y + ", " + z);
         }
-        this.cells[this.index(x, y, z)] = paletteIndex;
+        if (paletteIndex < 0 || paletteIndex > Character.MAX_VALUE) {
+            throw new IllegalArgumentException("índice de paleta fora de 16 bits: " + paletteIndex);
+        }
+        this.cells[this.index(x, y, z)] = (char) paletteIndex;
     }
 
     /** Quantas células não estão vazias. */
     public int nonEmptyCount() {
         int n = 0;
-        for (int cell : this.cells) {
+        for (char cell : this.cells) {
             if (cell != 0) {
                 n++;
             }
@@ -77,7 +83,7 @@ public final class PortraitGrid {
     /** Maior índice de paleta em uso (0 se vazio). */
     public int maxIndex() {
         int max = 0;
-        for (int cell : this.cells) {
+        for (char cell : this.cells) {
             max = Math.max(max, cell);
         }
         return max;
@@ -125,7 +131,7 @@ public final class PortraitGrid {
             return new PortraitGrid(this.sizeX, this.sizeY, this.sizeZ, this.cells.clone());
         }
         PortraitGrid out = new PortraitGrid(rotatedSizeX(turns, this.sizeX, this.sizeZ), this.sizeY,
-                rotatedSizeZ(turns, this.sizeX, this.sizeZ), new int[this.cells.length]);
+                rotatedSizeZ(turns, this.sizeX, this.sizeZ), new char[this.cells.length]);
         for (int y = 0; y < this.sizeY; y++) {
             for (int z = 0; z < this.sizeZ; z++) {
                 for (int x = 0; x < this.sizeX; x++) {
@@ -171,7 +177,7 @@ public final class PortraitGrid {
             if (pos == Long.MIN_VALUE || state <= 0 || !grid.inside(x, y, z)) {
                 throw new IllegalArgumentException("entrada inválida no retrato: " + entry);
             }
-            grid.cells[grid.index(x, y, z)] = state;
+            grid.cells[grid.index(x, y, z)] = (char) state;
         }
         return grid;
     }
@@ -206,10 +212,10 @@ public final class PortraitGrid {
         while (at < grid.cells.length) {
             int value = VarInt.read(in);
             int run = VarInt.read(in);
-            if (value < 0 || value > maxIndex || run <= 0 || run > grid.cells.length - at) {
+            if (value < 0 || value > maxIndex || value > Character.MAX_VALUE || run <= 0 || run > grid.cells.length - at) {
                 throw new IllegalArgumentException("repetição inválida no retrato: índice " + value + ", quantidade " + run);
             }
-            Arrays.fill(grid.cells, at, at + run, value);
+            Arrays.fill(grid.cells, at, at + run, (char) value);
             at += run;
         }
         return grid;

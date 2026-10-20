@@ -27,6 +27,7 @@ public final class RocketClient {
     @SubscribeEvent
     static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         RocketRenderer.MESHES.clear();
+        com.spacehorizons.rocket.PortraitParts.CLIENT.clear();
     }
 
     /** Quantas malhas de foguete o cache tem (assadas ou assando); para o autoteste. */

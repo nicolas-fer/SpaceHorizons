@@ -83,6 +83,19 @@ public final class ConnectedFaces {
         return state;
     }
 
+    /**
+     * O estado girado em torno do eixo vertical (para {@code Block.rotate}): a conexão do lado {@code d} passa a ser a do lado
+     * {@code rotation.rotate(d)}; cima e baixo não mudam. Sem isto, um bloco conectado de uma estrutura que pousa girada ficaria com as
+     * emendas nos lados errados.
+     */
+    public static BlockState rotate(BlockState state, net.minecraft.world.level.block.Rotation rotation) {
+        BlockState out = state;
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            out = out.setValue(property(rotation.rotate(side)), state.getValue(property(side)));
+        }
+        return out;
+    }
+
     /** O estado com as conexões calculadas a partir dos seis vizinhos no mundo. */
     public static BlockState connect(BlockState state, BlockGetter level, BlockPos pos, Rule rule) {
         BlockPos.MutableBlockPos neighbor = new BlockPos.MutableBlockPos();

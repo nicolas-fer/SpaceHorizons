@@ -1,0 +1,32 @@
+{
+  "textures": {
+    "all": "spacehorizons:block/rocket_fuel_tank_ct/t11",
+    "particle": "spacehorizons:block/rocket_fuel_tank"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        16
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#all",
+          "cullface": "south"
+        }
+      }
+    }
+  ]
+}

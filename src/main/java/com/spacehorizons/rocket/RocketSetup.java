@@ -38,6 +38,8 @@ public final class RocketSetup {
         });
         // telemetria do voo para o piloto (o handler do cliente fica em client/rocket: RegisterClientPayloadHandlersEvent)
         event.registrar("1").playToClient(RocketTelemetryPayload.TYPE, RocketTelemetryPayload.CODEC);
+        // partes do retrato de um foguete grande demais para o pacote de spawn (o handler do cliente: RocketPortraitClient)
+        event.registrar("1").playToClient(RocketPortraitPartPayload.TYPE, RocketPortraitPartPayload.CODEC);
     }
 
     @SubscribeEvent

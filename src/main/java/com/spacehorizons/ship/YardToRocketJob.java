@@ -205,8 +205,9 @@ final class YardToRocketJob extends ConversionJob {
         int sx = maxX - minX + 1;
         int sy = maxY - minY + 1;
         int sz = maxZ - minZ + 1;
-        if (sx > RocketAssembly.MAX_EXTENT || sy > RocketAssembly.MAX_EXTENT || sz > RocketAssembly.MAX_EXTENT || (long) sx * sy * sz > PortraitGrid.MAX_VOLUME) {
-            fail("a nave (" + sx + "x" + sy + "x" + sz + ") é maior do que o retrato do foguete suporta (" + RocketAssembly.MAX_EXTENT + " de lado)");
+        if (sx > RocketAssembly.MAX_EXTENT_XZ || sy > RocketAssembly.MAX_EXTENT_Y || sz > RocketAssembly.MAX_EXTENT_XZ || (long) sx * sy * sz > PortraitGrid.MAX_VOLUME) {
+            fail("a nave (" + sx + "x" + sy + "x" + sz + ") é maior do que o retrato do foguete suporta (" + RocketAssembly.MAX_EXTENT_XZ + " x "
+                    + RocketAssembly.MAX_EXTENT_Y + " x " + RocketAssembly.MAX_EXTENT_XZ + ")");
             return;
         }
         PortraitGrid grid = PortraitGrid.empty(sx, sy, sz);
@@ -250,7 +251,7 @@ final class YardToRocketJob extends ConversionJob {
         this.after = builder.build();
         if (this.packetBytes > ShipConversions.maxPacketBytes()) {
             // o pacote de spawn do foguete tem 1 MiB no máximo (o cliente recusa e desconecta): a nave continua no estaleiro, intacta
-            fail("o retrato da nave tem " + this.packetBytes + " bytes no pacote de spawn, acima do limite de " + ShipConversions.maxPacketBytes()
+            fail("o retrato da nave tem " + this.packetBytes + " bytes, acima do limite de " + ShipConversions.maxPacketBytes()
                     + " (muitos block entities com inventário cheio); a nave fica no estaleiro");
             return;
         }

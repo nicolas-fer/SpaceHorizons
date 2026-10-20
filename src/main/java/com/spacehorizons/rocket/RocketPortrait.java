@@ -11,6 +11,7 @@ import com.spacehorizons.space.flight.RocketStats;
 
 import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -39,6 +40,11 @@ public final class RocketPortrait {
     /** Teto de entradas da paleta lida da rede ou do NBT (cada bloco do foguete usa no máximo um estado). */
     private static final int MAX_PALETTE = RocketAssembly.MAX_BLOCKS + 1;
 
+    private static boolean validSize(int x, int y, int z) {
+        return x >= 0 && y >= 0 && z >= 0 && x <= RocketAssembly.MAX_EXTENT_XZ && z <= RocketAssembly.MAX_EXTENT_XZ
+                && y <= RocketAssembly.MAX_EXTENT_Y && (long) x * y * z <= PortraitGrid.MAX_VOLUME;
+    }
+
     /** Sem blocos: o estado da entidade antes de receber o retrato (spawn complexo chega logo depois do spawn). */
     public static final RocketPortrait EMPTY = new RocketPortrait(new UUID(0L, 0L), PortraitGrid.empty(0, 0, 0),
             List.of(Blocks.AIR.defaultBlockState()), new Long2ObjectLinkedOpenHashMap<>(), BlockPos.ZERO);
@@ -53,6 +59,8 @@ public final class RocketPortrait {
     private final BlockPos cockpit;
     private volatile RocketCensus census;
     private volatile List<LoadedBlockEntity> loaded;
+    /** O pacote de spawn deste retrato (imutável, então calculado uma vez): um retrato grande é enviado a cada jogador que o vê. */
+    private volatile byte[] encoded;
 
     /** A paleta tem o ar no índice 0; {@code blockEntities} mapeia a posição local (asLong) ao NBT com id e sem x/y/z. */
     public RocketPortrait(UUID id, PortraitGrid grid, List<BlockState> palette, Long2ObjectMap<CompoundTag> blockEntities,
@@ -121,7 +129,10 @@ public final class RocketPortrait {
         return it.unimi.dsi.fastutil.longs.Long2ObjectMaps.unmodifiable(this.blockEntities);
     }
 
-    /** Contagem de blocos por papel (calculada uma vez). */
+    /**
+     * Contagem de blocos por papel e as estruturas multibloco que eles formam ({@link Multiblocks}), calculadas uma vez. É a mesma conta
+     * da montagem ({@code RocketAssembly}): as posições dos tanques e dos motores vão para a mesma partição.
+     */
     public RocketCensus census() {
         RocketCensus result = this.census;
         if (result == null) {
@@ -134,9 +145,28 @@ public final class RocketPortrait {
                     }
                 }
             }
+            RocketBlockKind[] kinds = new RocketBlockKind[this.palette.size()];
             for (int i = 1; i < perIndex.length; i++) {
-                c = c.plus(RocketKinds.ofPortraitState(this.palette.get(i)), perIndex[i]);
+                kinds[i] = RocketKinds.ofPortraitState(this.palette.get(i));
+                c = c.plus(kinds[i], perIndex[i]);
             }
+            LongArrayList tanks = new LongArrayList();
+            LongArrayList engines = new LongArrayList();
+            if (c.tanks() > 0 || c.engines() > 0) {
+                for (int y = 0; y < this.sizeY; y++) {
+                    for (int z = 0; z < this.sizeZ; z++) {
+                        for (int x = 0; x < this.sizeX; x++) {
+                            int index = this.grid.get(x, y, z);
+                            if (index != 0 && kinds[index] == RocketBlockKind.FUEL_TANK) {
+                                tanks.add(RocketAssembly.pack(x, y, z));
+                            } else if (index != 0 && kinds[index] == RocketBlockKind.ENGINE) {
+                                engines.add(RocketAssembly.pack(x, y, z));
+                            }
+                        }
+                    }
+                }
+            }
+            c = c.withStructures(Multiblocks.analyze(tanks.toLongArray(), engines.toLongArray()));
             this.census = result = c;
         }
         return result;
@@ -255,8 +285,7 @@ public final class RocketPortrait {
     /** Lê o retrato salvo por {@link #save}; lança IllegalArgumentException se o NBT estiver corrompido. */
     public static RocketPortrait load(HolderLookup.Provider registries, CompoundTag tag) {
         int[] size = tag.getIntArray("Size").orElse(new int[0]);
-        if (size.length != 3 || size[0] < 0 || size[1] < 0 || size[2] < 0 || size[0] > RocketAssembly.MAX_EXTENT
-                || size[1] > RocketAssembly.MAX_EXTENT || size[2] > RocketAssembly.MAX_EXTENT) {
+        if (size.length != 3 || !validSize(size[0], size[1], size[2])) {
             throw new IllegalArgumentException("tamanho inválido no retrato do foguete");
         }
         List<BlockState> palette = new ArrayList<>();
@@ -312,8 +341,7 @@ public final class RocketPortrait {
         int sizeX = VarInt.read(in);
         int sizeY = VarInt.read(in);
         int sizeZ = VarInt.read(in);
-        if (sizeX < 0 || sizeY < 0 || sizeZ < 0 || sizeX > RocketAssembly.MAX_EXTENT || sizeY > RocketAssembly.MAX_EXTENT
-                || sizeZ > RocketAssembly.MAX_EXTENT) {
+        if (!validSize(sizeX, sizeY, sizeZ)) {
             throw new IllegalArgumentException("tamanho de retrato inválido na rede");
         }
         BlockPos cockpit = new BlockPos(VarInt.read(in), VarInt.read(in), VarInt.read(in));
@@ -340,15 +368,26 @@ public final class RocketPortrait {
         return new RocketPortrait(id, grid, palette, entities, cockpit);
     }
 
-    /** Tamanho em bytes do retrato no pacote de spawn (para recusar a montagem de um foguete grande demais). */
-    public static int encodedSize(RocketPortrait portrait) {
-        ByteBuf buffer = io.netty.buffer.Unpooled.buffer();
-        try {
-            write(buffer, portrait);
-            return buffer.readableBytes();
-        } finally {
-            buffer.release();
+    /** O retrato codificado (a forma de {@link #write}), calculado uma vez; o array é compartilhado: não o altere. */
+    public byte[] encoded() {
+        byte[] result = this.encoded;
+        if (result == null) {
+            ByteBuf buffer = io.netty.buffer.Unpooled.buffer();
+            try {
+                write(buffer, this);
+                result = new byte[buffer.readableBytes()];
+                buffer.readBytes(result);
+            } finally {
+                buffer.release();
+            }
+            this.encoded = result;
         }
+        return result;
+    }
+
+    /** Tamanho em bytes do retrato codificado (para decidir entre o pacote de spawn e o envio em partes, e recusar um foguete grande demais). */
+    public static int encodedSize(RocketPortrait portrait) {
+        return portrait.encoded().length;
     }
 
     /** Monta o mapa de paleta de uma lista de estados na ordem em que aparecem (o ar é sempre o índice 0). */

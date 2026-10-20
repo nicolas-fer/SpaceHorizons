@@ -8,9 +8,11 @@ import java.util.UUID;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.content.ModEntities;
+import com.spacehorizons.content.connected.ConnectedFaces;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -32,8 +34,19 @@ public final class RocketAssembler {
     /** Remoção sem atualizar vizinhos (nada solta ou quebra no meio da operação) e sem soltar itens. */
     private static final int REMOVE_FLAGS = Block.UPDATE_MOVE_BY_PISTON | Block.UPDATE_SUPPRESS_DROPS | Block.UPDATE_KNOWN_SHAPE
             | Block.UPDATE_CLIENTS | Block.UPDATE_IMMEDIATE | Block.UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS;
-    /** Teto do retrato no pacote de spawn (o limite do cliente para um pacote de plugin é 1 MiB). */
+    /** O limite do cliente para um pacote de plugin (1 MiB). */
     public static final int MAX_PACKET_BYTES = 1 << 20;
+    /**
+     * Até este tamanho o retrato vai INTEIRO no pacote de spawn do foguete (o pacote também leva dados da entidade, então fica uma folga
+     * do limite do cliente); acima, vai em partes ({@link PortraitParts}), um pacote por parte, depois do spawn.
+     */
+    public static final int INLINE_PORTRAIT_BYTES = MAX_PACKET_BYTES - 64 * 1024;
+    /**
+     * Teto do retrato codificado (a nave da D2 tem até {@link RocketAssembly#MAX_BLOCKS} blocos; com baús cheios, ~1,65 KB cada, dá
+     * ~13 MB no pior caso). Acima disso a montagem é recusada ({@link RocketException.Reason#PACKET_TOO_LARGE}): é memória do servidor e
+     * de cada cliente, e tempo de envio.
+     */
+    public static final int MAX_PORTRAIT_BYTES = 16 << 20;
 
     private RocketAssembler() {
     }
@@ -84,9 +97,16 @@ public final class RocketAssembler {
         paletteIndex.put(palette.get(0), 0);
         Long2ObjectMap<CompoundTag> blockEntities = new Long2ObjectLinkedOpenHashMap<>();
         int fuel = 0;
+        Map<Long, Multiblocks.EngineRole> engineRoles = Multiblocks.engineRoles(found.structures().engines());
+        LongOpenHashSet tankCells = new LongOpenHashSet();
+        for (RocketAssembly.Cell cell : found.cells()) {
+            if (cell.kind() == RocketBlockKind.FUEL_TANK) {
+                tankCells.add(RocketAssembly.pack(cell.x(), cell.y(), cell.z()));
+            }
+        }
         for (RocketAssembly.Cell cell : found.cells()) {
             BlockPos world = new BlockPos(cell.x(), cell.y(), cell.z());
-            BlockState state = level.getBlockState(world);
+            BlockState state = canonical(level.getBlockState(world), cell, engineRoles, tankCells);
             int index = paletteIndex.computeIfAbsent(state, s -> {
                 palette.add(s);
                 return palette.size() - 1;
@@ -108,7 +128,7 @@ public final class RocketAssembler {
         }
         BlockPos localCockpit = new BlockPos(cockpit.getX() - found.minX(), cockpit.getY() - found.minY(), cockpit.getZ() - found.minZ());
         RocketPortrait portrait = new RocketPortrait(UUID.randomUUID(), grid, palette, blockEntities, localCockpit);
-        if (RocketPortrait.encodedSize(portrait) > MAX_PACKET_BYTES) {
+        if (RocketPortrait.encodedSize(portrait) > MAX_PORTRAIT_BYTES) {
             throw new RocketException(RocketException.Reason.PACKET_TOO_LARGE);
         }
 
@@ -121,7 +141,7 @@ public final class RocketAssembler {
         rocket.setFuelMb(fuel);
         rocket.setPos(found.minX() + found.sizeX() / 2.0, found.minY() + found.sizeY() / 2.0, found.minZ() + found.sizeZ() / 2.0);
 
-        removeBlocks(level, found.cells());
+        EngineForming.suspended(() -> removeBlocks(level, found.cells()));
         if (!level.addFreshEntity(rocket)) {
             // não deveria acontecer; devolve os blocos para não perder o foguete
             SpaceHorizons.LOGGER.error("Falha ao adicionar a entidade do foguete; devolvendo os blocos");
@@ -135,6 +155,24 @@ public final class RocketAssembler {
         SpaceHorizons.LOGGER.info("Foguete montado em {}: {} blocos, caixa {}x{}x{}, {} mB de combustível", cockpit.toShortString(),
                 portrait.blockCount(), found.sizeX(), found.sizeY(), found.sizeZ(), fuel);
         return rocket;
+    }
+
+    /**
+     * O estado do bloco como o retrato o guarda, refeito a partir das estruturas que a montagem achou: o motor leva o papel que a partição
+     * lhe dá (mestre, parte ou avulso) e o tanque, as conexões com os tanques vizinhos. Assim um foguete montado por comando (que não
+     * passa pela colocação do jogador) também aparece formado em voo, e o que o censo conta é o que o retrato mostra.
+     */
+    static BlockState canonical(BlockState state, RocketAssembly.Cell cell, Map<Long, Multiblocks.EngineRole> engineRoles, LongOpenHashSet tankCells) {
+        if (cell.kind() == RocketBlockKind.ENGINE && state.hasProperty(RocketEngineBlock.FORM)) {
+            return EngineForming.stateFor(state, engineRoles.getOrDefault(RocketAssembly.pack(cell.x(), cell.y(), cell.z()), Multiblocks.EngineRole.SOLO));
+        }
+        if (cell.kind() == RocketBlockKind.FUEL_TANK && state.hasProperty(ConnectedFaces.UP)) {
+            for (net.minecraft.core.Direction side : net.minecraft.core.Direction.values()) {
+                state = state.setValue(ConnectedFaces.property(side),
+                        tankCells.contains(RocketAssembly.pack(cell.x() + side.getStepX(), cell.y() + side.getStepY(), cell.z() + side.getStepZ())));
+            }
+        }
+        return state;
     }
 
     /**

@@ -5,6 +5,7 @@ import java.util.function.UnaryOperator;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketCockpitBlock;
+import com.spacehorizons.rocket.RocketEngineBlock;
 import com.spacehorizons.rocket.RocketFuelTankBlock;
 import com.spacehorizons.ship.block.ShipAirlockBlock;
 import com.spacehorizons.ship.block.ShipBridgeBlock;
@@ -55,7 +56,8 @@ public final class ModBlocks {
             RocketCockpitBlock::new, props -> props.mapColor(MapColor.METAL).strength(3.5F, 6.0F).sound(SoundType.METAL)
                     .requiresCorrectToolForDrops().noOcclusion());
 
-    public static final DeferredBlock<Block> ROCKET_ENGINE = registerWithItem(ContentIds.ROCKET_ENGINE,
+    /** Motor: sozinho é o 1x1; em cubo 2x2x2 ou 3x3x3 forma um motor maior (o mestre desenha o conjunto, os outros ficam invisíveis). */
+    public static final DeferredBlock<RocketEngineBlock> ROCKET_ENGINE = registerBlockWithItem(ContentIds.ROCKET_ENGINE, RocketEngineBlock::new,
             props -> props.mapColor(MapColor.METAL).strength(4.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops()
                     .noOcclusion());
 

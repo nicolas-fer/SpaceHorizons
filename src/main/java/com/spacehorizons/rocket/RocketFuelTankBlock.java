@@ -3,7 +3,18 @@ package com.spacehorizons.rocket;
 import com.spacehorizons.content.ModBlockEntities;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 
+import com.spacehorizons.content.connected.ConnectedFaces;
+
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -24,8 +35,38 @@ import net.minecraft.world.phys.BlockHitResult;
  * de ação. O tooltip do item e a tela ao olhar para o bloco ({@code RocketTankHud}) também mostram a carga.
  */
 public class RocketFuelTankBlock extends BaseEntityBlock {
+    /** Tanques ligados formam uma coluna sem emenda (textura conectada); a estrutura formada é decidida por {@link Multiblocks}. */
+    private static final ConnectedFaces.Rule RULE = ConnectedFaces.sameBlock();
+
     public RocketFuelTankBlock(BlockBehaviour.Properties properties) {
         super(properties);
+        registerDefaultState(ConnectedFaces.disconnected(stateDefinition.any()));
+    }
+
+    /** As conexões deste tanque, para quem escreve blocos por código ({@link ConnectedFaces#connectAround}). */
+    public static ConnectedFaces.Rule rule() {
+        return RULE;
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        ConnectedFaces.addProperties(builder);
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return ConnectedFaces.connect(defaultBlockState(), context.getLevel(), context.getClickedPos(), RULE);
+    }
+
+    @Override
+    protected BlockState updateShape(BlockState state, LevelReader level, ScheduledTickAccess ticks, BlockPos pos, Direction directionToNeighbour,
+            BlockPos neighbourPos, BlockState neighbourState, RandomSource random) {
+        return ConnectedFaces.update(state, directionToNeighbour, neighbourState, RULE);
+    }
+
+    @Override
+    protected BlockState rotate(BlockState state, Rotation rotation) {
+        return ConnectedFaces.rotate(state, rotation);
     }
 
     @Override
@@ -42,29 +83,41 @@ public class RocketFuelTankBlock extends BaseEntityBlock {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
-        if (level.getBlockEntity(pos) instanceof RocketFuelTankBlockEntity tank) {
+        if (level.getBlockEntity(pos) instanceof RocketFuelTankBlockEntity) {
+            // o combustível é da ESTRUTURA: o galão enche qualquer bloco dela e a carga se reparte por igual entre os blocos
+            TankStructures.Found structure = TankStructures.at(level, pos);
             int fuel = FuelCanisterItem.getFuel(stack);
-            int moved = tank.add(fuel);
+            int moved = Math.max(0, Math.min(fuel, structure.capacityMb() - structure.fuelMb()));
             if (moved > 0) {
+                TankStructures.setTotal(level, structure, structure.fuelMb() + moved);
                 FuelCanisterItem.setFuel(stack, fuel - moved);
                 level.playSound(null, pos, SoundEvents.BUCKET_EMPTY, SoundSource.BLOCKS, 0.8F, 1.2F);
             }
-            player.sendOverlayMessage(levelMessage(tank));
+            player.sendOverlayMessage(levelMessage(level, pos));
         }
         return InteractionResult.SUCCESS_SERVER;
     }
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
-        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof RocketFuelTankBlockEntity tank) {
-            player.sendOverlayMessage(levelMessage(tank));
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof RocketFuelTankBlockEntity) {
+            player.sendOverlayMessage(levelMessage(level, pos));
         }
         return InteractionResult.SUCCESS;
     }
 
-    /** "Tanque de combustível: 1000 / 4000 mB". */
-    public static Component levelMessage(RocketFuelTankBlockEntity tank) {
-        return Component.translatable("message.spacehorizons.rocket.tank_level", tank.fuelMb(), RocketSpecs.TANK_CAPACITY_MB);
+    /**
+     * O que a tela mostra para este tanque: "Tanque de combustível: 1000 / 4000 mB" se avulso, ou a carga da estrutura formada
+     * ("Estrutura de tanque 2x2x8: 12000 / 128000 mB"). Serve ao servidor e ao cliente.
+     */
+    public static Component levelMessage(BlockGetter level, BlockPos pos) {
+        TankStructures.Found structure = TankStructures.at(level, pos);
+        if (structure.formed()) {
+            var box = structure.box();
+            return Component.translatable("message.spacehorizons.rocket.tank_structure_level", box.w(), box.d(), box.h(), structure.fuelMb(),
+                    structure.capacityMb());
+        }
+        return Component.translatable("message.spacehorizons.rocket.tank_level", structure.fuelMb(), RocketSpecs.TANK_CAPACITY_MB);
     }
 
     /** Tipo do block entity, para o ticker futuro e para o teste de modelo. */

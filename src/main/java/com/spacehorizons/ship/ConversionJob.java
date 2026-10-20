@@ -50,7 +50,10 @@ abstract class ConversionJob {
         this.jobTickIds.add(server.getTickCount());
         boolean done;
         try {
-            done = step(server, budget);
+            boolean[] finished = new boolean[1];
+            // a conversão repõe e remove os blocos já com os estados certos: sem refazer o conjunto do motor a cada bloco
+            com.spacehorizons.rocket.EngineForming.suspended(() -> finished[0] = step(server, budget));
+            done = finished[0];
         } catch (RuntimeException e) {
             this.error = e.getClass().getSimpleName() + ": " + e.getMessage();
             com.spacehorizons.SpaceHorizons.LOGGER.error("[ship-conv] erro no job de conversão", e);
