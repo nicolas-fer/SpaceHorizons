@@ -268,7 +268,7 @@ pelas janelas (Terra, Lua, sol redondo, estrelas) gira com a atitude da nave.
   inclinação, tempo até o apoastro, acelerador, combustível, TWR, Δv e SAS. Um piloto por nave; os outros andam livres. Quem se levanta deixa a
   queima ligada por 30 s (depois a nave corta o motor sozinha).
 - **Nave de teste de criativo**: `/spacehorizons ship create flight` cria uma nave de 32x20x56 com ponte, três assentos, quatro motores, oito
-  tanques cheios, janelas e um anteparo com eclusa, já em órbita circular da Terra a 30.000 blocos (a Terra à direita); `ship goto <id>` entra.
+  tanques cheios, janelas (parede de vidro contínuo), lanternas no teto e no piso (salas claras) e um anteparo com eclusa, já em órbita circular da Terra a 30.000 blocos (a Terra à direita); `ship goto <id>` entra.
 
 Autotestes: `-PshOnly=shipflight` (piloto de teste no servidor: censo, órbita estável, atitude, SAS, queima, combustível, gravação) e
 `-PshOnly=ship` (a nave inteira em jogo: janelas, sentar, girar com as teclas, SAS prógrado, queimar, levantar e andar durante a queima).

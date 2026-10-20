@@ -173,6 +173,8 @@ public final class ShipBuilder {
     public static final int FLIGHT_TANKS = 8;
     public static final int FLIGHT_SEATS = 3;
     public static final int FLIGHT_AIRLOCKS = 4;
+    /** De quantos em quantos blocos há uma lanterna no piso da nave de voo. */
+    public static final int FLIGHT_FLOOR_LIGHT_STEP = 6;
 
     /**
      * Posições e contagem esperada da nave de voo de teste. {@code pilotSeat} é o assento da ponte (olhando para a proa, norte),
@@ -281,6 +283,16 @@ public final class ShipBuilder {
             for (int z = 4; z < sz - 3; z += 8) {
                 if (z != 20 && z != 21 && z != 19) {
                     put(level, p.set(x0 + x, y0 + sy - 1, z0 + z), lantern, counts);
+                }
+            }
+        }
+        // luz no piso: o teto fica a 18 blocos e a luz de bloco cai 1 por bloco, então só as lanternas do teto deixam o piso escuro (a nave não tem luz
+        // de céu: D8). Uma lanterna do mar embutida no piso a cada 6 blocos (cinco colunas por 9 fileiras, sem o anteparo em z = 20) acende a sala da ponte, o
+        // compartimento de carga e a sala dos motores
+        for (int x = 4; x < sx - 2; x += FLIGHT_FLOOR_LIGHT_STEP) {
+            for (int z = 4; z < sz - 2; z += FLIGHT_FLOOR_LIGHT_STEP) {
+                if (Math.abs(z - 20) > 1) {
+                    put(level, p.set(x0 + x, y0, z0 + z), lantern, counts);
                 }
             }
         }
