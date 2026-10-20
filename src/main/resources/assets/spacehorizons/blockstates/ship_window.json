@@ -1,7 +1,1060 @@
 {
-  "variants": {
-    "": {
-      "model": "spacehorizons:block/ship_window"
+  "multipart": [
+    {
+      "when": {
+        "east": "false",
+        "west": "false",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t00"
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "west": "false",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t01"
+      }
+    },
+    {
+      "when": {
+        "east": "false",
+        "west": "true",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t02"
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "west": "true",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t03"
+      }
+    },
+    {
+      "when": {
+        "east": "false",
+        "west": "false",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t04"
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "west": "false",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t05"
+      }
+    },
+    {
+      "when": {
+        "east": "false",
+        "west": "true",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t06"
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "west": "true",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t07"
+      }
+    },
+    {
+      "when": {
+        "east": "false",
+        "west": "false",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t08"
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "west": "false",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t09"
+      }
+    },
+    {
+      "when": {
+        "east": "false",
+        "west": "true",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t10"
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "west": "true",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t11"
+      }
+    },
+    {
+      "when": {
+        "east": "false",
+        "west": "false",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t12"
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "west": "false",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t13"
+      }
+    },
+    {
+      "when": {
+        "east": "false",
+        "west": "true",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t14"
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "west": "true",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/north_t15"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t00"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t01"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t02"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t03"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t04"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t05"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t06"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t07"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t08"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t09"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t10"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t11"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t12"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t13"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t14"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/south_t15"
+      }
+    },
+    {
+      "when": {
+        "north": "false",
+        "south": "false",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t00"
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "south": "false",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t01"
+      }
+    },
+    {
+      "when": {
+        "north": "false",
+        "south": "true",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t02"
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "south": "true",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t03"
+      }
+    },
+    {
+      "when": {
+        "north": "false",
+        "south": "false",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t04"
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "south": "false",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t05"
+      }
+    },
+    {
+      "when": {
+        "north": "false",
+        "south": "true",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t06"
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "south": "true",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t07"
+      }
+    },
+    {
+      "when": {
+        "north": "false",
+        "south": "false",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t08"
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "south": "false",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t09"
+      }
+    },
+    {
+      "when": {
+        "north": "false",
+        "south": "true",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t10"
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "south": "true",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t11"
+      }
+    },
+    {
+      "when": {
+        "north": "false",
+        "south": "false",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t12"
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "south": "false",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t13"
+      }
+    },
+    {
+      "when": {
+        "north": "false",
+        "south": "true",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t14"
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "south": "true",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/west_t15"
+      }
+    },
+    {
+      "when": {
+        "south": "false",
+        "north": "false",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t00"
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "north": "false",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t01"
+      }
+    },
+    {
+      "when": {
+        "south": "false",
+        "north": "true",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t02"
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "north": "true",
+        "up": "false",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t03"
+      }
+    },
+    {
+      "when": {
+        "south": "false",
+        "north": "false",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t04"
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "north": "false",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t05"
+      }
+    },
+    {
+      "when": {
+        "south": "false",
+        "north": "true",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t06"
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "north": "true",
+        "up": "true",
+        "down": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t07"
+      }
+    },
+    {
+      "when": {
+        "south": "false",
+        "north": "false",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t08"
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "north": "false",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t09"
+      }
+    },
+    {
+      "when": {
+        "south": "false",
+        "north": "true",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t10"
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "north": "true",
+        "up": "false",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t11"
+      }
+    },
+    {
+      "when": {
+        "south": "false",
+        "north": "false",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t12"
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "north": "false",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t13"
+      }
+    },
+    {
+      "when": {
+        "south": "false",
+        "north": "true",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t14"
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "north": "true",
+        "up": "true",
+        "down": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/east_t15"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "north": "false",
+        "south": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t00"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "north": "false",
+        "south": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t01"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "north": "false",
+        "south": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t02"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "north": "false",
+        "south": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t03"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "north": "true",
+        "south": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t04"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "north": "true",
+        "south": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t05"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "north": "true",
+        "south": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t06"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "north": "true",
+        "south": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t07"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "north": "false",
+        "south": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t08"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "north": "false",
+        "south": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t09"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "north": "false",
+        "south": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t10"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "north": "false",
+        "south": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t11"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "north": "true",
+        "south": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t12"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "north": "true",
+        "south": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t13"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "north": "true",
+        "south": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t14"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "north": "true",
+        "south": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/up_t15"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "south": "false",
+        "north": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t00"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "south": "false",
+        "north": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t01"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "south": "false",
+        "north": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t02"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "south": "false",
+        "north": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t03"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "south": "true",
+        "north": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t04"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "south": "true",
+        "north": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t05"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "south": "true",
+        "north": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t06"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "south": "true",
+        "north": "false"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t07"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "south": "false",
+        "north": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t08"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "south": "false",
+        "north": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t09"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "south": "false",
+        "north": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t10"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "south": "false",
+        "north": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t11"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "false",
+        "south": "true",
+        "north": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t12"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "false",
+        "south": "true",
+        "north": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t13"
+      }
+    },
+    {
+      "when": {
+        "west": "false",
+        "east": "true",
+        "south": "true",
+        "north": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t14"
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "east": "true",
+        "south": "true",
+        "north": "true"
+      },
+      "apply": {
+        "model": "spacehorizons:block/ship_window_ct/down_t15"
+      }
     }
-  }
+  ]
 }

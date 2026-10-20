@@ -1,0 +1,33 @@
+{
+  "textures": {
+    "all": "spacehorizons:block/ship_window_ct/t07",
+    "particle": "spacehorizons:block/ship_window"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        0,
+        16
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#all",
+          "cullface": "down"
+        }
+      }
+    }
+  ],
+  "render_type": "minecraft:translucent"
+}

@@ -262,6 +262,8 @@ public final class ShipBuilder {
                 put(level, p.set(x0 + sx - 1, y0 + y, z0 + z), window, counts);
             }
         }
+        // as janelas foram escritas com o estado padrão (setBlock não calcula as conexões do próprio bloco): liga a textura conectada
+        connectWindows(level, box, y0 + 2, y0 + 12);
         // anteparo no meio (z = 20) com a abertura de 2x2 fechada por eclusas
         for (int y = 1; y < sy - 1; y++) {
             for (int x = 1; x < sx - 1; x++) {
@@ -307,6 +309,23 @@ public final class ShipBuilder {
         }
         return new FlightLayout(box, layout.bridge(), layout.pilotSeat(), layout.seats(), layout.hall(), layout.bulkheadDoor(), layout.engines(),
                 layout.tanks(), layout.tankFuelMb(), expected);
+    }
+
+    /** Calcula a textura conectada de todas as janelas da nave nas paredes (de {@code yMin} a {@code yMax}); o casco em volta não é janela. */
+    private static void connectWindows(ServerLevel level, ShipYard.Box box, int yMin, int yMax) {
+        net.minecraft.world.level.block.Block window = com.spacehorizons.content.ModBlocks.SHIP_WINDOW.get();
+        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+        for (int y = yMin; y <= yMax; y++) {
+            for (int x = box.minX(); x < box.minX() + box.sizeX(); x++) {
+                for (int z = box.minZ(); z < box.minZ() + box.sizeZ(); z++) {
+                    boolean wall = x == box.minX() || x == box.minX() + box.sizeX() - 1 || z == box.minZ() || z == box.minZ() + box.sizeZ() - 1;
+                    if (wall && level.getBlockState(p.set(x, y, z)).is(window)) {
+                        com.spacehorizons.content.connected.ConnectedFaces.connectAround(level, p, window,
+                                com.spacehorizons.ship.block.ShipWindowBlock.rule());
+                    }
+                }
+            }
+        }
     }
 
     /** Escreve um bloco e o conta pelo papel dele (o censo esperado). */
