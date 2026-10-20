@@ -1,6 +1,7 @@
 package com.spacehorizons.client.travel;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.space.travel.AutopilotSkyPayload;
 import com.spacehorizons.space.travel.TravelTransferPayload;
 
 import net.neoforged.api.distmarker.Dist;
@@ -23,10 +24,12 @@ public final class TravelClient {
         // handler roda na thread principal; o respawn que vem logo depois é processado na mesma fila
         event.register(TravelTransferPayload.TYPE, (payload, context) -> TravelClientState.markPending(payload.x(), payload.y(), payload.z(),
                 payload.yRot(), payload.xRot()));
+        event.register(AutopilotSkyPayload.TYPE, (payload, context) -> AutopilotView.update(payload.active(), payload.x(), payload.y(), payload.z()));
     }
 
     @SubscribeEvent
     static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         TravelClientState.reset();
+        AutopilotView.reset();
     }
 }

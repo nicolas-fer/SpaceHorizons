@@ -5,12 +5,14 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.rocket.SpaceParking;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.SpaceClock;
 import com.spacehorizons.space.SpaceDimension;
+import com.spacehorizons.space.flight.Zones;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -21,6 +23,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 import org.jspecify.annotations.Nullable;
 
@@ -46,12 +49,33 @@ public final class Autopilot {
         BodyTransfer last;
         /** Ticks seguidos segurando o voo à espera de chunks. */
         int heldTicks;
+        /**
+         * O jogador está na dimensão de espaço aberto, com a posição calculada no referencial do corpo e convertida a cada tick.
+         * O jogador fica ESTACIONADO num ponto fixo da dimensão ({@link SpaceParking}, como o foguete) e a posição real do voo vai ao
+         * cliente à parte ({@link AutopilotSkyPayload}): um jogador que atravessa a dimensão de espaço a 80 blocos/tick faz o servidor
+         * carregar chunks sem parar (medido: ticks de até 69 s), e o estacionamento não gera chunk nenhum. Entre a saída do corpo e a
+         * volta a ele não há terreno a esperar.
+         */
+        boolean inSpace;
+        /** O mundo não tem a dimensão de espaço (criado antes dela): o voo inteiro fica nas dimensões dos corpos, como antes. */
+        boolean noSpace;
+        /** Posição REAL do voo na dimensão de espaço (coordenadas da dimensão), enquanto o jogador está estacionado nela. */
+        Vec3 spacePosition = Vec3.ZERO;
+        /** Ponto de chegada (x, z) na dimensão do destino, para pré-carregar o terreno antes de voltar ao corpo. */
+        double facingX;
+        double facingZ;
+        int preloadCountdown;
 
         Session(FlightGuide guide, SolarSystem.Body target) {
             this.guide = guide;
             this.target = target;
         }
     }
+
+    /** Raio (chunks) do terreno do ponto de chegada pedido antes de o piloto automático voltar à dimensão do corpo. */
+    private static final int PRELOAD_RADIUS = 2;
+    /** Ticks entre dois pedidos do terreno de chegada (os tickets expiram sozinhos). */
+    private static final int PRELOAD_INTERVAL = 100;
 
     /** Passos à frente (em ticks) cujos chunks precisam estar carregados antes de o voo andar. */
     private static final int[] GATE_STEPS = {1, 2, 4};
@@ -113,15 +137,43 @@ public final class Autopilot {
             player.getAbilities().flying = true;
             player.onUpdateAbilities();
         }
-        SESSIONS.put(player.getUUID(), new Session(guide, target));
+        Session session = new Session(guide, target);
+        session.facingX = facing[0];
+        session.facingZ = facing[1];
+        SESSIONS.put(player.getUUID(), session);
         return null;
     }
 
     /** Para o piloto automático; devolve false se não estava ativo. */
     public static boolean stop(ServerPlayer player) {
-        boolean was = SESSIONS.remove(player.getUUID()) != null;
+        Session session = SESSIONS.get(player.getUUID());
+        if (session == null) {
+            return false;
+        }
+        finish(player, session);
+        return true;
+    }
+
+    /**
+     * Encerra o voo do jogador por qualquer motivo: tira a sessão, devolve as distâncias de chunk e, se ele estava estacionado na dimensão
+     * de espaço, o leva ao ponto REAL onde o voo estava (e avisa o cliente de que o céu volta a ser o da posição dele).
+     */
+    private static void finish(ServerPlayer player, Session session) {
+        SESSIONS.remove(player.getUUID());
         restoreDistances(player.level().getServer());
-        return was;
+        if (session.inSpace) {
+            session.inSpace = false;
+            sendSky(player, false, session.spacePosition);
+            if (SpaceDimension.is(player.level())) {
+                Vec3 at = session.spacePosition;
+                player.connection.teleport(new PositionMoveRotation(at, Vec3.ZERO, 0.0F, 0.0F), Relative.ROTATION);
+            }
+        }
+    }
+
+    /** Avisa o cliente da posição real do voo (ou de que ela deixou de valer). */
+    private static void sendSky(ServerPlayer player, boolean active, Vec3 at) {
+        PacketDistributor.sendToPlayer(player, new AutopilotSkyPayload(active, at.x, at.y, at.z));
     }
 
     /**
@@ -194,29 +246,34 @@ public final class Autopilot {
     }
 
     /**
-     * Um tick do piloto automático do jogador. Devolve true se há um voo ativo (o tick foi consumido por ele, mesmo
-     * esperando o cliente carregar), false se o jogador voa livre.
+     * Um tick do piloto automático do jogador. {@code body} é o corpo da dimensão em que ele está, ou null na dimensão de espaço
+     * aberto. Devolve true se há um voo ativo (o tick foi consumido por ele, mesmo esperando o cliente carregar), false se o jogador
+     * voa livre.
+     *
+     * O voo anda em dois "modos" que se alternam sem tela de carregamento: na dimensão do corpo (do chão até a altitude de saída
+     * antecipada, {@link #leaveAltitude}) e na de espaço aberto (o resto da viagem, até voltar a menos de {@link Zones#enterAltitude}
+     * de um corpo). O plano é sempre o mesmo; só muda onde a posição dele é entregue ao jogador.
      */
-    static boolean tick(ServerPlayer player, SolarSystem.Body body) {
+    static boolean tick(ServerPlayer player, SolarSystem.@Nullable Body body) {
         Session session = SESSIONS.get(player.getUUID());
         if (session == null) {
             return false;
         }
-        if (session.guide.body() != body) {
+        if (session.inSpace != (body == null) || (body != null && session.guide.body() != body)) {
             // trocou de dimensão por outro meio (portal, comando): o plano deixou de valer
-            SESSIONS.remove(player.getUUID());
-            restoreDistances(player.level().getServer());
+            finish(player, session);
             player.sendSystemMessage(Component.literal("Piloto automático cancelado: dimensão alterada"));
             return false;
         }
         if (!TravelTransfers.isReady(player)) {
             return true;
         }
+        MinecraftServer server = player.level().getServer();
 
         // nunca põe o jogador num chunk que ainda não existe: o servidor trava esperando-o (o jogador voa a centenas de
         // blocos por segundo sobre terreno que o gerador vanilla ainda não produziu). Pede os chunks à frente (a geração roda
-        // em threads paralelos) e segura o voo até os próximos estarem prontos.
-        if (session.last != null && holdForChunks(player.level(), session, body)) {
+        // em threads paralelos) e segura o voo até os próximos estarem prontos. No espaço aberto não há terreno: nada a esperar.
+        if (!session.inSpace && session.last != null && holdForChunks(player.level(), session, body)) {
             session.lastNanos = System.nanoTime();
             return true;
         }
@@ -235,29 +292,155 @@ public final class Autopilot {
             }
         }
         BodyTransfer state = step.state();
-        session.last = step.transferred() ? null : state;
-        adjustDistances(player.level().getServer(), state.y());
+        SolarSystem.Body where = state.target();
+        session.last = step.transferred() || session.inSpace ? null : state;
         player.resetFallDistance();
-        if (step.transferred()) {
-            ServerLevel toLevel = TravelTransfers.findLevel(player.level().getServer(), state.target().planet());
-            if (toLevel == null || !TravelTransfers.transfer(player, state, toLevel)) {
-                SESSIONS.remove(player.getUUID());
-                restoreDistances(player.level().getServer());
-                player.sendSystemMessage(Component.literal("Piloto automático cancelado: a transferência foi recusada"));
-                return true;
+        boolean spaceAvailable = !session.noSpace && TravelTransfers.findSpace(server) != null;
+        session.noSpace = !spaceAvailable;
+
+        if (session.inSpace) {
+            if (!step.arrived() && !wantSpace(true, where, session.target, state.y() - where.planet().seaLevel())) {
+                if (!returnToBody(player, session, state, where)) {
+                    return true;
+                }
+            } else {
+                preloadArrival(player, session, where);
+                deliverInSpace(player, session, state, where, clock);
             }
         } else {
-            // velocidade zero: o cliente não extrapola entre dois teleportes (com o servidor lento isso o fazia ir e voltar);
-            // rotação relativa a zero = o cliente mantém para onde está olhando
-            player.connection.teleport(new PositionMoveRotation(new Vec3(state.x(), state.y(), state.z()),
-                    Vec3.ZERO, 0.0F, 0.0F), Relative.ROTATION);
+            adjustDistances(server, state.y());
+            if (step.transferred()) {
+                // esfera de influência cruzada ainda dentro da dimensão do planeta (voo lento): vai direto à dimensão do outro corpo
+                ServerLevel toLevel = TravelTransfers.findLevel(server, where.planet());
+                if (toLevel == null || !TravelTransfers.transfer(player, state, toLevel)) {
+                    finish(player, session);
+                    player.sendSystemMessage(Component.literal("Piloto automático cancelado: a transferência foi recusada"));
+                    return true;
+                }
+            } else if (spaceAvailable && !step.arrived() && wantSpace(false, where, session.target, state.y() - where.planet().seaLevel())) {
+                if (!leaveToSpace(player, session, state, where, clock)) {
+                    session.noSpace = true;
+                    deliverInPlanet(player, state);
+                }
+            } else {
+                deliverInPlanet(player, state);
+            }
         }
 
         if (step.arrived()) {
-            SESSIONS.remove(player.getUUID());
-            restoreDistances(player.level().getServer());
+            finish(player, session);
             player.sendSystemMessage(Component.literal("Piloto automático: chegada a " + session.target.planet().id().getPath()));
         }
         return true;
+    }
+
+    /**
+     * O voo, no corpo {@code where} a {@code altitude} sobre o nível do mar, deve estar na dimensão de espaço? {@code inSpace} é onde ele
+     * está agora (histerese). Do corpo de ORIGEM (ou de um intermediário) sai ao passar de {@link #leaveAltitude} e não volta; ao do
+     * DESTINO só volta abaixo de {@link Zones#enterAltitude} e dele não sai mais. Sem essa assimetria o jogador iria e viria entre as
+     * dimensões na saída (que fica abaixo da altitude de entrada) ou na chegada (que fica abaixo da altitude de saída).
+     */
+    static boolean wantSpace(boolean inSpace, SolarSystem.Body where, SolarSystem.Body target, double altitude) {
+        if (where == target) {
+            return inSpace && altitude > Zones.enterAltitude(where.planet());
+        }
+        return inSpace || altitude >= leaveAltitude(where);
+    }
+
+    /**
+     * Altitude (sobre o nível do mar) em que o piloto automático passa da dimensão do corpo para a de espaço: a mesma saída antecipada
+     * do foguete rápido ({@code ZoneSwitch.LEAVE_MIN_ALTITUDE_FRACTION} da altitude de saída, 1.000 na Terra e 250 na Lua). O piloto
+     * automático sempre voa rápido, e é acima disso que o gerador de terreno não acompanha.
+     */
+    static double leaveAltitude(SolarSystem.Body body) {
+        return com.spacehorizons.rocket.ZoneSwitch.LEAVE_MIN_ALTITUDE_FRACTION * Zones.exitAltitude(body.planet());
+    }
+
+    /** Entrega a posição na dimensão do corpo: teleporte absoluto, velocidade zero, olhar do jogador mantido. */
+    private static void deliverInPlanet(ServerPlayer player, BodyTransfer state) {
+        // velocidade zero: o cliente não extrapola entre dois teleportes (com o servidor lento isso o fazia ir e voltar);
+        // rotação relativa a zero = o cliente mantém para onde está olhando
+        player.connection.teleport(new PositionMoveRotation(new Vec3(state.x(), state.y(), state.z()), Vec3.ZERO, 0.0F, 0.0F),
+                Relative.ROTATION);
+    }
+
+    /**
+     * Entrega a posição na dimensão de espaço: a posição REAL (o ponto do referencial do corpo convertido para as coordenadas da
+     * dimensão) vai ao cliente, que desenha o céu a partir dela; o jogador em si fica no ponto de estacionamento.
+     */
+    private static void deliverInSpace(ServerPlayer player, Session session, BodyTransfer state, SolarSystem.Body where, double clock) {
+        BodyTransfer inSpace = BodyTransfer.toSpace(where, clock, state.x(), state.y(), state.z(), 0.0, 0.0, 0.0, player.getYRot(),
+                player.getXRot());
+        session.spacePosition = new Vec3(inSpace.x(), inSpace.y(), inSpace.z());
+        sendSky(player, true, session.spacePosition);
+        Vec3 park = SpaceParking.pointFor(player.getUUID());
+        // o jogador pode se mexer sozinho (voo criativo): volta ao ponto fixo, para o chunk dele ser sempre o mesmo
+        if (player.position().distanceToSqr(park) > 0.01) {
+            player.connection.teleport(new PositionMoveRotation(park, Vec3.ZERO, 0.0F, 0.0F), Relative.ROTATION);
+        }
+    }
+
+    /** Dimensão do corpo → dimensão de espaço, no mesmo ponto. Devolve false se o mundo não tem a dimensão ou a troca foi recusada. */
+    private static boolean leaveToSpace(ServerPlayer player, Session session, BodyTransfer state, SolarSystem.Body where, double clock) {
+        ServerLevel space = TravelTransfers.findSpace(player.level().getServer());
+        if (space == null) {
+            return false;
+        }
+        BodyTransfer inSpace = BodyTransfer.toSpace(where, clock, state.x(), state.y(), state.z(), state.vx(), state.vy(), state.vz(),
+                state.yRot(), state.xRot());
+        // o jogador chega ao ponto de estacionamento (com o olhar convertido) e a posição real vai ao cliente à parte
+        Vec3 park = SpaceParking.pointFor(player.getUUID());
+        BodyTransfer parked = new BodyTransfer(null, park.x, park.y, park.z, 0.0, 0.0, 0.0, inSpace.yRot(), inSpace.xRot());
+        session.spacePosition = new Vec3(inSpace.x(), inSpace.y(), inSpace.z());
+        sendSky(player, true, session.spacePosition);
+        if (!TravelTransfers.transfer(player, parked, space)) {
+            sendSky(player, false, session.spacePosition);
+            return false;
+        }
+        session.inSpace = true;
+        session.last = null;
+        session.preloadCountdown = 0;
+        return true;
+    }
+
+    /** Dimensão de espaço → dimensão do corpo, no ponto do plano. Devolve false (e cancela o voo) se a troca foi recusada. */
+    private static boolean returnToBody(ServerPlayer player, Session session, BodyTransfer state, SolarSystem.Body where) {
+        MinecraftServer server = player.level().getServer();
+        ServerLevel level = TravelTransfers.findLevel(server, where.planet());
+        if (level == null) {
+            finish(player, session);
+            player.sendSystemMessage(Component.literal("Piloto automático cancelado: a transferência foi recusada"));
+            return false;
+        }
+        // o aviso de que o céu volta a ser o da posição do jogador segue na mesma conexão, antes do respawn da troca
+        sendSky(player, false, session.spacePosition);
+        if (!TravelTransfers.transfer(player, state, level)) {
+            session.inSpace = false;
+            SESSIONS.remove(player.getUUID());
+            restoreDistances(server);
+            player.sendSystemMessage(Component.literal("Piloto automático cancelado: a transferência foi recusada"));
+            return false;
+        }
+        session.inSpace = false;
+        session.last = null;
+        return true;
+    }
+
+    /**
+     * No espaço, já na vizinhança do corpo de destino, pede o terreno em volta do ponto de chegada (tickets que expiram sozinhos): a
+     * geração roda em paralelo enquanto o piloto automático ainda voa sobre o vazio, e a volta ao corpo não espera por chunks.
+     */
+    private static void preloadArrival(ServerPlayer player, Session session, SolarSystem.Body where) {
+        if (where != session.target || session.preloadCountdown-- > 0) {
+            return;
+        }
+        session.preloadCountdown = PRELOAD_INTERVAL;
+        ServerLevel level = TravelTransfers.findLevel(player.level().getServer(), where.planet());
+        if (level == null) {
+            return;
+        }
+        double x = TravelMath.normalizeX(where, session.facingX);
+        level.getChunkSource().addTicketWithRadius(TicketType.PORTAL,
+                new ChunkPos((int) Math.floor(x) >> 4, (int) Math.floor(session.facingZ) >> 4), PRELOAD_RADIUS);
     }
 }

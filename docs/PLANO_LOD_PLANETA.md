@@ -70,3 +70,9 @@ grosso fica barato.
 - A API do DH pode não permitir a mistura por nível; o plano B é gerar os níveis finos nós mesmos (mais trabalho).
 - Diferença visível entre o LOD aproximado e o terreno real em biomas com relevo forte.
 - Mudanças de versão do DH quebrarem as premissas (já anotadas em `PlanetLodGenerator`).
+
+## Nota: detalhe procedural na malha orbital (polimento)
+
+Antes do gerador híbrido acima, a vista da Terra a 1.000 a 10.000 de altitude (malha orbital abaixo de 5.000, esfera do corpo acima) foi
+melhorada só nos shaders: ruído 3D fixo no corpo sobre a cor do mapa de 320 blocos e costa irregular (ver o README, "Polimento"). Não
+traz dado novo; o mapa de 320 blocos continua sendo a fonte de longe, e a incógnita 4 (resolução do mapa) segue em aberto para o DH.

@@ -15,6 +15,7 @@ layout(location = 1) in vec4 Color;
 layout(location = 0) out vec4 vertexColor;
 layout(location = 1) out vec3 surfaceNormal;
 layout(location = 2) out vec3 viewDirection;
+layout(location = 3) out vec3 fixedPosition;
 
 void main() {
     gl_Position = MvpMat * vec4(Position, 1.0);
@@ -25,4 +26,7 @@ void main() {
     // numa esfera a normal é a direção radial; o relevo é pequeno demais para importar daqui
     surfaceNormal = mat3(ModelMat) * Position;
     viewDirection = -pos;
+    // posição FIXA no corpo, em blocos, para o detalhe procedural (planet_detail). (z, y, x) é a ordem do planeta atual
+    // (planetmesh/planet_mesh.vsh): igual nas duas, o detalhe é o mesmo vista de dentro ou de fora, sem salto na troca de dimensão
+    fixedPosition = vec3(Position.z, Position.y, Position.x);
 }

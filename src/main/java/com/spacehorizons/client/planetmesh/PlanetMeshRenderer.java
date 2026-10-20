@@ -79,7 +79,7 @@ final class PlanetMeshRenderer {
     static final int RETIRE_FRAMES = 8;
     static final int DH_POLL_FRAMES = 20;
 
-    private static final int UBO_SIZE = new Std140SizeCalculator().putMat4f().putVec4().putVec4().putVec4().get();
+    private static final int UBO_SIZE = new Std140SizeCalculator().putMat4f().putVec4().putVec4().putVec4().putVec4().get();
 
     /** Malha já na GPU, com a câmera de construção para compensar o movimento desde então. */
     private record Mesh(PlanetDefinition planet, GpuBuffer vertices, int indexCount,
@@ -377,6 +377,12 @@ final class PlanetMeshRenderer {
         float sunY = sun[1];
         float sunZ = sun[2];
 
+        // ponto sob a câmera de construção (latitude e longitude do mundo): o shader leva a direção de cada vértice ao referencial fixo
+        // do corpo para o detalhe procedural não nadar quando a malha é reconstruída (ver planetmesh/planet_mesh.vsh)
+        double lat0 = current.camZ() / radius;
+        double lon0 = current.camX() / radius;
+        float[] frame = {(float) Math.sin(lat0), (float) Math.cos(lat0), (float) Math.sin(lon0), (float) Math.cos(lon0)};
+
         CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
         GpuBuffer uniforms = ensureUbo();
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -385,6 +391,7 @@ final class PlanetMeshRenderer {
                     .putVec4(offX, offY, offZ, 0.0F)
                     .putVec4(sunX, sunY, sunZ, NIGHT_AMBIENT)
                     .putVec4(centerX, centerY, centerZ, (float) radius)
+                    .putVec4(frame[0], frame[1], frame[2], frame[3])
                     .get();
             encoder.writeToBuffer(uniforms.slice(0L, UBO_SIZE), data);
         }

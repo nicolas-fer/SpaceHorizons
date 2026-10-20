@@ -12,6 +12,8 @@ import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.renderpearl.api.pipeline.UniformType;
 import com.spacehorizons.SpaceHorizons;
 
+import net.minecraft.client.renderer.BindGroupLayouts;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
 
@@ -44,11 +46,28 @@ final class BodyPipelines {
             .withCull(false)
             .build();
 
+    /**
+     * O disco do sol (SunDisc): triângulos com posição + cor (alfa por vértice) e os shaders de posição e cor do vanilla, a mesma mistura
+     * translúcida do brilho do nascer do sol e sem culling. Sem profundidade: é só o céu, desenhado antes de tudo.
+     */
+    static final RenderPipeline SUN_DISC = RenderPipeline.builder(RenderPipelines.GLOBALS_SNIPPET)
+            .withBindGroupLayout(BindGroupLayouts.PROJECTION)
+            .withBindGroupLayout(BindGroupLayouts.DYNAMIC_TRANSFORMS)
+            .withLocation(Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "pipeline/sun_disc"))
+            .withVertexShader(Identifier.withDefaultNamespace("core/position_color"))
+            .withFragmentShader(Identifier.withDefaultNamespace("core/position_color"))
+            .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+            .withCull(false)
+            .build();
+
     private BodyPipelines() {
     }
 
     /** Opcional: se o shader não compilar o jogo segue sem os corpos (o renderer checa getCompiledPipelineNullable). */
     static void register(RegisterRenderPipelinesEvent event) {
         event.registerOptionalPipeline(BODY);
+        event.registerOptionalPipeline(SUN_DISC);
     }
 }

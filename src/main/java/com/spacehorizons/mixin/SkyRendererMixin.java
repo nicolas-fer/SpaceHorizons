@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.spacehorizons.client.space.SpaceSun;
+import com.spacehorizons.client.space.SunDisc;
 
 import net.minecraft.client.renderer.SkyRenderer;
 import net.minecraft.world.level.MoonPhase;
@@ -47,12 +48,19 @@ abstract class SkyRendererMixin {
         }
     }
 
-    /** A pose do sol é empilhada só para ele (o chamador a desempilha): dá para girar sem desfazer. */
-    @Inject(method = "renderSun", at = @At("HEAD"))
+    /**
+     * A pose do sol é empilhada só para ele (o chamador a desempilha): dá para girar sem desfazer. No espaço, no estaleiro e nos planetas do mod o
+     * quadrado de textura do vanilla (que vira losango com a atitude da nave e quando se olha para cima) dá lugar ao disco redondo do {@link SunDisc}, desenhado
+     * na mesma pose.
+     */
+    @Inject(method = "renderSun", at = @At("HEAD"), cancellable = true)
     private void spacehorizons$tiltSun(RenderPass renderPass, float rainBrightness, PoseStack poseStack, CallbackInfo ci) {
         float tilt = SpaceSun.sunTilt();
         if (tilt != 0.0F) {
             poseStack.last().pose().mulLocal(new Matrix4f().rotationY(tilt));
+        }
+        if (SpaceSun.roundSun() && SunDisc.draw(renderPass, poseStack, rainBrightness)) {
+            ci.cancel();
         }
     }
 

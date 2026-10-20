@@ -5,6 +5,7 @@ import org.joml.Matrix3f;
 import org.joml.Quaterniond;
 import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
+import org.joml.Vector3f;
 
 /**
  * Contas da câmera do piloto do foguete (lógica pura sobre JOML, testada em ida e volta).
@@ -40,7 +41,23 @@ public final class CockpitCamera {
     private static final Quaternionf CHASE_VIEW =
             new Quaternionf().rotationY((float) Math.PI).rotateX((float) Math.toRadians(-CHASE_DOWN_TILT_DEGREES));
 
+    /** Altura do centro da janela do cockpit no bloco (px/16), medida no modelo {@code rocket_cockpit}: abertura de y = 3 a 10. */
+    public static final float WINDOW_CENTER_Y = 6.5F / 16.0F;
+    /** Quanto o olho fica à frente do plano da janela, em blocos: o bastante para a moldura não passar do plano de corte da câmera. */
+    public static final float WINDOW_EYE_OUT = 0.12F;
+
     private CockpitCamera() {
+    }
+
+    /**
+     * Posição do olho da primeira pessoa no corpo do foguete, relativa ao CENTRO do bloco do cockpit: no meio da janela, logo à
+     * frente do plano dela ({@code frontX}, {@code frontZ} é o passo da face da janela, a direção do bloco). Fora do casco o
+     * olhar ao longo do nariz não esbarra na moldura nem no ombro do cockpit (o casco só aparece de lado, na parte de baixo
+     * da tela) e a câmera não fica dentro do bloco.
+     */
+    public static Vector3f windowEye(int frontX, int frontZ) {
+        float out = 0.5F + WINDOW_EYE_OUT;
+        return new Vector3f(frontX * out, WINDOW_CENTER_Y - 0.5F, frontZ * out);
     }
 
     /** Eixos da câmera para os do corpo da base escolhida (cópia). */
