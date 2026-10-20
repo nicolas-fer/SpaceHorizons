@@ -208,6 +208,42 @@ e pouso 90). O foguete de teste A (253 b/t) não fecha a volta; o da missão tem
 missão mostrou (a janela da TLI precisa da Lua perto do plano do equador na chegada) em `docs/MISSAO_LUA.md`. `space/flight/LunarPlanner` prevê a
 chegada à Lua, calcula a correção de meio de curso e a queima de volta.
 
+## Polimento: cockpit, sol, Terra de perto e piloto automático
+
+- **Mensagem de desmontar**: o vanilla mostrava "Aperte Shift para desmontar" ao montar e de novo a cada troca de dimensão (que reenvia
+  os passageiros). No foguete isso é falso (Shift é o acelerador; desmontar é G, pousado). `ClientPacketListenerMixin` suprime a mensagem
+  e a fala do narrador quando o jogador monta um `RocketEntity`; a dica certa é a do `RocketPilot.onBoard` ("G desmonta (pousado), V
+  alterna a câmera").
+- **Primeira pessoa no cockpit**: o olho vai para a janela do cockpit (`CockpitCamera.windowEye`: meio da abertura do modelo
+  `rocket_cockpit`, 0,12 bloco à frente do plano dela, na direção do bloco), fora do casco, por `CameraMixin` +
+  `RocketCamera.firstPersonEye` (mesma posição e atitude interpoladas do renderer do foguete). O olhar segue ao longo do nariz, como antes
+  (os controles W/S/A/D/Q/E dependem dessa base); só o olho mudou, e o casco aparece de lado na parte de baixo da tela. A mão e o item
+  somem enquanto se pilota (`RenderHandEvent`).
+- **Sol redondo** (`client/space/SunDisc`, `SkyRendererMixin`): o quadrado do vanilla virava losango com a atitude da nave e quando se olha
+  para cima. Agora é um disco de frente para o eixo da câmera (plano perpendicular a ele, então o contorno é um círculo na tela em
+  qualquer ponto do FOV), núcleo branco-quente opaco de ~5,4 graus de raio, borda de 1 grau e halo até 27 graus. Vale no espaço, no
+  estaleiro e nos céus dos planetas do mod (Terra e Lua); fora deles (Nether, End, Overworld vanilla) fica o sol do vanilla. A direção é a
+  da pose que o vanilla já monta (SunModel/SkyObserver), então nada mudou na posição do sol.
+- **Terra de perto** (`planetmesh/planet_mesh.*sh`, `space/body.*sh`): o mapa tem células de 320 blocos e de perto a malha orbital (e a
+  esfera vista do espaço) virava um borrão de gradientes. Os shaders agora somam detalhe procedural: ruído de valor 3D em coordenadas
+  FIXAS no corpo (5 oitavas de 800, 200, 50, 12,5 e 3 blocos) que escurece e clareia a cor da terra e da água, e desloca o limiar da
+  máscara de água para uma costa irregular em vez do degradê reto de uma célula. Cada oitava some sozinha quando um pixel cobre mais
+  que ~metade do seu comprimento de onda (sem aliasing; de longe o planeta volta a ser liso). O mesmo ruído nos dois shaders, na mesma
+  posição fixa (a malha recebe a longitude e a latitude do ponto de construção em `MeshFrame`), então não há salto na troca de dimensão.
+  Custo medido (`-PshOnly=earthdetail`, fps médio de 100 quadros, 1.000/3.000/10.000 de altitude, vsync em 260): antes 237/234/160/222/231/230,
+  depois 228/210/163/220/250/247, sem diferença fora do ruído (o gargalo é o DH e a CPU); a malha não ganhou vértice nem tempo de
+  reconstrução. Limite: o detalhe é textura, não dado novo: costas e lagos menores que 320 blocos aparecem inventados (plausíveis), não
+  reais. O terreno real de perto continua sendo o do DH e dos chunks.
+- **Piloto automático criativo** (`space/travel/Autopilot`): `fly moon` e `fly earth` travavam o servidor (ida: 7 avisos "Can't keep up" de 2 a
+  14 s subindo pela dimensão da Terra a 80 b/tick, mais 4 na chegada à Lua e 3 na volta, 14 no total). Agora o voo sai da dimensão do
+  corpo de origem a 20% da altitude de saída (1.000 na Terra, 250 na Lua, como a saída antecipada do foguete rápido) e fica na dimensão de
+  espaço, com o jogador ESTACIONADO no ponto de `SpaceParking` e a posição real mandada ao cliente por `AutopilotSkyPayload` a cada tick
+  (`client/travel/AutopilotView` → `ShipView`: o céu e os corpos saem dela); volta à dimensão do corpo de destino a 80% da altitude de saída
+  (`Autopilot.wantSpace` decide, com a assimetria origem/destino que evita ir e vir). Um jogador que atravessava a dimensão de espaço de
+  verdade a 80 b/tick fazia ticks de até 69 s: o estacionamento é o que resolve, como no foguete. Ao terminar, parar (`fly stop`) ou sair
+  do mundo o jogador volta ao ponto real. O terreno do ponto de chegada é pedido (raio 2) enquanto o voo ainda está no espaço. Medido
+  (`-PshOnly=moontrip`): 14 avisos antes, 0 depois, na ida e na volta.
+
 ## Como rodar
 
 Requisitos: JDK 25 (o Gradle baixa o toolchain se preciso).
