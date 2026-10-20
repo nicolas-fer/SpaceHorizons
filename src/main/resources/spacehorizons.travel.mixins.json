@@ -9,7 +9,8 @@
     "ServerGamePacketListenerImplMixin"
   ],
   "client": [
-    "ClientPacketListenerMixin"
+    "ClientPacketListenerMixin",
+    "ClientPacketProbeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

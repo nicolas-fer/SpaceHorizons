@@ -179,6 +179,12 @@ public final class AutoTest {
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
             return;
         }
+        if (ONLY != null && ONLY.matches("jump(c|\\d*)(v\\d+)?")) {
+            // jump54 = cruzeiro a 54 blocos/tick no espaço, 3a pessoa (jump20, jump90...); jump54v10 = o mesmo com voo rápido desligado e distância 10;
+            // jumpc = o voo C real (órbita, física e atitude de verdade) medido da decolagem à órbita estável
+            jumpScenario(ONLY);
+            return;
+        }
 
         // (a) Terra vanilla: chão em vários pontos perto do spawn (biomas, árvores, relevo)
         int[][] spots = {{0, 0}, {1500, 0}, {0, 1500}, {-2500, 1000}, {4000, -3000}, {-6000, -2000}};
@@ -2856,6 +2862,75 @@ public final class AutoTest {
             mc.stop();
         });
     }
+
+    /**
+     * Cenário {@code jump}: mede o "vai e volta" do foguete em voo rápido na dimensão de espaço (ver {@link JumpProbe}). O foguete de
+     * teste é levado ao espaço a 8.000 de altitude e voa em linha reta, a velocidade constante, em 3a pessoa, por {@link #JUMP_TICKS}
+     * ticks; o CSV sai em {@code run/jump_<rótulo>.csv}. O nome é {@code jump<velocidade em b/tick>[v<distância de visão>]}: com o
+     * {@code v}, o voo rápido é desligado e a distância de visão e de simulação do cliente fixadas no valor dado.
+     */
+    private void jumpScenario(String name) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("jump(c|\\d*)(?:v(\\d+))?").matcher(name);
+        if (!m.matches()) {
+            return;
+        }
+        boolean orbit = "c".equals(m.group(1));
+        double speed = orbit || m.group(1).isEmpty() ? 54.0 : Double.parseDouble(m.group(1));
+        int view = m.group(2) == null ? 0 : Integer.parseInt(m.group(2));
+        String label = (orbit ? "orbit" : "s" + (int) speed) + (view > 0 ? "_v" + view : "_fast");
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(5, "gamerule advance_time true");
+        fly(10);
+        step(10, mc -> FlightDevtest.build(mc, 'C'));
+        tickerStep(10, waitFor("built_c", 200));
+        step(10, mc -> {
+            if (view > 0) {
+                com.spacehorizons.client.rocket.FastFlightClient.setDisabledForTest(true);
+                mc.options.renderDistance().set(view);
+                mc.options.simulationDistance().set(view);
+                mc.options.broadcastOptions();
+            }
+            SpaceHorizons.LOGGER.info(TAG + "JUMP {}: distância de visão {} simulação {} (voo rápido {})", label, mc.options.renderDistance().get(),
+                    mc.options.simulationDistance().get(), view > 0 ? "desligado" : "ligado");
+        });
+        if (orbit) {
+            // o voo C de verdade: da decolagem à órbita estável (a física, a atitude e o acelerador reais; passa por todas as velocidades)
+            thirdPerson();
+            step(20, mc -> JumpProbe.start(label));
+            step(0, FlightDevtest::go);
+            tickerStep(0, waitFor("orbit_stable_c", 12_000));
+            step(5, mc -> {
+                JumpProbe.stop(mc);
+                FlightDevtest.clientCheck(mc, "JUMP fim (órbita)");
+            });
+            step(40, mc -> {
+                SpaceHorizons.LOGGER.info(TAG + "FIM");
+                mc.stop();
+            });
+            return;
+        }
+        step(5, mc -> FlightDevtest.startCruise(mc, speed));
+        tickerStep(0, waitFor("cruise_started", 400));
+        step(60, mc -> FlightDevtest.clientCheck(mc, "JUMP depois da travessia"));
+        thirdPerson();
+        step(40, mc -> JumpProbe.start(label));
+        shot(100, "jump_" + label + "_a");
+        shot(300, "jump_" + label + "_b");
+        step(JUMP_TICKS - 400, mc -> {
+            JumpProbe.stop(mc);
+            FlightDevtest.clientCheck(mc, "JUMP fim");
+            FlightDevtest.stopCruise();
+        });
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Duração (ticks de cliente) da medição do cenário jump: 40 s a 20 ticks/s. */
+    private static final int JUMP_TICKS = 800;
 
     /**
      * Viagem criativa Terra -> Lua -> Terra com o tempo correndo (o piloto automático voa no referencial preso à Terra e mira o ponto
