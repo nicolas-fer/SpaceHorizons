@@ -3456,7 +3456,7 @@ public final class AutoTest {
         step(5, mc -> {
             var l = ShipDevtest.layout(mc, 1);
             mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f -90 0", l.lightProbe().getX() + 0.5,
-                    l.spawn().getY(), l.spawn().getZ() + 0.5));
+                    (double) l.spawn().getY(), l.spawn().getZ() + 0.5));
         });
         aimAt(40, 1, l -> Vec3.atCenterOf(l.lamp()));
         shot(10, "shipyard_14_ship1_from_disk_lamp_on");
@@ -3627,6 +3627,7 @@ public final class AutoTest {
         int[] spawn = ShipDevtest.light(mc, shipId, l.spawn());
         SpaceHorizons.LOGGER.info(TAG + "SHIP LUZ {}: ponto da lampada bloco(servidor)={} bloco(cliente)={} ceu(servidor)={} ceu(cliente)={} | centro do salao bloco={}/{} ceu={}/{}",
                 label, probe[0], probe[2], probe[1], probe[3], spawn[0], spawn[2], spawn[1], spawn[3]);
+        ShipDevtest.logIntegrity(mc, shipId, label);
         ShipDevtest.check("sem luz de ceu dentro da nave (" + label + ")", probe[1] == 0 && probe[3] == 0 && spawn[1] == 0 && spawn[3] == 0,
                 "ceu servidor/cliente=" + probe[1] + "/" + probe[3] + " e " + spawn[1] + "/" + spawn[3]);
     }

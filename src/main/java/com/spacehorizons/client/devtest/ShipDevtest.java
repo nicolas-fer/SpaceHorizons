@@ -188,6 +188,49 @@ final class ShipDevtest {
 
     static void logStats(Minecraft mc, String label, boolean gc) {
         SpaceHorizons.LOGGER.info(TAG + "SHIPSTATS {}: {}", label, stats(mc, gc));
+        for (int id = 1; id <= shipCount(mc); id++) {
+            logIntegrity(mc, id, label);
+        }
+    }
+
+    /**
+     * Diagnóstico: quantos blocos não-ar a caixa da nave tem nos chunks carregados e se os marcadores (vidro do piso, baú, fornalha,
+     * lâmpada, alavanca, porta) estão no lugar. Não carrega chunks.
+     */
+    static void logIntegrity(Minecraft mc, int shipId, String label) {
+        ShipBuilder.Layout l = layout(mc, shipId);
+        String s = onServer(mc, server -> {
+            ServerLevel yard = ShipYard.level(server);
+            ShipYard.Box box = l.box();
+            long solid = 0;
+            int missingColumns = 0;
+            BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
+            for (int cx = box.chunkMinX(); cx <= box.chunkMaxX(); cx++) {
+                for (int cz = box.chunkMinZ(); cz <= box.chunkMaxZ(); cz++) {
+                    net.minecraft.world.level.chunk.LevelChunk chunk = yard.getChunkSource().getChunkNow(cx, cz);
+                    if (chunk == null) {
+                        missingColumns++;
+                        continue;
+                    }
+                    for (int x = cx << 4; x < (cx << 4) + 16; x++) {
+                        for (int z = cz << 4; z < (cz << 4) + 16; z++) {
+                            for (int y = box.minY(); y <= box.maxY(); y++) {
+                                if (!chunk.getBlockState(p.set(x, y, z)).isAir()) {
+                                    solid++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            net.minecraft.world.level.chunk.LevelChunk fw = yard.getChunkSource().getChunkNow(l.floorWindowCenter().getX() >> 4, l.floorWindowCenter().getZ() >> 4);
+            String marks = fw == null ? "chunks da cabine/vidro descarregados" : String.format("vidro=%s bau=%s fornalha=%s lampada=%s alavanca=%s porta=%s",
+                    fw.getBlockState(l.floorWindowCenter()).is(Blocks.GLASS), yard.getBlockEntity(l.chest()) != null, yard.getBlockState(l.furnace()).is(Blocks.FURNACE),
+                    yard.getBlockState(l.lamp()).is(Blocks.REDSTONE_LAMP), yard.getBlockState(l.lever()).is(Blocks.LEVER),
+                    yard.getBlockState(l.doorLower()).is(Blocks.OAK_DOOR));
+            return solid + " blocos nao-ar, colunas descarregadas=" + missingColumns + ", " + marks;
+        });
+        SpaceHorizons.LOGGER.info(TAG + "SHIPINTEGRIDADE {} nave {}: {}", label, shipId, s);
     }
 
     static void setReleaseTicks(Minecraft mc, long ticks) {
@@ -400,6 +443,7 @@ final class ShipDevtest {
     private static int reloadTicks;
     private static String reloadWorld;
     private static boolean reloadRegistered;
+    private static boolean backupAnswered;
     private static long reloadStartedNanos;
 
     /**
@@ -430,11 +474,12 @@ final class ShipDevtest {
             case 1 -> {
                 SpaceHorizons.LOGGER.info(TAG + "RELOAD: fechando o mundo (salvando)");
                 mc.disconnectWithSavingScreen();
+                mc.setScreenAndShow(new TitleScreen());
                 reloadPhase = 2;
                 reloadTicks = 0;
             }
             case 2 -> {
-                if (mc.level == null && mc.getSingleplayerServer() == null && mc.gui.screen() instanceof TitleScreen) {
+                if (mc.level == null && mc.getSingleplayerServer() == null && mc.gui.screen() instanceof TitleScreen && reloadTicks > 20) {
                     SpaceHorizons.LOGGER.info(TAG + "RELOAD: mundo fechado em {} ms, reabrindo '{}'", (System.nanoTime() - reloadStartedNanos) / 1_000_000L, reloadWorld);
                     mc.createWorldOpenFlows().openWorld(reloadWorld, () -> SpaceHorizons.LOGGER.warn(TAG + "RELOAD: abertura cancelada"));
                     reloadPhase = 3;
@@ -449,6 +494,20 @@ final class ShipDevtest {
                     SpaceHorizons.LOGGER.info(TAG + "RELOAD: jogador de volta em {} ms (dim={})", (System.nanoTime() - reloadStartedNanos) / 1_000_000L,
                             mc.level.dimension().identifier());
                     reloadPhase = 0;
+                } else if (mc.gui.screen() instanceof net.minecraft.client.gui.screens.BackupConfirmScreen backup && reloadTicks > 20 && !backupAnswered) {
+                    // aviso do vanilla ao abrir um mundo (cópia de segurança antes de carregar): o jogador clicaria "carregar sem cópia" (2º botão)
+                    backupAnswered = true;
+                    java.util.List<net.minecraft.client.gui.components.Button> buttons = new java.util.ArrayList<>();
+                    for (var child : backup.children()) {
+                        if (child instanceof net.minecraft.client.gui.components.Button b) {
+                            buttons.add(b);
+                        }
+                    }
+                    SpaceHorizons.LOGGER.info(TAG + "RELOAD: aviso '{}' com os botões {}", backup.getTitle().getString(),
+                            buttons.stream().map(b -> b.getMessage().getString()).toList());
+                    if (buttons.size() >= 2) {
+                        buttons.get(1).onPress(new net.minecraft.client.input.MouseButtonInfo(0, 0));
+                    }
                 } else if (reloadTicks % 100 == 0) {
                     SpaceHorizons.LOGGER.info(TAG + "RELOAD: esperando o jogador (tela={})",
                             mc.gui.screen() == null ? "nenhuma" : mc.gui.screen().getClass().getSimpleName());
