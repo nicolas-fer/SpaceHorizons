@@ -2,7 +2,6 @@ package com.spacehorizons.ship;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import com.spacehorizons.SpaceHorizons;
@@ -314,10 +313,5 @@ final class RocketToYardJob extends ConversionJob {
             ShipConversions.enqueue(new ClearBoxJob(server, this.shipId, "cancelada: " + reason));
         }
         this.phase = Phase.FINISH;
-    }
-
-    /** Para o relatório: a conversão que foi cancelada deixa a entidade intacta. */
-    Optional<String> failure() {
-        return Optional.ofNullable(this.error);
     }
 }
