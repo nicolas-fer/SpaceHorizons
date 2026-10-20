@@ -2,13 +2,21 @@ package com.spacehorizons.mixin.travel;
 
 import com.spacehorizons.client.travel.TravelClientState;
 
+import com.spacehorizons.rocket.RocketEntity;
+
+import net.minecraft.client.GameNarrator;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -56,5 +64,34 @@ abstract class ClientPacketListenerMixin {
             // handleRespawn já pôs clientLoaded=false; isto avisa o servidor e volta a true
             this.notifyPlayerLoaded();
         }
+    }
+
+    /**
+     * O vanilla mostra "Aperte Shift para desmontar" ao montar (e de novo a cada troca de dimensão, que reenvia os passageiros).
+     * No foguete isso é falso: Shift é o acelerador e desmontar é a tecla própria, só pousado. A dica certa vem de RocketPilot.
+     */
+    @Redirect(
+            method = "handleSetEntityPassengersPacket",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Hud;setOverlayMessage(Lnet/minecraft/network/chat/Component;Z)V"))
+    private void spacehorizons$noMountMessage(Hud hud, Component message, boolean animate) {
+        if (!spacehorizons$ridingRocket()) {
+            hud.setOverlayMessage(message, animate);
+        }
+    }
+
+    /** O mesmo aviso, lido em voz alta pelo narrador. */
+    @Redirect(
+            method = "handleSetEntityPassengersPacket",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/GameNarrator;saySystemNow(Lnet/minecraft/network/chat/Component;)V"))
+    private void spacehorizons$noMountNarration(GameNarrator narrator, Component message) {
+        if (!spacehorizons$ridingRocket()) {
+            narrator.saySystemNow(message);
+        }
+    }
+
+    @Unique
+    private static boolean spacehorizons$ridingRocket() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        return player != null && player.getVehicle() instanceof RocketEntity;
     }
 }
