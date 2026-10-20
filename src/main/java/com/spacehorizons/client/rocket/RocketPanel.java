@@ -165,9 +165,11 @@ public final class RocketPanel {
         Component[] labels = {Component.translatable("hud.spacehorizons.rocket.throttle"), Component.translatable("hud.spacehorizons.rocket.twr"),
                 Component.translatable("hud.spacehorizons.rocket.delta_v"), Component.translatable("hud.spacehorizons.rocket.sas"),
                 Component.translatable("hud.spacehorizons.rocket.mode")};
-        String[] values = {RocketPanelModel.percent(commanded), RocketPanelModel.twr(t), RocketPanelModel.deltaV(t), sasName(rocket).getString(),
+        float applied = rocket.throttle();
+        boolean notAccepted = RocketPilot.throttleNotAccepted();
+        String[] values = {RocketPanelModel.throttle(commanded, applied, notAccepted), RocketPanelModel.twr(t), RocketPanelModel.deltaV(t), sasName(rocket).getString(),
                 modeName(rocket).getString()};
-        int[] colors = {COLOR_VALUE, t != null && Double.isFinite(t.twr()) && t.twr() < 1.0 ? COLOR_WARN : COLOR_VALUE, COLOR_VALUE, COLOR_VALUE,
+        int[] colors = {notAccepted ? COLOR_BAD : COLOR_VALUE, t != null && Double.isFinite(t.twr()) && t.twr() < 1.0 ? COLOR_WARN : COLOR_VALUE, COLOR_VALUE, COLOR_VALUE,
                 rocket.flightMode() == FlightMode.LANDED ? COLOR_GOOD : COLOR_VALUE};
         Component fuelLabel = Component.translatable("hud.spacehorizons.rocket.fuel");
         String fuelText = RocketPanelModel.fuel(fuelMb, capacity);
@@ -190,7 +192,6 @@ public final class RocketPanel {
         // acelerador: barra vertical; um traço branco marca o que o servidor aplicou, se diferir do comandado
         int throttleX = x + 10;
         verticalBar(g, throttleX, barTop, 14, BAR_HEIGHT, commanded, 0xFF4FC3F7);
-        float applied = rocket.throttle();
         if (Math.abs(applied - commanded) > 0.03F) {
             int markY = barTop + BAR_HEIGHT - Math.round(BAR_HEIGHT * applied);
             g.fill(throttleX - 2, markY, throttleX + 16, markY + 1, COLOR_VALUE);

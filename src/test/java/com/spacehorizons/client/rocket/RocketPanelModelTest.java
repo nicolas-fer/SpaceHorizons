@@ -182,4 +182,10 @@ class RocketPanelModelTest {
         assertEquals("100%", RocketPanelModel.landingRow(withLanding((byte) 1, (byte) 120)).value());
         assertEquals("0%", RocketPanelModel.landingRow(withLanding((byte) 1, (byte) -5)).value());
     }
+
+    @Test
+    void oAceleradorDoPainelMostraOQueOServidorAplicaQuandoDiverge() {
+        assertEquals("36%", RocketPanelModel.throttle(0.36, 0.36, false));
+        assertEquals("36% (real 0%)", RocketPanelModel.throttle(0.36, 0.0, true));
+    }
 }

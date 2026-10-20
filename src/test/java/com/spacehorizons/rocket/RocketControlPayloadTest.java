@@ -43,7 +43,7 @@ class RocketControlPayloadTest {
     }
 
     @Test
-    void stubDeVooGuardaOUltimoComandoEZeraSemPacoteHa10Ticks() {
+    void stubDeVooGuardaOUltimoComandoESoltaOMancheSemPacoteHa10Ticks() {
         RocketFlight flight = new RocketFlight();
         assertEquals(FlightMode.LANDED, flight.mode());
         assertEquals(RocketControlPayload.NEUTRAL, flight.control(100));
@@ -51,7 +51,7 @@ class RocketControlPayloadTest {
         flight.applyControl(cmd, 100);
         assertEquals(cmd, flight.control(100));
         assertEquals(cmd, flight.control(110), "ainda vale no décimo tick");
-        assertEquals(RocketControlPayload.NEUTRAL, flight.control(111), "11 ticks sem pacote: neutro");
+        assertEquals(new RocketControlPayload(0.0F, 0.0F, 0.0F, 0.5F, (byte) 0), flight.control(111), "11 ticks sem pacote: manche solto, acelerador mantido");
         flight.applyControl(new RocketControlPayload(9.0F, 0, 0, 2.0F, (byte) 0), 120);
         assertEquals(1.0F, flight.control(120).pitch(), "o comando é saneado ao guardar");
     }

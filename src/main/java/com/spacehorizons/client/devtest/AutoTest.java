@@ -2560,6 +2560,31 @@ public final class AutoTest {
         };
     }
 
+    /**
+     * O piloto real sobe o acelerador com Shift por {@code up} ticks, espera {@code hold} ticks e o desce com Ctrl por {@code down} ticks,
+     * logando o que o cliente comanda e mostra (pacote enviado, painel, dado sincronizado) em cada ponto.
+     */
+    private void realThrottleWindow(int up, int hold, int down, String where, boolean releaseWithCut) {
+        step(0, mc -> {
+            CockpitDevtest.sent(mc, "janela " + where + ": antes de apertar Shift");
+            mc.options.keyShift.setDown(true);
+        });
+        step(up, mc -> {
+            mc.options.keyShift.setDown(false);
+            CockpitDevtest.sent(mc, "janela " + where + ": Shift solto");
+        });
+        step(hold / 2, mc -> CockpitDevtest.sent(mc, "janela " + where + ": meio da espera"));
+        step(hold / 2, mc -> {
+            CockpitDevtest.sent(mc, "janela " + where + ": fim da espera");
+            FlightDevtest.clientCheck(mc, "janela " + where + ": fim da espera");
+            mc.options.keySprint.setDown(true);
+        });
+        step(down, mc -> {
+            mc.options.keySprint.setDown(false);
+            CockpitDevtest.sent(mc, "janela " + where + ": Ctrl solto");
+        });
+    }
+
     private void thirdPerson() {
         step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK));
     }
@@ -2578,6 +2603,45 @@ public final class AutoTest {
         // o relógio anda durante os voos: a Terra gira em relação ao referencial inercial (lançar para o leste é mais barato)
         cmd(5, "gamerule advance_time true");
         fly(10);
+        if (parts.contains("l")) {
+            // voo L: como o R, mas no espaço o cliente do piloto fica LENTO (250 ms a mais por tick): o batimento de 5 ticks do cliente passa do
+            // tempo limite de 10 ticks do servidor
+            step(10, mc -> FlightDevtest.build(mc, 'L'));
+            tickerStep(10, waitFor("built_l", 200));
+            firstPerson();
+            step(0, FlightDevtest::go);
+            tickerStep(0, waitFor("space_a", 4000));
+            tickerStep(0, waitFor("real1_start", 400));
+            step(0, mc -> FlightDevtest.setClientLag(250));
+            step(0, mc -> mc.options.keyShift.setDown(true));
+            step(18, mc -> mc.options.keyShift.setDown(false));
+            step(40, mc -> CockpitDevtest.sent(mc, "cliente lento: fim da espera"));
+            step(0, mc -> FlightDevtest.setClientLag(0));
+            tickerStep(0, waitFor("real1_end", 900));
+            step(10, mc -> {
+                SpaceHorizons.LOGGER.info(TAG + "FIM");
+                mc.stop();
+            });
+        }
+        if (parts.contains("r")) {
+            // voo R: o voo A com duas janelas em que SÓ o piloto real comanda o acelerador, pelas teclas (Shift sobe, Ctrl desce): uma no
+            // espaço logo depois da travessia Terra para espaço e outra na Terra logo depois da reentrada
+            step(10, mc -> FlightDevtest.build(mc, 'R'));
+            tickerStep(10, waitFor("built_r", 200));
+            firstPerson();
+            step(0, FlightDevtest::go);
+            tickerStep(0, waitFor("liftoff_a", 400));
+            tickerStep(0, waitFor("space_a", 2000));
+            tickerStep(0, waitFor("real1_start", 400));
+            realThrottleWindow(18, 100, 26, "espaço", false);
+            tickerStep(0, waitFor("real1_end", 400));
+            tickerStep(0, waitFor("reentry_a", 5000));
+            tickerStep(0, waitFor("real2_start", 400));
+            realThrottleWindow(25, 20, 26, "Terra", true);
+            tickerStep(0, waitFor("real2_end", 400));
+            tickerStep(0, waitFor("end_a", 6000));
+            step(20, mc -> FlightDevtest.clientCheck(mc, "R pousado"));
+        }
         if (parts.contains("a")) {
         step(10, mc -> FlightDevtest.build(mc, 'A'));
         tickerStep(10, waitFor("built_a", 200));

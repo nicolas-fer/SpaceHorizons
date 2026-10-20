@@ -82,6 +82,9 @@ final class FlightDevtest {
     /** Relógio do Overworld no tick atual (o referencial inercial gira com ele: o leste e a velocidade do ar dependem do relógio). */
     private static double clockNow;
     private static double lastHealth;
+    /** Voo R (piloto real): 0 = piloto de teste, 1/3 = janela em que SÓ o cliente real comanda, 2 = entre janelas, 4 = fim. */
+    private static int realPhase;
+    private static int realTicks;
     private static long mspsStart;
     private static long tickStartNanos;
     private static double msptSum;
@@ -134,6 +137,8 @@ final class FlightDevtest {
             totalTicks = 0;
             pendingSas = 0;
             lastApplied = null;
+            realPhase = 0;
+            realTicks = 0;
             // limpa a plataforma e o que sobrou de um voo anterior
             for (int x = -4; x <= 4; x++) {
                 for (int z = -4; z <= 4; z++) {
@@ -267,7 +272,7 @@ final class FlightDevtest {
      */
     private static void reapplyControl(MinecraftServer server) {
         RocketControlPayload mine = lastApplied;
-        if (!armed || mine == null || server.getPlayerList().getPlayers().isEmpty()) {
+        if (!armed || mine == null || realWindow() || server.getPlayerList().getPlayers().isEmpty()) {
             return;
         }
         if (server.getPlayerList().getPlayers().get(0).getVehicle() instanceof RocketEntity rocket
@@ -298,7 +303,7 @@ final class FlightDevtest {
         }
         Control c = new Control();
         switch (variant) {
-            case 'A' -> flightA(rocket, snap, c, player);
+            case 'A', 'R', 'L' -> flightA(rocket, snap, c, player);
             case 'B' -> flightB(rocket, snap, c, player);
             default -> flightC(rocket, snap, c, player); // C e D
         }
@@ -311,10 +316,82 @@ final class FlightDevtest {
         } else {
             sasPulse = false;
         }
+        if (real()) {
+            realTick(rocket, snap, player);
+        }
+        if (realWindow()) {
+            return; // só o cliente real comanda: o piloto de teste não manda nada
+        }
         lastApplied = new RocketControlPayload((float) c.pitch, (float) c.yaw, 0.0F, (float) c.throttle, (byte) flags);
         rocket.applyControl(lastApplied);
         if (totalTicks % 20 == 0) {
             log(rocket, snap, c, player);
+        }
+    }
+
+    /** Voos com janela do piloto real: R (janelas normais) e L (cliente lento: ver {@link #setClientLag}). */
+    private static boolean real() {
+        return variant == 'R' || variant == 'L';
+    }
+
+    private static volatile int clientLagMs;
+    private static boolean lagRegistered;
+
+    /** Simula um cliente lento (poucos ticks por segundo), dormindo a cada tick do cliente; 0 desliga. */
+    static void setClientLag(int ms) {
+        clientLagMs = ms;
+        if (ms > 0 && !lagRegistered) {
+            lagRegistered = true;
+            NeoForge.EVENT_BUS.addListener(net.neoforged.neoforge.client.event.ClientTickEvent.Pre.class, e -> {
+                int lag = clientLagMs;
+                if (lag > 0) {
+                    try {
+                        Thread.sleep(lag);
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            });
+        }
+        SpaceHorizons.LOGGER.info("{}cliente lento: {} ms a mais por tick do cliente", TAG, ms);
+    }
+
+    private static boolean realWindow() {
+        return real() && (realPhase == 1 || realPhase == 3);
+    }
+
+    /**
+     * Voo R: o voo A com duas janelas em que SÓ o piloto real (teclas no cliente, RocketPilot, pacote) comanda o acelerador: a 1ª no
+     * espaço logo depois da travessia Terra para espaço, a 2ª na Terra logo depois da reentrada. O servidor registra a cada 5 ticks o
+     * comando recebido, o acelerador aplicado, o combustível e a velocidade.
+     */
+    private static void realTick(RocketEntity rocket, Snapshot snap, ServerPlayer player) {
+        boolean inSpace = snap.zoneBody() == null;
+        if (realPhase == 0 && stage == 2 && inSpace && snap.mode() == FlightMode.FLIGHT && stageTicks > 40) {
+            realPhase = 1;
+            realTicks = 0;
+            mark("real1_start");
+        } else if (variant == 'R' && realPhase == 2 && stage == 4 && !inSpace && stageTicks > 15) {
+            realPhase = 3;
+            realTicks = 0;
+            mark("real2_start");
+        }
+        if (!realWindow()) {
+            return;
+        }
+        realTicks++;
+        if (realTicks % 5 == 1) {
+            long now = rocket.level().getGameTime();
+            RocketControlPayload ctl = rocket.flight().control(now);
+            FlightState st = snap.state();
+            SpaceHorizons.LOGGER.info("{}REAL fase {} t={} dim={} comando recebido: acel={} flags={} (idade {} ticks, pacotes {}) | aplicado: snapshot={} sync={} | comb={} mB "
+                    + "| v={} vv={} | sentado={} segurado={}", TAG, realPhase, realTicks, rocket.level().dimension().identifier(), f(ctl.throttle()), ctl.flags(),
+                    now - rocket.flight().lastControlTick(), rocket.flight().controlPackets(), f(snap.throttle()), f(rocket.throttle()), f(rocket.fuelMb()),
+                    st == null ? "-" : f(st.v().length()), st == null ? "-" : f(st.v().dot(st.r().unit())), player.getVehicle() == rocket, rocket.isHeld());
+        }
+        if (realTicks >= (realPhase == 1 ? (variant == 'L' ? 500 : 170) : 60)) {
+            mark(realPhase == 1 ? "real1_end" : "real2_end");
+            realPhase = realPhase == 1 ? 2 : 4;
         }
     }
 

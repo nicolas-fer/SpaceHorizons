@@ -24,10 +24,14 @@ public final class RocketFlight {
     public static final int CONTROL_TIMEOUT_TICKS = 10;
     /** Depois de tantos ticks esperando o piloto rastrear o foguete (travessia), a simulação segue mesmo assim. */
     static final int MAX_ARRIVAL_TICKS = 100;
+    /** Ticks sem piloto a bordo depois dos quais o comando (e o acelerador) é descartado. */
+    static final int PILOT_GRACE_TICKS = 20;
 
     private FlightMode mode = FlightMode.LANDED;
     private RocketControlPayload control = RocketControlPayload.NEUTRAL;
     private long controlTick = Long.MIN_VALUE / 2;
+    private int controlPackets;
+    private int noPilotTicks;
     /** Bits de ação que subiram (estavam apagados no pacote anterior) desde o último tick. */
     private int edges;
 
@@ -69,11 +73,45 @@ public final class RocketFlight {
         this.edges |= clean.flags() & ~this.control.flags();
         this.control = clean;
         this.controlTick = tick;
+        this.controlPackets++;
     }
 
-    /** O comando em vigor no tick {@code tick}: o último recebido, ou neutro se faz mais de {@link #CONTROL_TIMEOUT_TICKS} ticks. */
+    /** O tick do último comando recebido (diagnóstico). */
+    public long lastControlTick() {
+        return this.controlTick;
+    }
+
+    /** Quantos comandos o piloto mandou a este foguete (diagnóstico). */
+    public int controlPackets() {
+        return this.controlPackets;
+    }
+
+    /**
+     * O comando em vigor no tick {@code tick}: o último recebido. Faz mais de {@link #CONTROL_TIMEOUT_TICKS} ticks sem pacote (rede
+     * ruim, cliente lento, alt-tab), os giros e os bits de ação voltam ao neutro (o "manche" solto), mas o ACELERADOR fica onde o
+     * piloto o deixou: ele é uma alavanca, não um manche. Zerá-lo travava o motor de um piloto com o cliente a poucos ticks por segundo
+     * (o batimento de 5 ticks do cliente passava do tempo limite) enquanto o painel dele seguia mostrando o acelerador comandado.
+     * Sem piloto a bordo, o comando é descartado por {@link #trackPilot}.
+     */
     public RocketControlPayload control(long tick) {
-        return tick - this.controlTick > CONTROL_TIMEOUT_TICKS ? RocketControlPayload.NEUTRAL : this.control;
+        if (tick - this.controlTick <= CONTROL_TIMEOUT_TICKS) {
+            return this.control;
+        }
+        return this.control.throttle() > 0.0F ? new RocketControlPayload(0.0F, 0.0F, 0.0F, this.control.throttle(), (byte) 0)
+                : RocketControlPayload.NEUTRAL;
+    }
+
+    /**
+     * Chamado a cada tick do servidor: com o piloto a bordo zera a contagem; sem ele por mais de {@link #PILOT_GRACE_TICKS} ticks
+     * (saiu, desconectou, o foguete carregou sem ninguém) o comando é descartado e o acelerador volta a zero. A tolerância cobre os
+     * poucos ticks sem passageiro da troca de dimensão.
+     */
+    void trackPilot(boolean present) {
+        if (present) {
+            this.noPilotTicks = 0;
+        } else if (++this.noPilotTicks > PILOT_GRACE_TICKS) {
+            this.control = RocketControlPayload.NEUTRAL;
+        }
     }
 
     /** Os bits de ação que subiram desde a última chamada (e os zera). */
@@ -150,6 +188,8 @@ public final class RocketFlight {
             }
             this.snapshot = new Snapshot(loaded, state, q, getVec(in, "Spin"), SasMode.byId(in.getByteOr("Sas", (byte) 0)),
                     in.getDoubleOr("Throttle", 0.0), in.getBooleanOr("ChuteWanted", false), zone, state.fuelMb());
+            // o acelerador atravessa a troca de dimensão (a entidade é recriada): vale até o primeiro pacote do piloto
+            this.control = new RocketControlPayload(0.0F, 0.0F, 0.0F, (float) Math.max(0.0, Math.min(1.0, in.getDoubleOr("Throttle", 0.0))), (byte) 0);
             this.arrivalPending = true;
             this.arrivalTicks = 0;
         });

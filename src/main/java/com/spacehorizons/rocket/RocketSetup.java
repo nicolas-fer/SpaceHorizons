@@ -14,6 +14,9 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
  */
 @EventBusSubscriber(modid = SpaceHorizons.MODID)
 public final class RocketSetup {
+    /** Quantos comandos de voo foram recusados por não virem do piloto (diagnóstico: o log só fala a cada 100). */
+    private static final java.util.concurrent.atomic.AtomicInteger REJECTED = new java.util.concurrent.atomic.AtomicInteger();
+
     private RocketSetup() {
     }
 
@@ -27,6 +30,10 @@ public final class RocketSetup {
             if (context.player() instanceof ServerPlayer player && player.getVehicle() instanceof RocketEntity rocket
                     && rocket.getControllingPassenger() == player) {
                 rocket.applyControl(payload);
+            } else if (REJECTED.getAndIncrement() % 100 == 0) {
+                SpaceHorizons.LOGGER.warn("Comando de voo recusado ({} até agora): o jogador não é o piloto do foguete (veículo={}, piloto do veículo={})",
+                        REJECTED.get(), context.player().getVehicle(),
+                        context.player().getVehicle() instanceof RocketEntity r ? r.getControllingPassenger() : null);
             }
         });
         // telemetria do voo para o piloto (o handler do cliente fica em client/rocket: RegisterClientPayloadHandlersEvent)

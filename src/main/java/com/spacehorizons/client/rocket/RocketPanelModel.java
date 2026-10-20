@@ -92,6 +92,14 @@ public final class RocketPanelModel {
         return String.format(Locale.ROOT, "%.0f%%", Math.max(0.0, Math.min(1.0, fraction)) * 100.0);
     }
 
+    /**
+     * O acelerador do painel: o comandado; se o servidor não o aplica ({@code notAccepted}), o comandado e o que ele aplicou de fato
+     * ("36% (real 0%)"), para o piloto saber que o comando não está valendo.
+     */
+    public static String throttle(double commanded, double applied, boolean notAccepted) {
+        return notAccepted ? percent(commanded) + " (real " + percent(applied) + ")" : percent(commanded);
+    }
+
     /** Fração de combustível de 0 a 1 (0 se a capacidade é zero). */
     public static float fuelFraction(double mb, double capacityMb) {
         return capacityMb <= 0.0 ? 0.0F : (float) Math.max(0.0, Math.min(1.0, mb / capacityMb));

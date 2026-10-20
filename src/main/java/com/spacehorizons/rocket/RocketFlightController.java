@@ -79,6 +79,7 @@ final class RocketFlightController {
         }
         f.lastClock = clock;
         ServerPlayer pilot = rocket.getControllingPassenger() instanceof ServerPlayer p ? p : null;
+        f.trackPilot(pilot != null);
         RocketControlPayload control = f.control(now);
         int edges = f.takeEdges();
 

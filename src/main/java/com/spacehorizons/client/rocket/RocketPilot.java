@@ -35,6 +35,8 @@ import org.jspecify.annotations.Nullable;
 @EventBusSubscriber(modid = SpaceHorizons.MODID, value = Dist.CLIENT)
 public final class RocketPilot {
     private static final RocketControlLink LINK = new RocketControlLink();
+    /** Compara o acelerador comandado com o que o servidor aplicou (o painel avisa se o comando não foi aceito). */
+    private static final ThrottleWatch WATCH = new ThrottleWatch();
 
     /** O {@code Input} do vanilla neste tick, antes da máscara (Shift/Ctrl viram acelerador, W/S/A/D viram giro). */
     private static Input held = Input.EMPTY;
@@ -63,6 +65,17 @@ public final class RocketPilot {
         return LINK.throttle();
     }
 
+    /** O acelerador que o servidor aplicou (dado sincronizado do foguete que se pilota), ou o comandado se não se pilota. */
+    public static float appliedThrottle() {
+        RocketEntity rocket = rocket();
+        return rocket != null ? rocket.throttle() : LINK.throttle();
+    }
+
+    /** O servidor não está aplicando o acelerador comandado há alguns ticks (o painel mostra os dois). */
+    public static boolean throttleNotAccepted() {
+        return WATCH.notAccepted();
+    }
+
     /**
      * Só para o autoteste: esquece que estava pilotando e zera o acelerador guardado. Entre dois voos do roteiro o jogador troca de
      * foguete no mesmo tick (sem passar por "não pilotando"), e o acelerador do voo anterior (0,84 no meio de uma frenagem) seguia sendo
@@ -71,6 +84,7 @@ public final class RocketPilot {
     public static void forgetPilotingForTest() {
         wasPiloting = false;
         LINK.reset(0.0F);
+        WATCH.reset();
     }
 
     /** O último pacote enviado ao servidor (para o autoteste conferir), ou null. */
@@ -113,6 +127,7 @@ public final class RocketPilot {
         if (rocket == null) {
             wasPiloting = false;
             held = Input.EMPTY;
+            WATCH.reset();
             return;
         }
         LocalPlayer player = mc.player;
@@ -134,6 +149,7 @@ public final class RocketPilot {
             sentCount++;
             ClientPacketDistributor.sendToServer(payload);
         }
+        WATCH.tick(LINK.throttle(), rocket.throttle());
     }
 
     @SubscribeEvent
@@ -188,6 +204,7 @@ public final class RocketPilot {
     /** Primeiro tick pilotando: acelerador no valor do foguete, cockpit em primeira pessoa, olhar livre zerado e a ajuda (uma vez). */
     private static void onBoard(Minecraft mc, LocalPlayer player, RocketEntity rocket) {
         LINK.reset(rocket.throttle());
+        WATCH.reset();
         for (KeyMapping key : RocketKeys.ALL) {
             consumeClick(key);
         }

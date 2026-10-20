@@ -33,11 +33,47 @@ class RocketFlightControlTest {
     }
 
     @Test
-    void theControlGoesNeutralAfterTheTimeout() {
+    void theSticksGoNeutralAfterTheTimeoutButTheThrottleStays() {
         RocketFlight flight = new RocketFlight();
-        flight.applyControl(with(RocketControlPayload.FLAG_FULL_THROTTLE), 100);
+        flight.applyControl(new RocketControlPayload(1.0F, -1.0F, 0.5F, 0.5F, (byte) RocketControlPayload.FLAG_FULL_THROTTLE), 100);
         assertEquals(0.5F, flight.control(100 + RocketFlight.CONTROL_TIMEOUT_TICKS).throttle());
+        assertEquals(1.0F, flight.control(100 + RocketFlight.CONTROL_TIMEOUT_TICKS).pitch(), "ainda dentro do tempo limite");
+        RocketControlPayload late = flight.control(101 + RocketFlight.CONTROL_TIMEOUT_TICKS);
+        assertEquals(new RocketControlPayload(0.0F, 0.0F, 0.0F, 0.5F, (byte) 0), late, "manche e bits de ação soltos; o acelerador fica");
+        assertEquals(0.5F, flight.control(100_000).throttle(), "um cliente lento não zera o motor");
+    }
+
+    @Test
+    void aStaleControlWithoutThrottleIsNeutral() {
+        RocketFlight flight = new RocketFlight();
+        flight.applyControl(new RocketControlPayload(1.0F, 0.0F, 0.0F, 0.0F, (byte) 0), 100);
         assertEquals(RocketControlPayload.NEUTRAL, flight.control(101 + RocketFlight.CONTROL_TIMEOUT_TICKS));
+    }
+
+    @Test
+    void withoutAPilotTheThrottleIsDroppedAfterTheGrace() {
+        RocketFlight flight = new RocketFlight();
+        flight.applyControl(with(0), 100);
+        for (int i = 0; i < RocketFlight.PILOT_GRACE_TICKS; i++) {
+            flight.trackPilot(false);
+        }
+        assertEquals(0.5F, flight.control(100).throttle(), "a troca de dimensão deixa alguns ticks sem passageiro");
+        flight.trackPilot(false);
+        assertEquals(RocketControlPayload.NEUTRAL, flight.control(100), "sem piloto: o motor corta");
+    }
+
+    @Test
+    void aPresentPilotResetsTheGraceCount() {
+        RocketFlight flight = new RocketFlight();
+        flight.applyControl(with(0), 100);
+        for (int i = 0; i < RocketFlight.PILOT_GRACE_TICKS; i++) {
+            flight.trackPilot(false);
+        }
+        flight.trackPilot(true);
+        for (int i = 0; i < RocketFlight.PILOT_GRACE_TICKS; i++) {
+            flight.trackPilot(false);
+        }
+        assertEquals(0.5F, flight.control(100).throttle());
     }
 
     @Test
