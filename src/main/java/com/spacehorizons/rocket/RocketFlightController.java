@@ -178,7 +178,8 @@ final class RocketFlightController {
         FlightMachine.ZoneAccess zones = new FlightMachine.ZoneAccess() {
             @Override
             public boolean hasSpace() {
-                return TravelTransfers.findSpace(server) != null;
+                // a nave não sai para o espaço: sem dimensão de espaço o voo segue na do corpo, como num teto (ver RocketEntity.ship)
+                return !rocket.isShip() && TravelTransfers.findSpace(server) != null;
             }
 
             @Override

@@ -18,6 +18,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -63,8 +64,19 @@ public final class RocketAssembler {
         inlineLimit = Math.max(1, bytes);
     }
 
+    /** O papel de um bloco para a busca: o do foguete ({@link RocketKinds#classify}) ou o da nave ({@code ShipKinds.assemblyKind}). */
+    @FunctionalInterface
+    public interface Classifier {
+        RocketBlockKind kindOf(BlockGetter level, BlockPos pos, BlockState state);
+    }
+
     /** O mundo como a busca da montagem o vê (a mesma para a montagem e para o painel de projeto da plataforma, {@link RocketDesign}). */
     public static RocketAssembly.Grid worldGrid(net.minecraft.world.level.Level level) {
+        return worldGrid(level, RocketKinds::classify);
+    }
+
+    /** Como acima, com o papel de cada bloco dado pelo {@code classifier} (a nave usa o dela, com a ponte como cockpit). */
+    public static RocketAssembly.Grid worldGrid(net.minecraft.world.level.Level level, Classifier classifier) {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         return (x, y, z) -> {
             cursor.set(x, y, z);
@@ -74,7 +86,7 @@ public final class RocketAssembler {
             if (!level.isLoaded(cursor)) {
                 return RocketBlockKind.UNLOADED;
             }
-            return RocketKinds.classify(level, cursor, level.getBlockState(cursor));
+            return classifier.kindOf(level, cursor, level.getBlockState(cursor));
         };
     }
 
@@ -96,8 +108,16 @@ public final class RocketAssembler {
      * recusar a montagem. {@code player} (pode ser null, como no comando de teste) é conferido contra a proteção de spawn.
      */
     public static RocketEntity assemble(ServerLevel level, BlockPos cockpit, @Nullable Player player) throws RocketException {
-        RocketAssembly.Result found = RocketAssembly.scan(worldGrid(level), cockpit.getX(), cockpit.getY(), cockpit.getZ());
+        return assemble(level, cockpit, player, RocketAssembly.scan(worldGrid(level), cockpit.getX(), cockpit.getY(), cockpit.getZ()), false);
+    }
 
+    /**
+     * Monta a partir de uma busca já feita ({@code found}: a do foguete ou a da nave), com a mesma validação e a mesma remoção para os
+     * dois. {@code ship}: a entidade nasce como nave ({@link RocketEntity#isShip}). Quem monta a nave confere o empuxo de decolagem
+     * ({@code ShipLiftoff}) antes, o que também acontece antes de qualquer bloco sair.
+     */
+    public static RocketEntity assemble(ServerLevel level, BlockPos cockpit, @Nullable Player player, RocketAssembly.Result found, boolean ship)
+            throws RocketException {
         if (player != null) {
             for (RocketAssembly.Cell cell : found.cells()) {
                 if (!level.mayInteract(player, new BlockPos(cell.x(), cell.y(), cell.z()))) {
@@ -156,6 +176,7 @@ public final class RocketAssembler {
         }
         rocket.setPortrait(portrait);
         rocket.setFuelMb(fuel);
+        rocket.setShip(ship);
         rocket.setPos(found.minX() + found.sizeX() / 2.0, found.minY() + found.sizeY() / 2.0, found.minZ() + found.sizeZ() / 2.0);
 
         EngineForming.suspended(() -> removeBlocks(level, found.cells()));

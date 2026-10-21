@@ -16,6 +16,8 @@ public final class RocketException extends Exception {
         MULTIPLE_COCKPITS,
         NO_ENGINE,
         NO_TANK,
+        /** Nave: nenhum motor para decolar (nem bocal de impulso para baixo, nem motor de foguete). */
+        NO_LIFTOFF_ENGINE,
         /** Nenhum bloco do foguete encosta numa plataforma de lançamento. */
         NO_PAD,
         TOO_LARGE,
