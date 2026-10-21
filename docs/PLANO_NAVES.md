@@ -317,7 +317,7 @@ Autotestes (estilo `AutoTest`, cenários com `-PshOnly=`): `ship` (fase 1: cria 
   gravidade zero) entra depois como opção.
 - **D10**: aceita-se o hitch de ~1 s na conversão entidade → blocos na fase 2 (versus lote em vários ticks)? **S3 mediu: em lotes não há hitch (8.000 blocos em 0,6 a 1 s sem sair da faixa normal do tick); recomendação: lotes.**
 
-## Resultado da fase 2a-i (parcial, 21/10/2026)
+## Resultado da fase 2a-i (21/10/2026)
 
 **Feito** (pacote `com.spacehorizons.ship`, testes `ShipAssemblyTest`):
 
@@ -333,12 +333,17 @@ Autotestes (estilo `AutoTest`, cenários com `-PshOnly=`): `ship` (fase 1: cria 
 - **Modo nave na entidade.** `RocketEntity.isShip()` / `setShip()`, salvo no NBT (`Ship`). Não é sincronizado com o cliente (a parte 2 decide se a HUD precisa). Com a nave, `RocketFlightController` faz `hasSpace()` falso: a nave não passa para a dimensão de espaço na altitude de saída e o voo segue na do corpo, como num teto. Não foi verificado no jogo o que acontece acima do teto de construção nesse caso.
 - **Testes.** `ShipLiftoffTest` (5 casos): só bocais para baixo somam; motor de foguete avulso e formado entram; sem bocal para baixo e sem motor de foguete a recusa é tipada; bocal para cima e horizontal não decolam.
 
+**Terceira rodada da fase 2a-i** (autoteste `-PshOnly=shipground`, `ShipGroundDevtest`):
+
+- **Empuxo na física.** `ShipLiftoff.stats(bocaisParaBaixo, censo)`: a entidade da nave (`RocketEntity.setNozzlesDown`, salvo no NBT `NozzlesDown`) usa os `ship_impulse_engine` com bocal para baixo (8,0 cada, Isp 1.000) somados aos motores de foguete do censo; o Isp é `ΣF / Σ(F/Isp)`. Massa, tanques e arrasto seguem o censo do retrato. Sem bocal para baixo, as estatísticas são as do foguete.
+- **Autoteste `shipground`** (16 verificações, 0 falhas): nave de 43 blocos no chão (4 bocais para baixo, 1 horizontal, coluna de tanques 2x2x4 formada, assento, baú com diamantes); a ponte sozinha é recusada com `NO_LIFTOFF_ENGINE` e continua no mundo; a montagem tira os 43 blocos do mundo; o retrato tem 43 blocos, 64.000 mB e o NBT do baú; `isShip`; empuxo de 32; o piloto senta; a nave sobe 504,7 blocos em 45 ticks, continua inteira e o piloto segue sentado.
+- **Sentar o piloto.** `startRiding(nave)` sem forçar não senta na nave logo após a montagem (o caminho do clique tinha esse problema); agora `ShipAssembler.assembleFor` usa `startRiding(nave, true, true)`, como o multibloco.
+- **Acima da altitude de saída (parte 2a-i, item 2).** Com `hasSpace` falso, a nave não sai para o espaço e segue na dimensão do corpo: no autoteste ela chegou a 1.105 blocos de altitude, em voo, sem sumir nem travar. Não há teto nem conversão ainda; a conversão para o estaleiro na altitude de saída fica para a parte 2.
+- **Orientação dos bocais.** Os prints (`art/_work/shipground_prints/`) não mostram os bocais por baixo com clareza, então a orientação do modelo de bocal para baixo **não está confirmada** visualmente.
+
 **Não feito** (fica para as próximas rodadas desta fase):
 
-1. **Empuxo de decolagem só na checagem.** O voo da nave (`RocketStats`, do censo do foguete) ainda não soma os bocais para baixo: o empuxo da decolagem é calculado e registrado no log, mas a física usa só o motor do foguete. Ligar os dois é a parte 2.
+1. **Orientação visual dos bocais.** Confirmar no print que o bocal para baixo aparece por baixo (ver acima).
 2. **Tripulação extra.** Só o piloto senta. Assentos extras (`ship_seat`) ficam para depois.
 3. **Conversão para o estaleiro na altitude de saída** (parte 2): a nave segurada precisa virar blocos no estaleiro.
-4. **Verificação da orientação up/down do modelo no jogo.** O `FACING` do `ship_impulse_engine` aponta para o olhar de quem coloca (inclusive para baixo); o modelo de 6 direções ainda precisa ser conferido visualmente (que o bocal aparece para baixo quando o bloco é colocado olhando para o chão).
-5. **Autoteste `shipground`** e os prints: não feitos. Nenhum cliente foi aberto nesta rodada.
-
-**Verificado:** `./gradlew build` passa; a suíte de testes unitários inteira passa (0 falhas), incluindo `ShipLiftoffTest` e `ShipAssemblyTest`.
+**Verificado:** `./gradlew build` passa; a suíte de testes unitários inteira passa (0 falhas), incluindo `ShipLiftoffTest` e `ShipAssemblyTest`. Autoteste `shipground`: 16 passaram, 0 falharam.
