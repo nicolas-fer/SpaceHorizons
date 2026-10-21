@@ -316,3 +316,34 @@ Autotestes (estilo `AutoTest`, cenários com `-PshOnly=`): `ship` (fase 1: cria 
 - **D9 (decidida em 19/10/2026)**: gravidade interna sempre ligada na fase 1; o bloco gerador de gravidade (sem ele,
   gravidade zero) entra depois como opção.
 - **D10**: aceita-se o hitch de ~1 s na conversão entidade → blocos na fase 2 (versus lote em vários ticks)? **S3 mediu: em lotes não há hitch (8.000 blocos em 0,6 a 1 s sem sair da faixa normal do tick); recomendação: lotes.**
+
+## Resultado da fase 2a-i (21/10/2026)
+
+**Feito** (pacote `com.spacehorizons.ship`, testes `ShipAssemblyTest`):
+
+- **Regras da montagem parametrizadas.** `RocketAssembly` ganhou `Rules(needEngine, needTank)` (padrão `ROCKET_RULES`, o comportamento do foguete não mudou) e os `scan`/`analyze` com regras. A nave usa `ShipAssembly.RULES = Rules(false, false)`: não exige motor nem tanque. O resto (BFS por face, teto de 8.192 blocos, caixa 128 x 256 x 128, recusa de terreno, proibido, chunk não carregado, pontes extras, falta de plataforma) é o mesmo código do foguete, sem cópia.
+- **Adaptador do mundo.** `ShipKinds.assemblyKind`: a ponte (`ship_bridge`) entra como `COCKPIT`; o resto usa `RocketKinds.classify` (sólidos não proibidos entram como estrutura, a tag `rocket_terrain` recusa o chão).
+- **Testes.** `ShipAssemblyTest` (11 casos): nave só com ponte e plataforma é achada sem motor nem tanque; o foguete continua recusando a mesma nave por `NO_ENGINE`; sem plataforma, ponte que não é cockpit, duas pontes, terreno, proibido, chunk não carregado, caixa de 257 de altura e o teto de blocos.
+
+**Feito na segunda rodada da fase 2a-i** (testes `ShipLiftoffTest`):
+
+- **Gatilho.** Clique agachado, de mão vazia, na `ship_bridge` fora do estaleiro (`spacehorizons:shipyard`) monta a nave no chão (`ShipAssembler.assembleFor`) e senta o jogador. Sem agachar, ou dentro do estaleiro, a ponte mantém o relatório de antes. Como a ponte fora do estaleiro nunca está numa nave registrada (o registro vive na célula do estaleiro), a checagem de "nave já registrada" já está coberta pelo estaleiro.
+- **Montagem compartilhada.** `RocketAssembler.assemble(level, cockpit, player, found, ship)` recebe a busca pronta; o foguete e a nave usam a mesma validação e a mesma remoção (sem drops, block entities no retrato com NBT, cada tanque com seu mB, multiblocos). `RocketAssembler.worldGrid(level, classifier)` aceita o papel da nave (`ShipKinds.assemblyKind`).
+- **Empuxo de decolagem.** `ShipLiftoff`: soma os `ship_impulse_engine` com o bocal para BAIXO (`ShipSpecs.ENGINE_THRUST`) mais o empuxo dos `rocket_engine` pelo censo do foguete (avulsos e formados 2x2/3x3, via `RocketSpecs.thrustOf`). Bocal para cima e horizontal não contam. Sem bocal para baixo e sem motor de foguete: `RocketException.Reason.NO_LIFTOFF_ENGINE` ("sem motor para decolar", en_us e pt_br), antes de qualquer bloco sair. Massa e combustível da entidade seguem o censo do foguete.
+- **Modo nave na entidade.** `RocketEntity.isShip()` / `setShip()`, salvo no NBT (`Ship`). Não é sincronizado com o cliente (a parte 2 decide se a HUD precisa). Com a nave, `RocketFlightController` faz `hasSpace()` falso: a nave não passa para a dimensão de espaço na altitude de saída e o voo segue na do corpo, como num teto. Não foi verificado no jogo o que acontece acima do teto de construção nesse caso.
+- **Testes.** `ShipLiftoffTest` (5 casos): só bocais para baixo somam; motor de foguete avulso e formado entram; sem bocal para baixo e sem motor de foguete a recusa é tipada; bocal para cima e horizontal não decolam.
+
+**Terceira rodada da fase 2a-i** (autoteste `-PshOnly=shipground`, `ShipGroundDevtest`):
+
+- **Empuxo na física.** `ShipLiftoff.stats(bocaisParaBaixo, censo)`: a entidade da nave (`RocketEntity.setNozzlesDown`, salvo no NBT `NozzlesDown`) usa os `ship_impulse_engine` com bocal para baixo (8,0 cada, Isp 1.000) somados aos motores de foguete do censo; o Isp é `ΣF / Σ(F/Isp)`. Massa, tanques e arrasto seguem o censo do retrato. Sem bocal para baixo, as estatísticas são as do foguete.
+- **Autoteste `shipground`** (16 verificações, 0 falhas): nave de 43 blocos no chão (4 bocais para baixo, 1 horizontal, coluna de tanques 2x2x4 formada, assento, baú com diamantes); a ponte sozinha é recusada com `NO_LIFTOFF_ENGINE` e continua no mundo; a montagem tira os 43 blocos do mundo; o retrato tem 43 blocos, 64.000 mB e o NBT do baú; `isShip`; empuxo de 32; o piloto senta; a nave sobe 504,7 blocos em 45 ticks, continua inteira e o piloto segue sentado.
+- **Sentar o piloto.** `startRiding(nave)` sem forçar não senta na nave logo após a montagem (o caminho do clique tinha esse problema); agora `ShipAssembler.assembleFor` usa `startRiding(nave, true, true)`, como o multibloco.
+- **Acima da altitude de saída (parte 2a-i, item 2).** Com `hasSpace` falso, a nave não sai para o espaço e segue na dimensão do corpo: no autoteste ela chegou a 1.105 blocos de altitude, em voo, sem sumir nem travar. Não há teto nem conversão ainda; a conversão para o estaleiro na altitude de saída fica para a parte 2.
+- **Orientação dos bocais.** Os prints (`art/_work/shipground_prints/`) não mostram os bocais por baixo com clareza, então a orientação do modelo de bocal para baixo **não está confirmada** visualmente.
+
+**Não feito** (fica para as próximas rodadas desta fase):
+
+1. **Orientação visual dos bocais.** Confirmar no print que o bocal para baixo aparece por baixo (ver acima).
+2. **Tripulação extra.** Só o piloto senta. Assentos extras (`ship_seat`) ficam para depois.
+3. **Conversão para o estaleiro na altitude de saída** (parte 2): a nave segurada precisa virar blocos no estaleiro.
+**Verificado:** `./gradlew build` passa; a suíte de testes unitários inteira passa (0 falhas), incluindo `ShipLiftoffTest` e `ShipAssemblyTest`. Autoteste `shipground`: 16 passaram, 0 falharam.

@@ -91,6 +91,13 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     private boolean virtualSeeded;
     /** Cliente: neste tick o foguete deu um salto (costura do planeta, teleporte): o passageiro também não interpola até a nova posição. */
     private boolean jumped;
+    /**
+     * É uma nave ({@code ShipAssembler}), não um foguete. Só o servidor usa (salvo no NBT); o cliente não precisa dele nesta parte.
+     * Enquanto for nave, o voo não sai para a dimensão de espaço acima da altitude de saída ({@code RocketFlightController}).
+     */
+    private boolean ship;
+    /** Nave: bocais de impulso para baixo da montagem; entram no empuxo ({@code ShipLiftoff.stats}). Zero para foguete. */
+    private int nozzlesDown;
 
     public RocketEntity(EntityType<? extends RocketEntity> type, Level level) {
         super(type, level);
@@ -160,8 +167,29 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     /** Troca o retrato (spawn, carga do NBT ou montagem): recalcula estatísticas e a caixa de colisão. */
     public void setPortrait(RocketPortrait portrait) {
         this.portrait = portrait;
-        this.stats = portrait.stats();
+        refreshStats();
         this.refreshDimensions();
+    }
+
+    /** É uma nave montada pela ponte (ver o campo {@code ship}). */
+    public boolean isShip() {
+        return this.ship;
+    }
+
+    public void setShip(boolean ship) {
+        this.ship = ship;
+        refreshStats();
+    }
+
+    /** Nave: quantos bocais de impulso para baixo ela tem (o empuxo de decolagem); recalcula as estatísticas. */
+    public void setNozzlesDown(int nozzlesDown) {
+        this.nozzlesDown = Math.max(0, nozzlesDown);
+        refreshStats();
+    }
+
+    /** As estatísticas do voo: as do censo do retrato; na nave, com os bocais de impulso para baixo no empuxo. */
+    private void refreshStats() {
+        this.stats = this.ship ? com.spacehorizons.ship.ShipLiftoff.stats(this.nozzlesDown, this.portrait.census()) : this.portrait.stats();
     }
 
     public double fuelMb() {
@@ -580,6 +608,8 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     protected void addAdditionalSaveData(ValueOutput output) {
         output.store("Portrait", CompoundTag.CODEC, this.portrait.save());
         output.putDouble("FuelMb", this.fuelMb);
+        output.putBoolean("Ship", this.ship);
+        output.putInt("NozzlesDown", this.nozzlesDown);
         output.putFloat("Throttle", this.throttle());
         output.putByte("FlightMode", this.flightMode().id());
         output.putByte("SasMode", this.sasMode());
@@ -605,6 +635,8 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
             }
         });
         this.setFuelMb(input.getDoubleOr("FuelMb", 0.0));
+        this.ship = input.getBooleanOr("Ship", false);
+        this.setNozzlesDown(input.getIntOr("NozzlesDown", 0));
         this.setThrottle(input.getFloatOr("Throttle", 0.0F));
         this.setFlightMode(FlightMode.byId(input.getByteOr("FlightMode", FlightMode.LANDED.id())));
         this.entityData.set(SAS_MODE, input.getByteOr("SasMode", (byte) 0));

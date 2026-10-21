@@ -1,8 +1,12 @@
 package com.spacehorizons.ship;
 
 import com.spacehorizons.content.ModBlocks;
+import com.spacehorizons.rocket.RocketBlockKind;
+import com.spacehorizons.rocket.RocketKinds;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -33,6 +37,18 @@ public final class ShipKinds {
             return ShipBlockKind.AIRLOCK;
         }
         return ShipBlockKind.STRUCTURE;
+    }
+
+    /**
+     * O papel de um bloco do mundo para a busca da montagem da nave ({@link ShipAssembly}): a ponte é o cockpit da nave; o resto é o
+     * da montagem do foguete ({@link RocketKinds#classify}), que já recusa fluido, proibido e terreno, e aceita o casco e as peças da nave
+     * como estrutura (blocos sólidos não proibidos).
+     */
+    public static RocketBlockKind assemblyKind(BlockGetter level, BlockPos pos, BlockState state) {
+        if (state.is(ModBlocks.SHIP_BRIDGE.get())) {
+            return RocketBlockKind.COCKPIT;
+        }
+        return RocketKinds.classify(level, pos, state);
     }
 
     /** O lado do estaleiro (0 norte, 1 leste, 2 sul, 3 oeste: {@link ShipArrangement}) de uma direção horizontal; vertical vira o norte. */

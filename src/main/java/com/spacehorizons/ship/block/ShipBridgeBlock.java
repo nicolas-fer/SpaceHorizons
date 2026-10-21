@@ -1,6 +1,8 @@
 package com.spacehorizons.ship.block;
 
+import com.spacehorizons.ship.ShipAssembler;
 import com.spacehorizons.ship.ShipInfo;
+import com.spacehorizons.ship.ShipYard;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -41,7 +43,12 @@ public class ShipBridgeBlock extends Block {
             return InteractionResult.PASS;
         }
         if (level instanceof ServerLevel serverLevel && player instanceof ServerPlayer serverPlayer) {
-            ShipInfo.reportFor(serverLevel, pos, serverPlayer);
+            // agachado, fora do estaleiro (onde a ponte só comanda a nave registrada): monta a nave no chão
+            if (player.isShiftKeyDown() && !ShipYard.is(serverLevel)) {
+                ShipAssembler.assembleFor(serverLevel, pos, serverPlayer);
+            } else {
+                ShipInfo.reportFor(serverLevel, pos, serverPlayer);
+            }
         }
         return InteractionResult.SUCCESS;
     }

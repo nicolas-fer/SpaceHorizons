@@ -202,6 +202,10 @@ public final class AutoTest {
             shipFlightScenario();
             return;
         }
+        if ("shipground".equals(ONLY)) {
+            shipGroundScenario();
+            return;
+        }
         if ("ship".equals(ONLY)) {
             shipScenario();
             return;
@@ -4424,6 +4428,46 @@ public final class AutoTest {
         landAndCleanup(c);
         cmd(10, "tp @s 0 200 0");
         fly(20);
+    }
+
+    // ===================================================================================================================
+    // NAVES NO CHÃO (docs/PLANO_NAVES.md, fase 2a-i): -PshOnly=shipground. Nave montada pela ponte no chão, recusa sem motor, empuxo dos
+    // bocais para baixo, retrato, mundo, piloto e subida de 500 blocos. Bloco separado; as conferências ficam em ShipGroundDevtest.
+    // ===================================================================================================================
+    private void shipGroundScenario() {
+        BlockPos b = ShipGroundDevtest.BASE;
+        double bx = b.getX() + 0.5;
+        double by = b.getY();
+        double bz = b.getZ() + 0.5;
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "gamemode creative");
+        cmd(5, "clear @s");
+        step(10, ShipGroundDevtest::build);
+        cmd(20, "tp @s " + (bx + 9.0) + " " + (by + 2.5) + " " + (bz + 7.0));
+        fly(10);
+        look(20, 140f, 12f);
+        shot(60, "sg_1_chao_bocais");
+        // de baixo para cima, perto do chão: os bocais para baixo e o horizontal de frente
+        cmd(20, "tp @s " + (bx + 6.0) + " " + (by + 1.0) + " " + (bz + 6.0));
+        look(20, 135f, -5f);
+        shot(40, "sg_1b_chao_perto");
+        step(10, ShipGroundDevtest::refusal);
+        step(10, ShipGroundDevtest::assemble);
+        tickerStep(5, waitFor("sg_assembled", 200));
+        thirdPerson();
+        shot(40, "sg_2_montada");
+        step(10, ShipGroundDevtest::fly);
+        tickerStep(5, waitFor("sg_flown", 3_000));
+        thirdPerson();
+        shot(20, "sg_3_voo");
+        step(20, mc -> {
+            ShipGroundDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
     }
 
     // ===================================================================================================================

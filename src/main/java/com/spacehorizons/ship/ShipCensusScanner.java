@@ -7,6 +7,8 @@ import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
 import com.spacehorizons.ship.block.ShipBridgeBlock;
 import com.spacehorizons.ship.block.ShipImpulseEngineBlock;
 
+import net.minecraft.core.Direction;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -75,7 +77,11 @@ final class ShipCensusScanner {
         if (kind == ShipBlockKind.BRIDGE) {
             this.bowVotes[ShipArrangement.opposite(ShipKinds.side(state.getValue(ShipBridgeBlock.FACING)))] += n;
         } else if (kind == ShipBlockKind.ENGINE) {
-            this.nozzles[ShipKinds.side(state.getValue(ShipImpulseEngineBlock.FACING))] += n;
+            // o bocal para cima ou para baixo não empurra no plano da nave: conta a massa (no kind), não o lado
+            Direction nozzle = state.getValue(ShipImpulseEngineBlock.FACING);
+            if (nozzle.getAxis().isHorizontal()) {
+                this.nozzles[ShipKinds.side(nozzle)] += n;
+            }
         }
     }
 

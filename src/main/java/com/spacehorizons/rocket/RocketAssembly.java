@@ -34,6 +34,16 @@ public final class RocketAssembly {
 
     private static final int[][] FACES = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
 
+    /**
+     * O que a montagem exige além da busca (a regra comum: cockpit único, plataforma e nenhum terreno/proibido encostado). O foguete exige motor e
+     * tanque; a nave ({@code ShipAssembly}) não: é montada pela ponte e pode ser só casco com a ponte.
+     */
+    public record Rules(boolean needEngine, boolean needTank) {
+    }
+
+    /** As regras do foguete (motor e tanque). */
+    public static final Rules ROCKET_RULES = new Rules(true, true);
+
     private RocketAssembly() {
     }
 
@@ -99,10 +109,16 @@ public final class RocketAssembly {
 
     public static Result scan(Grid grid, int startX, int startY, int startZ, int maxBlocks, int maxIterations, int maxExtentXz,
             int maxExtentY) throws RocketException {
+        return scan(grid, startX, startY, startZ, maxBlocks, maxIterations, maxExtentXz, maxExtentY, ROCKET_RULES);
+    }
+
+    /** Como acima, com as regras dadas (a nave usa {@code Rules(false, false)} e a ponte como cockpit). */
+    public static Result scan(Grid grid, int startX, int startY, int startZ, int maxBlocks, int maxIterations, int maxExtentXz,
+            int maxExtentY, Rules rules) throws RocketException {
         if (grid.kindAt(startX, startY, startZ) != RocketBlockKind.COCKPIT) {
             throw new RocketException(RocketException.Reason.NO_COCKPIT);
         }
-        Report report = analyze(grid, List.of(new int[] {startX, startY, startZ}), maxBlocks, maxIterations, maxExtentXz, maxExtentY);
+        Report report = analyze(grid, List.of(new int[] {startX, startY, startZ}), maxBlocks, maxIterations, maxExtentXz, maxExtentY, rules);
         if (!report.blockers().isEmpty()) {
             throw report.blockers().get(0).toException();
         }
@@ -115,6 +131,11 @@ public final class RocketAssembly {
     }
 
     public static Report analyze(Grid grid, List<int[]> seeds, int maxBlocks, int maxIterations, int maxExtentXz, int maxExtentY) {
+        return analyze(grid, seeds, maxBlocks, maxIterations, maxExtentXz, maxExtentY, ROCKET_RULES);
+    }
+
+    public static Report analyze(Grid grid, List<int[]> seeds, int maxBlocks, int maxIterations, int maxExtentXz, int maxExtentY,
+            Rules rules) {
         List<Cell> cells = new ArrayList<>();
         List<Blocker> blockers = new ArrayList<>();
         LongOpenHashSet visited = new LongOpenHashSet();
@@ -206,10 +227,10 @@ public final class RocketAssembly {
             blockers.add(new Blocker(RocketException.Reason.MULTIPLE_COCKPITS, extra.x(), extra.y(), extra.z(), new Object[] {census.cockpits()}));
         }
         Cell first = cells.isEmpty() ? new Cell(0, 0, 0, RocketBlockKind.AIR) : cells.get(0);
-        if (census.engines() < 1) {
+        if (rules.needEngine() && census.engines() < 1) {
             blockers.add(new Blocker(RocketException.Reason.NO_ENGINE, first.x(), first.y(), first.z(), new Object[0]));
         }
-        if (census.tanks() < 1) {
+        if (rules.needTank() && census.tanks() < 1) {
             blockers.add(new Blocker(RocketException.Reason.NO_TANK, first.x(), first.y(), first.z(), new Object[0]));
         }
         if (padContacts < 1) {
