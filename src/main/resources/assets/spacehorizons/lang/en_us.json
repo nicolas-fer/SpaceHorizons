@@ -100,6 +100,8 @@
   "message.spacehorizons.ship.specs": "Ship %s (#%s): %s blocks, dry mass %s t, thrust %s, %s engines, %s seats, fuel %s / %s mB, Δv %s b/s.",
   "message.spacehorizons.ship.bridge_outside_yard": "The bridge only commands a ship inside the shipyard (ground assembly comes later).",
   "message.spacehorizons.ship.bridge_no_ship": "This bridge is not inside a registered ship.",
+  "message.spacehorizons.ship.descent_refused": "Descent refused: someone is standing inside the ship. Everyone aboard must sit down.",
+  "message.spacehorizons.ship.descent_no_body": "Descent refused: this world has no dimension for that planet.",
   "message.spacehorizons.ship.assembled": "Ship assembled: %s blocks, %s t dry mass, %s mB of fuel. You are at the helm.",
   "entity.spacehorizons.rocket": "Rocket",
   "tooltip.spacehorizons.rocket_fuel_tank": "%s / %s mB",

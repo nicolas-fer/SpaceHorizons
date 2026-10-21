@@ -37,8 +37,9 @@ import com.spacehorizons.rocket.AttitudeControl;
  * ({@link #step}): W baixa a proa, D vira a proa para a direita (leste) e E rola no sentido horário visto de dentro.
  *
  * <h2>Chão</h2>
- * Na fase 1 a nave não desce a um planeta (a descida é a fase 2b): abaixo da altitude de entrada na dimensão do corpo
- * ({@link Zones#enterAltitude}) ela é segurada ({@link #floor}), com a velocidade para dentro zerada.
+ * Abaixo da altitude de entrada na dimensão do corpo ({@link Zones#enterAltitude}) a nave só é segurada ({@link #floor}), com a
+ * velocidade para dentro zerada, quando não pode descer (tripulante em pé, ver {@link ShipDescent}). {@link #step} aplica o chão;
+ * {@link #advance} não aplica, e é o que o voo do servidor usa.
  */
 public final class ShipFlight {
     /** Rotação de +90° em torno de X: leva os eixos do estaleiro (proa = -Z) aos de estilo foguete (nariz = +Y). */
@@ -165,6 +166,15 @@ public final class ShipFlight {
      * O SAS continua apontando a PROA: o que a ponte define como frente é o que ele alinha.
      */
     public static State step(State s, Command c, RocketStats stats, V3 thrustAxis, double clock, double clockRate) {
+        State moved = advance(s, c, stats, thrustAxis, clock, clockRate);
+        return moved.withOrbit(floor(moved.orbit()));
+    }
+
+    /**
+     * O mesmo passo SEM o chão da fase 1: a órbita pode ir abaixo da altitude de entrada. Quem usa é o voo do servidor, que decide
+     * ele mesmo quando a nave desce ({@link ShipDescent}) e só segura o que não pode descer.
+     */
+    public static State advance(State s, Command c, RocketStats stats, V3 thrustAxis, double clock, double clockRate) {
         SasMode sas = c.nextSas() ? s.sas().next() : s.sas();
         double throttle = Math.max(0.0, Math.min(1.0, Double.isNaN(c.throttle()) ? 0.0 : c.throttle()));
         FlightState orbit = s.orbit();
@@ -174,7 +184,6 @@ public final class ShipFlight {
         Control control = new Control(throttle, thrustDirection(att.attitude(), thrustAxis), false);
         FlightState moved = FlightIntegrator.step(orbit, control, stats, clock);
         moved = SoiTracker.update(moved, clock + clockRate, clockRate);
-        moved = floor(moved);
         // o combustível nunca passa da capacidade dos tanques que restam (um tanque quebrado leva a carga dele)
         if (moved.fuelMb() > stats.fuelCapacityMb()) {
             moved = moved.withFuel(stats.fuelCapacityMb());
