@@ -404,3 +404,42 @@ descartados, desvio máximo 0,3%. Antes, um quadro atrasado bastava para dar 30,
 - A volta estaleiro → foguete (`ship torocket`) usa o snapshot de antes da subida; não testado depois da subida.
 - Caminho de falha da subida (job cancelado no meio) não exercitado.
 - O SAS horizontal no foguete só tem teste unitário; a missão Terra→Lua→Terra (`-PshOnly=mission`) continuou completa depois da mudança (Δv total 264 b/t, pouso suave), mas não usa o modo novo. Não testado por um jogador em jogo.
+
+## Resultado da fase 2b (parte 1, descida e pouso: só código e testes unitários)
+
+**Feito** (pacote `com.spacehorizons.ship`, teste `ShipDescentTest`; o autoteste fica para a parte 2):
+
+- **Gatilho da descida** (`ShipDescent.decide`, `ShipFlightTicker.descent`). A nave do voo virtual, abaixo da altitude de entrada (`Zones.enterAltitude`, 4.000 na Terra) e descendo, vira entidade na dimensão do corpo quando a dimensão consegue receber: o MESMO critério do foguete, `ZoneSwitch.canEnter` (até 1.200 blocos sobre o terreno com horizontal até 25 b/t, ou à força abaixo de 600). Vale uma vez só (`Live.descentStarted`).
+- **Conversão do estado** (`ShipDescent.plan`): posição e velocidade de coordenadas pelo `FrameBridge.toDimension` e `coordinateVelocity`, o voo (`FlightMachine.Snapshot`, com a atitude de estilo foguete, o giro, o SAS, o acelerador e o combustível do instante) entra na entidade por `RocketFlight.setSnapshot`. A entidade nasce com `isShip()` e `nozzlesDown` do NBT do estaleiro.
+- **Estaleiro**: `YardToRocketJob(…, descending = true)` lê a caixa, monta o retrato, confere o romaneio e só então cria a entidade, como na volta normal; depois leva os jogadores, remove os blocos em lotes e destrói o registro (libera a célula). `startDescent` entra na fila de `ShipConversions`.
+- **Tripulação** (D4, versão simples): com alguém em pé dentro da célula (não sentado num `ShipSeatEntity`), a nave NÃO desce: é segurada na altitude de entrada (`ShipFlight.floor`) e os de bordo recebem o aviso (`message.spacehorizons.ship.descent_refused`, uma vez por recusa). Sem dimensão do corpo no mundo: aviso `descent_no_body` e segura.
+- **Física**: `ShipFlight.advance` é o passo sem o chão; `step` continua com o chão (os testes da fase 1 não mudaram). O voo do servidor usa `advance` e segura a nave só nos casos acima.
+- **Testes** (`ShipDescentTest`, 4 casos): decisão do tick (uma vez só, recusa com tripulante, espera de dimensão, START), `mayDescend`, o critério de descer (abaixo da entrada, descendo, `canEnter`), e a ida e volta virtual → dimensão → virtual sem perda.
+
+**Decisões**
+
+- O gatilho é o critério de entrada do foguete (`canEnter`), e não só a altitude de 4.000 do enunciado: a 4.000 com 70 b/t de horizontal a dimensão do corpo não carrega o terreno (a regra que o foguete já segue). A nave voa no espaço freando até cumprir o critério, e a descida começa ao cruzá-lo.
+- A nave só é segurada quando há tripulante em pé. Sem tripulante ela nunca é segurada no chão da fase 1, senão nunca desceria.
+- Enquanto a caixa é lida (estado `EMPTYING`), a nave continua voando: o estado da entidade é o do instante da escrita, e não o do disparo (senão o atraso de leitura, alguns ticks a 70 b/t, deslocaria a nave centenas de blocos).
+- A nova entidade NÃO é congelada na fase de remoção dos blocos: o voo dela segue (o mesmo tempo de leitura e remoção não pode atrasar a queda).
+- Se a conversão falha antes de tirar a nave do estaleiro, `descentCancelled` solta a descida e a nave tenta de novo (ticks seguintes).
+- **Pouso e desmontagem**: reaproveitados sem código novo. O pouso é o do foguete (`FlightMachine` → `LandingRules.contact`, pouso suave ou batida). A desmontagem é `RocketLanding.land` (acionada pelo controle de foguete, `FLAG_DISASSEMBLE`, ou pelo comando `rocket disassemble`), que usa o retrato da entidade, então os blocos, block entities e o combustível da nave voltam como no foguete. Como o piloto, ao descer, senta na entidade do foguete (não no `ShipSeatEntity`), os comandos dele passam pelo caminho do foguete. NÃO verificado no jogo.
+
+**Limitações (ficam para depois)**
+
+- D6 (pouso de barriga ou trem de pouso) e D7 (caixas de destroços na batida) não entraram: a batida é a do foguete (blocos viram itens).
+- O tripulante só é checado no gatilho e no tick de voo: quem entra em pé durante a leitura da caixa é levado para a entidade (`movePeople`), não recusado.
+- Enquanto faltam chunks no ponto de chegada, a nave é segurada sem andar (com ticket de carga repetido a cada tick); o tempo de espera depende da geração da dimensão do corpo.
+- Sem nave-com-retrato-grande (limite de 64 de lado do retrato, já anotado no S3): a descida herda esse limite.
+- O relógio do ponto de chegada é o do início do tick da descida, com um tick de erro no máximo.
+
+**Ganchos para o autoteste (parte 2)**
+
+- Forçar a descida: `ShipFlightTicker.devtestSetState(shipId, state)` pode pôr uma órbita baixa e descendente (altitude abaixo de 4.000, `v` apontando para o centro, horizontal até 25 b/t, ou abaixo de 600 de altura); com `ShipFlightTicker.applyControl` o piloto pode frear.
+- Saber que virou entidade: `ShipRegistry.byId(id) == null` (a nave saiu do registro e a célula foi liberada) e uma `RocketEntity` com `isShip()` na dimensão do corpo (`ShipDescent.plan` tem o destino); o `YardToRocketJob` loga `[ship-conv] … foguete recriado em …`.
+- Pouso e desmontagem: `RocketEntity.flight().mode() == LANDED` depois de `SOFT_LANDING` (log `Foguete pousou suave em …`); desmontar com `RocketLanding.land(level, rocket)` ou o comando `rocket disassemble`.
+- Tripulante em pé: um jogador dentro da célula sem `getVehicle() instanceof ShipSeatEntity` recusa a descida (chat `descent_refused`), e o voo da nave fica acima de 4.000.
+
+**Verificado**: `./gradlew build` passa (compilação, testes unitários e demais tarefas). O jogo não foi aberto nesta parte.
+
+**Falta testar no jogo**: a descida inteira (estaleiro → entidade → pouso → desmontagem → remontagem pela ponte), o caminho do piloto sentado na entidade (controles e a saída pelo `FLAG_DISASSEMBLE`), a recusa com tripulante em pé, e o tempo de espera de chunks em outra velocidade.
