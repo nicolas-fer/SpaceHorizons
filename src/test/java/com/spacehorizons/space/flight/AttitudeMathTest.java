@@ -204,10 +204,56 @@ class AttitudeMathTest {
         assertSame(SasMode.STABILIZE, SasMode.OFF.next());
         assertSame(SasMode.PROGRADE, SasMode.STABILIZE.next());
         assertSame(SasMode.RETROGRADE, SasMode.PROGRADE.next());
-        assertSame(SasMode.OFF, SasMode.RETROGRADE.next());
+        assertSame(SasMode.HORIZONTAL, SasMode.RETROGRADE.next());
+        assertSame(SasMode.OFF, SasMode.HORIZONTAL.next());
         assertSame(SasMode.PROGRADE, SasMode.byId(SasMode.PROGRADE.ordinal()));
         assertSame(SasMode.OFF, SasMode.byId(99));
         assertSame(SasMode.OFF, SasMode.byId(-1));
+    }
+
+    @Test
+    void sasNumbersOfTheOldModesDoNotChange() {
+        // mundos e pacotes antigos gravam o número: os quatro primeiros não podem mudar de lugar
+        assertEquals(0, SasMode.OFF.ordinal());
+        assertEquals(1, SasMode.STABILIZE.ordinal());
+        assertEquals(2, SasMode.PROGRADE.ordinal());
+        assertEquals(3, SasMode.RETROGRADE.ordinal());
+        assertSame(SasMode.HORIZONTAL, SasMode.byId(4));
+    }
+
+    @Test
+    void horizontalTargetInACircularOrbitIsThePrograde() {
+        // órbita circular: a velocidade já é perpendicular ao radial, então horizontal = prógrado
+        V3 r = new V3(1.0e6, 0, 0);
+        V3 v = new V3(0, 0, 25);
+        V3 horizontal = AttitudeMath.sasTarget(SasMode.HORIZONTAL, v, r);
+        assertNotNull(horizontal);
+        assertEquals(0.0, horizontal.distanceTo(AttitudeMath.sasTarget(SasMode.PROGRADE, v)), 1e-12);
+    }
+
+    @Test
+    void horizontalTargetInAnEccentricOrbitIsPerpendicularToTheRadialAndNotThePrograde() {
+        // fora do apo e do peri: o prógrado tem componente radial, o horizontal não
+        V3 r = new V3(1.0e6, 0, 0);
+        V3 v = new V3(12, 0, 20);
+        V3 horizontal = AttitudeMath.sasTarget(SasMode.HORIZONTAL, v, r);
+        assertNotNull(horizontal);
+        assertEquals(0.0, horizontal.dot(new V3(1, 0, 0)), 1e-12);
+        assertEquals(0.0, horizontal.distanceTo(new V3(0, 0, 1)), 1e-12);
+        assertTrue(horizontal.distanceTo(AttitudeMath.sasTarget(SasMode.PROGRADE, v)) > 0.1);
+        // o "up" não precisa ser unitário
+        assertEquals(0.0, horizontal.distanceTo(AttitudeMath.sasTarget(SasMode.HORIZONTAL, v, new V3(5.0e5, 0, 0))), 1e-12);
+    }
+
+    @Test
+    void horizontalWithoutAVerticalOrWithAVerticalVelocityHasNoTarget() {
+        V3 r = new V3(1.0e6, 0, 0);
+        // subida vertical: a velocidade é toda radial, não sobra horizontal
+        assertNull(AttitudeMath.sasTarget(SasMode.HORIZONTAL, new V3(50, 0, 0), r));
+        // sem a vertical não há alvo, mesmo com velocidade
+        assertNull(AttitudeMath.sasTarget(SasMode.HORIZONTAL, new V3(0, 0, 25)));
+        assertNull(AttitudeMath.sasTarget(SasMode.HORIZONTAL, new V3(0, 0, 25), null));
+        assertNull(AttitudeMath.sasTarget(SasMode.HORIZONTAL, new V3(0, 0, 25), V3.ZERO));
     }
 
     @Test

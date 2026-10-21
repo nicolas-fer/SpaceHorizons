@@ -38,9 +38,12 @@ public final class AttitudeMath {
     /** Eixo do nariz (e do empuxo) no referencial do corpo do foguete. */
     public static final V3 NOSE = new V3(0.0, 1.0, 0.0);
 
-    /** Modos do SAS na ordem do ciclo da tecla T: desligado → estabilizar → prógrado → retrógrado. */
+    /**
+     * Modos do SAS na ordem do ciclo da tecla T: desligado → estabilizar → prógrado → retrógrado → horizontal. Os números
+     * (o byte sincronizado e salvo) seguem a ordem da declaração: {@link #HORIZONTAL} entrou no fim.
+     */
     public enum SasMode {
-        OFF, STABILIZE, PROGRADE, RETROGRADE;
+        OFF, STABILIZE, PROGRADE, RETROGRADE, HORIZONTAL;
 
         /** Próximo modo do ciclo da tecla. */
         public SasMode next() {
@@ -153,8 +156,30 @@ public final class AttitudeMath {
      * Direção que o SAS quer para o nariz, nos eixos de {@code velocity}: prógrado = a velocidade, retrógrado = o
      * oposto. {@code null} para desligado e estabilizar (que só seguram a atitude atual) e para velocidade quase nula.
      * Use a velocidade relativa ao chão perto da superfície e a orbital no espaço.
+     * <p>
+     * Sem a vertical ({@code up} nulo), o modo horizontal não tem alvo e devolve {@code null}.
      */
     public static @Nullable V3 sasTarget(SasMode mode, V3 velocity) {
+        return sasTarget(mode, velocity, null);
+    }
+
+    /**
+     * O mesmo que {@link #sasTarget(SasMode, V3)}, com a direção radial para fora {@code up} (do centro do corpo dominante até
+     * o veículo, no mesmo referencial de {@code velocity}). O modo {@link SasMode#HORIZONTAL} aponta o nariz para a horizontal
+     * local no sentido do movimento: {@code h = v − (v·û)û}, com {@code û} = {@code up} unitário, e o alvo é {@code h.unit()}.
+     * Em órbita circular o alvo é o prógrado; numa órbita excêntrica, fora do apoastro e do periastro, ele é perpendicular ao
+     * radial, mas não é o prógrado. Se {@code |h|} é quase nulo (subida vertical, velocidade radial pura) ou falta {@code up},
+     * devolve {@code null}: o SAS segura a atitude atual, como no estabilizar.
+     */
+    public static @Nullable V3 sasTarget(SasMode mode, V3 velocity, @Nullable V3 up) {
+        if (mode == SasMode.HORIZONTAL) {
+            if (up == null || up.length() < 1.0e-9) {
+                return null;
+            }
+            V3 radial = up.unit();
+            V3 horizontal = velocity.minus(radial.times(velocity.dot(radial)));
+            return horizontal.length() < 1.0e-6 * Math.max(1.0, velocity.length()) ? null : horizontal.unit();
+        }
         if ((mode != SasMode.PROGRADE && mode != SasMode.RETROGRADE) || velocity.length() < 1.0e-6) {
             return null;
         }

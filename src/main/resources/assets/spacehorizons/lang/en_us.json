@@ -207,6 +207,7 @@
   "hud.spacehorizons.rocket.sas.stabilize": "Stabilize",
   "hud.spacehorizons.rocket.sas.prograde": "Prograde",
   "hud.spacehorizons.rocket.sas.retrograde": "Retrograde",
+  "hud.spacehorizons.rocket.sas.horizontal": "Horizontal",
   "hud.spacehorizons.rocket.mode.landed": "Landed",
   "hud.spacehorizons.rocket.mode.flight": "In flight",
   "hud.spacehorizons.rocket.mode.parachute": "Parachute",

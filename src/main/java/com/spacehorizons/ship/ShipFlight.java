@@ -170,7 +170,7 @@ public final class ShipFlight {
         FlightState orbit = s.orbit();
         // arfagem e guinada com o sinal trocado (ver a documentação da classe)
         AttitudeControl.Result att = AttitudeControl.step(s.attitude(), s.spin(), sas, -c.pitch(), -c.yaw(), c.roll(),
-                AttitudeMath.sasTarget(sas, orbit.v()));
+                AttitudeMath.sasTarget(sas, orbit.v(), orbit.r()));
         Control control = new Control(throttle, thrustDirection(att.attitude(), thrustAxis), false);
         FlightState moved = FlightIntegrator.step(orbit, control, stats, clock);
         moved = SoiTracker.update(moved, clock + clockRate, clockRate);

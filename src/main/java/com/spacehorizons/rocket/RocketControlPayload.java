@@ -31,7 +31,7 @@ public record RocketControlPayload(float pitch, float yaw, float roll, float thr
             ByteBufCodecs.BYTE, RocketControlPayload::flags,
             RocketControlPayload::new);
 
-    /** Passa para o próximo modo do SAS (desligado, estabilizar, prógrado, retrógrado). */
+    /** Passa para o próximo modo do SAS (desligado, estabilizar, prógrado, retrógrado, horizontal). */
     public static final int FLAG_NEXT_SAS = 1;
     public static final int FLAG_PARACHUTE = 1 << 1;
     /** Pedido de desmontar (pousar de volta a blocos), só com o foguete pousado. */

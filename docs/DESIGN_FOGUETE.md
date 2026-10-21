@@ -24,7 +24,7 @@ Base: `docs/PLANO_SOBREVIVENCIA.md` e as pesquisas em `docs/pesquisa/foguete-*.m
 | Batida | O foguete se desfaz: os blocos caem como itens no ponto da batida (sem explosão de terreno), o piloto toma dano proporcional à velocidade (como queda). |
 | Desmontagem | Só pousado, de pé, com o comando "desmontar" do piloto: yaw arredondado a 90°, blocos recolocados em dois passes; recusa se o espaço estiver ocupado por bloco não substituível. |
 | Paraquedas | Bloco `rocket_parachute`; abre manualmente (tecla) só com `ρ > 0` (atmosfera) e `|v| < 8 b/t`, rampa de 80 ticks. |
-| Teclas (padrão) | W/S arfagem, A/D guinada, Q/E rolagem, Shift/Ctrl acelerador ±, Z cheio, X corta, T SAS (desligado → estabilizar → prógrado → retrógrado), P paraquedas, G desmontar (pousado), V câmera. Shift **não** desmonta dentro do foguete. |
+| Teclas (padrão) | W/S arfagem, A/D guinada, Q/E rolagem, Shift/Ctrl acelerador ±, Z cheio, X corta, T SAS (desligado → estabilizar → prógrado → retrógrado → horizontal), P paraquedas, G desmontar (pousado), V câmera. Shift **não** desmonta dentro do foguete. |
 | Painel (HUD) | Altitude, velocidade vertical e horizontal (ao chão), velocidade orbital, apoastro/periastro (altitudes), inclinação, combustível (mB e Δv restante), TWR, acelerador, modo SAS, corpo dominante, aviso de calor, e o "planejador" da Lua (ângulo de fase atual vs. ideal e a indicação "queime agora para leste"). A velocidade vertical e a horizontal são relativas ao CHÃO (que gira); a velocidade orbital é a inercial (em I). |
 
 ## 2. Pacotes e contratos
