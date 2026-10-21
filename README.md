@@ -204,7 +204,8 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
   (o retrato grande vai ao cliente em partes). Autoteste: `./gradlew runClientTest -PshOnly=multiblock`.
 
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
-(estabilizar, prógrado, retrógrado), P paraquedas, V câmera, G desmontar (pousado).
+(estabilizar, prógrado, retrógrado, horizontal), P paraquedas, V câmera, G desmontar (pousado). O SAS horizontal aponta o nariz
+para a horizontal local no sentido do movimento (no espaço, perpendicular ao radial); na subida vertical ele segura a atitude.
 
 Autoteste do voo: `./gradlew runClientTest -PshOnly=flight` (salto suborbital, batida, órbita completa com reentrada e o voo D, a mesma descida sem o freio de horizontal no espaço).
 
@@ -471,7 +472,8 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
   (o retrato grande vai ao cliente em partes). Autoteste: `./gradlew runClientTest -PshOnly=multiblock`.
 
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
-(estabilizar, prógrado, retrógrado), P paraquedas, V câmera, G desmontar (pousado).
+(estabilizar, prógrado, retrógrado, horizontal), P paraquedas, V câmera, G desmontar (pousado). O SAS horizontal aponta o nariz
+para a horizontal local no sentido do movimento (no espaço, perpendicular ao radial); na subida vertical ele segura a atitude.
 
 Autoteste do voo: `./gradlew runClientTest -PshOnly=flight` (salto suborbital, batida, órbita completa com reentrada e o voo D, a mesma descida sem o freio de horizontal no espaço).
 

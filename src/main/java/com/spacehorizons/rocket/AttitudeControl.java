@@ -16,8 +16,9 @@ import com.spacehorizons.space.flight.V3;
  * <ul>
  *   <li>{@code OFF}: o giro persiste; o comando muda a taxa do eixo comandado.</li>
  *   <li>{@code STABILIZE}: os eixos sem comando são freados até parar (segura a atitude).</li>
- *   <li>{@code PROGRADE}/{@code RETROGRADE}: sem comando algum do piloto, aponta o nariz para o alvo (velocidade ou o
- *       oposto) por {@link AttitudeMath#slewNoseToward}; com comando, o piloto manda e os eixos livres são freados.</li>
+ *   <li>{@code PROGRADE}/{@code RETROGRADE}/{@code HORIZONTAL}: sem comando algum do piloto, aponta o nariz para o alvo
+ *       (velocidade, o oposto, ou a horizontal local) por {@link AttitudeMath#slewNoseToward}; com comando, o piloto manda e
+ *       os eixos livres são freados. Sem alvo (horizontal na subida vertical), age como estabilizar.</li>
  * </ul>
  *
  * O giro é um vetor {@link V3} em eixos do corpo: x = arfagem, y = rolagem, z = guinada (radianos por tick).
@@ -44,7 +45,7 @@ public final class AttitudeControl {
     public static Result step(Quaterniondc attitude, V3 spin, SasMode sas, double pitch, double yaw, double roll,
             @Nullable V3 sasTarget) {
         boolean manual = Math.abs(pitch) > DEADZONE || Math.abs(yaw) > DEADZONE || Math.abs(roll) > DEADZONE;
-        if (!manual && sasTarget != null && (sas == SasMode.PROGRADE || sas == SasMode.RETROGRADE)) {
+        if (!manual && sasTarget != null && (sas == SasMode.PROGRADE || sas == SasMode.RETROGRADE || sas == SasMode.HORIZONTAL)) {
             return new Result(AttitudeMath.slewNoseToward(attitude, sasTarget, MAX_SPIN), V3.ZERO);
         }
         boolean damp = sas != SasMode.OFF;

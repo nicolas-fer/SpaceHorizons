@@ -303,7 +303,7 @@ final class RocketFlightController {
 
     /** A nave cruzou a altitude de saída: a entidade vira blocos no estaleiro, e o voo dela (no instante da troca) vira o da nave. */
     private static void requestYard(ServerLevel level, RocketEntity rocket, Snapshot next, ServerPlayer pilot) {
-        ShipFlight.State flight = ShipAscent.flightState(next.state(), next.attitude(), next.spin(), next.sas(), next.throttle());
+        ShipFlight.State flight = ShipAscent.flightState(next.state(), next.attitude(), next.spin(), next.sas());
         try {
             int id = ShipConversions.startRocketToYard(level, rocket, flight);
             SpaceHorizons.LOGGER.info("Nave {} cruzou a altitude de saída (altitude {} blocos): a conversão para o estaleiro começou", id,

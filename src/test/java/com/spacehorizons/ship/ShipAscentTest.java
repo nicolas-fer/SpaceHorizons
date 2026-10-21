@@ -37,10 +37,11 @@ class ShipAscentTest {
         Quaterniond attitude = new Quaterniond(0.0, 0.0, 0.0, 1.0);
         V3 spin = new V3(0.1, 0.2, 0.3);
 
-        ShipFlight.State state = ShipAscent.flightState(orbit, attitude, spin, SasMode.OFF, 0.75);
+        ShipFlight.State state = ShipAscent.flightState(orbit, attitude, spin, SasMode.OFF);
 
         assertSame(orbit, state.orbit());
-        assertEquals(0.75, state.throttle(), EPS);
+        // o acelerador é cortado na troca: a nave começa com 0 (o piloto religa)
+        assertEquals(0.0, state.throttle(), EPS);
         assertEquals(SasMode.OFF, state.sas());
         assertEquals(0.2, state.spin().y(), EPS);
         assertEquals(1.0, state.attitude().w, EPS);

@@ -157,7 +157,7 @@ public final class FlightMachine {
         SolarSystem.Body zone = cur.zoneBody();
         V3 reference = zone != null ? state.v().minus(FrameBridge.rotationVelocity(state.body(), clock, clockRate, state.r())) : state.v();
         AttitudeControl.Result att = AttitudeControl.step(cur.attitude(), cur.spin(), sas, c.pitch(), c.yaw(), c.roll(),
-                AttitudeMath.sasTarget(sas, reference));
+                AttitudeMath.sasTarget(sas, reference, state.r()));
         boolean wantsChute = cur.chuteRequested() || c.parachute();
         Control control = new Control(throttle, AttitudeMath.noseDirection(att.attitude()), wantsChute);
         FlightState moved = FlightIntegrator.step(state, control, stats, clock);

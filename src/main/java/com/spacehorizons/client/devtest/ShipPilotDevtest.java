@@ -126,6 +126,14 @@ final class ShipPilotDevtest {
             double angle = Math.toDegrees(2.0 * Math.acos(Math.min(1.0, dot)));
             speeds.add(new double[] {angle / dt, dt});
         }
+        // quadros atrasados pelo SO (intervalo acima de 3 vezes a mediana) saem da medição; o intervalo do quadro é o tempo real (nanoTime)
+        double[] dts = speeds.stream().mapToDouble(s -> s[1]).sorted().toArray();
+        final double median = dts.length == 0 ? 0.0 : dts[dts.length / 2];
+        int before = speeds.size();
+        speeds.removeIf(s -> s[1] > 3.0 * median);
+        SpaceHorizons.LOGGER.info(TAG + "TREMOR intervalos entre quadros (ms): minimo {}, mediano {}, maximo {}; descartados {} quadros atrasados (acima de 3x a mediana)",
+                String.format(Locale.ROOT, "%.1f", dts.length == 0 ? 0.0 : dts[0] * 1000.0), String.format(Locale.ROOT, "%.1f", median * 1000.0),
+                String.format(Locale.ROOT, "%.1f", dts.length == 0 ? 0.0 : dts[dts.length - 1] * 1000.0), before - speeds.size());
         // a janela de giro constante: os quadros do meio do giro (do 25% ao 75% do ângulo total percorrido); a rampa de aceleração e a de freada ficam fora
         double total = 0.0;
         for (double[] s : speeds) {
