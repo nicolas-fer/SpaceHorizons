@@ -68,6 +68,16 @@ final class ShipAscentDevtest {
     private static double freezeAltitude = Double.NaN;
     private static double freezeSpeed = Double.NaN;
     private static double freezeFuel = Double.NaN;
+    /** O piloto de missão (virada de gravidade, {@link MissionPilot}) que sobe a nave até a troca. */
+    private static MissionPilot pilot;
+    /** Acelerador máximo da subida: a nave de teste tem que chegar à altitude de saída em órbita ligada, não em fuga. */
+    static final double ASCENT_THROTTLE = 0.5;
+    /** Ticks depois da troca em que a conferência de estabilidade (mB dos tanques e acelerador) roda. */
+    static final int SETTLE_TICKS = 100;
+    private static boolean tradeDone;
+    private static int settleTicks;
+    private static int tradeTankMb;
+    private static ShipRecord tradeRec;
 
     private ShipAscentDevtest() {
     }
@@ -135,6 +145,8 @@ final class ShipAscentDevtest {
                 return;
             }
             armed = true;
+            pilot = new MissionPilot(ship.stats(), ship.portrait().sizeY / 2.0, (body, x, z) -> Double.NaN,
+                    line -> SpaceHorizons.LOGGER.info(TAG + line));
             if (!registered) {
                 registered = true;
                 NeoForge.EVENT_BUS.addListener(ServerTickEvent.Pre.class, e -> tick(e.getServer()));
@@ -150,14 +162,30 @@ final class ShipAscentDevtest {
             return;
         }
         ServerPlayer player = server.getPlayerList().getPlayers().get(0);
+        if (tradeDone) {
+            // depois da troca: a conferência de estabilidade roda SETTLE_TICKS ticks depois (ver settle)
+            if (++settleTicks >= SETTLE_TICKS) {
+                done = true;
+                settle(server);
+                FlightDevtest.mark("sa_done");
+            }
+            return;
+        }
         if (!ship.isRemoved() && !ShipConversions.isFrozen(ship)) {
             if (!(player.getVehicle() instanceof RocketEntity r && r == ship)) {
                 riddenAll = false;
             }
             climbTicks++;
-            ship.applyControl(new RocketControlPayload(0.0F, 0.0F, 0.0F, 1.0F, (byte) 0));
+            // a virada de gravidade do piloto de missão, com o acelerador limitado a ASCENT_THROTTLE (órbita ligada, não fuga)
+            var snap = ship.flight().snapshot();
+            if (snap != null) {
+                MissionPilot.Out out = pilot.step(snap, SpaceClock.ticks(server.overworld()));
+                int flags = out.nextSas() ? RocketControlPayload.FLAG_NEXT_SAS : 0;
+                ship.applyControl(new RocketControlPayload((float) out.pitch(), (float) out.yaw(), 0.0F,
+                        (float) Math.min(out.throttle(), ASCENT_THROTTLE), (byte) flags));
+            }
             // pousada, o estado de voo é nulo: altitude 0 até decolar
-            FlightState now = ship.flight().snapshot().state();
+            FlightState now = snap == null ? null : snap.state();
             double alt = now == null ? 0.0 : altitudeOf(now);
             maxAltitude = Math.max(maxAltitude, alt);
             double half = Zones.exitAltitude(SolarSystem.EARTH.planet()) / 2.0;
@@ -190,10 +218,48 @@ final class ShipAscentDevtest {
             FlightDevtest.mark("sa_frozen");
         }
         if (ship.isRemoved()) {
-            done = true;
             verify(server, player);
-            FlightDevtest.mark("sa_done");
+            tradeDone = true;
         }
+    }
+
+    /** Os mB dos tanques da caixa da nave no estaleiro: {quantidade de tanques, mB somados}. */
+    private static int[] tanksMb(ServerLevel yard, ShipYard.Box box) {
+        int tanks = 0;
+        int mb = 0;
+        for (int x = 0; x < box.sizeX(); x++) {
+            for (int y = 0; y < box.sizeY(); y++) {
+                for (int z = 0; z < box.sizeZ(); z++) {
+                    BlockEntity be = yard.getBlockEntity(new BlockPos(box.minX() + x, box.minY() + y, box.minZ() + z));
+                    if (be instanceof RocketFuelTankBlockEntity tank) {
+                        tanks++;
+                        mb += tank.fuelMb();
+                    }
+                }
+            }
+        }
+        return new int[] {tanks, mb};
+    }
+
+    /**
+     * A conferência de estabilidade, {@link #SETTLE_TICKS} ticks depois da troca: os mB dos tanques continuam iguais aos do instante da troca
+     * (a nave parada não gasta combustível) e o acelerador do voo virtual segue em 0.
+     */
+    private static void settle(MinecraftServer server) {
+        if (tradeRec == null) {
+            return;
+        }
+        ServerLevel yard = ShipYard.level(server);
+        if (yard == null) {
+            check("estaleiro existe depois da troca", false, "sem dimensão do estaleiro");
+            return;
+        }
+        int[] now = tanksMb(yard, tradeRec.box());
+        check("mB dos tanques iguais " + SETTLE_TICKS + " ticks depois da troca (" + tradeTankMb + " mB no instante)", now[1] == tradeTankMb,
+                "agora " + now[1] + " mB em " + now[0] + " tanques");
+        ShipFlightTicker.Live live = ShipFlightTicker.live(tradeRec.id());
+        check("acelerador 0 no voo virtual " + SETTLE_TICKS + " ticks depois da troca", live != null && live.state().throttle() == 0.0,
+                live == null ? "sem voo" : "acelerador " + f(live.state().throttle()));
     }
 
     /** As conferências depois da troca: a nave no estaleiro com os blocos, o baú, os tanques, a coluna, o piloto e o voo virtual. */
@@ -244,6 +310,8 @@ final class ShipAscentDevtest {
                 }
             }
         }
+        tradeRec = rec;
+        tradeTankMb = tankMb;
         check("blocos: " + ShipGroundDevtest.EXPECTED_BLOCKS + " no estaleiro (igual à nave no chão)", blocks == ShipGroundDevtest.EXPECTED_BLOCKS,
                 "blocos " + blocks);
         check("baú: " + GROUND_DIAMONDS + " diamantes e " + GROUND_IRON + " ferros, como no chão", diamonds == GROUND_DIAMONDS && iron == GROUND_IRON,
@@ -262,6 +330,8 @@ final class ShipAscentDevtest {
         if (live == null) {
             return;
         }
+        check("acelerador 0 no voo virtual logo após a troca (o piloto religa se quiser)", live.state().throttle() == 0.0,
+                "acelerador " + f(live.state().throttle()));
         double alt = altitudeOf(live.state().orbit());
         double speed = live.state().orbit().v().length();
         // o tick do job e os ticks de voo até a conferência andam a nave: a tolerância da altitude são 2 ticks de deslocamento na velocidade da troca
@@ -270,10 +340,16 @@ final class ShipAscentDevtest {
         double speedErr = Math.abs(speed - freezeSpeed) / Math.max(1.0e-9, freezeSpeed);
         check("estado coerente: altitude " + f(alt) + " vs " + f(freezeAltitude) + " blocos (tolerância " + f(altTol) + ")", altErr <= altTol, "diferença " + f(altErr) + " blocos");
         check("estado coerente: velocidade " + f(speed) + " vs " + f(freezeSpeed) + " b/t", speedErr <= SPEED_TOLERANCE, "erro relativo " + f(speedErr * 100) + "%");
+        // a órbita kepleriana do estado virtual logo após a troca; Orbit guarda distâncias ao centro do corpo, então a altitude é menos o raio
         Orbit orbit = Orbit.of(live.state().orbit(), SpaceClock.ticks(server.overworld()));
-        SpaceHorizons.LOGGER.info("{}ORBITA: apoapse {} periapse {} (ligada: {}), altitude máxima da subida {} blocos", TAG, f(orbit.apoapsis()),
-                f(orbit.periapsis()), orbit.bound(), f(maxAltitude));
-        // apoapse infinita = órbita não ligada (hiperbólica): a conferência é só o periapse, que tem que ser um número",
-        check("órbita calculada (periapse registrado; apoapse " + (orbit.bound() ? "finita" : "infinita, não ligada") + ")", !Double.isNaN(orbit.periapsis()), "peri " + f(orbit.periapsis()));
+        double radius = live.state().orbit().body().planet().radius();
+        double apoAlt = orbit.bound() ? orbit.apoapsis() - radius : Double.POSITIVE_INFINITY;
+        double periAlt = orbit.periapsis() - radius;
+        SpaceHorizons.LOGGER.info("{}ORBITA: apoapse {} periapse {} (altitudes sobre a superfície; ligada: {}), altitude máxima da subida {} blocos", TAG,
+                f(apoAlt), f(periAlt), orbit.bound(), f(maxAltitude));
+        check("órbita ligada: apoapse finita, " + f(apoAlt) + " blocos de altitude (Orbit.of do estado virtual; apoapse = distância ao centro - raio)",
+                orbit.bound() && Double.isFinite(apoAlt), "apoapse " + f(apoAlt));
+        check("periapse acima da superfície: " + f(periAlt) + " blocos de altitude (Orbit.of do estado virtual; periapse = distância ao centro - raio)",
+                periAlt > 0.0, "periapse " + f(periAlt));
     }
 }
