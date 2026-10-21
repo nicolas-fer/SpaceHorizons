@@ -45,3 +45,6 @@ run-client.log
 
 # arquivos de trabalho da geração de texturas (brutos do Gemini, variantes, folhas de comparação)
 art/_work/
+
+# transcrições de chat (locais, grandes)
+TRANSCRICAO_CHAT.*
