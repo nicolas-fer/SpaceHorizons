@@ -36,7 +36,7 @@ public final class ShipAssembler {
             player.sendSystemMessage(Component.translatable("message.spacehorizons.ship.assembled", portrait.blockCount(),
                     String.format(Locale.ROOT, "%.1f", portrait.stats().dryMassT()),
                     String.format(Locale.ROOT, "%.0f", ship.fuelMb())));
-            player.startRiding(ship);
+            player.startRiding(ship, true, true);
         } catch (RocketException e) {
             player.sendSystemMessage(e.component());
         }
