@@ -125,6 +125,16 @@ final class ShipAscentDevtest {
         SpaceHorizons.LOGGER.info(TAG + "RESUMO: {} verificações passaram, {} falharam", passed, failed);
     }
 
+    /** Id da nave virtual da troca (-1 antes da troca); a descida (ShipDescentDevtest) parte dela. */
+    static int tradeShipId() {
+        return tradeRec == null ? -1 : tradeRec.id();
+    }
+
+    /** A entidade da nave montada no chão (null antes da montagem). */
+    static RocketEntity shipEntity() {
+        return ship;
+    }
+
     private static String f(double v) {
         return String.format(Locale.ROOT, "%.2f", v);
     }
@@ -302,6 +312,11 @@ final class ShipAscentDevtest {
         ShipFlightTicker.Live live = ShipFlightTicker.live(tradeRec.id());
         check("acelerador 0 no voo virtual " + SETTLE_TICKS + " ticks depois da troca", live != null && live.state().throttle() == 0.0,
                 live == null ? "sem voo" : "acelerador " + f(live.state().throttle()));
+        // o assento do piloto na ponte não tem bloco de assento embaixo: antes ele sumia em 5 ticks e o piloto ficava em pé (a descida recusava)
+        var players = server.getPlayerList().getPlayers();
+        boolean seated = !players.isEmpty() && players.get(0).getVehicle() instanceof ShipSeatEntity;
+        check("piloto ainda sentado na ponte " + SETTLE_TICKS + " ticks depois da troca", seated,
+                players.isEmpty() ? "sem jogador" : "veículo " + players.get(0).getVehicle());
     }
 
     /** As conferências depois da troca: a nave no estaleiro com os blocos, o baú, os tanques, a coluna, o piloto e o voo virtual. */

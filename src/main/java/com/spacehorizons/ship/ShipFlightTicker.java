@@ -177,6 +177,12 @@ public final class ShipFlightTicker {
         }
     }
 
+    /** Só dev: a descida da nave já começou (a conversão de volta para a entidade entrou na fila). */
+    public static boolean devtestDescentStarted(int shipId) {
+        Live live = LIVE.get(shipId);
+        return live != null && live.descentStarted;
+    }
+
     static String describe(Live live) {
         FlightState o = live.state.orbit();
         return String.format(Locale.ROOT, "corpo=%s r=%.0f altitude=%.0f v=%.3f b/t combustível=%.0f mB massa seca=%.2f t empuxo=%.1f proa=%d", o.body().planet().id().getPath(),

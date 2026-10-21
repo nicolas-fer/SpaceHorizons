@@ -44,7 +44,7 @@ public final class ShipAscent {
      * {@link ShipPilots#pilotOf} procura. Devolve se sentou.
      */
     public static boolean sitPilot(ServerLevel yard, ServerPlayer pilot, Vec3 at) {
-        ShipSeatEntity seat = new ShipSeatEntity(ModEntities.SHIP_SEAT.get(), yard);
+        ShipSeatEntity seat = ShipSeatEntity.free(yard);
         seat.setPos(at.x, at.y, at.z);
         yard.addFreshEntity(seat);
         return pilot.startRiding(seat);

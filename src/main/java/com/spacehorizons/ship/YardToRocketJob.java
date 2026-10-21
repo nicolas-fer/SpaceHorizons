@@ -325,7 +325,7 @@ final class YardToRocketJob extends ConversionJob {
         this.cursor = 0;
         this.phase = Phase.CLEAR;
         SpaceHorizons.LOGGER.info("[ship-conv] nave {}: foguete recriado em {} {} ({} blocos, pacote do retrato {} bytes), removendo os blocos do estaleiro", this.shipId,
-                dest.dimension().identifier(), this.snapshot.center(), portrait.blockCount(), this.packetBytes);
+                dest.dimension().identifier(), at, portrait.blockCount(), this.packetBytes);
     }
 
     /** Leva quem está na nave para o foguete: o piloto (quem estava a bordo, ou o primeiro jogador) senta, os outros ficam ao lado dele. */
