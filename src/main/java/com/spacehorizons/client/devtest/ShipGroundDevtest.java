@@ -55,6 +55,16 @@ final class ShipGroundDevtest {
     /** Blocos esperados da nave grande: 25 do piso (com a ponte, 4+1 bocais), 16 tanques, assento e baú. */
     static final int EXPECTED_BLOCKS = 43;
     static final int TANK_COUNT = 16;
+    /** Colunas extras de tanques 2x2x4 ao lado da padrão: só o shipascent usa (mais combustível para a circularização). A nave padrão fica igual. */
+    static int extraColumns;
+    /** Blocos da nave com as colunas extras ({@link #EXPECTED_BLOCKS} na nave padrão, mais 16 por coluna extra). */
+    static int expectedBlocks() {
+        return EXPECTED_BLOCKS + TANK_COUNT * extraColumns;
+    }
+    /** Tanques da nave com as colunas extras. */
+    static int tankCount() {
+        return TANK_COUNT * (1 + extraColumns);
+    }
     /** Altura mínima da subida (blocos). */
     static final double MIN_CLIMB = 500.0;
 
@@ -122,6 +132,12 @@ final class ShipGroundDevtest {
 
     /** Limpa a área, põe a plataforma (y = BASE.y) e constrói a nave grande e a ponte pequena. */
     static void build(Minecraft mc) {
+        build(mc, 0);
+    }
+
+    /** Igual a {@link #build(Minecraft)}, com {@code extra} colunas de tanques a mais (ver {@link #extraColumns}). */
+    static void build(Minecraft mc, int extra) {
+        extraColumns = extra;
         onServer(mc, "construção", (server, level, player) -> {
             for (RocketEntity old : level.getEntitiesOfClass(RocketEntity.class, new AABB(BASE).inflate(200.0))) {
                 old.discard();
@@ -153,14 +169,14 @@ final class ShipGroundDevtest {
             put(level, BASE, 2, 1, 0, nozzle(Direction.EAST));
             // coluna de tanques 2x2x4 (y = 2..5) sobre o piso, conectada e cheia
             for (int y = 2; y <= 5; y++) {
-                for (int x = -2; x <= -1; x++) {
+                for (int x = -2 - 2 * extraColumns; x <= -1; x++) {
                     for (int z = -2; z <= -1; z++) {
                         put(level, BASE, x, y, z, ModBlocks.ROCKET_FUEL_TANK.get().defaultBlockState());
                     }
                 }
             }
             for (int y = 2; y <= 5; y++) {
-                for (int x = -2; x <= -1; x++) {
+                for (int x = -2 - 2 * extraColumns; x <= -1; x++) {
                     for (int z = -2; z <= -1; z++) {
                         BlockPos pos = BASE.offset(x, y, z);
                         ConnectedFaces.connectAround(level, pos, ModBlocks.ROCKET_FUEL_TANK.get(), RocketFuelTankBlock.rule());
@@ -184,7 +200,7 @@ final class ShipGroundDevtest {
             shipCells = found == null ? List.of() : found.cells().stream().map(c -> new BlockPos(c.x(), c.y(), c.z())).toList();
             int tanks = 0;
             for (int y = 2; y <= 5; y++) {
-                for (int x = -2; x <= -1; x++) {
+                for (int x = -2 - 2 * extraColumns; x <= -1; x++) {
                     for (int z = -2; z <= -1; z++) {
                         tanks += level.getBlockEntity(BASE.offset(x, y, z)) instanceof RocketFuelTankBlockEntity t && t.fuelMb() == 4000 ? 1 : 0;
                     }
@@ -197,12 +213,12 @@ final class ShipGroundDevtest {
             }
             horizontal += level.getBlockState(BASE.offset(2, 1, 0)).getValue(ShipImpulseEngineBlock.FACING) == Direction.EAST ? 1 : 0;
             SpaceHorizons.LOGGER.info("{}CONSTRUÍDO: {} blocos achados pela busca (esperados {}), bocais para baixo {}, horizontal {}, tanques cheios {}",
-                    TAG, shipCells.size(), EXPECTED_BLOCKS, down, horizontal, tanks);
-            check("construção: a busca acha a nave com " + EXPECTED_BLOCKS + " blocos", shipCells.size() == EXPECTED_BLOCKS,
+                    TAG, shipCells.size(), expectedBlocks(), down, horizontal, tanks);
+            check("construção: a busca acha a nave com " + expectedBlocks() + " blocos", shipCells.size() == expectedBlocks(),
                     "achados " + shipCells.size());
             check("construção: 4 bocais de impulso para baixo e 1 horizontal no mundo", down == 4 && horizontal == 1,
                     "baixo " + down + ", horizontal " + horizontal);
-            check("construção: " + TANK_COUNT + " tanques cheios (4.000 mB cada)", tanks == TANK_COUNT, "cheios " + tanks);
+            check("construção: " + tankCount() + " tanques cheios (4.000 mB cada)", tanks == tankCount(), "cheios " + tanks);
         });
     }
 
@@ -249,10 +265,10 @@ final class ShipGroundDevtest {
             }
             RocketPortrait portrait = ship.portrait();
             check("montagem: a entidade é uma nave (isShip)", ship.isShip(), "isShip=" + ship.isShip());
-            check("retrato: " + EXPECTED_BLOCKS + " blocos", portrait.blockCount() == EXPECTED_BLOCKS && portrait.blockCount() == shipCells.size(),
+            check("retrato: " + expectedBlocks() + " blocos", portrait.blockCount() == expectedBlocks() && portrait.blockCount() == shipCells.size(),
                     "retrato " + portrait.blockCount() + " de " + shipCells.size());
-            double tankMb = TANK_COUNT * 4000.0;
-            check("retrato: " + TANK_COUNT + " tanques com " + (int) tankMb + " mB (inclusive a coluna 2x2x4)",
+            double tankMb = tankCount() * 4000.0;
+            check("retrato: " + tankCount() + " tanques com " + (int) tankMb + " mB (inclusive a coluna 2x2x4)",
                     portrait.fuelInTanksMb() == (int) tankMb && Math.abs(ship.fuelMb() - tankMb) < 1.0,
                     "retrato " + portrait.fuelInTanksMb() + " mB, entidade " + f(ship.fuelMb()) + " mB");
             check("retrato: coluna de tanques formada (multibloco 2x2x4)", portrait.census().tankStructures().size() == 1,
