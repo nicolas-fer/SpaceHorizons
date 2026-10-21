@@ -196,6 +196,12 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
   clique com a mão vazia no cockpit e a estrutura vira uma entidade que sobe inteira. Voo pilotável no estilo KSP simplificado
   (gravidade real, SAS, apoastro e periastro no painel), travessia para a dimensão de espaço com o piloto sentado, paraquedas,
   pouso suave e batida que destrói o foguete.
+- **Multiblocos, painel de projeto e foguetes grandes** (etapa 1 do `docs/PLANO_TIERS.md`, detalhes e números em `docs/DESIGN_FOGUETE.md`):
+  tanques formam colunas 1 a 3 de lado e 4 a 12 de altura (capacidade pelo volume, casco mais leve quanto maior, textura conectada, o combustível é da
+  estrutura) e motores formam cubos 2x2x2 e 3x3x3 (mais empuxo e Isp por massa; o bloco mestre desenha o modelo). Na `launch_pad`, olhar de mão vazia
+  (ou clicar para fixar) abre o painel de projeto: massa, empuxo, TWR, Δv e o destino que o foguete alcança (não decola, salto suborbital, órbita, Lua e
+  volta, Lua pouso e volta), com os problemas apontados no bloco certo; usa o mesmo cálculo da montagem. O foguete aceita até 8.192 blocos e 128 x 256 x 128
+  (o retrato grande vai ao cliente em partes). Autoteste: `./gradlew runClientTest -PshOnly=multiblock`.
 
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
 (estabilizar, prógrado, retrógrado), P paraquedas, V câmera, G desmontar (pousado).
@@ -442,6 +448,12 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
   clique com a mão vazia no cockpit e a estrutura vira uma entidade que sobe inteira. Voo pilotável no estilo KSP simplificado
   (gravidade real, SAS, apoastro e periastro no painel), travessia para a dimensão de espaço com o piloto sentado, paraquedas,
   pouso suave e batida que destrói o foguete.
+- **Multiblocos, painel de projeto e foguetes grandes** (etapa 1 do `docs/PLANO_TIERS.md`, detalhes e números em `docs/DESIGN_FOGUETE.md`):
+  tanques formam colunas 1 a 3 de lado e 4 a 12 de altura (capacidade pelo volume, casco mais leve quanto maior, textura conectada, o combustível é da
+  estrutura) e motores formam cubos 2x2x2 e 3x3x3 (mais empuxo e Isp por massa; o bloco mestre desenha o modelo). Na `launch_pad`, olhar de mão vazia
+  (ou clicar para fixar) abre o painel de projeto: massa, empuxo, TWR, Δv e o destino que o foguete alcança (não decola, salto suborbital, órbita, Lua e
+  volta, Lua pouso e volta), com os problemas apontados no bloco certo; usa o mesmo cálculo da montagem. O foguete aceita até 8.192 blocos e 128 x 256 x 128
+  (o retrato grande vai ao cliente em partes). Autoteste: `./gradlew runClientTest -PshOnly=multiblock`.
 
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
 (estabilizar, prógrado, retrógrado), P paraquedas, V câmera, G desmontar (pousado).

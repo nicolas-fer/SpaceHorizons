@@ -63,7 +63,7 @@ public final class LandingRules { static Outcome contact(double vVertical, doubl
 ### 2.2 `com.spacehorizons.rocket` (conteúdo e entidade; comum)
 
 - Blocos (em `ContentIds` e na tag `spacehorizons:rocket_parts`): `launch_pad`, `rocket_cockpit` (assento; ponto de montagem e de câmera), `rocket_engine` (aponta para baixo do foguete), `rocket_fuel_tank` (guarda mB; enche com galão por clique), `rocket_parachute`, `rocket_landing_leg`, `rocket_hull` (casco de aço). Qualquer outro bloco ligado também entra no retrato como estrutura (massa padrão), exceto a tag `spacehorizons:rocket_forbidden` (bedrock, blocos com dureza −1, fluidos).
-- `RocketAssembly`: BFS a partir do cockpit por faces, para nos blocos `launch_pad` e no ar; teto de 1.024 blocos e 100.000 iterações; valida tudo antes de remover (exceções tipadas com mensagem traduzível: sem motor, sem tanque, sem cockpit, grande demais, encostado em terreno, bloco proibido, chunk não carregado, pacote grande demais).
+- `RocketAssembly`: BFS a partir do cockpit por faces, para nos blocos `launch_pad` e no ar; teto de 8.192 blocos, caixa de 128 x 256 x 128 e 400.000 iterações (eram 1.024 blocos e 64 de lado até a etapa 1 dos tiers; ver "Multiblocos, retrato grande e painel de projeto"); valida tudo antes de remover (exceções tipadas com mensagem traduzível: sem motor, sem tanque, sem cockpit, grande demais, encostado em terreno, bloco proibido, chunk não carregado, retrato grande demais).
 - `RocketPortrait`: retrato denso (tamanho X·Y·Z, paleta de BlockState, NBT de block entities sem x/y/z), `id` estável (UUID), NBT com paleta e `Pos` em long, codec de rede compactado. `RocketStats` calculado a partir do retrato.
 - Remoção do mundo: dois passes (presos primeiro), flags `UPDATE_MOVE_BY_PISTON|UPDATE_SUPPRESS_DROPS|UPDATE_KNOWN_SHAPE|UPDATE_CLIENTS|UPDATE_IMMEDIATE`, um passe final de `markAndNotifyBlock`. Reposição: dois passes inversos, `state.rotate`, NBT com x/y/z de destino, flag contra execução dupla.
 - `RocketEntity extends Entity implements IEntityWithComplexSpawn`:
@@ -136,3 +136,105 @@ Diagnóstico (fase 1, `JumpProbe`, `tools/analyze_jump.py`): o aviso "Waiting fo
 **2. Corredor de chunks** (`ChunkGate.corridor`, `ChunkGate.Requester`). Substitui as sondas esparsas (ticks 0, 1, 2, 4, 8, 16, 32 à frente, raio 0 fora dos 2 primeiros): os chunks entre as sondas só eram pedidos ao entrar na janela de 4 ticks e a geração demora mais, então o foguete andava um passo e esperava outro (HOLD de 50% de 20 a 90 b/tick, servidor ocioso). Agora: a pegada (`±(maior lado/2 + 2)`) amostrada a cada 8 blocos ao longo da trajetória prevista (velocidade do último passo) até `lookaheadTicks` (4 + 2 × latência de geração medida, entre 12 e 80), do mais perto ao mais longe; a pegada nos ticks 0, 1, 2 e 4 segura o passo (como antes). `Requester`: no máximo 32 pedidos novos e 192 pendentes por tick (os que seguram o passo sempre), tickets renovados a cada 15 ticks (o `ENDER_PEARL` vale 40), esquecidos 60 ticks depois de saírem do corredor, e `budgetScale` reduz o orçamento quando o tempo médio do tick passa de 50 ms (zero a 120 ms) para não arrastar o servidor dos outros jogadores. Um segundo `Requester` serve a pré-carga da dimensão do corpo enquanto o foguete ainda está no espaço (`preloadBelow`). Medido: ver a tabela do README; o limite é a vazão do gerador do planeta (~380 blocos/s nesta máquina), que a 54 e 90 b/tick deixa o HOLD em 17% e 44% com ticks mais lentos.
 
 **3. Sincronia no cliente** (`mixin/travel/RocketPositionMixin`, `RocketEntity`). Causa: o foguete leva `snapTo` (a posição anterior dele é redefinida) quando o alvo dos pacotes de posição está a mais de 64 blocos (`handleEntityPositionSync`/`handleTeleportEntity`, `tooBigToInterpolate`), e a interpolação de 2 passos o deixava ~2 passos atrás a 54 b/tick; o jogador, posicionado por `positionRider` no tick, não. Resultado: num tick o jogador andava 2 passos e o foguete 1 (o desenho interpola `xo`→`x`), o foguete aparecia até ~81 blocos adiantado, atrasado ou andando para trás. Agora: os três pacotes de posição do foguete viram `moveOrInterpolateTo` (mixin; nunca `snapTo`), o handler é linear de UM passo (vai ao último alvo a cada tick) e o passageiro é posicionado a partir dele no mesmo tick; um salto de mais de 2.000 blocos no tick (a costura do planeta, um teleporte) zera a posição anterior do foguete E dos passageiros (`RocketEntity.positionRider`), sem varredura de uma ponta à outra.
+
+## Multiblocos, retrato grande e painel de projeto (etapa 1 do `docs/PLANO_TIERS.md`)
+
+### Estruturas multibloco (`rocket/Multiblocks`)
+
+Por REGRA, não por lista. A mesma função pura (`Multiblocks.tileTanks` e `tileEngines`) serve ao mundo, à montagem, ao retrato em voo, ao censo da
+nave e ao painel, então todos concordam. A partição é gulosa e determinística: percorre as células de baixo para cima (y, z, x) e, em cada célula
+livre (o canto mínimo de uma caixa), toma a maior estrutura válida que cabe (maior volume; empate, maior base). O que não cabe em nenhuma estrutura
+vale um a um, como antes.
+
+- **Tanque**: coluna retangular CHEIA de `rocket_fuel_tank`, largura e profundidade de 1 a 3, altura de 4 a 12 (exemplos: 1x1x8, 2x2x8, 3x3x10).
+  Mais alto que 12 parte em duas colunas; mais curto que 4 (ou com buraco, ou em L) fica avulso.
+  - Capacidade: **4.000 mB por bloco, pelo volume** (uma coluna 2x2x8 guarda 128.000 mB).
+  - Massa seca da coluna: `0,2 t * V * (0,4 + 0,6 * A / (6 V))`, com V o volume e A as faces expostas (`2(wd + wh + dh)`): o casco por bloco cai quanto maior
+    a coluna, com piso de 40% do tanque avulso. 1x1x4 = 0,68 t (avulsos 0,8), 1x1x8 = 1,32 t (1,6), 2x2x8 = 4,0 t (6,4), 3x3x10 = 9,96 t (18), 3x3x12 = 12,7 t.
+  - O combustível é DA ESTRUTURA: o galão enche qualquer bloco dela e a carga se reparte por igual entre os blocos (`TankStructures`); a barra de
+    ação e a tela ao olhar mostram "Estrutura de tanque 2x2x8: X / Y mB"; desmontar o foguete devolve o combustível proporcional por bloco
+    (`RocketFuel.distribute`, igual para todos).
+  - Visual: textura conectada (sem emenda entre os blocos), pelo mecanismo genérico de `docs/TEXTURAS_CONECTADAS.md` (`RocketFuelTankBlock` usa
+    `ConnectedFaces`; `rotate` gira as conexões horizontais para o pouso girado).
+- **Motor**: cubo cheio de `rocket_engine` 2x2x2 ou 3x3x3 (a altura é igual ao lado); a camada plana de motores (como a do foguete da missão) NÃO forma
+  e continua com motores avulsos. Números por tamanho:
+
+  | | blocos | empuxo | massa seca | Isp | empuxo por tonelada |
+  |---|---|---|---|---|---|
+  | avulso 1x1 | 1 | 2,5 | 0,6 t | 1.600 | 4,17 |
+  | 2x2x2 | 8 | 24,0 (8 x 2,5 x 1,2) | 3,84 t (8 x 0,6 x 0,8) | 1.700 | 6,25 |
+  | 3x3x3 | 27 | 101,25 (27 x 2,5 x 1,5) | 11,34 t (27 x 0,6 x 0,7) | 1.800 | 8,93 |
+
+  Os motores queimam juntos: a vazão de massa soma, então o Isp do conjunto é a média harmônica ponderada pelo empuxo, `ΣF / Σ(F/Isp)`
+  (`RocketSpecs.ispOf`). As contagens de `RocketStats` (`engines`) continuam sendo de BLOCOS.
+  - O bloco MESTRE desenha o modelo do conjunto e os outros ficam invisíveis (`RocketEngineBlock.FORM`: `solo`, `master_2`, `master_3`, `part`). O mestre do
+    2x2x2 é o canto mínimo (o modelo se estende para +x, +y, +z; `FACING` gira o modelo quando a estrutura pousa girada); o do 3x3x3 é o bloco CENTRAL
+    (um element só vai de -16 a 32, e o modelo de 48 pixels cabe centrado, simétrico no giro).
+  - `EngineForming` mantém o estado no mundo ao pôr (`onPlace`) e ao quebrar (`affectNeighborsAfterRemoval`) um motor, com a mesma partição. A montagem
+    REFAZ os estados do retrato pela partição (e as conexões dos tanques), então um foguete montado por comando também voa formado; o pouso e o estaleiro
+    repõem os blocos já com os estados certos (sem refazer o conjunto a cada bloco: `EngineForming.suspended`). No retrato em voo o renderer desenha
+    o modelo do mestre como qualquer outro bloco; a chama sai só da camada de baixo de cada motor formado.
+- **Censo**: `RocketCensus` tem as contagens de blocos e as listas `tankStructures` e `engineStructures`; `RocketSpecs.statsFor` usa as estruturas (empuxo,
+  Isp e massa por estrutura, os avulsos um a um). O retrato (`RocketPortrait.census`), a montagem (`RocketAssembly`) e o painel dão o MESMO censo (conferido
+  em jogo). `ShipCensus` (naves) carrega as colunas de tanque achadas sobre as posições dos tanques do censo (`ShipSpecs.tankStructureMassT`, mesmo fator
+  de casco, tanque da nave de 0,3 t) e as grava em `ShipFlightData` (`tank_structures`, opcional: naves antigas valem avulsas).
+
+### Retrato grande (decisão D2 do `docs/PLANO_NAVES.md`)
+
+- **Tetos**: 8.192 blocos, caixa de 128 x 256 x 128 (`RocketAssembly.MAX_BLOCKS`, `MAX_EXTENT_XZ`, `MAX_EXTENT_Y`), 400.000 consultas ao mundo
+  (`MAX_ITERATIONS`) e 4.194.304 células (`PortraitGrid.MAX_VOLUME`). A grade densa guarda cada célula em 16 bits (a paleta tem no máximo 8.193 estados),
+  então a caixa cheia custa 8 MiB. A montagem comum (`rocket_cockpit`) aceita até esse teto, e o retrato continua denso (a nave da fase 2a usa o mesmo).
+- **Envio**: até 960 KiB (`RocketAssembler.INLINE_PORTRAIT_BYTES`, folga sobre o 1 MiB do cliente) o retrato vai INTEIRO no pacote de spawn, como antes. Acima
+  disso o pacote de spawn leva só o id do retrato e as PARTES seguem (`PortraitParts`, `RocketPortraitPartPayload`): `RocketEntity.startSeenByPlayer` corta os
+  bytes do retrato em partes de 256 KiB e as manda a cada jogador que passa a ver o foguete (inclusive depois da troca de dimensão, que recria a entidade);
+  o cliente junta as partes em qualquer ordem (`PortraitParts.Receiver`, que recusa partes incoerentes) e a entidade pega o retrato quando completa. Teto do
+  retrato codificado: 16 MiB (`MAX_PORTRAIT_BYTES`; a montagem é recusada acima com `PACKET_TOO_LARGE`, e a conversão nave para foguete usa o mesmo teto).
+- O retrato codificado é calculado uma vez (`RocketPortrait.encoded`). O render, a luz do retrato (`PortraitLevel`) e a malha escalam com a caixa, não com o
+  número de blocos.
+
+### Painel de projeto na plataforma de lançamento
+
+- **Abrir**: o painel (HUD no lado direito) aparece em tempo real enquanto se OLHA para uma `launch_pad` de MÃO VAZIA; o clique direito de mão vazia nela o FIXA
+  (fica aberto andando em volta, até 48 blocos, mesmo com blocos na mão) e outro clique o solta. Com um item na mão e sem fixar nada aparece (não atrapalha quem
+  constrói). `LaunchPadBlock` só avisa o gancho que o cliente liga (`RocketDesignClient`).
+- **Cálculo**: o cliente pede o relatório a cada 10 ticks (`RocketDesignRequestPayload`) e o servidor responde (`RocketDesignPayload`; ignora pedidos a menos de 4
+  ticks, de mais de 96 blocos ou de um bloco que não é plataforma). `RocketDesign.analyze` acha as peças encostadas na plataforma (e nas outras plataformas ligadas
+  a ela), acha o cockpit e roda `RocketAssembly.analyze` A PARTIR DELE, exatamente a busca que a montagem de verdade faz (`scan` é `analyze` mais a recusa):
+  o painel e a montagem não podem discordar. Os números saem de `RocketSpecs.statsFor` sobre o censo (o mesmo que o retrato e a entidade usam), com os tanques CHEIOS.
+- **Destinos** (`MissionBudget`), a partir do Δv com os tanques cheios, o TWR na Terra e o paraquedas:
+
+  | Destino | Δv medido (b/t) | Δv exigido (+5%) | de onde vem |
+  |---|---|---|---|
+  | não decola | | | TWR <= 1 (a regra da decolagem da `FlightMachine`) ou sem Δv |
+  | decola, mas não sai da atmosfera | | | abaixo do salto |
+  | salto suborbital | 50,0 | 52,5 | subir acima dos 5.000 de altitude de saída (vertical, com ~16 de perda de gravidade) |
+  | chega à órbita | 78,8 | 82,7 | subida 63,8 + circularização 14,9 (`docs/MISSAO_LUA.md`); pede TWR >= 1,2 |
+  | chega à Lua e volta | 216,0 | 226,8 | órbita + transferência 29,9 + captura 9,7 + volta 8,2 + reentrada 89,5; pede paraquedas |
+  | chega à Lua, pousa e volta | 263,2 | 276,4 | acrescenta pouso lunar 24,3 e decolagem lunar 22,9 (em vez de ficar na órbita lunar); pede paraquedas |
+
+  O `MissionBudgetTest` refaz a missão no simulador (`MissionSim`, a mesma `FlightMachine`) e confere cada soma, e voa projetos reais do painel: o que o painel
+  promete (salto, órbita, Lua e volta sem pousar, missão inteira com o foguete tipo M e a coluna formada) o simulador cumpre, e o que ele nega (não decola) o simulador
+  confirma. O foguete A (Δv 253) cai em "Lua e volta": o simulador mostra que ele fecha a volta sem pousar e não fecha o pouso lunar.
+- **Problemas apontados no bloco certo** (destaque no mundo com um contorno de partículas: vermelho se impede a montagem, amarelo se é aviso): sem cockpit,
+  mais de um cockpit, sem motor, sem tanque, longe da plataforma, grande demais, encostado no terreno (o bloco de terreno), bloco proibido, chunk não carregado,
+  "falta paraquedas" (no bloco mais alto), "motor sem tanque" (o motor, ou o mestre da estrutura, sem tanque acima na coluna dele), "estrutura de tanque
+  incompleta" (tanques avulsos que encostam em outro tanque: a coluna não fechou) e "empuxo/peso baixo" (no cockpit). Máximo de 24 problemas por relatório.
+- Unidades: velocidades em b/s como o painel de voo (Δv de 292,6 b/t aparece como 5.852 b/s).
+
+### Ids que a arte final preenche (sem mudar código)
+
+- Tanque: `textures/block/rocket_fuel_tank_frame.png` (lados) e `rocket_fuel_tank_frame_end.png` (cima e baixo), 16x16 com moldura de 2 pixels; depois
+  `python tools/gen_connected_block.py --name rocket_fuel_tank --texture spacehorizons:block/rocket_fuel_tank_frame --texture-end spacehorizons:block/rocket_fuel_tank_frame_end --frame 2 --render-type solid --particle spacehorizons:block/rocket_fuel_tank`
+  regera o blockstate, os 96 modelos e as 32 texturas derivadas em `rocket_fuel_tank_ct/`. Hoje os dois PNG são derivados por `tools/derive_tank_frame.py`
+  (moldura do anel de `machine_casing`, miolo do centro da textura do tanque).
+- Motores: `models/block/rocket_engine_2x2.json` (a partir do canto mínimo, de 0 a 32 em x, y e z), `rocket_engine_3x3.json` (centrado no bloco do meio, de -16 a 32) e
+  `rocket_engine_part.json` (vazio). Hoje os dois primeiros são os elements de `rocket_engine.json` ampliados 2x e 3x por `tools/gen_engine_structures.py`
+  (que também regera `blockstates/rocket_engine.json`: `form` = solo, master_2, master_3, part; `facing` gira só o master_2).
+
+### Limites conhecidos desta etapa
+
+- O piloto de teste da missão (`MissionPilot`) só foi ajustado ao foguete tipo M: com um foguete de motor 3x3x3 e TWR 4 ele bate no pouso lunar (vv -1,47). A promessa
+  do painel de "Lua, pouso e volta" para um projeto assim vem do orçamento de Δv, não de um voo simulado (o projeto com a camada 3x3 de motores e a coluna formada completa a missão).
+- A regra de TWR >= 1,2 para a órbita e a de "sem paraquedas não promete a volta da Lua" são conservadoras e não foram simuladas além dos casos do teste.
+- Um conjunto de motores (ou de tanques) com mais de 4.096 blocos ligados não é refeito de uma vez no mundo (a montagem refaz tudo do mesmo jeito).
+- O painel não considera a janela da Lua (o relógio de lançamento, ver `docs/MISSAO_LUA.md`).

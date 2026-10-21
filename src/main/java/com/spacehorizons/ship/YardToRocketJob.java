@@ -251,7 +251,7 @@ final class YardToRocketJob extends ConversionJob {
         this.after = builder.build();
         if (this.packetBytes > ShipConversions.maxPacketBytes()) {
             // o pacote de spawn do foguete tem 1 MiB no máximo (o cliente recusa e desconecta): a nave continua no estaleiro, intacta
-            fail("o retrato da nave tem " + this.packetBytes + " bytes, acima do limite de " + ShipConversions.maxPacketBytes()
+            fail("o retrato da nave tem " + this.packetBytes + " bytes no pacote do retrato, acima do limite de " + ShipConversions.maxPacketBytes()
                     + " (muitos block entities com inventário cheio); a nave fica no estaleiro");
             return;
         }

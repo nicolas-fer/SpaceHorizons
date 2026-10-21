@@ -48,6 +48,8 @@ public final class RocketDesignClient {
     private static final double PIN_RANGE = 48.0;
     /** O relatório vale por este tempo (ticks) sem resposta nova. */
     private static final long REPORT_LIFETIME = 60;
+    /** Nenhum pedido feito ainda (longe o bastante para o intervalo já ter passado, sem estourar a subtração). */
+    private static final long NEVER = -1_000_000L;
 
     private static final int COLOR_BG = 0xB00C1218;
     private static final int COLOR_BORDER = 0xFF2C3E50;
@@ -63,7 +65,7 @@ public final class RocketDesignClient {
     private static volatile @Nullable DesignReport latest;
     private static volatile long latestAt;
     private static @Nullable BlockPos active;
-    private static long lastRequest = Long.MIN_VALUE;
+    private static long lastRequest = NEVER;
 
     private RocketDesignClient() {
     }
@@ -93,13 +95,13 @@ public final class RocketDesignClient {
     private static void onPress(BlockPos pad) {
         BlockPos current = pinned;
         pinned = current != null && current.equals(pad) ? null : pad;
-        lastRequest = Long.MIN_VALUE;
+        lastRequest = NEVER;
     }
 
     /** Para o autoteste: fixa (ou solta, com null) o painel numa plataforma, como o clique faria. */
     public static void pinForTest(@Nullable BlockPos pad) {
         pinned = pad;
-        lastRequest = Long.MIN_VALUE;
+        lastRequest = NEVER;
     }
 
     /** O último relatório recebido (para o autoteste logar o que o painel diz). */
@@ -139,7 +141,7 @@ public final class RocketDesignClient {
         BlockPos pad = wantedPad(mc);
         if (!java.util.Objects.equals(pad, active)) {
             active = pad;
-            lastRequest = Long.MIN_VALUE;
+            lastRequest = NEVER;
         }
         if (pad == null || mc.level == null) {
             return;
@@ -202,7 +204,7 @@ public final class RocketDesignClient {
         List<RocketDesignModel.DestinationRow> destinations = r == null ? List.of() : RocketDesignModel.destinations(r);
         List<RocketDesignModel.ProblemLine> problems = r == null ? List.of() : RocketDesignModel.problems(r);
 
-        int width = 214;
+        int width = 270;
         int lineHeight = 10;
         int height = 16 + (r == null || !r.found() ? lineHeight : rows.size() * lineHeight + 4 + lineHeight + destinations.size() * lineHeight + 4);
         if (!problems.isEmpty()) {

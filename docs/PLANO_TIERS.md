@@ -80,7 +80,7 @@ A montagem continua a mesma (blocos livres sobre a plataforma, clique no cockpit
 
 | # | Etapa | Tier |
 |---|---|---|
-| 1 | Multiblocos de tanque e motor e guias de montagem (painel primeiro, depois plantas) | 1 |
+| 1 | Multiblocos de tanque e motor e guias de montagem (painel primeiro, depois plantas) | 1 (multiblocos e painel feitos, plantas pendentes: seção 7) |
 | 2 | Gerador de planetas por parâmetros e Marte | 1 |
 | 3 | Sistema solar centrado no sol (viagem a Marte) | 1 |
 | 4 | Motores e planetas do Tier 2 | 2 |
@@ -89,3 +89,23 @@ A montagem continua a mesma (blocos livres sobre a plataforma, clique no cockpit
 
 A base lunar, a história e a separação de estágios (`PLANO_SOBREVIVENCIA.md`, etapas 4 a 6) entram no Tier 1, intercaladas
 com as etapas acima conforme a jogabilidade pedir.
+
+## 7. Etapa 1 (multiblocos e painel): o que foi feito
+
+Implementado e verificado em jogo (`-PshOnly=multiblock`); números, fórmulas e ids em `docs/DESIGN_FOGUETE.md` ("Multiblocos, retrato grande e painel de projeto").
+
+- **Retrato e censo entendem estruturas e perdem o limite de 64**: a montagem comum aceita até 8.192 blocos e uma caixa de 128 x 256 x 128 (decisão D2 do
+  `PLANO_NAVES.md`, o que destrava a fase 2a das naves); o retrato grande vai ao cliente em partes quando passa de 960 KiB (teto de 16 MiB); o censo
+  (`RocketCensus`, `ShipCensus`) conta estruturas, e o retrato, a montagem e o painel dão o mesmo censo.
+- **Tanque**: coluna cheia 1 a 3 de lado x 4 a 12 de altura; capacidade de 4.000 mB por bloco (pelo volume); casco `0,2 t * V * (0,4 + 0,6 A / 6V)`; textura conectada;
+  combustível da estrutura (galão em qualquer bloco, repartido por igual; o pouso devolve proporcional por bloco).
+- **Motor**: cubos 2x2x2 (empuxo 24, 3,84 t, Isp 1.700) e 3x3x3 (101,25, 11,34 t, Isp 1.800), contra o 1x1 (2,5, 0,6 t, 1.600); bloco mestre (canto mínimo ou centro)
+  desenha o modelo e os outros ficam invisíveis, no mundo, no retrato em voo, no estaleiro e no pouso.
+- **Painel de projeto**: aparece olhando a plataforma de mão vazia, e o clique de mão vazia o fixa; mesmo cálculo da montagem; destinos de `MissionBudget` (medidos
+  no simulador da missão); problemas no bloco certo.
+- **Arte provisória**: textura do tanque derivada por processamento (`tools/derive_tank_frame.py`) e modelos dos motores por ampliação dos elements do motor atual
+  (`tools/gen_engine_structures.py`); a arte final entra nos mesmos ids sem código.
+- **Falta (próxima etapa)**: plantas holográficas (seção 4, item 1), que não foram começadas.
+
+Verificação: 839 testes unitários passando; autoteste `-PshOnly=multiblock` com 169 verificações (formação no mundo, galão na estrutura, projeto com defeitos, e para cada projeto o painel, a montagem, o voo curto, o pouso e as estruturas formadas de novo; o foguete grande de 1.650 blocos e o gigante de ~6.700 blocos, com o retrato em partes); `flight` (A a D), `mission` (263,97 b/t, pouso suave nos dois corpos, agora com a coluna 3x3x5 formada), `shipconvert` e `ship` sem falhas. No gigante (34 de largura) o pouso em terreno irregular pode ser recusado com `SPACE_OCCUPIED` (o foguete fica pousado intacto); o autoteste aceita essa recusa.
+

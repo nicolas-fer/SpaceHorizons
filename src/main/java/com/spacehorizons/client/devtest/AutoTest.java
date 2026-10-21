@@ -3243,7 +3243,7 @@ public final class AutoTest {
         step(10, MultiblockDevtest::formingInWorld);
         look(30, -45f, 20f);
         shot(40, "mb_a1_forming_in_world");
-        cmd(10, "tp @s " + (bx - 9.5) + " " + (by + 9.0) + " " + (bz + 1.5));
+        cmd(10, "tp @s " + (bx - 9.5) + " " + (by + 6.0) + " " + (bz + 1.5));
         fly(10);
         look(20, 90f, 12f);
         shot(20, "mb_a2_tank_column_empty");
@@ -3256,7 +3256,7 @@ public final class AutoTest {
         });
         step(10, mc -> {
             mc.player.getInventory().setSelectedSlot(1);
-            useOnBlock(mc, column.offset(0, 0, 0), Direction.WEST);
+            useOnBlock(mc, column.offset(0, 4, 0), Direction.WEST);
         });
         step(20, mc -> MultiblockDevtest.structureFuel(mc, "dois galões (no bloco de cima e no de baixo)", 2000));
         step(5, mc -> MultiblockDevtest.structureText(mc, column.offset(0, 3, 1)));

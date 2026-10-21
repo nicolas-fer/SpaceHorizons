@@ -52,6 +52,20 @@ public record RocketCensus(int cockpits, int engines, int tanks, int parachutes,
         return (int) this.engineStructures.stream().filter(b -> b.side() == side).count();
     }
 
+    /**
+     * Os dois censos têm as mesmas contagens e as mesmas estruturas, só pelo TAMANHO delas (largura, altura, profundidade), sem olhar onde estão: o
+     * retrato guarda as caixas em coordenadas locais e a busca no mundo, nas do mundo.
+     */
+    public boolean sameShape(RocketCensus other) {
+        return this.cockpits == other.cockpits && this.engines == other.engines && this.tanks == other.tanks && this.parachutes == other.parachutes
+                && this.legs == other.legs && this.hulls == other.hulls && this.structures == other.structures
+                && shapes(this.tankStructures).equals(shapes(other.tankStructures)) && shapes(this.engineStructures).equals(shapes(other.engineStructures));
+    }
+
+    private static List<String> shapes(List<Multiblocks.Box> boxes) {
+        return boxes.stream().map(b -> b.w() + "x" + b.h() + "x" + b.d()).sorted().toList();
+    }
+
     /** O mesmo censo com as estruturas dadas (as contagens de blocos não mudam). */
     public RocketCensus withStructures(Multiblocks.Analysis analysis) {
         return new RocketCensus(this.cockpits, this.engines, this.tanks, this.parachutes, this.legs, this.hulls, this.structures,
