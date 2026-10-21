@@ -93,11 +93,11 @@ final class ShipGroundDevtest {
         return String.format(Locale.ROOT, "%.2f", v);
     }
 
-    private interface ServerWork {
+    interface ServerWork {
         void run(MinecraftServer server, ServerLevel level, ServerPlayer player);
     }
 
-    private static void onServer(Minecraft mc, String label, ServerWork work) {
+    static void onServer(Minecraft mc, String label, ServerWork work) {
         MinecraftServer server = mc.getSingleplayerServer();
         if (server == null) {
             SpaceHorizons.LOGGER.warn("{}{}: sem servidor integrado", TAG, label);

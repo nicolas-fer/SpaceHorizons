@@ -30,6 +30,7 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Entidade → blocos no estaleiro (plano 3.2, spike S3), em lotes. Fases: carregar os chunks da caixa, colocar os blocos (sólidos antes dos
@@ -55,6 +56,8 @@ final class RocketToYardJob extends ConversionJob {
 
     private final MinecraftServer server;
     private final RocketEntity rocket;
+    /** O voo virtual da nave ao cruzar a altitude de saída (fase 2a-ii); {@code null} na conversão de teste (S3), que só deixa a nave no estaleiro. */
+    private final ShipFlight.@Nullable State flight;
     private final UUID rocketUuid;
     private final ServerLevel yard;
     private final ShipRegistry registry;
@@ -70,11 +73,12 @@ final class RocketToYardJob extends ConversionJob {
     private final ShipManifest.Builder actual = new ShipManifest.Builder();
     private int strictMismatches;
 
-    RocketToYardJob(ServerLevel level, RocketEntity rocket) throws ShipConversionException {
+    RocketToYardJob(ServerLevel level, RocketEntity rocket, ShipFlight.@Nullable State flight) throws ShipConversionException {
         super("entidade -> blocos", 0.0);
         long t0 = System.nanoTime();
         this.server = level.getServer();
         this.rocket = rocket;
+        this.flight = flight;
         this.rocketUuid = rocket.getUUID();
         this.yard = ShipYard.level(this.server);
         if (this.yard == null) {
@@ -285,6 +289,11 @@ final class RocketToYardJob extends ConversionJob {
         }
         this.registry.update(ship.withPhase(ShipRecord.Phase.READY));
         ShipRecord ready = this.registry.byId(this.shipId);
+        if (this.flight != null) {
+            // a subida (fase 2a-ii): a nave voa daquele estado, o da entidade no instante em que cruzou a altitude de saída
+            ShipFlightTicker.startWith(this.server, ready, this.flight, ShipCensusService.scanNow(this.server, ready));
+        }
+        Entity pilot = this.rocket.getControllingPassenger();
         Quaternionf attitude = new Quaternionf(this.rocket.attitude());
         Vector3f pivot = this.rocket.pivotLocal();
         Vec3 center = this.rocket.position();
@@ -292,10 +301,15 @@ final class RocketToYardJob extends ConversionJob {
             passenger.stopRiding();
             Vector3d local = ShipFrames.worldToLocal(attitude, center.x, center.y, center.z, pivot, passenger.getX(), passenger.getY(), passenger.getZ());
             BlockPos wanted = BlockPos.containing(this.box.minX() + local.x, this.box.minY() + local.y, this.box.minZ() + local.z);
-            Vec3 at = ShipSpots.standNear(this.yard, wanted, 8);
+            boolean ascentPilot = this.flight != null && passenger == pilot;
+            // o piloto da subida vai para a ponte e senta nela; os outros ficam em pé perto do lugar onde estavam
+            Vec3 at = ascentPilot ? ShipSpots.nearCockpit(this.yard, ready) : ShipSpots.standNear(this.yard, wanted, 8);
             float[] view = ShipFrames.viewToLocal(attitude, passenger.getYRot(), passenger.getXRot());
             if (passenger instanceof ServerPlayer player) {
                 ShipTransit.enterAt(player, ready, at, view[0], view[1]);
+                if (ascentPilot) {
+                    ShipAscent.sitPilot(this.yard, player, at);
+                }
             } else {
                 passenger.teleport(new TeleportTransition(this.yard, at, Vec3.ZERO, view[0], view[1], TeleportTransition.DO_NOTHING));
             }

@@ -203,6 +203,9 @@ public final class AutoTest {
             shipFlightScenario();
             return;
         }
+        if ("shipascent".equals(ONLY)) {
+            shipAscentScenario();
+        }
         if ("shipground".equals(ONLY)) {
             shipGroundScenario();
             return;
@@ -4472,6 +4475,46 @@ public final class AutoTest {
         shot(20, "sg_3_voo");
         step(20, mc -> {
             ShipGroundDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    // NAVE SUBINDO ATÉ A ALTITUDE DE SAÍDA (docs/PLANO_NAVES.md, fase 2a-ii): -PshOnly=shipascent. Montada no chão, sobe pelo acelerador
+    // do piloto; ao cruzar a altitude de saída a entidade vira blocos no estaleiro e o piloto senta na ponte com o voo virtual ligado.
+    // Bloco separado; as conferências ficam em ShipAscentDevtest.
+    // ===================================================================================================================
+    private void shipAscentScenario() {
+        BlockPos b = ShipAscentDevtest.BASE;
+        double bx = b.getX() + 0.5;
+        double by = b.getY();
+        double bz = b.getZ() + 0.5;
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "gamemode creative");
+        cmd(5, "clear @s");
+        step(10, ShipAscentDevtest::build);
+        cmd(20, "tp @s " + (bx + 9.0) + " " + (by + 2.5) + " " + (bz + 7.0));
+        look(20, 140f, 12f);
+        shot(40, "sa_1_chao");
+        step(10, ShipAscentDevtest::assemble);
+        tickerStep(5, waitFor("sa_assembled", 200));
+        thirdPerson();
+        shot(40, "sa_1b_montada");
+        step(10, ShipAscentDevtest::climb);
+        tickerStep(5, waitFor("sa_half", 6_000));
+        thirdPerson();
+        shot(20, "sa_2_subindo");
+        tickerStep(5, waitFor("sa_frozen", 6_000));
+        tickerStep(5, waitFor("sa_done", 1_200));
+        look(20, 140f, 12f);
+        shot(60, "sa_3_estaleiro");
+        look(20, 0f, -70f);
+        shot(20, "sa_4_ceu_virtual");
+        step(20, mc -> {
+            ShipAscentDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });

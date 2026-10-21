@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
+
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketEntity;
 
@@ -41,10 +43,18 @@ public final class ShipConversions {
      * O foguete fica congelado até o fim. Devolve a nave (id) criada.
      */
     public static int startRocketToYard(ServerLevel level, RocketEntity rocket) throws ShipConversionException {
+        return startRocketToYard(level, rocket, null);
+    }
+
+    /**
+     * Igual ao de cima, mas a nave que sai do foguete voa de {@code flight} (a subida até a altitude de saída, fase 2a-ii): ao
+     * terminar, o voo virtual dela começa daquele estado. Sem estado ({@code null}), a nave só fica no estaleiro.
+     */
+    public static int startRocketToYard(ServerLevel level, RocketEntity rocket, ShipFlight.@Nullable State flight) throws ShipConversionException {
         if (FROZEN.contains(rocket.getUUID())) {
             throw new ShipConversionException("Este foguete já está sendo convertido.");
         }
-        RocketToYardJob job = new RocketToYardJob(level, rocket);
+        RocketToYardJob job = new RocketToYardJob(level, rocket, flight);
         FROZEN.add(rocket.getUUID());
         JOBS.add(job);
         return job.shipId();

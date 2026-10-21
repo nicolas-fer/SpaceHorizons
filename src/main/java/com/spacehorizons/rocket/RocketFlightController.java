@@ -13,6 +13,10 @@ import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.rocket.FlightMachine.Event;
 import com.spacehorizons.rocket.FlightMachine.Snapshot;
+import com.spacehorizons.ship.ShipAscent;
+import com.spacehorizons.ship.ShipConversionException;
+import com.spacehorizons.ship.ShipConversions;
+import com.spacehorizons.ship.ShipFlight;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.SpaceClock;
 import com.spacehorizons.space.SpaceDimension;
@@ -285,11 +289,31 @@ final class RocketFlightController {
                 pilot.sendSystemMessage(Component.translatable("message.spacehorizons.rocket.no_space_dimension"));
             }
         }
+        // a nave cruzou a altitude de saída: vai para o estaleiro (uma vez; a entidade fica congelada até o fim da conversão)
+        if (zone != null && ShipAscent.shouldConvert(rocket.isShip(), next.flying(), Zones.shouldLeave(zone.planet(), loc.y()), f.yardRequested)) {
+            f.yardRequested = true;
+            requestYard(level, rocket, next, pilot);
+        }
         if (pilot != null) {
             rocket.positionRider(pilot);
             level.getChunkSource().move(pilot);
         }
         telemetry(rocket, pilot, now, next, new Local(loc.x(), loc.y(), loc.z(), 0.0, 0.0, 0.0), clock + rate, rate, false);
+    }
+
+    /** A nave cruzou a altitude de saída: a entidade vira blocos no estaleiro, e o voo dela (no instante da troca) vira o da nave. */
+    private static void requestYard(ServerLevel level, RocketEntity rocket, Snapshot next, ServerPlayer pilot) {
+        ShipFlight.State flight = ShipAscent.flightState(next.state(), next.attitude(), next.spin(), next.sas(), next.throttle());
+        try {
+            int id = ShipConversions.startRocketToYard(level, rocket, flight);
+            SpaceHorizons.LOGGER.info("Nave {} cruzou a altitude de saída (altitude {} blocos): a conversão para o estaleiro começou", id,
+                    fmt(next.state().r().length() - next.state().body().planet().radius()));
+        } catch (ShipConversionException e) {
+            SpaceHorizons.LOGGER.warn("Nave: a conversão para o estaleiro foi recusada: {}", e.getMessage());
+            if (pilot != null) {
+                pilot.sendSystemMessage(Component.literal(e.getMessage()));
+            }
+        }
     }
 
     /** Todos os chunks que a pegada ({@code center ± halfExtent}) toca na dimensão de destino estão carregados? */

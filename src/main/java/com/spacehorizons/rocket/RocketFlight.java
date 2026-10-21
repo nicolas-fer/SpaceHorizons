@@ -58,6 +58,8 @@ public final class RocketFlight {
     /** Ticks segurados seguidos no tick anterior (só para registrar o fim de uma espera). */
     int lastHeld;
     boolean warnedNoSpace;
+    /** A nave já pediu a conversão para o estaleiro na altitude de saída (fase 2a-ii): pede uma vez só. */
+    boolean yardRequested;
     boolean warnedChunks;
 
     /**
