@@ -13,7 +13,7 @@ from pathlib import Path
 
 T = Path.home() / ".claude/skills/minecraft-entity/scripts/texture.py"
 OUT = Path("art/_work/out")
-VARIANTS = "4"
+VARIANTS = "3"
 
 
 def run(j):

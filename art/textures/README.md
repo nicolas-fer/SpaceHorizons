@@ -2,7 +2,7 @@
 
 Todas as texturas de bloco e de item do mod (16x16) foram refeitas com a skill `minecraft-entity`
 (modo rápido de textura): os prompts padrão do usuário (estilo "Vanilla Moderno", templates da skill)
-são preenchidos com os campos de cada textura, o Gemini gera 4 variantes e o resultado é convertido em
+são preenchidos com os campos de cada textura, o Gemini gera 3 variantes (máximo, para poupar a cota) e o resultado é convertido em
 pixel art 16x16 de verdade, com no máximo 7 cores. A variante de cada textura é escolhida pelo usuário na
 página de escolha (`escolha.py`), não pelo agente.
 
