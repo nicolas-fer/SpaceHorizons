@@ -1,0 +1,26 @@
+{
+ "titulo": "Multiblocos: tanque e motores",
+ "concluido": true,
+ "atualizado": "2026-10-20T23:05:14",
+ "escolhas": {
+  "tanque": {
+   "tex.lado": "N",
+   "tex.topo": "F",
+   "coluna": "F"
+  },
+  "motor_2x2": {
+   "modelo": "B",
+   "tex.nozzle": "G",
+   "tex.exit": "C",
+   "tex.plate": "A",
+   "tex.pump": "B"
+  },
+  "motor_3x3": {
+   "modelo": "B",
+   "tex.nozzle": "G",
+   "tex.exit": "E",
+   "tex.plate": "A",
+   "tex.pump": "D"
+  }
+ }
+}
