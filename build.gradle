@@ -66,10 +66,12 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
-        // Cliente de autoteste: cria um mundo novo, roda o roteiro de AutoTest e fecha
+        // Cliente de autoteste: cria um mundo novo, roda o roteiro de AutoTest e fecha.
+        // Roda em run-test/, separado do run/ do jogo normal: o autoteste nunca encosta nos mundos de quem joga.
         clientTest {
             client()
-            // cria do zero o mundo run/saves/SpaceAuto com o tipo "Space Horizons" (apague a pasta antes de rodar)
+            gameDirectory = project.file('run-test')
+            // cria do zero o mundo run-test/saves/SpaceAuto com o tipo "Space Horizons" (prepareClientTest apaga antes)
             systemProperty 'spacehorizons.autotest', 'true'
             systemProperty 'spacehorizons.autotest.fresh', 'SpaceAuto'
             // -PshOnly=clouds roda só um trecho do roteiro (ver AutoTest)
@@ -126,6 +128,52 @@ neoForge {
         }
     }
 }
+
+// Antes do autoteste: recusa se algum mundo de run-test/ está aberto (outro autoteste rodando), avisa se o jogo
+// normal está aberto em run/, apaga o SpaceAuto e os prints autotest_* de run-test/ e, na primeira vez, copia a
+// config dos mods de run/ (DH, Sodium, JEI) para o autoteste rodar com as mesmas opções.
+def prepareClientTest = tasks.register('prepareClientTest') {
+    def runDir = file('run')
+    def testDir = file('run-test')
+    doLast {
+        // o Minecraft segura um FileLock em saves/<mundo>/session.lock enquanto o mundo está aberto
+        def openWorlds = { File dir ->
+            def saves = new File(dir, 'saves')
+            (saves.listFiles() ?: []).findAll { File world ->
+                def lock = new File(world, 'session.lock')
+                if (!lock.isFile()) return false
+                try (def channel = java.nio.channels.FileChannel.open(lock.toPath(), java.nio.file.StandardOpenOption.WRITE)) {
+                    def l = channel.tryLock()
+                    if (l == null) return true
+                    l.release()
+                    return false
+                } catch (java.nio.channels.OverlappingFileLockException | IOException ignored) {
+                    return true
+                }
+            }*.name
+        }
+        def busy = openWorlds(testDir)
+        if (busy) {
+            throw new GradleException("Mundo aberto em run-test/saves (${busy.join(', ')}): outro autoteste está rodando. Feche-o antes.")
+        }
+        def playing = openWorlds(runDir)
+        if (playing) {
+            logger.warn("Aviso: o jogo normal está aberto em run/ (${playing.join(', ')}). O autoteste roda em run-test/ e não mexe nele.")
+        }
+        new File(testDir, 'saves/SpaceAuto').deleteDir()
+        (new File(testDir, 'screenshots').listFiles() ?: []).findAll { it.isFile() && it.name.startsWith('autotest_') }*.delete()
+        def testConfig = new File(testDir, 'config')
+        def runConfig = new File(runDir, 'config')
+        if (!testConfig.exists() && runConfig.isDirectory()) {
+            testConfig.mkdirs()
+            runConfig.eachFileRecurse { File src ->
+                def dst = new File(testConfig, runConfig.toPath().relativize(src.toPath()).toString())
+                if (src.isDirectory()) dst.mkdirs() else java.nio.file.Files.copy(src.toPath(), dst.toPath())
+            }
+        }
+    }
+}
+tasks.matching { it.name == 'runClientTest' }.configureEach { dependsOn prepareClientTest }
 
 // Sets up a dependency configuration called 'localRuntime'.
 // This configuration should be used instead of 'runtimeOnly' to declare

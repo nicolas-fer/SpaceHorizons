@@ -82,7 +82,6 @@ Total ~263 b/t; as fases mais caras são a órbita baixa (79), a reentrada (90) 
 ## Como rodar
 
 ```bash
-rm -rf run/saves run/screenshots
 ./gradlew runClientTest -PshOnly=mission --console=plain > run-client.log 2>&1
 ```
 

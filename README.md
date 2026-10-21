@@ -158,7 +158,7 @@ no world preset (só mundos criados depois; num mundo antigo `/spacehorizons got
 | `/spacehorizons goto space x y z` | vai ao ponto (coordenadas da dimensão de espaço, as do F3 de lá), parado |
 | `/spacehorizons goto earth` / `moon` | do espaço, dentro da zona do corpo (acima da superfície até 5.000 na Terra e 1.250 na Lua), volta no mesmo ponto; fora dela, teleporta à superfície |
 
-Autoteste: `./gradlew runClientTest -PshOnly=space` (apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes). Prefixos
+Autoteste: `./gradlew runClientTest -PshOnly=space`. Prefixos
 dos prints: `sp_a_*` Terra a 4.900 antes da troca, `sp_b_*` o mesmo ponto no espaço, `sp_c_*` sol, estrelas e Lua perto da Terra,
 `sp_e_*` meio do caminho, `sp_f_*` e `sp_g_*` perto da Lua (com a Lua em Y negativo e em Y positivo), `sp_fly_*` os voos, `sp_i*_*` a
 volta pelo comando. O log traz `ESPACO` (posição, gravidade, clima, oxigênio), `VOO ... RESULTADO` (tempo de trabalho do tick do
@@ -309,7 +309,6 @@ os comandos acima sem ter lido a EULA do Minecraft.
 ### Autoteste em jogo
 
 ```bash
-rm -rf run/saves/SpaceAuto run/screenshots/autotest_*
 ./gradlew runClientTest --console=plain > run-client.log 2>&1
 ```
 
@@ -328,7 +327,7 @@ Leva uns 15 minutos. O roteiro (235+ passos, prefixos dos prints):
 - `g_*`: na Lua, a Terra no céu na direção calculada (zênite da face voltada para ela), em quatro relógios (fases opostas às da
   Lua), pulo e chão à meia-noite. `h_*`: chegada na Terra.
 
-Antes de rodar, `rm -rf run/saves/SpaceAuto run/screenshots/autotest_*`. A regra `advance_time` é desligada e o horário
+O autoteste roda em `run-test/`, separado do `run/` do jogo normal: antes de abrir, a tarefa `prepareClientTest` recusa se outro autoteste está com um mundo aberto, apaga `run-test/saves/SpaceAuto` e os prints `run-test/screenshots/autotest_*`. A regra `advance_time` é desligada e o horário
 fixado com `/time set`, exceto durante os voos.
 
 Combinações (as flags `-P` ficam no `build.gradle`):
@@ -340,7 +339,7 @@ Combinações (as flags `-P` ficam no `build.gradle`):
 | Sodium | `./gradlew runClientTest -PshSodium=true --console=plain` |
 | Iris, shaders desligados | `./gradlew runClientTest -PshIris=true --console=plain` |
 
-Apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes de cada uma e copie os prints
+Copie os prints de `run-test/screenshots/`
 antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` no log.
 
 ## Escala: Terra 10x maior (limitações)
@@ -410,7 +409,7 @@ no world preset (só mundos criados depois; num mundo antigo `/spacehorizons got
 | `/spacehorizons goto space x y z` | vai ao ponto (coordenadas da dimensão de espaço, as do F3 de lá), parado |
 | `/spacehorizons goto earth` / `moon` | do espaço, dentro da zona do corpo (acima da superfície até 5.000 na Terra e 1.250 na Lua), volta no mesmo ponto; fora dela, teleporta à superfície |
 
-Autoteste: `./gradlew runClientTest -PshOnly=space` (apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes). Prefixos
+Autoteste: `./gradlew runClientTest -PshOnly=space`. Prefixos
 dos prints: `sp_a_*` Terra a 4.900 antes da troca, `sp_b_*` o mesmo ponto no espaço, `sp_c_*` sol, estrelas e Lua perto da Terra,
 `sp_e_*` meio do caminho, `sp_f_*` e `sp_g_*` perto da Lua (com a Lua em Y negativo e em Y positivo), `sp_fly_*` os voos, `sp_i*_*` a
 volta pelo comando. O log traz `ESPACO` (posição, gravidade, clima, oxigênio), `VOO ... RESULTADO` (tempo de trabalho do tick do
@@ -496,7 +495,6 @@ os comandos acima sem ter lido a EULA do Minecraft.
 ### Autoteste em jogo
 
 ```bash
-rm -rf run/saves/SpaceAuto run/screenshots/autotest_*
 ./gradlew runClientTest --console=plain > run-client.log 2>&1
 ```
 
@@ -515,7 +513,7 @@ Leva uns 15 minutos. O roteiro (235+ passos, prefixos dos prints):
 - `g_*`: na Lua, a Terra no céu na direção calculada (zênite da face voltada para ela), em quatro relógios (fases opostas às da
   Lua), pulo e chão à meia-noite. `h_*`: chegada na Terra.
 
-Antes de rodar, `rm -rf run/saves/SpaceAuto run/screenshots/autotest_*`. A regra `advance_time` é desligada e o horário
+O autoteste roda em `run-test/`, separado do `run/` do jogo normal: antes de abrir, a tarefa `prepareClientTest` recusa se outro autoteste está com um mundo aberto, apaga `run-test/saves/SpaceAuto` e os prints `run-test/screenshots/autotest_*`. A regra `advance_time` é desligada e o horário
 fixado com `/time set`, exceto durante os voos.
 
 Combinações (as flags `-P` ficam no `build.gradle`):
@@ -527,7 +525,7 @@ Combinações (as flags `-P` ficam no `build.gradle`):
 | Sodium | `./gradlew runClientTest -PshSodium=true --console=plain` |
 | Iris, shaders desligados | `./gradlew runClientTest -PshIris=true --console=plain` |
 
-Apague `run/saves/SpaceAuto` e `run/screenshots/autotest_*` antes de cada uma e copie os prints
+Copie os prints de `run-test/screenshots/`
 antes da próxima. Procure `ERROR`, `Couldn't compile pipeline` e `Mixin apply` no log.
 
 ## Referenciais: inercial (I) e preso à Terra (E)
