@@ -347,3 +347,49 @@ Autotestes (estilo `AutoTest`, cenários com `-PshOnly=`): `ship` (fase 1: cria 
 2. **Tripulação extra.** Só o piloto senta. Assentos extras (`ship_seat`) ficam para depois.
 3. **Conversão para o estaleiro na altitude de saída** (parte 2): a nave segurada precisa virar blocos no estaleiro.
 **Verificado:** `./gradlew build` passa; a suíte de testes unitários inteira passa (0 falhas), incluindo `ShipLiftoffTest` e `ShipAssemblyTest`. Autoteste `shipground`: 16 passaram, 0 falharam.
+
+## Resultado da fase 2a-ii (21/10/2026)
+
+**Feito** (pacote `com.spacehorizons.ship`, teste `ShipAscentTest`, autoteste `-PshOnly=shipascent`):
+
+- **Gatilho.** Quando a nave voando cruza `Zones.shouldLeave` (5.000 blocos na Terra), `RocketFlightController` chama `ShipConversions.startRocketToYard(level, rocket, flight)` uma vez só (`RocketFlight.yardRequested`, testado em `ShipAscent.shouldConvert`). A entidade fica congelada até o fim do job; o piloto continua sentado. Não há mais o aviso de "sem dimensão de espaço" para a nave, que nunca vai para `space`.
+- **Estado de voo.** `ShipAscent.flightState` copia o `FlightState` (posição e velocidade inerciais, o mesmo referencial do voo virtual da fase 1), a atitude de estilo foguete, o spin, o SAS e o acelerador do instante da troca. `ShipFlightTicker.startWith` liga o voo virtual com esse estado e o censo do estaleiro, em vez da órbita de teste.
+- **Piloto.** Ao cruzar, o piloto da subida vai para a ponte (`ShipSpots.nearCockpit`) e senta num assento invisível (`ShipAscent.sitPilot`), que é o que `ShipPilots.pilotOf` procura. Os outros passageiros ficam em pé, como no S3.
+- **Reuso.** `RocketToYardJob` continua fazendo a conversão (blocos, NBT, mB, romaneio, perdas). O overload sem estado (`flight == null`) é o da conversão de teste do S3, sem mudança de comportamento.
+- **Testes.** `ShipAscentTest` (2 casos): o gatilho dispara uma vez só e só para nave voando; o estado de voo copia posição, velocidade, atitude, spin e acelerador sem mudar de referencial.
+
+**Autoteste `shipascent`** (última rodada, 14 verificações, 0 falhas; a conversão começou em 5.078,58 blocos, com 127,22 b/t):
+
+- montagem: 43 blocos no retrato; piloto sentado no chão;
+- gatilho: cruzou a altitude de saída e a entidade congelou com o piloto sentado;
+- no estaleiro: nave registrada (fase READY, com voo virtual); 43 blocos, igual ao chão; baú com 10 diamantes e 20 ferros, igual ao chão; 16 tanques com 6.000 mB no total, igual ao combustível da entidade no instante da troca; coluna 2x2x4 formada (1); entidade removida; piloto em `spacehorizons:shipyard`, sentado num assento da própria célula; voo virtual ligado;
+- estado coerente: altitude 5.206,59 contra 5.078,58 (diferença 128,02 blocos, cerca de 1 tick de voo a 127 b/t); velocidade 128,98 contra 127,22 b/t (erro de 1,38%);
+- órbita: apoapse infinita (não ligada), periapse 162,90 registrados.
+
+**Regressão** (`./gradlew regression`, 3 clientes em paralelo, 8 min e 36 s, `BUILD FAILED` por uma verificação):
+
+| trecho | passou | falhou |
+|---|---|---|
+| ship | 29 | 1 |
+| shipflight | 30 | 0 |
+| shipconvert | 151 | 0 |
+| shipground | 16 | 0 |
+| shipascent | 17 | 0 |
+| multiblock | 169 | 0 |
+
+A falha foi `SHIP: sem tremor no giro` (desvio de 30,9% na velocidade angular do céu, limite de 15%), um teste de quadros que sofre com a carga dos três clientes. Não toquei nesse caminho. Rodado sozinho depois (`-PshOnly=ship`): 30 passaram, 0 falharam. Recomendo afrouxar ou ler esse teste sob carga antes de tomar a regressão como verde.
+
+**Prints** (`art/_work/shipascent_prints/`, copiados de `run-test/screenshots/autotest_sa_*`, reduzidos a 960 px): `sa_1_chao`, `sa_1b_montada`, `sa_2_subindo`, `sa_3_estaleiro`, `sa_4_ceu_virtual`. O de subida mostra o HUD de voo com 4.711 blocos de altitude e o planeta abaixo. O de estaleiro mostra a nave por dentro com o rótulo "tank structure 2x2x4 0 / 64000 mB" (o "0" não foi investigado). O `sa_4_ceu_virtual` mostra quase só o casco escuro: o céu virtual não aparece com clareza nessa vista, então não afirmo que ele se vê por dentro.
+
+**Não verificado / limitações**
+
+- O que o voo virtual faz depois da troca além de manter a altitude (órbita, céu, queima) não foi testado no estaleiro.
+- Apoapse e periapse: o periapse de 162,90 é menor que a altitude atual (5.206 blocos), o que parece inconsistente com `Orbit.periapsis` ("distância ao centro"). Não consegui confirmar a unidade ou o que o `Orbit.of` espera; o valor está registrado, mas não é confiável.
+- Só o piloto senta; os passageiros extras ficam em pé.
+- O assento do piloto é uma entidade invisível criada na hora, não um bloco `ship_seat` da nave.
+- A volta estaleiro → foguete (`ship torocket`) usa o snapshot de antes da subida, então não reflete o voo virtual; não testado.
+- Caminho de falha da subida (job cancelado no meio) não foi exercitado no autoteste.
+- Acima de 5.000 a nave não tem teto nem limite de altura além do próprio voo virtual.
+- O nível de tolerância da velocidade (2%) e da altitude (2 ticks de deslocamento) foi escolhido para absorver o tick entre a troca e a conferência; é uma decisão de teste, não uma medida de precisão.
+
+**Branch e commits:** `worktree-agent-aafd7e7474489ba65`. Commits: `3dc06b4` (gatilho, estado de voo, piloto e unit tests), `19f9815` (autoteste shipascent e regressão). Docs e README (seção acima e a atualização do README) ainda não commitados.
