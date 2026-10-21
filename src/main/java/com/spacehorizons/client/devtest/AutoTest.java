@@ -43,6 +43,7 @@ import org.lwjgl.sdl.SDLVideo;
 
 import net.minecraft.client.InactivityFpsLimit;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -3371,6 +3372,12 @@ public final class AutoTest {
         Minecraft mc = Minecraft.getInstance();
         if (!windowPrepared) {
             prepareWindow(mc);
+        }
+        if (mc.gui.screen() instanceof AccessibilityOnboardingScreen) {
+            // pasta de jogo nova (sem options.txt): a tela de acessibilidade da primeira execução fica na frente do
+            // menu e o roteiro esperaria para sempre; prepareClientTest já grava a opção, isto é só a rede de segurança
+            mc.gui.setScreen(new TitleScreen());
+            SpaceHorizons.LOGGER.info(TAG + "tela de acessibilidade da primeira execução fechada");
         }
         if (FRESH_WORLD != null && !freshRequested && mc.level == null && mc.gui.screen() instanceof TitleScreen) {
             freshRequested = true;

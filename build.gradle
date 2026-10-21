@@ -50,6 +50,17 @@ base {
 // Mojang ships Java 25 to end users in 26.3, so mods should target Java 25.
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
+// Trechos do AutoTest da regressão paralela (tarefa regression). -PshSuites=ship,multiblock troca a lista; nome que o
+// AutoTest não conhece rodaria o roteiro inteiro (~26 min), então ele é recusado aqui.
+def regressionSuites = (findProperty('shSuites') ?: 'ship,shipflight,shipconvert,shipground,multiblock').toString()
+        .split(',')*.trim().findAll { it }
+def autoTestSource = file('src/main/java/com/spacehorizons/client/devtest/AutoTest.java').getText('UTF-8')
+regressionSuites.each { String suite ->
+    if (!autoTestSource.contains("\"${suite}\".equals(ONLY)")) {
+        throw new GradleException("Trecho de autoteste desconhecido em -PshSuites: '${suite}' (veja os \"nome\".equals(ONLY) do AutoTest)")
+    }
+}
+
 neoForge {
     // Specify the version of NeoForge to use.
     version = project.neo_version
@@ -77,6 +88,19 @@ neoForge {
             // -PshOnly=clouds roda só um trecho do roteiro (ver AutoTest)
             if (project.hasProperty('shOnly')) {
                 systemProperty 'spacehorizons.autotest.only', project.property('shOnly').toString()
+            }
+        }
+
+        // Regressão paralela: uma run por trecho do roteiro, cada uma na sua pasta run-test/<trecho>/ e com os seus
+        // arquivos de argumentos (ver a tarefa regression mais abaixo)
+        regressionSuites.each { String suite ->
+            create("clientTest${suite.capitalize()}") {
+                client()
+                gameDirectory = project.file("run-test/${suite}")
+                jvmArguments.add('-Xmx5G')
+                systemProperty 'spacehorizons.autotest', 'true'
+                systemProperty 'spacehorizons.autotest.fresh', 'SpaceAuto'
+                systemProperty 'spacehorizons.autotest.only', suite
             }
         }
 
@@ -129,51 +153,112 @@ neoForge {
     }
 }
 
-// Antes do autoteste: recusa se algum mundo de run-test/ está aberto (outro autoteste rodando), avisa se o jogo
-// normal está aberto em run/, apaga o SpaceAuto e os prints autotest_* de run-test/ e, na primeira vez, copia a
+// Antes do autoteste: recusa se algum mundo da pasta do autoteste está aberto (outro autoteste rodando), avisa se o
+// jogo normal está aberto em run/, apaga o SpaceAuto e os prints autotest_* da pasta e, na primeira vez, copia a
 // config dos mods de run/ (DH, Sodium, JEI) para o autoteste rodar com as mesmas opções.
-def prepareClientTest = tasks.register('prepareClientTest') {
-    def runDir = file('run')
-    def testDir = file('run-test')
-    doLast {
-        // o Minecraft segura um FileLock em saves/<mundo>/session.lock enquanto o mundo está aberto
-        def openWorlds = { File dir ->
-            def saves = new File(dir, 'saves')
-            (saves.listFiles() ?: []).findAll { File world ->
-                def lock = new File(world, 'session.lock')
-                if (!lock.isFile()) return false
-                try (def channel = java.nio.channels.FileChannel.open(lock.toPath(), java.nio.file.StandardOpenOption.WRITE)) {
-                    def l = channel.tryLock()
-                    if (l == null) return true
-                    l.release()
-                    return false
-                } catch (java.nio.channels.OverlappingFileLockException | IOException ignored) {
-                    return true
+def registerPrepareClientTest(String name, File runDir, File testDir) {
+    String testName = testDir.name
+    return tasks.register(name) {
+        doLast {
+            // o Minecraft segura um FileLock em saves/<mundo>/session.lock enquanto o mundo está aberto
+            def openWorlds = { File dir ->
+                def saves = new File(dir, 'saves')
+                (saves.listFiles() ?: []).findAll { File world ->
+                    def lock = new File(world, 'session.lock')
+                    if (!lock.isFile()) return false
+                    try (def channel = java.nio.channels.FileChannel.open(lock.toPath(), java.nio.file.StandardOpenOption.WRITE)) {
+                        def l = channel.tryLock()
+                        if (l == null) return true
+                        l.release()
+                        return false
+                    } catch (java.nio.channels.OverlappingFileLockException | IOException ignored) {
+                        return true
+                    }
+                }*.name
+            }
+            def busy = openWorlds(testDir)
+            if (busy) {
+                throw new GradleException("Mundo aberto em ${testName}/saves (${busy.join(', ')}): outro autoteste está rodando. Feche-o antes.")
+            }
+            def playing = openWorlds(runDir)
+            if (playing) {
+                logger.warn("Aviso: o jogo normal está aberto em run/ (${playing.join(', ')}). O autoteste roda em ${testName}/ e não mexe nele.")
+            }
+            // sem isto a pasta nova abre na tela de acessibilidade da primeira execução, na frente do menu inicial
+            def options = new File(testDir, 'options.txt')
+            testDir.mkdirs()
+            def optionLines = options.isFile() ? options.readLines('UTF-8').findAll { !it.startsWith('onboardAccessibility:') } : []
+            options.withWriter('UTF-8') { w -> (optionLines + ['onboardAccessibility:false']).each { w.writeLine(it) } }
+            new File(testDir, 'saves/SpaceAuto').deleteDir()
+            (new File(testDir, 'screenshots').listFiles() ?: []).findAll { it.isFile() && it.name.startsWith('autotest_') }*.delete()
+            def testConfig = new File(testDir, 'config')
+            def runConfig = new File(runDir, 'config')
+            if (!testConfig.exists() && runConfig.isDirectory()) {
+                testConfig.mkdirs()
+                runConfig.eachFileRecurse { File src ->
+                    def dst = new File(testConfig, runConfig.toPath().relativize(src.toPath()).toString())
+                    if (src.isDirectory()) dst.mkdirs() else java.nio.file.Files.copy(src.toPath(), dst.toPath())
                 }
-            }*.name
-        }
-        def busy = openWorlds(testDir)
-        if (busy) {
-            throw new GradleException("Mundo aberto em run-test/saves (${busy.join(', ')}): outro autoteste está rodando. Feche-o antes.")
-        }
-        def playing = openWorlds(runDir)
-        if (playing) {
-            logger.warn("Aviso: o jogo normal está aberto em run/ (${playing.join(', ')}). O autoteste roda em run-test/ e não mexe nele.")
-        }
-        new File(testDir, 'saves/SpaceAuto').deleteDir()
-        (new File(testDir, 'screenshots').listFiles() ?: []).findAll { it.isFile() && it.name.startsWith('autotest_') }*.delete()
-        def testConfig = new File(testDir, 'config')
-        def runConfig = new File(runDir, 'config')
-        if (!testConfig.exists() && runConfig.isDirectory()) {
-            testConfig.mkdirs()
-            runConfig.eachFileRecurse { File src ->
-                def dst = new File(testConfig, runConfig.toPath().relativize(src.toPath()).toString())
-                if (src.isDirectory()) dst.mkdirs() else java.nio.file.Files.copy(src.toPath(), dst.toPath())
             }
         }
     }
 }
+
+def prepareClientTest = registerPrepareClientTest('prepareClientTest', file('run'), file('run-test'))
 tasks.matching { it.name == 'runClientTest' }.configureEach { dependsOn prepareClientTest }
+
+// Regressão paralela: ./gradlew regression roda os trechos de regressionSuites ao mesmo tempo, cada um no seu
+// cliente e na sua pasta run-test/<trecho>/, no máximo -PshParallel clientes juntos (padrão 3), e no fim imprime
+// quantas verificações passaram e falharam em cada um. A tarefa falha se algum trecho falhar ou não registrar
+// nenhuma verificação (cliente que caiu, trecho que não existe).
+abstract class AutotestClientSlots implements org.gradle.api.services.BuildService<org.gradle.api.services.BuildServiceParameters.None> {}
+def clientSlots = gradle.sharedServices.registerIfAbsent('spacehorizonsAutotestClients', AutotestClientSlots) {
+    maxParallelUsages = (findProperty('shParallel') ?: '3').toString().toInteger()
+}
+regressionSuites.each { String suite ->
+    def prepare = registerPrepareClientTest("prepareClientTest${suite.capitalize()}", file('run'), file("run-test/${suite}"))
+    tasks.matching { it.name == "runClientTest${suite.capitalize()}" }.configureEach {
+        dependsOn prepare
+        usesService(clientSlots)
+        // um cliente que cai não para os outros: o relatório da regressão acusa o trecho sem verificações
+        ignoreExitValue = true
+    }
+}
+tasks.register('regression') {
+    group = 'verification'
+    description = 'Roda os autotestes de regressão em paralelo e resume as verificações de cada um.'
+    dependsOn regressionSuites.collect { "runClientTest${it.capitalize()}" }
+    def logs = regressionSuites.collectEntries { [(it): file("run-test/${it}/logs/latest.log")] }
+    doLast {
+        def bad = []
+        def lines = ['', 'Regressão dos autotestes:', String.format('  %-14s %8s %8s', 'trecho', 'passou', 'falhou')]
+        logs.each { String suite, File log ->
+            int passed = 0
+            int checks = 0
+            if (log.isFile()) {
+                // os cenários escrevem "[AUTOTEST] CHECK <resultado> ..." ou com prefixo ("SHIPCHECK", "SHIPGROUND CHECK");
+                // a linha RESUMO não é verificação
+                def checkLine = ~/\[AUTOTEST\].*?[A-Z]*CHECK (\S+)/
+                log.eachLine('UTF-8') { String line ->
+                    def m = checkLine.matcher(line)
+                    if (m.find() && m.group(1) != 'RESUMO' && m.group(1) != 'RESUMO:') {
+                        checks++
+                        if (m.group(1) == 'PASSOU') passed++
+                    }
+                }
+            }
+            int failed = checks - passed
+            String note = checks == 0 ? '  <- nenhuma verificação (o cliente caiu ou o trecho não existe)' : (failed > 0 ? '  <- FALHOU' : '')
+            if (checks == 0 || failed > 0) bad << suite
+            lines << String.format('  %-14s %8d %8d', suite, passed, failed) + note
+        }
+        lines << ''
+        logger.lifecycle(lines.join(System.lineSeparator()))
+        if (bad) {
+            throw new GradleException("Regressão com problema em: ${bad.join(', ')} (logs em run-test/<trecho>/logs/latest.log)")
+        }
+    }
+}
 
 // Sets up a dependency configuration called 'localRuntime'.
 // This configuration should be used instead of 'runtimeOnly' to declare

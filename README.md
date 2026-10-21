@@ -309,6 +309,18 @@ os comandos acima sem ter lido a EULA do Minecraft.
    devem usar as mesmas cores.
 5. Ande em Z até perto de ±70°: a barreira polar deve empurrar você de volta.
 
+### Regressão em paralelo
+
+```bash
+./gradlew regression --console=plain > regression.log 2>&1
+```
+
+Roda os trechos `ship`, `shipflight`, `shipconvert`, `shipground` e `multiblock` ao mesmo tempo, cada um no seu cliente e na
+sua pasta `run-test/<trecho>/` (mundo, prints e `logs/latest.log` próprios), e no fim imprime uma tabela com quantas
+verificações passaram e falharam em cada trecho. A tarefa falha se algum trecho falhar ou não registrar nenhuma verificação.
+`-PshParallel=2` muda quantos clientes abrem juntos (padrão 3; cada um com até 5 GB de heap) e `-PshSuites=ship,multiblock`
+troca a lista; um nome que o `AutoTest` não conhece é recusado antes de abrir o jogo (ele rodaria o roteiro inteiro).
+
 ### Autoteste em jogo
 
 ```bash

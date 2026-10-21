@@ -49,3 +49,6 @@ art/_work/
 
 # transcrições de chat (locais, grandes)
 TRANSCRICAO_CHAT.*
+
+# saída da regressão paralela
+regression.log
