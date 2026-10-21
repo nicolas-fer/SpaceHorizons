@@ -66,6 +66,13 @@ public final class ShipFlightTicker {
         int stepsHeld;
         /** A descida começou (a conversão de volta para a entidade está na fila): não começa outra, e a nave segue voando até a leitura acabar. */
         boolean descentStarted;
+        /** Taxa do relógio do último passo (relógio por tick; 0 com o relógio pausado, quando o chão não gira na física). */
+        double rate = 1.0;
+
+        /** Taxa do relógio do último passo do voo (0 com o relógio pausado). */
+        public double rate() {
+            return this.rate;
+        }
         /** O aviso de descida recusada já foi dado nesta recusa (uma vez por recusa, não a cada tick). */
         boolean descentWarned;
 
@@ -260,6 +267,7 @@ public final class ShipFlightTicker {
             rate = 1.0;      // /time set e afins: não é a taxa do relógio
         }
         live.lastClock = clock;
+        live.rate = rate;
         live.ticks++;
 
         // censo em lotes (adota o resultado novo quando termina; pede outro de tempos em tempos enquanto a nave está carregada)
@@ -344,7 +352,7 @@ public final class ShipFlightTicker {
         Local l = null;
         boolean crossed = false;
         if (below && may && !live.descentStarted) {
-            l = ShipDescent.local(o, clockEnd);
+            l = ShipDescent.local(o, clockEnd, live.rate);
             crossed = ShipDescent.crossed(o, ShipDescent.heightAboveTerrain(l, planet), ZoneSwitch.horizontalSpeed(l));
         }
         if (may) {

@@ -4562,8 +4562,16 @@ public final class AutoTest {
         tickerStep(5, waitFor("sa_done", 1_200));
         step(20, ShipDescentDevtest::start);
         tickerStep(5, waitFor("sd_done", 4_000));
+        // a nave cai: o piloto da missão assume já, na fase da descida da Terra (freia no retrógrado até o contato)
+        step(0, mc -> MissionDevtest.goFrom(mc, MissionPilot.Phase.EARTH_LANDING));
         thirdPerson();
-        shot(60, "sd_3_atmosfera");
+        shot(10, "sd_3_atmosfera");
+        tickerStep(5, waitFor("end", 6_000));
+        shot(40, "sd_4_pousada");
+        step(10, ShipDescentDevtest::landAndCheck);
+        tickerStep(5, waitFor("sd_landed", 200));
+        thirdPerson();
+        shot(40, "sd_5_desmontada");
         step(20, mc -> {
             ShipAscentDevtest.summary();
             SpaceHorizons.LOGGER.info(ShipAscentDevtest.TAG + "FIM");

@@ -160,7 +160,7 @@ public final class FlightMachine {
                 AttitudeMath.sasTarget(sas, reference, state.r()));
         boolean wantsChute = cur.chuteRequested() || c.parachute();
         Control control = new Control(throttle, AttitudeMath.noseDirection(att.attitude()), wantsChute);
-        FlightState moved = FlightIntegrator.step(state, control, stats, clock);
+        FlightState moved = FlightIntegrator.step(state, control, stats, clock, clockRate);
         double clockEnd = clock + clockRate;
         moved = SoiTracker.update(moved, clockEnd, clockRate);
         boolean chuteStillWanted = wantsChute && moved.chute() <= 0.0;

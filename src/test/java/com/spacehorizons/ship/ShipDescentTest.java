@@ -68,7 +68,7 @@ class ShipDescentTest {
     @Test
     void estadoVirtualViraLocalEVoltaSemPerder() {
         FlightState o = onEarth(3000.0, new V3(12.0, -4.0, 30.0));
-        Local l = ShipDescent.local(o, CLOCK);
+        Local l = ShipDescent.local(o, CLOCK, 1.0);
         FlightState back = FrameBridge.fromDimension(SolarSystem.EARTH, CLOCK, 1.0, l, o.fuelMb());
         assertEquals(o.r().x(), back.r().x(), EPS * 1e6);
         assertEquals(o.r().y(), back.r().y(), EPS * 1e6);

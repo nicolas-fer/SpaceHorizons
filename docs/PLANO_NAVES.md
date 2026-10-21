@@ -430,7 +430,7 @@ descartados, desvio máximo 0,3%. Antes, um quadro atrasado bastava para dar 30,
 - D6 (pouso de barriga ou trem de pouso) e D7 (caixas de destroços na batida) não entraram: a batida é a do foguete (blocos viram itens).
 - O tripulante só é checado no gatilho e no tick de voo: quem entra em pé durante a leitura da caixa é levado para a entidade (`movePeople`), não recusado.
 - Enquanto faltam chunks no ponto de chegada, a nave é segurada sem andar (com ticket de carga repetido a cada tick); o tempo de espera depende da geração da dimensão do corpo.
-- Sem nave-com-retrato-grande (limite de 64 de lado do retrato, já anotado no S3): a descida herda esse limite.
+- O retrato da descida tem os limites do retrato do foguete depois dos multiblocos (até 8.192 blocos numa caixa de 128×256×128); naves maiores que isso não descem.
 - O relógio do ponto de chegada é o do início do tick da descida, com um tick de erro no máximo.
 
 **Ganchos para o autoteste (parte 2)**
@@ -443,3 +443,49 @@ descartados, desvio máximo 0,3%. Antes, um quadro atrasado bastava para dar 30,
 **Verificado**: `./gradlew build` passa (compilação, testes unitários e demais tarefas). O jogo não foi aberto nesta parte.
 
 **Falta testar no jogo**: a descida inteira (estaleiro → entidade → pouso → desmontagem → remontagem pela ponte), o caminho do piloto sentado na entidade (controles e a saída pelo `FLAG_DISASSEMBLE`), a recusa com tripulante em pé, e o tempo de espera de chunks em outra velocidade.
+## Resultado da fase 2b (parte 2, autoteste órbita → descida → pouso → blocos no chão)
+
+**Autoteste `-PshOnly=shipdescent`** (`client/devtest/ShipDescentDevtest`, na regressão padrão): a nave de teste do `shipascent` (com
+a coluna extra de tanques) é montada no chão, sobe, entra no estaleiro e circulariza; uma "foto" do retrato no chão (estado de cada bloco,
+NBT do baú, mB) fica guardada. Depois a nave virtual é posta a 1.000 blocos de altitude, descendo a 5 b/t, sem horizontal em relação ao
+chão e com o nariz para cima (`ShipFlightTicker.devtestSetState`; a desorbitação de verdade, uma queima retrógrada saindo da órbita,
+ainda não é exercitada). O piloto da missão do foguete assume na fase `EARTH_LANDING` (`MissionDevtest.goFrom`). Última rodada, dentro
+da regressão paralela: **40 verificações, 0 falhas**:
+
+- descida única; nave fora do `ShipRegistry`; `RocketEntity` com `isShip()` na `minecraft:overworld` a 18 blocos do ponto esperado
+  (o estado avança no tempo da leitura da caixa); piloto sentado nela; caixa do estaleiro vazia;
+- retrato da entidade: 59 blocos, a mesma grade, as mesmas 33 entidades de bloco (NBT igual tirando o combustível dos tanques) e
+  os mB iguais ao combustível da nave no começo da descida (20.125 mB);
+- pouso no motor: contato a −0,80 b/t na vertical, 0,00 na horizontal, 0,02° de inclinação (limites 1, 0,5 e 15°);
+- desmontagem (`RocketLanding.land`, girada 1 quarto de volta): os 59 blocos de volta, cada um igual à foto girada; baú com os 30
+  itens; mB dos tanques iguais ao combustível da nave no pouso (15.771 mB); nenhum item solto em volta; nenhuma nave no registro.
+
+**Bugs achados e corrigidos no caminho**
+
+- **Assento do piloto na ponte** (da fase 2a-ii): o assento invisível posto ao lado da ponte na subida conferia o bloco `ship_seat`
+  embaixo e sumia em 5 ticks; o piloto ficava em pé e a descida era recusada (D4). Agora é um assento "livre" (`ShipSeatEntity.free`),
+  que só some vazio; o `shipascent` confere o piloto sentado 100 ticks depois da troca.
+- **Taxa do relógio**: o autoteste roda com `advance_time` desligado, relógio parado, e o voo usa então taxa 0 (o chão não gira na
+  física). A descida (`ShipDescent.local`, critério e posição de chegada), o piloto da missão (pouso no motor) e o **arrasto do ar no
+  `FlightIntegrator`** usavam taxa 1 fixa: o ar "girava" com o chão parado e empurrava o veículo ~18 b/t para o lado. Agora todos usam
+  a taxa medida pelo voo (`ShipFlightTicker.Live.rate`, `FlightIntegrator.step(…, clockRate)`). Com o relógio andando a taxa é 1 e
+  nada muda.
+- **Menu de pausa no autoteste**: em um jogador a pausa para o servidor; a espera de um marco do voo agora fecha o menu.
+- **Acelerador depois do piloto de teste**: ao terminar, o piloto da missão deixava o último acelerador na entidade, e a nave, com
+  empuxo de sobra, decolava de novo do chão e batia. O laço do teste zera o acelerador.
+- **Log da descida**: mostrava o ponto da subida em vez de onde a entidade nasce.
+
+**Piloto do pouso sem paraquedas** (`MissionPilot`): sem paraquedas e abaixo de 3.000 blocos, a descida da Terra usa o pouso no motor
+da Lua, com frenagem planejada a 20% do empuxo máximo (45% na Lua) e toque mirado a 0,3 b/t (0,55 na Lua). A missão Terra→Lua→Terra
+continua igual (Δv total 263,9 b/t, pouso de paraquedas).
+
+**Regressão** (`./gradlew regression`, 3 clientes, 9,3 min): ship 30/0, shipflight 30/0, shipconvert 151/0, shipground 16/0,
+shipascent 23/0, shipdescent 40/0, multiblock 169/0.
+
+**Limitações**
+
+- A desorbitação real (queima retrógrada saindo de órbita fechada até a atmosfera) não é testada: a descida começa de um estado posto.
+- A nave chega à atmosfera com a atitude da órbita; o teste põe o nariz para cima, porque a nave gira devagar.
+- Na desmontagem girada, colunas de tanques vizinhas podem se reagrupar de outro jeito (duas 2x2x4 viram uma 2x3x4 e uma 2x1x4): os
+  blocos e o combustível total são os mesmos, mas a divisão das estruturas muda.
+- O pouso no jogo de verdade (jogador pilotando, tecla de desmontar) não foi testado; os passageiros extras continuam fora.

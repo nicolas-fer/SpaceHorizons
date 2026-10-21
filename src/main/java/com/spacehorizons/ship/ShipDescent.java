@@ -73,8 +73,9 @@ public final class ShipDescent {
     }
 
     /** O estado virtual (inercial, relativo ao corpo) em coordenadas da dimensão do corpo, no relógio {@code clock}, a taxa 1. */
-    public static Local local(FlightState s, double clock) {
-        return FrameBridge.toDimension(s.body(), clock, 1.0, s.r(), s.v());
+    public static Local local(FlightState s, double clock, double rate) {
+        // a taxa do relógio do voo: com o relógio pausado o chão não gira na física, e a velocidade relativa ao chão é a inercial
+        return FrameBridge.toDimension(s.body(), clock, rate, s.r(), s.v());
     }
 
     /** Altura do ponto sobre o terreno, pelo mesmo critério do voo do foguete (a superfície da dimensão do corpo). */
@@ -124,7 +125,7 @@ public final class ShipDescent {
         if (dest == null) {
             return null;
         }
-        Local l = local(o, SpaceClock.ticks(server.overworld()));
+        Local l = local(o, SpaceClock.ticks(server.overworld()), live.rate);
         V3 cv = l.coordinateVelocity(o.body());
         FlightMachine.Snapshot flight = new FlightMachine.Snapshot(FlightMode.FLIGHT, o, state.attitude(), state.spin(), state.sas(),
                 state.throttle(), false, o.body(), o.fuelMb());

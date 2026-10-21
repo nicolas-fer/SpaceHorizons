@@ -182,7 +182,7 @@ public final class ShipFlight {
         AttitudeControl.Result att = AttitudeControl.step(s.attitude(), s.spin(), sas, -c.pitch(), -c.yaw(), c.roll(),
                 AttitudeMath.sasTarget(sas, orbit.v(), orbit.r()));
         Control control = new Control(throttle, thrustDirection(att.attitude(), thrustAxis), false);
-        FlightState moved = FlightIntegrator.step(orbit, control, stats, clock);
+        FlightState moved = FlightIntegrator.step(orbit, control, stats, clock, clockRate);
         moved = SoiTracker.update(moved, clock + clockRate, clockRate);
         // o combustível nunca passa da capacidade dos tanques que restam (um tanque quebrado leva a carga dele)
         if (moved.fuelMb() > stats.fuelCapacityMb()) {

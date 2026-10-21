@@ -38,6 +38,7 @@ final class MissionDevtest {
     private static MissionPilot.Phase lastPhase = MissionPilot.Phase.PAD;
     private static MissionPilot.@Nullable Out current;
     private static int ticks;
+    private static double lastClock = Double.NaN;
     private static long startNanos;
     private static double msptSum;
     private static double msptMax;
@@ -49,6 +50,14 @@ final class MissionDevtest {
 
     /** Libera o piloto da missão (o foguete já está montado e o jogador sentado). */
     static void go(Minecraft mc) {
+        goFrom(mc, null);
+    }
+
+    /**
+     * O mesmo piloto a partir de uma fase ({@code null} = do começo): a descida da nave (shipdescent) usa {@code EARTH_LANDING} com a nave já
+     * na atmosfera. O foguete (ou a nave) já está no ar ou no chão e o jogador sentado.
+     */
+    static void goFrom(Minecraft mc, MissionPilot.@Nullable Phase from) {
         MinecraftServer server = mc.getSingleplayerServer();
         if (server == null) {
             SpaceHorizons.LOGGER.warn("{}sem servidor integrado", TAG);
@@ -63,8 +72,12 @@ final class MissionDevtest {
             }
             double hy = rocket.portrait().sizeY / 2.0;
             pilot = new MissionPilot(rocket.stats(), hy, MissionDevtest::surfaceY, line -> SpaceHorizons.LOGGER.info(TAG + line));
+            if (from != null) {
+                pilot.forcePhase(from);
+            }
             ticks = 0;
-            lastPhase = MissionPilot.Phase.PAD;
+            lastClock = Double.NaN;
+            lastPhase = from != null ? from : MissionPilot.Phase.PAD;
             current = null;
             startNanos = System.nanoTime();
             SpaceHorizons.LOGGER.info("{}PARTIDA: relógio={} massa seca={} t, Δv cheio={} b/t, empuxo={}, altura da caixa={}", TAG, SpaceClock.ticks(player.level()),
@@ -128,6 +141,10 @@ final class MissionDevtest {
         }
         ticks++;
         double clock = SpaceClock.ticks(player.level());
+        // a taxa do relógio como o voo a mede (0 com o relógio pausado): o pouso no motor usa a velocidade relativa ao chão
+        double rate = Double.isNaN(lastClock) ? 1.0 : clock - lastClock;
+        lastClock = clock;
+        p.clockRate(rate >= 0.0 && rate <= 4.0 ? rate : 1.0);
         current = p.step(snap, clock);
         if (p.phase() != lastPhase) {
             lastPhase = p.phase();
@@ -136,6 +153,9 @@ final class MissionDevtest {
                     rocket.level().dimension().identifier(), fmt(rocket.getX()), fmt(rocket.getY()), fmt(rocket.getZ()));
         }
         if (p.finished()) {
+            // o acelerador da entidade fica no último comando: zera, senão um veículo com empuxo de sobra (a nave) decola de novo do chão
+            current = null;
+            rocket.applyControl(new RocketControlPayload(0.0F, 0.0F, 0.0F, 0.0F, (byte) 0));
             if (p.phase() == MissionPilot.Phase.FAILED) {
                 FlightDevtest.mark("failed");
             }
@@ -145,7 +165,8 @@ final class MissionDevtest {
             armed = false;
             return;
         }
-        if (ticks % 500 == 0) {
+        // na descida da Terra (o pouso da nave começa nela) a posição vai ao log mais vezes: a fase é curta e é onde o pouso se decide
+        if (ticks % (p.phase() == MissionPilot.Phase.EARTH_LANDING ? 20 : 500) == 0) {
             FlightState st = snap.state();
             SpaceHorizons.LOGGER.info("{}[{}] t={} dim={} modo={} pos=({}, {}, {}) segurado={} comb={} mB {} MSPT média={} ms máx={} ms", TAG, p.phase(), ticks,
                     rocket.level().dimension().identifier(), snap.mode(), fmt(rocket.getX()), fmt(rocket.getY()), fmt(rocket.getZ()), rocket.isHeld(), fmt(rocket.fuelMb()),

@@ -3,16 +3,22 @@ package com.spacehorizons.client.devtest;
 import java.io.IOException;
 import java.nio.file.Path;
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.rocket.FlightMode;
+import com.spacehorizons.rocket.PortraitGrid;
 import com.spacehorizons.rocket.RocketEntity;
+import com.spacehorizons.rocket.RocketException;
 import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
+import com.spacehorizons.rocket.RocketLanding;
 import com.spacehorizons.rocket.RocketPortrait;
 import com.spacehorizons.ship.ShipDescent;
+import com.spacehorizons.ship.ShipFlight;
 import com.spacehorizons.ship.ShipFlightTicker;
 import com.spacehorizons.ship.ShipRecord;
 import com.spacehorizons.ship.ShipRegistry;
 import com.spacehorizons.ship.ShipYard;
 import com.spacehorizons.space.SpaceClock;
 import com.spacehorizons.space.flight.FlightState;
+import com.spacehorizons.space.flight.FrameBridge;
 import com.spacehorizons.space.flight.V3;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -20,13 +26,18 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * Autoteste da descida (fase 2b, parte 1): -PshOnly=shipdescent. Depois da circularização do shipascent, a nave virtual é posta a
  * {@link #START_ALTITUDE} blocos sobre o ponto da órbita atual, descendo a {@link #DESCENT_SPEED} b/t na vertical e no máximo
- * {@link #HORIZONTAL_SPEED} b/t na horizontal (mesmo referencial do voo virtual: {@link FlightState} do corpo, inercial). Quando a
+ * {@link #HORIZONTAL_SPEED} b/t na horizontal em relação ao chão (que gira com a Terra; o estado é inercial, como o do voo virtual). Quando a
  * altitude de entrada e o critério do foguete deixam, a nave vira entidade na Terra. A desorbitação real (queima para descer de uma
  * órbita fechada) fica para depois: aqui a descida é forçada pelo estado de teste.
  *
@@ -36,7 +47,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class ShipDescentDevtest {
     static final double START_ALTITUDE = 1_000.0;
     static final double DESCENT_SPEED = 5.0;
-    static final double HORIZONTAL_SPEED = 10.0;
+    static final double HORIZONTAL_SPEED = 0.0;
     /** Distância máxima, em blocos (horizontal), entre o ponto esperado da entidade e o ponto onde ela apareceu. */
     static final double POSITION_TOLERANCE = 300.0;
     /** Ticks do servidor até desistir da descida. */
@@ -46,6 +57,8 @@ final class ShipDescentDevtest {
     private static RocketPortrait photo;
     private static int shipId = -1;
     private static ShipYard.Box yardBox;
+    /** Itens que a nave de teste leva no baú (os mesmos do shipascent). */
+    static final int PHOTO_CHEST_ITEMS = ShipAscentDevtest.GROUND_DIAMONDS + ShipAscentDevtest.GROUND_IRON;
     /** Combustível da nave virtual no começo da descida (a subida gastou parte do que a foto do chão tinha). */
     private static double descentFuelMb;
     private static double expectedX;
@@ -94,11 +107,19 @@ final class ShipDescentDevtest {
             FlightState o = live.state().orbit();
             descentFuelMb = o.fuelMb();
             V3 up = o.r().unit();
+            // horizontal: a do chão girando naquele ponto (zero em relação à superfície) mais HORIZONTAL_SPEED no sentido do movimento; o pouso
+            // suave pede no máximo 0,5 b/t de horizontal em relação ao chão, e a nave gira devagar para tirar muita horizontal na descida
+            V3 r = up.times(o.body().planet().radius() + START_ALTITUDE);
+            // com a taxa do relógio do voo: o autoteste pausa o relógio (advance_time false) e aí o chão não gira na física
+            V3 groundV = FrameBridge.rotationVelocity(o.body(), SpaceClock.ticks(server.overworld()), live.rate(), r);
             V3 horizontal = o.v().minus(up.times(o.v().dot(up)));
-            V3 tangent = horizontal.lengthSquared() > 0.0 ? horizontal.unit().times(HORIZONTAL_SPEED) : V3.ZERO;
-            FlightState descent = o.withRV(up.times(o.body().planet().radius() + START_ALTITUDE), up.times(-DESCENT_SPEED).plus(tangent));
-            ShipFlightTicker.devtestSetState(shipId, live.state().withOrbit(descent));
-            var expected = ShipDescent.local(descent, SpaceClock.ticks(server.overworld()));
+            V3 tangent = horizontal.lengthSquared() > 0.0 && HORIZONTAL_SPEED > 0.0 ? horizontal.unit().times(HORIZONTAL_SPEED) : V3.ZERO;
+            FlightState descent = o.withRV(r, groundV.plus(up.times(-DESCENT_SPEED)).plus(tangent));
+            // nariz para cima (o eixo do empuxo dos bocais) e sem giro: o teste é da descida e do pouso, não de virar a nave que saiu da
+            // circularização com o nariz na horizontal (ela gira devagar e cairia antes de apontar)
+            var upright = new org.joml.Quaterniond().rotationTo(0.0, 1.0, 0.0, up.x(), up.y(), up.z());
+            ShipFlightTicker.devtestSetState(shipId, new ShipFlight.State(descent, upright, V3.ZERO, live.state().sas(), 0.0));
+            var expected = ShipDescent.local(descent, SpaceClock.ticks(server.overworld()), live.rate());
             expectedX = expected.x();
             expectedY = expected.y();
             expectedZ = expected.z();
@@ -189,6 +210,72 @@ final class ShipDescentDevtest {
         }
         SpaceHorizons.LOGGER.info("[AUTOTEST] SHIPDESCENT entidade na Terra: {}, altura {}, {} ticks", entity.position(), entity.getY(), ticks);
         FlightDevtest.mark("sd_done");
+    }
+
+    /**
+     * Depois do pouso pelo piloto da missão (fase EARTH_LANDING): confere a nave pousada inteira, desmonta com {@link RocketLanding#land} e
+     * confere os blocos no chão contra a foto do chão (girada como a desmontagem gira), o baú, os mB, nenhum item solto e nenhuma nave fantasma.
+     */
+    static void landAndCheck(Minecraft mc) {
+        ShipGroundDevtest.onServer(mc, "pouso", (server, level, player) -> {
+            if (!(player.getVehicle() instanceof RocketEntity ship) || !ship.isShip()) {
+                ShipAscentDevtest.check("nave pousada com o piloto sentado", false, "veículo " + player.getVehicle());
+                FlightDevtest.mark("sd_landed");
+                return;
+            }
+            ServerLevel ground = (ServerLevel) ship.level();
+            ShipAscentDevtest.check("pouso suave: nave em LANDED, inteira", ship.flight().mode() == FlightMode.LANDED && ship.portrait().blockCount() == photo.blockCount(),
+                    "modo " + ship.flight().mode() + ", blocos " + ship.portrait().blockCount() + ", em " + ship.position());
+            int turns = PortraitGrid.quarterTurnsFromYaw(ship.yawDegrees());
+            RocketPortrait rotated = ship.portrait().rotated(turns);
+            RocketPortrait photoRotated = photo.rotated(turns);
+            BlockPos origin = RocketLanding.originFor(ship.position(), rotated.sizeX, rotated.sizeY, rotated.sizeZ);
+            int fuel = (int) Math.floor(ship.fuelMb());
+            try {
+                RocketLanding.land(ground, ship);
+            } catch (RocketException e) {
+                ShipAscentDevtest.check("desmontagem no chão", false, e.getMessage());
+                FlightDevtest.mark("sd_landed");
+                return;
+            }
+            int blocks = 0;
+            int mismatches = 0;
+            int tankMb = 0;
+            int chestItems = 0;
+            for (int x = 0; x < rotated.sizeX; x++) {
+                for (int y = 0; y < rotated.sizeY; y++) {
+                    for (int z = 0; z < rotated.sizeZ; z++) {
+                        BlockState expected = photoRotated.get(x, y, z);
+                        if (expected.isAir()) {
+                            continue;
+                        }
+                        BlockPos pos = origin.offset(x, y, z);
+                        BlockState actual = ground.getBlockState(pos);
+                        blocks += actual.isAir() ? 0 : 1;
+                        mismatches += actual.equals(expected) ? 0 : 1;
+                        BlockEntity be = ground.getBlockEntity(pos);
+                        if (be instanceof RocketFuelTankBlockEntity tank) {
+                            tankMb += tank.fuelMb();
+                        } else if (be instanceof Container container) {
+                            for (int i = 0; i < container.getContainerSize(); i++) {
+                                chestItems += container.getItem(i).getCount();
+                            }
+                        }
+                    }
+                }
+            }
+            ShipAscentDevtest.check("chão: os " + photo.blockCount() + " blocos da foto de volta", blocks == photo.blockCount(), "blocos " + blocks);
+            ShipAscentDevtest.check("chão: cada bloco igual à foto (girada " + turns + " quarto(s))", mismatches == 0, "diferentes " + mismatches);
+            ShipAscentDevtest.check("chão: itens do baú iguais à foto (" + PHOTO_CHEST_ITEMS + ")", chestItems == PHOTO_CHEST_ITEMS, "itens " + chestItems);
+            ShipAscentDevtest.check("chão: mB dos tanques iguais ao combustível da nave no pouso", tankMb == fuel, "tanques " + tankMb + " mB, nave " + fuel + " mB");
+            AABB around = new AABB(origin).expandTowards(rotated.sizeX, rotated.sizeY, rotated.sizeZ).inflate(8.0);
+            int drops = ground.getEntitiesOfClass(ItemEntity.class, around).size();
+            ShipAscentDevtest.check("chão: nenhum item solto em volta", drops == 0, "itens soltos " + drops);
+            int ghosts = ShipRegistry.get(server).all().size();
+            ShipAscentDevtest.check("nenhuma nave fantasma no registro", ghosts == 0, "naves " + ghosts);
+            SpaceHorizons.LOGGER.info("[AUTOTEST] SHIPDESCENT desmontada em {}: {} blocos, giro {}, {} mB", origin.toShortString(), blocks, turns, tankMb);
+            FlightDevtest.mark("sd_landed");
+        });
     }
 
     private static boolean yardEmpty(MinecraftServer server) {
