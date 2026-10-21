@@ -49,9 +49,12 @@ public final class ShipAssembler {
     public static RocketEntity assemble(ServerLevel level, BlockPos bridge, ServerPlayer player) throws RocketException {
         RocketAssembly.Result found = ShipAssembly.scan(RocketAssembler.worldGrid(level, ShipKinds::assemblyKind), bridge.getX(),
                 bridge.getY(), bridge.getZ());
-        double liftoffThrust = ShipLiftoff.require(nozzles(level, found), found.census());
+        ShipLiftoff.Nozzles nozzles = nozzles(level, found);
+        double liftoffThrust = ShipLiftoff.require(nozzles, found.census());
         SpaceHorizons.LOGGER.info("Nave montada em {}: empuxo de decolagem {}", bridge.toShortString(), liftoffThrust);
-        return RocketAssembler.assemble(level, bridge, player, found, true);
+        RocketEntity ship = RocketAssembler.assemble(level, bridge, player, found, true);
+        ship.setNozzlesDown(nozzles.down());
+        return ship;
     }
 
     /** Os motores de impulso da nave por sentido do bocal (o de cima e o horizontal não decolam a nave). */

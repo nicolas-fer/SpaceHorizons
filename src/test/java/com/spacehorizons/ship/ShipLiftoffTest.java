@@ -43,6 +43,26 @@ class ShipLiftoffTest {
     }
 
     @Test
+    void estatisticasSomamBocaisEMotorDeFoguete() {
+        // dois bocais para baixo mais um motor de foguete avulso: F = soma, Isp = ΣF / Σ(F/Isp)
+        RocketCensus rocket = new RocketCensus(0, 1, 4, 0, 0, 0, 0);
+        var stats = ShipLiftoff.stats(2, rocket);
+        double nozzleThrust = 2 * ShipSpecs.ENGINE_THRUST;
+        double thrust = nozzleThrust + RocketSpecs.ENGINE_THRUST;
+        assertEquals(thrust, stats.thrust(), EPS);
+        double flow = nozzleThrust / ShipSpecs.ENGINE_ISP_TICKS + RocketSpecs.ENGINE_THRUST / RocketSpecs.ENGINE_ISP_TICKS;
+        assertEquals(thrust / flow, stats.ispTicks(), EPS);
+        assertEquals(4 * RocketSpecs.TANK_CAPACITY_MB, stats.fuelCapacityMb(), EPS);
+        assertEquals(RocketSpecs.statsFor(rocket).dryMassT(), stats.dryMassT(), EPS);
+    }
+
+    @Test
+    void semBocalParaBaixoAsEstatisticasSaoAsDoFoguete() {
+        RocketCensus rocket = new RocketCensus(0, 1, 2, 0, 0, 0, 0);
+        assertEquals(RocketSpecs.statsFor(rocket).thrust(), ShipLiftoff.stats(0, rocket).thrust(), EPS);
+    }
+
+    @Test
     void recusaSemMotorParaBaixo() {
         // só bocais para cima e horizontais, e nenhum motor de foguete: não decola
         RocketCensus rocket = new RocketCensus(0, 0, 0, 0, 0, 0, 5);

@@ -3,6 +3,7 @@ package com.spacehorizons.ship;
 import com.spacehorizons.rocket.RocketCensus;
 import com.spacehorizons.rocket.RocketException;
 import com.spacehorizons.rocket.RocketSpecs;
+import com.spacehorizons.space.flight.RocketStats;
 
 /**
  * Empuxo de decolagem de uma nave montada no chão (docs/PLANO_NAVES.md, fase 2a): a soma dos {@code ship_impulse_engine} com o bocal
@@ -21,6 +22,24 @@ public final class ShipLiftoff {
     /** Empuxo de decolagem, em t·blocos/tick²: os bocais para baixo mais o empuxo dos motores de foguete do censo. */
     public static double thrust(Nozzles nozzles, RocketCensus rocket) {
         return nozzles.down() * ShipSpecs.ENGINE_THRUST + RocketSpecs.thrustOf(rocket);
+    }
+
+    /**
+     * Estatísticas da nave para a física do voo: o censo do foguete (massa seca, tanques e combustível, arrasto) com o empuxo dos bocais
+     * para baixo somado ao dos motores de foguete. O Isp é o do conjunto: {@code ΣF / Σ(F/Isp)}, com o Isp dos bocais de impulso
+     * ({@link ShipSpecs#ENGINE_ISP_TICKS}) e o dos motores de foguete ({@link RocketSpecs#ispOf}).
+     */
+    public static RocketStats stats(int nozzlesDown, RocketCensus rocket) {
+        RocketStats base = RocketSpecs.statsFor(rocket);
+        double nozzleThrust = Math.max(0, nozzlesDown) * ShipSpecs.ENGINE_THRUST;
+        double rocketThrust = base.thrust();
+        double thrust = nozzleThrust + rocketThrust;
+        if (nozzleThrust <= 0.0) {
+            return base;
+        }
+        double flow = nozzleThrust / ShipSpecs.ENGINE_ISP_TICKS + (rocketThrust > 0.0 ? rocketThrust / base.ispTicks() : 0.0);
+        return new RocketStats(base.dryMassT(), thrust, thrust / flow, base.fuelCapacityMb(), base.dragK0(), base.parachuteK0(),
+                base.engines() + nozzlesDown, base.tanks(), base.parachutes(), base.legs());
     }
 
     /**
