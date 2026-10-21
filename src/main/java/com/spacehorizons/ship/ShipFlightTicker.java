@@ -126,7 +126,11 @@ public final class ShipFlightTicker {
     /** Liga o voo da nave: estado inicial de teste (órbita circular da Terra, ver {@link ShipFlight#testState}) com o combustível dos tanques. */
     public static void start(MinecraftServer server, ShipRecord ship, ShipCensusResult census) {
         double clock = SpaceClock.ticks(server.overworld());
-        ShipFlight.State state = ShipFlight.testState(clock, census.tankFuelMb());
+        startWith(server, ship, ShipFlight.testState(clock, census.tankFuelMb()), census);
+    }
+
+    /** Liga o voo da nave com um estado dado (a nave que veio de um foguete, no instante em que cruzou a altitude de saída). */
+    public static void startWith(MinecraftServer server, ShipRecord ship, ShipFlight.State state, ShipCensusResult census) {
         ShipRegistry registry = ShipRegistry.get(server);
         registry.update(ship.withFlight(ShipFlightData.of(state, census.census(), census.arrangement())));
         Live live = new Live(ship.id(), state, census.census(), census.arrangement());
