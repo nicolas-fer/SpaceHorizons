@@ -12,12 +12,12 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | | O quê | Onde |
 |---|---|---|
 | 🟡 | **Naves, fase 2b: descida e pouso** (estaleiro → entidade → blocos no chão). Parte 1 (código e testes unitários) pronta em branch; autoteste `shipdescent` sendo montado em partes (1: até virar entidade; 2: pouso e desmontagem; 3: desorbitação real e regressão). | `docs/PLANO_NAVES.md` |
-| 🟡 | **Estudo: andar na nave dentro do planeta** (voo baixo, pairar, subida e descida). | `docs/PLANO_NAVE_ATMOSFERA.md` |
+| ✅ | **Plano: andar na nave dentro do planeta** decidido: convés andável estilo Create em movimento (máquinas param), âncora em blocos reais parada no ar. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 
 ## Próximos passos (em ordem)
 
 1. Fechar a fase 2b das naves (autoteste órbita → descida → pouso → desmontagem sem perder blocos, regressão verde) e mesclar.
-2. Decidir o plano da nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`) e encaixá-lo na ordem.
+2. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): spike do convés (S5), spike da âncora (S6), depois as fases 2e a 2g.
 3. Naves 2c (EVA perto do casco) e 2d (outras naves e foguetes vistos de dentro).
 4. Tiers: plantas holográficas de montagem → gerador de planetas por parâmetros e **Marte** → sistema solar centrado no sol.
 
@@ -63,7 +63,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | 🟡 | 2b | Descida e pouso: código pronto (🧪), autoteste em montagem |
 | ⬜ | 2c | EVA perto do casco e jogador livre no espaço |
 | ⬜ | 2d | Outras naves e foguetes vistos de dentro |
-| ⬜ | Atmosfera | Andar na nave dentro do planeta (em estudo) |
+| ⬜ | S5, S6, 2e a 2g | Andar na nave dentro do planeta: convés andável (estilo Create) e âncora no ar |
 | ⬜ | 3 | Dobra, escudos, hangar, luz do sol, ar selado; voo assistido estilo No Man's Sky |
 
 ### Tier 4: dobra e sistemas procedurais
@@ -90,7 +90,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | D6 | Pouso de barriga permitido? Trem de pouso obrigatório para nave grande? | `docs/PLANO_NAVES.md` |
 | D7 | Batida de nave grande: o que acontece com os blocos (caixas de destroços)? | `docs/PLANO_NAVES.md` |
 | D8 | Luz do sol nas janelas e luz do céu dentro da nave | `docs/PLANO_NAVES.md` |
-| A1 a A5 | Nave andável no planeta | `docs/PLANO_NAVE_ATMOSFERA.md` |
+| A2 a A4 | Nave andável no planeta: interações em movimento, custo da âncora, limite de velocidade do convés | `docs/PLANO_NAVE_ATMOSFERA.md` |
 
 ## Como verificar
 
