@@ -358,38 +358,49 @@ Autotestes (estilo `AutoTest`, cenários com `-PshOnly=`): `ship` (fase 1: cria 
 - **Reuso.** `RocketToYardJob` continua fazendo a conversão (blocos, NBT, mB, romaneio, perdas). O overload sem estado (`flight == null`) é o da conversão de teste do S3, sem mudança de comportamento.
 - **Testes.** `ShipAscentTest` (2 casos): o gatilho dispara uma vez só e só para nave voando; o estado de voo copia posição, velocidade, atitude, spin e acelerador sem mudar de referencial.
 
-**Autoteste `shipascent`** (última rodada, 14 verificações, 0 falhas; a conversão começou em 5.078,58 blocos, com 127,22 b/t):
+**Acelerador e SAS na troca.** O voo virtual começa com o acelerador em 0 (decisão de produto: a subida não continua queimando sozinha no
+estaleiro; o piloto religa se quiser). Os mB dos tanques ficam iguais aos da entidade no instante da troca e continuam iguais 100 ticks depois.
 
-- montagem: 43 blocos no retrato; piloto sentado no chão;
-- gatilho: cruzou a altitude de saída e a entidade congelou com o piloto sentado;
-- no estaleiro: nave registrada (fase READY, com voo virtual); 43 blocos, igual ao chão; baú com 10 diamantes e 20 ferros, igual ao chão; 16 tanques com 6.000 mB no total, igual ao combustível da entidade no instante da troca; coluna 2x2x4 formada (1); entidade removida; piloto em `spacehorizons:shipyard`, sentado num assento da própria célula; voo virtual ligado;
-- estado coerente: altitude 5.206,59 contra 5.078,58 (diferença 128,02 blocos, cerca de 1 tick de voo a 127 b/t); velocidade 128,98 contra 127,22 b/t (erro de 1,38%);
-- órbita: apoapse infinita (não ligada), periapse 162,90 registrados.
+**SAS horizontal** (`AttitudeMath.SasMode.HORIZONTAL`, no fim do enum para não mudar os números já gravados; ciclo da tecla T: desligado →
+estabilizar → prógrado → retrógrado → horizontal). O nariz vai para a horizontal local no sentido do movimento (`v − (v·û)û`, com `û` radial
+para fora do corpo dominante); na subida vertical, sem componente horizontal, segura a atitude. Vale para o foguete (`FlightMachine`) e para a
+nave (`ShipFlight`). É o modo de circularizar: o prógrado, numa queima longa longe da órbita circular, sobe o apoastro e abre a órbita.
 
-**Regressão** (`./gradlew regression`, 3 clientes em paralelo, 8 min e 36 s, `BUILD FAILED` por uma verificação):
+**Autoteste `shipascent`** (19 verificações, 0 falhas sozinho; 22 na regressão): a nave de teste tem uma coluna extra de tanques (59 blocos,
+32 tanques). A conversão começa em ~5.000 blocos; no estaleiro: blocos, baú e mB iguais, coluna formada, entidade removida, piloto sentado na
+ponte, voo virtual ligado com acelerador 0 e estado coerente com a entidade. Depois, a circularização no voo virtual, com o SAS horizontal e o
+acelerador cheio a partir de metade da duração estimada antes do apoastro, até a periapse passar da altitude de entrada + 300 blocos:
+
+| | apoapse (altitude) | periapse (altitude) | velocidade |
+|---|---|---|---|
+| depois da troca | 6.044 | −51.935 | 71,7 b/t |
+| depois da queima | 43.449 | 4.335 | 94,9 b/t |
+
+A queima gastou 17.500 dos 37.000 mB. A órbita fica excêntrica porque cada tick de queima cheia muda ~1 b/t; um corte
+proporcional perto do alvo deixaria a órbita mais redonda. Apoapse e periapse de `Orbit` são distância ao centro; o teste e os logs mostram
+altitude (menos o raio).
+
+**Tremor do céu** (`ship`, "sem tremor no giro", limite de 15% mantido): a medida descarta quadros com intervalo acima de 3× a mediana
+(quadros que o sistema atrasou) e registra os intervalos. Sob a carga da regressão: mínimo 4,2 ms, mediano 8,5 ms, máximo 67,0 ms, 7 quadros
+descartados, desvio máximo 0,3%. Antes, um quadro atrasado bastava para dar 30,9% e falhar.
+
+**Regressão** (`./gradlew regression`, 3 clientes em paralelo, 8 min e 27 s, `BUILD SUCCESSFUL`):
 
 | trecho | passou | falhou |
 |---|---|---|
-| ship | 29 | 1 |
+| ship | 30 | 0 |
 | shipflight | 30 | 0 |
 | shipconvert | 151 | 0 |
 | shipground | 16 | 0 |
-| shipascent | 17 | 0 |
+| shipascent | 22 | 0 |
 | multiblock | 169 | 0 |
 
-A falha foi `SHIP: sem tremor no giro` (desvio de 30,9% na velocidade angular do céu, limite de 15%), um teste de quadros que sofre com a carga dos três clientes. Não toquei nesse caminho. Rodado sozinho depois (`-PshOnly=ship`): 30 passaram, 0 falharam. Recomendo afrouxar ou ler esse teste sob carga antes de tomar a regressão como verde.
-
-**Prints** (`art/_work/shipascent_prints/`, copiados de `run-test/screenshots/autotest_sa_*`, reduzidos a 960 px): `sa_1_chao`, `sa_1b_montada`, `sa_2_subindo`, `sa_3_estaleiro`, `sa_4_ceu_virtual`. O de subida mostra o HUD de voo com 4.711 blocos de altitude e o planeta abaixo. O de estaleiro mostra a nave por dentro com o rótulo "tank structure 2x2x4 0 / 64000 mB" (o "0" não foi investigado). O `sa_4_ceu_virtual` mostra quase só o casco escuro: o céu virtual não aparece com clareza nessa vista, então não afirmo que ele se vê por dentro.
+**Prints** (`art/_work/shipascent_prints/`): `sa_1_chao`, `sa_1b_montada`, `sa_2_subindo`, `sa_3_estaleiro`, `sa_4_ceu_virtual`. O estaleiro
+é escuro por dentro (sem luz do céu, item 4.4) e o `sa_4` não mostra o céu virtual com clareza.
 
 **Não verificado / limitações**
 
-- O que o voo virtual faz depois da troca além de manter a altitude (órbita, céu, queima) não foi testado no estaleiro.
-- Apoapse e periapse: o periapse de 162,90 é menor que a altitude atual (5.206 blocos), o que parece inconsistente com `Orbit.periapsis` ("distância ao centro"). Não consegui confirmar a unidade ou o que o `Orbit.of` espera; o valor está registrado, mas não é confiável.
-- Só o piloto senta; os passageiros extras ficam em pé.
-- O assento do piloto é uma entidade invisível criada na hora, não um bloco `ship_seat` da nave.
-- A volta estaleiro → foguete (`ship torocket`) usa o snapshot de antes da subida, então não reflete o voo virtual; não testado.
-- Caminho de falha da subida (job cancelado no meio) não foi exercitado no autoteste.
-- Acima de 5.000 a nave não tem teto nem limite de altura além do próprio voo virtual.
-- O nível de tolerância da velocidade (2%) e da altitude (2 ticks de deslocamento) foi escolhido para absorver o tick entre a troca e a conferência; é uma decisão de teste, não uma medida de precisão.
-
-**Branch e commits:** `worktree-agent-aafd7e7474489ba65`. Commits: `3dc06b4` (gatilho, estado de voo, piloto e unit tests), `19f9815` (autoteste shipascent e regressão). Docs e README (seção acima e a atualização do README) ainda não commitados.
+- Só o piloto senta; os passageiros extras ficam em pé. O assento do piloto é uma entidade invisível criada na hora, não um bloco `ship_seat`.
+- A volta estaleiro → foguete (`ship torocket`) usa o snapshot de antes da subida; não testado depois da subida.
+- Caminho de falha da subida (job cancelado no meio) não exercitado.
+- O SAS horizontal no foguete só tem teste unitário; a missão Terra→Lua→Terra (`-PshOnly=mission`) continuou completa depois da mudança (Δv total 264 b/t, pouso suave), mas não usa o modo novo. Não testado por um jogador em jogo.
