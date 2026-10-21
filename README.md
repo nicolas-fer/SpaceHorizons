@@ -311,13 +311,22 @@ os comandos acima sem ter lido a EULA do Minecraft.
    devem usar as mesmas cores.
 5. Ande em Z até perto de ±70°: a barreira polar deve empurrar você de volta.
 
+### Descida e pouso da nave
+
+Abaixo da altitude de entrada (4.000 na Terra) e descendo, com todos de bordo sentados, a nave do estaleiro vira entidade na Terra
+quando cumpre o critério de entrada do foguete (até 1.200 blocos sobre o terreno com no máximo 25 b/t de horizontal, ou abaixo de
+600). Com alguém em pé, a descida é recusada e a nave fica segura na altitude de entrada. O pouso é o do foguete: suave com até 1 b/t
+na vertical, 0,5 na horizontal e 15° de inclinação; pousada, a tecla de desmontar (ou `rocket disassemble`) devolve os blocos ao
+chão. Autoteste: `./gradlew runClientTest -PshOnly=shipdescent` (sobe, circulariza, desce, pousa e confere os blocos contra a foto
+do chão).
+
 ### Regressão em paralelo
 
 ```bash
 ./gradlew regression --console=plain > regression.log 2>&1
 ```
 
-Roda os trechos `ship`, `shipflight`, `shipconvert`, `shipground`, `shipascent` e `multiblock` ao mesmo tempo, cada um no seu cliente e na
+Roda os trechos `ship`, `shipflight`, `shipconvert`, `shipground`, `shipascent`, `shipdescent` e `multiblock` ao mesmo tempo, cada um no seu cliente e na
 sua pasta `run-test/<trecho>/` (mundo, prints e `logs/latest.log` próprios), e no fim imprime uma tabela com quantas
 verificações passaram e falharam em cada trecho. A tarefa falha se algum trecho falhar ou não registrar nenhuma verificação.
 `-PshParallel=2` muda quantos clientes abrem juntos (padrão 3; cada um com até 5 GB de heap) e `-PshSuites=ship,multiblock`

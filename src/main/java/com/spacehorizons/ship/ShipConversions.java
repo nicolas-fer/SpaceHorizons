@@ -62,12 +62,24 @@ public final class ShipConversions {
 
     /** Começa a converter a nave {@code shipId} de volta em foguete (entidade) no lugar de onde veio. */
     public static void startYardToRocket(MinecraftServer server, int shipId) throws ShipConversionException {
+        enqueueYardToRocket(server, shipId, false);
+    }
+
+    /**
+     * Começa a descida da nave {@code shipId} (fase 2b): a entidade nasce na dimensão do corpo, onde a nave está no instante da leitura
+     * da caixa, com o voo dela (ver {@link ShipDescent#plan}). Vale depois de {@link ShipDescent#crossed}.
+     */
+    public static void startDescent(MinecraftServer server, int shipId) throws ShipConversionException {
+        enqueueYardToRocket(server, shipId, true);
+    }
+
+    private static void enqueueYardToRocket(MinecraftServer server, int shipId, boolean descending) throws ShipConversionException {
         for (ConversionJob job : JOBS) {
             if (job.shipId() == shipId) {
                 throw new ShipConversionException("A nave " + shipId + " já está numa conversão.");
             }
         }
-        JOBS.add(new YardToRocketJob(server, shipId));
+        JOBS.add(new YardToRocketJob(server, shipId, descending));
     }
 
     /** Põe um job no fim da fila (usado pelos jobs que desfazem a si mesmos). */

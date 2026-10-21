@@ -110,6 +110,11 @@ public final class RocketFlight {
         return this.snapshot;
     }
 
+    /** Põe o instantâneo do voo de uma entidade recém-criada (a descida da nave, fase 2b): o voo segue dele no próximo tick. */
+    public void setSnapshot(Snapshot snapshot) {
+        this.snapshot = snapshot;
+    }
+
     /** Guarda o comando (já saneado) recebido no tick {@code tick}; os bits de ação que subiram viram bordas. */
     public void applyControl(RocketControlPayload payload, long tick) {
         RocketControlPayload clean = payload.sanitized();

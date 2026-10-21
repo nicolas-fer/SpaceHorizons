@@ -80,11 +80,14 @@ final class YardToRocketJob extends ConversionJob {
     private final List<Entity> pendingSeat = new ArrayList<>();
     private RocketEntity rocket;
     private int seatTicks;
+    private final boolean descending;
 
-    YardToRocketJob(MinecraftServer server, int shipId) throws ShipConversionException {
+    /** {@code descending}: a descida (fase 2b), em que a entidade nasce na dimensão do corpo com o voo da nave (ver {@link ShipDescent}). */
+    YardToRocketJob(MinecraftServer server, int shipId, boolean descending) throws ShipConversionException {
         super("blocos -> entidade", 0.0);
         long t0 = System.nanoTime();
         this.server = server;
+        this.descending = descending;
         this.registry = ShipRegistry.get(server);
         this.yard = ShipYard.level(server);
         this.shipId = shipId;
@@ -261,9 +264,17 @@ final class YardToRocketJob extends ConversionJob {
                     + " (informativo: cozinham no estaleiro)");
         }
 
-        // a entidade, no lugar de onde veio
+        // a entidade: no lugar de onde veio ou, na descida, na dimensão do corpo, onde a nave está agora (o voo dela segue daí)
+        ShipDescent.Plan plan = null;
+        if (this.descending) {
+            plan = ShipDescent.plan(this.server, this.shipId);
+            if (plan == null) {
+                fail("a nave não pôde descer agora (sem estado de voo ou sem a dimensão do corpo neste mundo)");
+                return;
+            }
+        }
         ResourceKey<Level> destKey = ResourceKey.create(Registries.DIMENSION, this.snapshot.dimension());
-        ServerLevel dest = this.server.getLevel(destKey);
+        ServerLevel dest = plan != null ? plan.dest() : this.server.getLevel(destKey);
         if (dest == null) {
             dest = this.server.overworld();
             this.notes.add("dimensão de origem " + this.snapshot.dimension() + " indisponível: foguete criado no overworld");
@@ -276,12 +287,19 @@ final class YardToRocketJob extends ConversionJob {
         entity.setPortrait(portrait);
         entity.load(TagValueInput.create(ProblemReporter.DISCARDING, dest.registryAccess(), this.snapshot.rocket()));
         entity.setFuelMb(fuel);
-        entity.setPos(this.snapshot.x(), this.snapshot.y(), this.snapshot.z());
+        Vec3 at = plan != null ? plan.pos() : this.snapshot.center();
+        entity.setPos(at.x, at.y, at.z);
+        if (plan != null) {
+            // a descida: a velocidade e o voo da nave no instante da leitura (a entidade já é o voo do foguete, na nave)
+            entity.setDeltaMovement(plan.velocity());
+            entity.flight().setSnapshot(plan.flight());
+            this.notes.add("descida: entidade na dimensão " + dest.dimension().identifier() + " em " + at);
+        }
         if (dest.getEntity(entity.getUUID()) != null) {
             entity.setUUID(UUID.randomUUID());
             this.notes.add("o UUID do foguete já existe no destino: gerado outro");
         }
-        dest.getChunk(BlockPos.containing(this.snapshot.center()));
+        dest.getChunk(BlockPos.containing(at));
         ShipRecord ship = this.registry.byId(this.shipId);
         this.registry.update(ship.withPhase(ShipRecord.Phase.REMOVING));
         if (!dest.addFreshEntity(entity)) {
@@ -307,7 +325,7 @@ final class YardToRocketJob extends ConversionJob {
         this.cursor = 0;
         this.phase = Phase.CLEAR;
         SpaceHorizons.LOGGER.info("[ship-conv] nave {}: foguete recriado em {} {} ({} blocos, pacote do retrato {} bytes), removendo os blocos do estaleiro", this.shipId,
-                dest.dimension().identifier(), this.snapshot.center(), portrait.blockCount(), this.packetBytes);
+                dest.dimension().identifier(), at, portrait.blockCount(), this.packetBytes);
     }
 
     /** Leva quem está na nave para o foguete: o piloto (quem estava a bordo, ou o primeiro jogador) senta, os outros ficam ao lado dele. */
@@ -411,6 +429,9 @@ final class YardToRocketJob extends ConversionJob {
         ShipRecord ship = this.registry.byId(this.shipId);
         if (ship != null && !this.entityAdded) {
             this.registry.update(ship.withPhase(ShipRecord.Phase.READY));
+        }
+        if (this.descending) {
+            ShipFlightTicker.descentCancelled(this.shipId);
         }
         this.phase = Phase.FINISH;
         this.pendingSeat.clear();

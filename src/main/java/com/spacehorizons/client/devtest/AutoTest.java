@@ -44,6 +44,7 @@ import org.lwjgl.sdl.SDLVideo;
 import net.minecraft.client.InactivityFpsLimit;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -205,6 +206,10 @@ public final class AutoTest {
         }
         if ("shipascent".equals(ONLY)) {
             shipAscentScenario();
+        }
+        if ("shipdescent".equals(ONLY)) {
+            shipDescentScenario();
+            return;
         }
         if ("shipground".equals(ONLY)) {
             shipGroundScenario();
@@ -2725,7 +2730,11 @@ public final class AutoTest {
             if (FlightDevtest.reached(milestone)) {
                 return true;
             }
-            if (mc.gui.screen() != null && waited[0] % 20 == 0) {
+            if (mc.gui.screen() instanceof PauseScreen) {
+                // em um jogador a pausa para também o servidor integrado e o marco nunca chegaria (aconteceu na descida da nave)
+                SpaceHorizons.LOGGER.warn(TAG + "menu de pausa aberto durante o voo (esperando '{}'): fechado", milestone);
+                mc.gui.setScreen(null);
+            } else if (mc.gui.screen() != null && waited[0] % 20 == 0) {
                 SpaceHorizons.LOGGER.warn(TAG + "tela aberta durante o voo (esperando '{}'): {}", milestone, mc.gui.screen().getClass().getSimpleName());
             }
             if (++waited[0] > maxTicks) {
@@ -4516,6 +4525,56 @@ public final class AutoTest {
         step(20, mc -> {
             ShipAscentDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    // ===================================================================================================================
+    // NAVE, DESCIDA (docs/PLANO_NAVES.md, fase 2b, parte 1): -PshOnly=shipdescent. O começo do shipascent (montada, subida, troca e
+    // circularização); depois a nave virtual é posta a ~1.000 blocos, descendo, e vira entidade na Terra. Bloco separado; as conferências
+    // ficam em ShipDescentDevtest. Pouso e desmontagem ficam para a próxima execução.
+    // ===================================================================================================================
+    private void shipDescentScenario() {
+        BlockPos b = ShipAscentDevtest.BASE;
+        double bx = b.getX() + 0.5;
+        double by = b.getY();
+        double bz = b.getZ() + 0.5;
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "gamemode creative");
+        cmd(5, "clear @s");
+        step(10, ShipAscentDevtest::build);
+        cmd(20, "tp @s " + (bx + 9.0) + " " + (by + 2.5) + " " + (bz + 7.0));
+        look(20, 140f, 12f);
+        shot(40, "sd_1_chao");
+        step(10, ShipAscentDevtest::assemble);
+        tickerStep(5, waitFor("sa_assembled", 200));
+        step(5, ShipDescentDevtest::photo);
+        thirdPerson();
+        shot(40, "sd_1b_montada");
+        step(10, ShipAscentDevtest::climb);
+        tickerStep(5, waitFor("sa_half", 6_000));
+        thirdPerson();
+        shot(20, "sd_2_subindo");
+        tickerStep(5, waitFor("sa_frozen", 6_000));
+        tickerStep(5, waitFor("sa_done", 1_200));
+        step(20, ShipDescentDevtest::start);
+        tickerStep(5, waitFor("sd_done", 4_000));
+        // a nave cai: o piloto da missão assume já, na fase da descida da Terra (freia no retrógrado até o contato)
+        step(0, mc -> MissionDevtest.goFrom(mc, MissionPilot.Phase.EARTH_LANDING));
+        thirdPerson();
+        shot(10, "sd_3_atmosfera");
+        tickerStep(5, waitFor("end", 6_000));
+        shot(40, "sd_4_pousada");
+        step(10, ShipDescentDevtest::landAndCheck);
+        tickerStep(5, waitFor("sd_landed", 200));
+        thirdPerson();
+        shot(40, "sd_5_desmontada");
+        step(20, mc -> {
+            ShipAscentDevtest.summary();
+            SpaceHorizons.LOGGER.info(ShipAscentDevtest.TAG + "FIM");
             mc.stop();
         });
     }

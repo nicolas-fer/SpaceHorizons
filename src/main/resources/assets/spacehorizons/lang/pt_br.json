@@ -100,6 +100,8 @@
   "message.spacehorizons.ship.specs": "Nave %s (#%s): %s blocos, massa seca %s t, empuxo %s, %s motores, %s assentos, combustível %s / %s mB, Δv %s b/s.",
   "message.spacehorizons.ship.bridge_outside_yard": "A ponte só comanda uma nave dentro do estaleiro (a montagem no chão vem depois).",
   "message.spacehorizons.ship.bridge_no_ship": "Esta ponte não está dentro de uma nave registrada.",
+  "message.spacehorizons.ship.descent_refused": "Descida recusada: alguém está em pé dentro da nave. Quem está a bordo precisa sentar.",
+  "message.spacehorizons.ship.descent_no_body": "Descida recusada: este mundo não tem a dimensão desse planeta.",
   "message.spacehorizons.ship.assembled": "Nave montada: %s blocos, massa seca de %s t, %s mB de combustível. Você está no comando.",
   "entity.spacehorizons.rocket": "Foguete",
   "tooltip.spacehorizons.rocket_fuel_tank": "%s / %s mB",

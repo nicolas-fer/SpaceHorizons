@@ -109,6 +109,16 @@ final class MissionPilot {
         return this.phase;
     }
 
+    /**
+     * Taxa do relógio do voo (relógio por tick), a mesma que o voo usa para o chão girar: 0 com o relógio pausado (o autoteste pausa). Usada no
+     * pouso no motor, onde a velocidade relativa ao chão decide o toque.
+     */
+    private double clockRate = 1.0;
+
+    void clockRate(double rate) {
+        this.clockRate = rate;
+    }
+
     /** Pula para uma fase (testes de um trecho da missão, e o cenário que recomeça de um ponto). */
     void forcePhase(Phase to) {
         this.phase = to;
@@ -158,7 +168,7 @@ final class MissionPilot {
             case CAPTURE -> capture(s, st, clock);
             case LUNAR_ORBIT -> lunarOrbit(s, st, clock);
             case LUNAR_BRAKE -> lunarBrake(s, st, clock);
-            case LUNAR_DESCENT -> lunarDescent(s, st, clock);
+            case LUNAR_DESCENT -> lunarDescent(s, st, clock, LUNAR_BRAKE_FRACTION);
             case LUNAR_ASCENT -> ascent(s, st, clock, Phase.LUNAR_COAST_TO_APOAPSIS, false);
             case LUNAR_COAST_TO_APOAPSIS -> coastToApoapsis(s, st, clock, Phase.LUNAR_CIRCULARIZE, true);
             case LUNAR_CIRCULARIZE -> circularize(s, st, clock, LLO_ALTITUDE - 150.0, Phase.LUNAR_ORBIT_2);
@@ -566,17 +576,22 @@ final class MissionPilot {
      * de frenagem (ad constante até a altura de arredondamento, depois {@value #TOUCHDOWN_SPEED} b/t) e a horizontal ao chão é anulada; o empuxo
      * sai pelo vetor que soma as duas (o nariz o segue).
      */
-    private Out lunarDescent(Snapshot s, FlightState st, double clock) {
+    /** Fração do empuxo máximo com que a descida no motor planeja frear: na Lua sobra folga; na Terra, com a gravidade maior, freia antes. */
+    private static final double LUNAR_BRAKE_FRACTION = 0.45;
+    private static final double EARTH_POWERED_BRAKE_FRACTION = 0.2;
+
+    private Out lunarDescent(Snapshot s, FlightState st, double clock, double brakeFraction) {
         SolarSystem.Body body = st.body();
         BodyPhysics bp = BodyPhysics.of(body);
-        Local loc = FrameBridge.toDimension(body, clock, 1.0, st.r(), st.v());
+        Local loc = FrameBridge.toDimension(body, clock, this.clockRate, st.r(), st.v());
         double surface = this.terrain.surfaceY(body, loc.x(), loc.z());
         double clearance = Double.isNaN(surface) ? loc.y() - body.planet().seaLevel() - 120.0 : loc.y() - this.boxHalfHeight - surface;
         this.landingClearance = clearance;
         double g = bp.gravityAt(st.r().length());
         double aMax = this.stats.acceleration(s.fuelMb(), 1.0);
-        double ad = 0.45 * aMax;
-        double target = Math.max(TOUCHDOWN_SPEED, Math.sqrt(2.0 * ad * Math.max(0.0, clearance - 4.0)) * 0.8);
+        double ad = brakeFraction * aMax;
+        double touchdown = brakeFraction < LUNAR_BRAKE_FRACTION ? EARTH_TOUCHDOWN_SPEED : TOUCHDOWN_SPEED;
+        double target = Math.max(touchdown, Math.sqrt(2.0 * ad * Math.max(0.0, clearance - 4.0)) * 0.8);
         double vv = loc.vy();
         double aUp = g + 0.3 * (-target - vv);
         double ex = -0.25 * loc.vx();
@@ -616,6 +631,8 @@ final class MissionPilot {
     }
 
     private static final double TOUCHDOWN_SPEED = 0.55;
+    /** Toque mirado no pouso no motor da Terra: com a gravidade maior a velocidade real fica acima da mirada (0,55 dava 0,95, perto do limite 1). */
+    private static final double EARTH_TOUCHDOWN_SPEED = 0.3;
 
     // ------------------------------------------------------------------ decolagem da Lua e volta
 
@@ -735,6 +752,13 @@ final class MissionPilot {
     // ------------------------------------------------------------------ reentrada e pouso na Terra
 
     private Out earthDescent(Snapshot s, FlightState st, double clock) {
+        if (this.stats.parachuteK0() <= 0.0 && st.altitude() < 3_000.0) {
+            // sem paraquedas (a nave): o pouso é no motor até o toque, como na Lua; a parte final da descida com paraquedas cortaria o motor
+            if (this.phase == Phase.EARTH_ENTRY) {
+                next(Phase.EARTH_LANDING, s, st);
+            }
+            return lunarDescent(s, st, clock, EARTH_POWERED_BRAKE_FRACTION);
+        }
         SolarSystem.Body body = st.body();
         Local loc = FrameBridge.toDimension(body, clock, 1.0, st.r(), st.v());
         double surface = this.terrain.surfaceY(body, loc.x(), loc.z());

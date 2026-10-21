@@ -32,6 +32,15 @@ public final class FlightIntegrator {
      * ignorado.
      */
     public static FlightState step(FlightState s, Control c, RocketStats st, double clock) {
+        return step(s, c, st, clock, 1.0);
+    }
+
+    /**
+     * O mesmo passo com a taxa do relógio ({@code clockRate}, relógio por tick): o ar gira com o corpo na mesma taxa que o chão ({@link
+     * FrameBridge#rotationVelocity}). Com o relógio pausado (taxa 0) o chão não gira e o ar também não; com a taxa fixa em 1, o arrasto
+     * empurrava o veículo para o lado com o chão parado.
+     */
+    public static FlightState step(FlightState s, Control c, RocketStats st, double clock, double clockRate) {
         BodyPhysics bp = BodyPhysics.of(s.body());
         double mu = bp.mu();
         V3 r = s.r();
@@ -66,7 +75,7 @@ public final class FlightIntegrator {
         double heat = s.heat();
         double chute = s.chute();
         if (rho > 0.0) {
-            V3 air = atmosphere.present() ? FrameBridge.rotationVelocity(s.body(), clock, 1.0, r) : V3.ZERO;
+            V3 air = atmosphere.present() ? FrameBridge.rotationVelocity(s.body(), clock, clockRate, r) : V3.ZERO;
             V3 relative = v.minus(air);
             double speed = relative.length();
             if (chute <= 0.0 && c.parachute() && st.parachutes() > 0 && canDeployParachute(rho, speed)) {

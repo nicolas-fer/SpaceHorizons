@@ -30,9 +30,26 @@ import org.jspecify.annotations.Nullable;
  * sozinha quando o bloco some ou o assento fica vazio.
  */
 public class ShipSeatEntity extends Entity {
+    /**
+     * Assento sem bloco embaixo: o do piloto que chega ao estaleiro pela subida (fase 2a-ii), posto ao lado da ponte, onde não há
+     * {@link ShipSeatBlock}. Só some quando fica vazio; sem isto o assento sumia em 5 ticks e o piloto ficava em pé.
+     */
+    private boolean free;
+
     public ShipSeatEntity(EntityType<? extends ShipSeatEntity> type, Level level) {
         super(type, level);
         this.noPhysics = true;
+    }
+
+    /** Assento livre (sem bloco de assento embaixo), para o piloto posto na ponte pela subida. */
+    public static ShipSeatEntity free(Level level) {
+        ShipSeatEntity seat = new ShipSeatEntity(ModEntities.SHIP_SEAT.get(), level);
+        seat.free = true;
+        return seat;
+    }
+
+    public boolean isFree() {
+        return this.free;
     }
 
     /** Senta o jogador no assento do bloco {@code pos}; avisa se está ocupado. Devolve se sentou. */
@@ -87,7 +104,7 @@ public class ShipSeatEntity extends Entity {
         }
         // o bloco sumiu (quebrado) ou ninguém está sentado: a entidade some e solta quem estiver nela
         if (this.tickCount % 5 == 0) {
-            boolean blockGone = !this.level().getBlockState(this.blockPosition()).is(ModBlocks.SHIP_SEAT.get())
+            boolean blockGone = !this.free && !this.level().getBlockState(this.blockPosition()).is(ModBlocks.SHIP_SEAT.get())
                     && !this.level().getBlockState(BlockPos.containing(this.getX(), this.getY() - 0.2, this.getZ())).is(ModBlocks.SHIP_SEAT.get());
             boolean empty = !this.isVehicle() && this.tickCount > 20;
             if (blockGone || empty) {

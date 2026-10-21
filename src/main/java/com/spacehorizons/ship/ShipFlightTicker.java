@@ -9,17 +9,22 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.rocket.FlightMode;
 import com.spacehorizons.rocket.RocketControlPayload;
 import com.spacehorizons.rocket.RocketFuel;
 import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
 import com.spacehorizons.rocket.RocketTelemetryBuilder;
+import com.spacehorizons.rocket.ZoneSwitch;
 import com.spacehorizons.space.SpaceClock;
 import com.spacehorizons.space.flight.FlightState;
+import com.spacehorizons.space.flight.FrameBridge.Local;
 import com.spacehorizons.space.flight.RocketStats;
 import com.spacehorizons.space.flight.V3;
+import com.spacehorizons.space.travel.TravelTransfers;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -59,6 +64,17 @@ public final class ShipFlightTicker {
         /** O piloto de teste do servidor (autoteste): conta como piloto a bordo sem ninguém no assento. */
         boolean devtestPilot;
         int stepsHeld;
+        /** A descida começou (a conversão de volta para a entidade está na fila): não começa outra, e a nave segue voando até a leitura acabar. */
+        boolean descentStarted;
+        /** Taxa do relógio do último passo (relógio por tick; 0 com o relógio pausado, quando o chão não gira na física). */
+        double rate = 1.0;
+
+        /** Taxa do relógio do último passo do voo (0 com o relógio pausado). */
+        public double rate() {
+            return this.rate;
+        }
+        /** O aviso de descida recusada já foi dado nesta recusa (uma vez por recusa, não a cada tick). */
+        boolean descentWarned;
 
         Live(int shipId, ShipFlight.State state, ShipCensus census, ShipArrangement arrangement) {
             this.shipId = shipId;
@@ -168,6 +184,12 @@ public final class ShipFlightTicker {
         }
     }
 
+    /** Só dev: a descida da nave já começou (a conversão de volta para a entidade entrou na fila). */
+    public static boolean devtestDescentStarted(int shipId) {
+        Live live = LIVE.get(shipId);
+        return live != null && live.descentStarted;
+    }
+
     static String describe(Live live) {
         FlightState o = live.state.orbit();
         return String.format(Locale.ROOT, "corpo=%s r=%.0f altitude=%.0f v=%.3f b/t combustível=%.0f mB massa seca=%.2f t empuxo=%.1f proa=%d", o.body().planet().id().getPath(),
@@ -236,11 +258,16 @@ public final class ShipFlightTicker {
     }
 
     private static void stepOne(MinecraftServer server, ServerLevel yard, ShipRegistry registry, ShipRecord ship, Live live, long now, double clock) {
+        ShipRecord current = registry.byId(ship.id());
+        if (current == null || current.phase() == ShipRecord.Phase.FILLING || current.phase() == ShipRecord.Phase.REMOVING) {
+            return;      // a conversão já tem a nave (ou a entidade): o voo para aqui
+        }
         double rate = Double.isNaN(live.lastClock) ? 1.0 : clock - live.lastClock;
         if (!(rate >= 0.0 && rate <= 4.0)) {
             rate = 1.0;      // /time set e afins: não é a taxa do relógio
         }
         live.lastClock = clock;
+        live.rate = rate;
         live.ticks++;
 
         // censo em lotes (adota o resultado novo quando termina; pede outro de tempos em tempos enquanto a nave está carregada)
@@ -260,7 +287,12 @@ public final class ShipFlightTicker {
         RocketControlPayload c = live.control.control(now);
         int edges = live.control.takeEdges();
         ShipFlight.Command command = new ShipFlight.Command(c.pitch(), c.yaw(), c.roll(), c.throttle(), (edges & RocketControlPayload.FLAG_NEXT_SAS) != 0);
-        live.state = ShipFlight.step(live.state, command, live.stats, live.thrustAxis, clock, rate);
+        ShipFlight.State next = ShipFlight.advance(live.state, command, live.stats, live.thrustAxis, clock, rate);
+        ShipFlight.State committed = descent(server, ship, live, next, clock + rate);
+        if (committed == null) {
+            return;      // segurada: a dimensão do corpo ainda não tem os chunks do ponto de chegada (a nave espera, sem andar)
+        }
+        live.state = committed;
 
         if (live.ticks % FUEL_INTERVAL == 0) {
             syncFuel(yard, live);
@@ -303,6 +335,94 @@ public final class ShipFlightTicker {
             }
         }
         return out == null ? List.of() : out;
+    }
+
+    // ---------------------------------------------------------------- descida (fase 2b)
+
+    /**
+     * A descida neste tick: devolve o estado a gravar, ou null para segurar a nave (a dimensão do corpo ainda não tem os chunks do ponto de
+     * chegada). Abaixo da altitude de entrada, com todos de bordo sentados, desce quando a dimensão do corpo pode recebê-la
+     * ({@link ShipDescent#crossed}), uma vez só; com alguém em pé, a nave é segurada na altitude de entrada e os de bordo são avisados (D4).
+     */
+    private static ShipFlight.@Nullable State descent(MinecraftServer server, ShipRecord ship, Live live, ShipFlight.State next, double clockEnd) {
+        FlightState o = next.orbit();
+        PlanetDefinition planet = o.body().planet();
+        boolean may = ShipDescent.mayDescend(standingInside(server, ship));
+        boolean below = ShipDescent.below(o);
+        Local l = null;
+        boolean crossed = false;
+        if (below && may && !live.descentStarted) {
+            l = ShipDescent.local(o, clockEnd, live.rate);
+            crossed = ShipDescent.crossed(o, ShipDescent.heightAboveTerrain(l, planet), ZoneSwitch.horizontalSpeed(l));
+        }
+        if (may) {
+            live.descentWarned = false;
+        } else if (below && !live.descentStarted) {
+            warnPlayers(server, ship, live, "message.spacehorizons.ship.descent_refused");
+        }
+        return switch (ShipDescent.decide(live.descentStarted, below, crossed, may)) {
+            case FLOOR -> next.withOrbit(ShipFlight.floor(o));
+            case START -> start(server, ship, live, next, l, planet);
+            case FLY -> next;
+        };
+    }
+
+    /** Começa a descida: a dimensão do corpo tem os chunks (senão pede e segura a nave) e a conversão entra na fila. */
+    private static ShipFlight.@Nullable State start(MinecraftServer server, ShipRecord ship, Live live, ShipFlight.State next, Local l, PlanetDefinition planet) {
+        ServerLevel dest = TravelTransfers.findLevel(server, planet);
+        if (dest == null) {
+            warnPlayers(server, ship, live, "message.spacehorizons.ship.descent_no_body");
+            return next.withOrbit(ShipFlight.floor(next.orbit()));
+        }
+        double half = ShipDescent.halfExtent(ship);
+        if (!ShipDescent.chunksLoaded(dest, l.x(), l.z(), half)) {
+            ShipDescent.requestLoad(dest, l.x(), l.z(), half);
+            return null;
+        }
+        try {
+            ShipConversions.startDescent(server, ship.id());
+        } catch (ShipConversionException e) {
+            SpaceHorizons.LOGGER.warn("[ship] nave {}: a descida foi recusada: {}", ship.id(), e.getMessage());
+            return next.withOrbit(ShipFlight.floor(next.orbit()));
+        }
+        live.descentStarted = true;
+        SpaceHorizons.LOGGER.info("[ship] nave {} começa a descida: altitude {} blocos, velocidade {} b/t", ship.id(), fmt(next.orbit().altitude()),
+                fmt(next.orbit().speed()));
+        return next;
+    }
+
+    /** Avisa quem está dentro da nave, uma vez por recusa ({@link Live#descentWarned}). */
+    private static void warnPlayers(MinecraftServer server, ShipRecord ship, Live live, String key) {
+        if (live.descentWarned) {
+            return;
+        }
+        live.descentWarned = true;
+        for (ServerPlayer player : playersInside(server, ship)) {
+            player.sendSystemMessage(Component.translatable(key));
+        }
+    }
+
+    /** Quantos jogadores estão dentro da nave e NÃO sentados num assento dela (a descida espera por eles). */
+    static int standingInside(MinecraftServer server, ShipRecord ship) {
+        int standing = 0;
+        for (ServerPlayer player : playersInside(server, ship)) {
+            if (!(player.getVehicle() instanceof ShipSeatEntity)) {
+                standing++;
+            }
+        }
+        return standing;
+    }
+
+    /** A conversão de descida falhou antes de tirar a nave do estaleiro: ela volta a poder descer (na próxima tentativa). */
+    public static void descentCancelled(int shipId) {
+        Live live = LIVE.get(shipId);
+        if (live != null) {
+            live.descentStarted = false;
+        }
+    }
+
+    private static String fmt(double v) {
+        return String.format(Locale.ROOT, "%.1f", v);
     }
 
     // ---------------------------------------------------------------- combustível e gravação
