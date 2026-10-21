@@ -316,3 +316,19 @@ Autotestes (estilo `AutoTest`, cenários com `-PshOnly=`): `ship` (fase 1: cria 
 - **D9 (decidida em 19/10/2026)**: gravidade interna sempre ligada na fase 1; o bloco gerador de gravidade (sem ele,
   gravidade zero) entra depois como opção.
 - **D10**: aceita-se o hitch de ~1 s na conversão entidade → blocos na fase 2 (versus lote em vários ticks)? **S3 mediu: em lotes não há hitch (8.000 blocos em 0,6 a 1 s sem sair da faixa normal do tick); recomendação: lotes.**
+
+## Resultado da fase 2a-i (parcial, 21/10/2026)
+
+**Feito** (pacote `com.spacehorizons.ship`, testes `ShipAssemblyTest`):
+
+- **Regras da montagem parametrizadas.** `RocketAssembly` ganhou `Rules(needEngine, needTank)` (padrão `ROCKET_RULES`, o comportamento do foguete não mudou) e os `scan`/`analyze` com regras. A nave usa `ShipAssembly.RULES = Rules(false, false)`: não exige motor nem tanque. O resto (BFS por face, teto de 8.192 blocos, caixa 128 x 256 x 128, recusa de terreno, proibido, chunk não carregado, pontes extras, falta de plataforma) é o mesmo código do foguete, sem cópia.
+- **Adaptador do mundo.** `ShipKinds.assemblyKind`: a ponte (`ship_bridge`) entra como `COCKPIT`; o resto usa `RocketKinds.classify` (sólidos não proibidos entram como estrutura, a tag `rocket_terrain` recusa o chão).
+- **Testes.** `ShipAssemblyTest` (11 casos): nave só com ponte e plataforma é achada sem motor nem tanque; o foguete continua recusando a mesma nave por `NO_ENGINE`; sem plataforma, ponte que não é cockpit, duas pontes, terreno, proibido, chunk não carregado, caixa de 257 de altura e o teto de blocos.
+
+**Não feito** (fica para as próximas rodadas desta fase):
+
+1. **Gatilho e conversão para entidade (itens 2 e 3).** Não há `ShipAssembler` que remova os blocos e crie a entidade. Falta decidir o gatilho (proposta: `ship_bridge` com a mão vazia e agachado fora do estaleiro; o clique simples continua mostrando o relatório) e o modo "nave" da `RocketEntity` (flag persistida e o retrato com o censo de nave em `RocketPortrait.stats()`).
+2. **Decolagem depende de bocal para baixo.** `ship_impulse_engine` tem `FACING` horizontal (4 lados). Sem um bocal para baixo, a nave não tem empuxo vertical e não sobe. Precisa de decisão: propriedade nova de 6 direções com variantes de blockstate (rotação x) e checagem visual, ou outra forma de posicionar os motores. Isso muda o estado do bloco em mundos já existentes.
+3. **Autoteste `shipground`** e os prints: não feitos. Nenhum cliente foi aberto nesta rodada.
+
+**Verificado:** `./gradlew build` passa; a suíte de testes unitários inteira passa (0 falhas).

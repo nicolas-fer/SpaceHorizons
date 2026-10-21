@@ -276,6 +276,8 @@ pelas janelas (Terra, Lua, sol redondo, estrelas) gira com a atitude da nave.
 - **Nave de teste de criativo**: `/spacehorizons ship create flight` cria uma nave de 32x20x56 com ponte, três assentos, quatro motores, oito
   tanques cheios, janelas (parede de vidro contínuo), lanternas no teto e no piso (salas claras) e um anteparo com eclusa, já em órbita circular da Terra a 30.000 blocos (a Terra à direita); `ship goto <id>` entra.
 
+**Fase 2a-i (em andamento):** a regra de montagem da nave no chão já existe (`ShipAssembly`, pela ponte, sem exigir motor nem tanque); o gatilho, a conversão em entidade e a decolagem ainda não. Ver `docs/PLANO_NAVES.md`.
+
 Autotestes: `-PshOnly=shipflight` (piloto de teste no servidor: censo, órbita estável, atitude, SAS, queima, combustível, gravação) e
 `-PshOnly=ship` (a nave inteira em jogo: janelas, sentar, girar com as teclas, SAS prógrado, queimar, levantar e andar durante a queima).
 
