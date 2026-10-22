@@ -1,11 +1,7 @@
 package com.spacehorizons.planet.atmosphere;
 
-import java.util.Map;
-
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
-
-import net.minecraft.resources.Identifier;
 
 /**
  * Modelo central da atmosfera de um planeta: tudo (neblina, cor do céu, estrelas, limbo) deriva da
@@ -18,8 +14,14 @@ import net.minecraft.resources.Identifier;
  *
  * Mundos sem ar (a Lua) usam {@link #NONE}: densidade 0 em qualquer altitude, céu preto com estrelas, sem
  * neblina e sem limbo. {@code present = false} é o que liga esse comportamento.
+ *
+ * Os valores de cada planeta vêm dos parâmetros dele ({@code "atmosphere"} em {@code data/spacehorizons/planet/<id>.json}).
+ * {@code breathable = false} (Marte) é ar de verdade para o céu e a neblina, mas sem oxigênio: o traje trata como vácuo.
+ * {@code scatterR/G/B} é o espalhamento relativo por canal do limbo (Rayleigh azul na Terra, poeira avermelhada em Marte) e
+ * {@code opticalDepth} a profundidade óptica vertical (1 na Terra; menor = halo mais fraco, atmosfera fina).
  */
-public record AtmosphereModel(double thickness, double baseAltitude, boolean present) {
+public record AtmosphereModel(double thickness, double baseAltitude, boolean present, boolean breathable,
+        double scatterR, double scatterG, double scatterB, double opticalDepth) {
     /** Espessura da atmosfera do planeta de teste (R ≈ 104.304): "espaço" a partir de ~1.800 blocos. */
     public static final double EARTH_THICKNESS = 1_800.0;
     /** Abaixo disso nada muda em relação ao vanilla (topo de montanha ainda é "chão"). */
@@ -34,26 +36,40 @@ public record AtmosphereModel(double thickness, double baseAltitude, boolean pre
     /** Com o céu abaixo deste brilho (0..1) as estrelas começam a aparecer. */
     private static final double STARS_SKY_BRIGHTNESS = 0.5;
 
+    /** Espalhamento relativo por canal da Terra (Rayleigh aproximado: o azul espalha mais que o vermelho). */
+    public static final double[] EARTH_SCATTER = {0.26, 0.50, 1.0};
+
     /** Sem atmosfera: espessura e base são só valores válidos para o construtor, nada deles é usado. */
-    public static final AtmosphereModel NONE = new AtmosphereModel(1.0, 0.0, false);
+    public static final AtmosphereModel NONE = new AtmosphereModel(1.0, 0.0, false, false, 0.0, 0.0, 0.0, 0.0);
 
-    private static final Map<Identifier, AtmosphereModel> BY_PLANET = Map.of(
-            Planets.EARTH.id(), new AtmosphereModel(EARTH_THICKNESS, EARTH_BASE_ALTITUDE),
-            Planets.MOON.id(), NONE);
-
+    /** Atmosfera respirável com o limbo azul da Terra. */
     public AtmosphereModel(double thickness, double baseAltitude) {
-        this(thickness, baseAltitude, true);
+        this(thickness, baseAltitude, true, true, EARTH_SCATTER[0], EARTH_SCATTER[1], EARTH_SCATTER[2], 1.0);
     }
 
     public AtmosphereModel {
         if (baseAltitude < 0 || thickness <= baseAltitude) {
             throw new IllegalArgumentException("espessura deve ser maior que a altitude base: " + thickness + " / " + baseAltitude);
         }
+        if (breathable && !present) {
+            throw new IllegalArgumentException("atmosfera respirável precisa existir (present = true)");
+        }
+        if (scatterR < 0 || scatterG < 0 || scatterB < 0 || opticalDepth < 0) {
+            throw new IllegalArgumentException("espalhamento e profundidade óptica não podem ser negativos");
+        }
     }
 
-    /** Atmosfera de um planeta; planetas fora do catálogo usam a da Terra de teste. */
+    /** Atmosfera de um planeta, dos parâmetros dele. */
     public static AtmosphereModel of(PlanetDefinition planet) {
-        return BY_PLANET.getOrDefault(planet.id(), new AtmosphereModel(EARTH_THICKNESS, EARTH_BASE_ALTITUDE));
+        return Planets.spec(planet).atmosphere().model();
+    }
+
+    /**
+     * O traje precisa de oxigênio aqui? Sim no vácuo e em qualquer altitude de uma atmosfera sem oxigênio (Marte). É o que
+     * o oxigênio, o compressor e o dano usam; {@link #isVacuum} é só o visual (céu e neblina).
+     */
+    public boolean needsOxygen(double altitude) {
+        return !breathable || isVacuum(altitude);
     }
 
     /** 0 dentro da atmosfera "cheia" até 1 no topo, já normalizado entre a base e a espessura. */

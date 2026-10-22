@@ -310,7 +310,8 @@ final class BodyRenderer {
         AtmosphereModel atmosphere = AtmosphereModel.of(planet);
         if (atmosphere.present() && slot < AtmosphereClient.MAX_HALOS && !candidate.self()) {
             AtmosphereClient.drawHalo(slot, invView, centerX, centerY, centerZ, planet.radius() * scale,
-                    atmosphere.thickness() * scale, atmosphere.baseAltitude() * scale, sunX, sunY, sunZ, FAR_HALO_VISIBILITY);
+                    atmosphere.thickness() * scale, atmosphere.baseAltitude() * scale, atmosphere, sunX, sunY, sunZ,
+                    FAR_HALO_VISIBILITY);
         }
         return true;
     }

@@ -60,7 +60,6 @@ final class BodyMeshCache {
     private final Map<Key, Mesh> meshes = new HashMap<>();
     /** Versão do mapa do planeta (PlanetTerrains.version) com que cada esfera foi pedida; mapa novo = esfera velha. */
     private final Map<Key, Integer> requestedVersion = new HashMap<>();
-    private PlanetMeshGeometry.@Nullable Palette palette;
 
     /** Pede (se faltar) o nível {@code segments} do planeta, e antes dele o nível pequeno se ainda não há nada. */
     void ensure(PlanetDefinition planet, int segments) {
@@ -93,11 +92,7 @@ final class BodyMeshCache {
         }
         requestedVersion.put(key, version);
         PlanetTerrain terrain = PlanetTerrains.get(key.planet());
-        PlanetMeshGeometry.Palette colors = palette;
-        if (colors == null) {
-            colors = PlanetMeshPalette.create();
-            palette = colors;
-        }
+        PlanetMeshGeometry.Palette colors = PlanetMeshPalette.of(key.planet());
         PlanetMeshGeometry.Palette usePalette = colors;
         worker.execute(() -> {
             try {

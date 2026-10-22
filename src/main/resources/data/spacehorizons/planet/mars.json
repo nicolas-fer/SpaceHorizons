@@ -1,0 +1,121 @@
+{
+  "seed": 1296126547,
+  "circumference": 348160,
+  "sea_level": 63,
+  "max_latitude": 75.0,
+  "gravity": 0.38,
+  "style": "parametric",
+  "day_length_ticks": 24660,
+  "terrain": {
+    "amplitude": 64,
+    "relief": {
+      "base_height": 62.0,
+      "min_above_sea": 4,
+      "max_height": 312,
+      "lowlands": {"frequency": 0.9, "octaves": 3, "edge0": 0.02, "edge1": 0.24, "strength": 0.40},
+      "highlands": {"frequency": 1.5, "octaves": 4, "edge0": 0.04, "edge1": 0.30, "strength": 0.50},
+      "detail": {"frequency": 18.0, "octaves": 4, "roughness": 0.11, "lowland_smoothing": 0.6, "highland_roughening": 0.6},
+      "polar": {"wall_start": 0.92, "wall_height": 1.5, "cap_start": 0.86, "cap_type": "polar_ice"},
+      "craters": {
+        "scales": [
+          {"frequency": 4.0, "probability": 0.35, "depth": 0.07, "rim": 0.04},
+          {"frequency": 12.0, "probability": 0.45, "depth": 0.09, "rim": 0.035},
+          {"frequency": 36.0, "probability": 0.55, "depth": 0.11, "rim": 0.03},
+          {"frequency": 108.0, "probability": 0.50, "depth": 0.13, "rim": 0.025}
+        ],
+        "radius_min": 0.20,
+        "radius_span": 0.30,
+        "influence": 2.0,
+        "rim_width": 0.22,
+        "floor_min_radius": 48.0,
+        "max_depth": 34.0,
+        "max_rise": 22.0
+      },
+      "mountains": {
+        "frequency": 4.0,
+        "mask_frequency": 1.1,
+        "mask_edge0": 0.10,
+        "mask_edge1": 0.40,
+        "strength": 0.55,
+        "highland_above": 0.30
+      },
+      "volcanoes": {
+        "frequency": 2.2,
+        "probability": 0.40,
+        "radius_min": 0.16,
+        "radius_span": 0.16,
+        "height": 110.0,
+        "caldera_radius": 0.14,
+        "caldera_depth": 0.25,
+        "type_radius": 0.75
+      }
+    }
+  },
+  "surface": {
+    "subsurface": ["spacehorizons:mars_regolith", "minecraft:terracotta"],
+    "types": {
+      "regolith": {
+        "top": ["spacehorizons:mars_regolith", "minecraft:red_sand"],
+        "filler": ["spacehorizons:mars_regolith", "minecraft:red_sandstone"],
+        "biome": "spacehorizons:martian",
+        "color": "#b4642c"
+      },
+      "mare": {
+        "top": "minecraft:brown_terracotta",
+        "filler": "minecraft:basalt",
+        "biome": "spacehorizons:martian",
+        "color": "#5a3a28"
+      },
+      "highland": {
+        "top": "minecraft:terracotta",
+        "filler": "minecraft:terracotta",
+        "biome": "spacehorizons:martian",
+        "color": "#985e43"
+      },
+      "crater_floor": {
+        "top": "minecraft:orange_terracotta",
+        "filler": "minecraft:terracotta",
+        "biome": "spacehorizons:martian",
+        "color": "#9a5426"
+      },
+      "polar_ice": {
+        "top": "minecraft:snow_block",
+        "filler": "minecraft:packed_ice",
+        "biome": "spacehorizons:martian",
+        "color": "#e8ecef"
+      },
+      "volcanic": {
+        "top": "minecraft:red_terracotta",
+        "filler": "minecraft:basalt",
+        "biome": "spacehorizons:martian",
+        "color": "#7e3a2a"
+      }
+    }
+  },
+  "water": {
+    "ocean": false
+  },
+  "atmosphere": {
+    "present": true,
+    "thickness": 1100.0,
+    "base_altitude": 90.0,
+    "breathable": false,
+    "scatter": [1.0, 0.60, 0.34],
+    "optical_depth": 0.45,
+    "sky_color": "#c89a6c",
+    "fog_color": "#d8ad82",
+    "clouds": false
+  },
+  "ores": [
+    {
+      "block": ["spacehorizons:mars_titanium_ore", "minecraft:iron_ore"],
+      "min_y": -50,
+      "max_y": 110,
+      "scale": 26.0,
+      "thickness": 0.04,
+      "gate_scale": 140.0,
+      "gate_threshold": 0.0,
+      "salt": 1
+    }
+  ]
+}

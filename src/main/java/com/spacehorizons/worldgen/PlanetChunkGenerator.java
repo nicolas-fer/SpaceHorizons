@@ -1,8 +1,11 @@
 package com.spacehorizons.worldgen;
 
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -12,6 +15,7 @@ import com.spacehorizons.planet.PlanetTerrains;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.planet.SurfacePalette;
 import com.spacehorizons.planet.SurfaceType;
+import com.spacehorizons.planet.terrain.OreVeins;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.BlockPos;
@@ -32,8 +36,9 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 
 /**
- * Gera colunas a partir de PlanetTerrain: bedrock, pedra, filler, topo e, só em planetas com oceano, água até o nível do mar.
- * Sem estruturas nem cavernas por enquanto. Não guarda estado mutável, então é seguro entre threads.
+ * Gera colunas a partir de PlanetTerrain e dos parâmetros do planeta: bedrock, subsolo (com os veios de minério), filler,
+ * topo e, só em planetas com oceano, água até o nível do mar. Os blocos vêm da paleta do planeta (SurfacePalette). Sem
+ * estruturas nem cavernas por enquanto. Não guarda estado mutável (fora dos contadores de tempo), então é seguro entre threads.
  */
 public final class PlanetChunkGenerator extends ChunkGenerator {
     /** Altura da dimensão (datapack: min_y -64, height 384). */
@@ -45,13 +50,30 @@ public final class PlanetChunkGenerator extends ChunkGenerator {
             BiomeSource.CODEC.fieldOf("biome_source").forGetter(ChunkGenerator::getBiomeSource))
             .apply(instance, (id, source) -> new PlanetChunkGenerator(planetOf(id), source)));
 
+    /** Tempo de geração de terreno por planeta (autoteste e diagnóstico): {chunks, nanossegundos}. */
+    private static final Map<net.minecraft.resources.Identifier, LongAdder[]> STATS = new ConcurrentHashMap<>();
+
     private final PlanetDefinition planet;
     private final PlanetTerrain terrain;
+    private final OreVeins ores;
+    /** Blocos dos veios, resolvidos no primeiro chunk (depois do registro). */
+    private volatile BlockState[] oreBlockCache;
 
     public PlanetChunkGenerator(PlanetDefinition planet, BiomeSource biomeSource) {
         super(biomeSource);
         this.planet = planet;
         this.terrain = PlanetTerrains.analytic(planet);
+        this.ores = new OreVeins(planet, Planets.spec(planet).ores());
+    }
+
+    /** Chunks gerados e tempo médio de buildTerrain (ms) do planeta desde que o jogo abriu: {chunks, ms por chunk}. */
+    public static double[] terrainStats(PlanetDefinition planet) {
+        LongAdder[] s = STATS.get(planet.id());
+        if (s == null) {
+            return new double[] {0, 0};
+        }
+        long count = s[0].sum();
+        return new double[] {count, count == 0 ? 0 : s[1].sum() / 1.0e6 / count};
     }
 
     static PlanetDefinition planetOf(Identifier id) {
@@ -71,8 +93,12 @@ public final class PlanetChunkGenerator extends ChunkGenerator {
     public CompletableFuture<ChunkAccess> buildTerrain(ChunkAccess chunk, Blender blender, RandomState randomState,
             StructureManager structureManager, BiomeManager biomeManager, WorldGenRegion region,
             Set<Holder<Biome>> biomes) {
+        long start = System.nanoTime();
         int topY = MIN_Y + HEIGHT - 1;
         int sea = planet.seaLevel();
+        SurfacePalette palette = SurfacePalette.of(planet);
+        BlockState rock = palette.subsurface();
+        BlockState[] oreBlocks = oreBlocks();
         var pos = chunk.getPos();
         for (int lx = 0; lx < 16; lx++) {
             for (int lz = 0; lz < 16; lz++) {
@@ -90,18 +116,37 @@ public final class PlanetChunkGenerator extends ChunkGenerator {
                     } else if (y > top) {
                         state = Blocks.WATER.defaultBlockState();
                     } else if (y == top) {
-                        state = SurfacePalette.top(type);
+                        state = palette.top(type);
                     } else if (y >= top - 3) {
-                        state = SurfacePalette.filler(type);
+                        state = palette.filler(type);
                     } else {
-                        state = Blocks.STONE.defaultBlockState();
+                        int vein = oreBlocks.length == 0 ? -1 : ores.veinAt(wx, y, wz);
+                        state = vein >= 0 ? oreBlocks[vein] : rock;
                     }
                     setLocal(chunk, lx, y, lz, state);
                 }
             }
         }
         Heightmap.primeHeightmaps(chunk, EnumSet.of(Heightmap.Types.WORLD_SURFACE_WG, Heightmap.Types.OCEAN_FLOOR_WG));
+        LongAdder[] stats = STATS.computeIfAbsent(planet.id(), id -> new LongAdder[] {new LongAdder(), new LongAdder()});
+        stats[0].increment();
+        stats[1].add(System.nanoTime() - start);
         return CompletableFuture.completedFuture(chunk);
+    }
+
+    /** Bloco de cada veio de minério do planeta (resolvido na paleta, com reserva), na ordem da lista. */
+    private BlockState[] oreBlocks() {
+        BlockState[] cached = oreBlockCache;
+        if (cached != null) {
+            return cached;
+        }
+        var specs = Planets.spec(planet).ores();
+        BlockState[] blocks = new BlockState[specs.size()];
+        for (int i = 0; i < blocks.length; i++) {
+            blocks[i] = SurfacePalette.resolve(planet.id(), specs.get(i).block());
+        }
+        oreBlockCache = blocks;
+        return blocks;
     }
 
     private static void setLocal(ChunkAccess chunk, int lx, int y, int lz, BlockState state) {
@@ -149,7 +194,7 @@ public final class PlanetChunkGenerator extends ChunkGenerator {
             if (y == MIN_Y) {
                 states[i] = Blocks.BEDROCK.defaultBlockState();
             } else if (y <= h) {
-                states[i] = Blocks.STONE.defaultBlockState();
+                states[i] = SurfacePalette.of(planet).subsurface();
             } else if (planet.hasOcean() && y <= sea) {
                 states[i] = Blocks.WATER.defaultBlockState();
             } else {

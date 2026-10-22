@@ -3,6 +3,7 @@ package com.spacehorizons.worldgen;
 import java.util.Set;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
@@ -31,7 +32,9 @@ import org.jspecify.annotations.Nullable;
 /**
  * Comandos de teste e de viagem:
  * /spacehorizons goto earth|moon (teleporte direto para a superfície, na face voltada para o outro corpo; vindo do espaço
- * aberto, dentro da zona do corpo, é a travessia contínua no mesmo ponto), /spacehorizons goto space [x y z] (para a
+ * aberto, dentro da zona do corpo, é a travessia contínua no mesmo ponto), /spacehorizons goto mars [x z] (comando de dev:
+ * Marte ainda não está na física orbital, então é só o teleporte para a superfície, no ponto (0, 0) ou no (x, z) dado),
+ * /spacehorizons goto space [x y z] (para a
  * dimensão de espaço aberto: de um planeta, a travessia contínua no mesmo ponto do espaço; com x y z, para esse ponto da
  * dimensão) e /spacehorizons fly earth|moon|stop (piloto automático pelo espaço, com transferência entre dimensões).
  */
@@ -47,6 +50,12 @@ final class PlanetCommands {
                                 .executes(ctx -> gotoBody(ctx.getSource(), SolarSystem.EARTH)))
                         .then(Commands.literal("moon")
                                 .executes(ctx -> gotoBody(ctx.getSource(), SolarSystem.MOON)))
+                        .then(Commands.literal("mars")
+                                .executes(ctx -> gotoSurface(ctx.getSource(), Planets.MARS, 0, 0))
+                                .then(Commands.argument("x", IntegerArgumentType.integer())
+                                        .then(Commands.argument("z", IntegerArgumentType.integer())
+                                                .executes(ctx -> gotoSurface(ctx.getSource(), Planets.MARS,
+                                                        IntegerArgumentType.getInteger(ctx, "x"), IntegerArgumentType.getInteger(ctx, "z"))))))
                         .then(Commands.literal("space")
                                 .executes(ctx -> gotoSpace(ctx.getSource(), null))
                                 .then(Commands.argument("pos", Vec3Argument.vec3())
@@ -92,6 +101,29 @@ final class PlanetCommands {
         player.teleportTo(level, facing[0], y, facing[1], Set.<Relative>of(), player.getYRot(), player.getXRot(), false);
         Identifier dimension = level.dimension().identifier();
         source.sendSuccess(() -> Component.literal("Teleportado para a superfície de " + name + " em " + dimension + " (y=" + y + ")"), true);
+        return 1;
+    }
+
+    /**
+     * Teleporte de dev para a superfície de um planeta fora do SolarSystem (Marte): no chão da coluna (x, z), sem travessia
+     * pelo espaço (ainda não há órbita nem zona para ele).
+     */
+    private static int gotoSurface(CommandSourceStack source, PlanetDefinition planet, int x, int z) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        String name = planet.id().getPath();
+        ServerLevel level = TravelTransfers.findLevel(source.getServer(), planet);
+        if (level == null) {
+            source.sendFailure(Component.literal("Este mundo não tem a dimensão de " + name
+                    + ": crie um mundo novo com o tipo \"Space Horizons\""));
+            return 0;
+        }
+        int limit = planet.maxLatitudeBlocks() - 2;
+        int cz = Math.max(-limit, Math.min(limit, z));
+        int y = PlanetMapService.landingY(level, x, cz);
+        player.teleportTo(level, x + 0.5, y, cz + 0.5, Set.<Relative>of(), player.getYRot(), player.getXRot(), false);
+        Identifier dimension = level.dimension().identifier();
+        source.sendSuccess(() -> Component.literal("Teleportado para a superfície de " + name + " em " + dimension + " ("
+                + x + ", " + y + ", " + cz + ")"), true);
         return 1;
     }
 

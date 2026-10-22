@@ -1,7 +1,6 @@
 package com.spacehorizons.worldgen;
 
 import java.util.EnumMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
@@ -12,6 +11,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.PlanetTerrain;
 import com.spacehorizons.planet.PlanetTerrains;
+import com.spacehorizons.planet.Planets;
 import com.spacehorizons.planet.SurfaceType;
 
 import net.minecraft.core.Holder;
@@ -23,17 +23,14 @@ import net.minecraft.world.level.biome.Climate;
 
 /**
  * Bioma por coluna a partir do SurfaceType do terreno. Os biomas vêm do datapack
- * (mapa "biomes"), que deve espelhar SurfacePalette.biome(): assim o chunk e o LOD do DH têm a mesma cor.
+ * (mapa "biomes" do world preset), que deve espelhar a paleta do planeta (SurfacePalette.biome, os "biome" de
+ * {@code data/spacehorizons/planet/<id>.json}): assim o chunk e o LOD do DH têm a mesma cor (um teste confere).
  * As coordenadas de quart (4 blocos) são convertidas para bloco e passam por wrapX.
  */
 public final class PlanetBiomeSource extends BiomeSource {
-    private static final Codec<SurfaceType> SURFACE_KEY = Codec.STRING.xmap(
-            s -> SurfaceType.valueOf(s.toUpperCase(Locale.ROOT)),
-            t -> t.name().toLowerCase(Locale.ROOT));
-
     public static final MapCodec<PlanetBiomeSource> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             Identifier.CODEC.fieldOf("planet").forGetter(s -> s.planet.id()),
-            Codec.unboundedMap(SURFACE_KEY, Biome.CODEC).fieldOf("biomes").forGetter(s -> s.biomes))
+            Codec.unboundedMap(SurfaceType.CODEC, Biome.CODEC).fieldOf("biomes").forGetter(s -> s.biomes))
             .apply(instance, (id, biomes) -> new PlanetBiomeSource(PlanetChunkGenerator.planetOf(id), biomes)));
 
     private final PlanetDefinition planet;
@@ -51,8 +48,8 @@ public final class PlanetBiomeSource extends BiomeSource {
         this.terrain = PlanetTerrains.analytic(planet);
         EnumMap<SurfaceType, Holder<Biome>> copy = new EnumMap<>(SurfaceType.class);
         copy.putAll(biomes);
-        // só os tipos que o estilo do planeta produz precisam de bioma (a Terra não usa os tipos lunares e vice-versa)
-        for (SurfaceType type : SurfaceType.usedBy(planet.style())) {
+        // os papéis da paleta do planeta precisam de bioma (o terreno só produz papéis que a paleta tem)
+        for (SurfaceType type : Planets.spec(planet).surface().types().keySet()) {
             if (!copy.containsKey(type)) {
                 throw new IllegalArgumentException("falta bioma para " + type + " em " + planet.id());
             }

@@ -18,9 +18,7 @@ import com.mojang.renderpearl.api.pipeline.UniformType;
 import com.mojang.renderpearl.api.textures.GpuTextureView;
 import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.SpaceHorizons;
-import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.client.planetmesh.PlanetMeshProjection;
-import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.client.space.SpaceSun;
 
 import net.minecraft.client.Minecraft;
@@ -48,7 +46,7 @@ final class AtmosphereLimbRenderer {
     private static final Identifier SHADER = Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "atmosphere/limb");
     /** Abaixo disso o brilho é invisível e o pass inteiro é pulado. */
     private static final double MIN_VISIBILITY = 0.003;
-    private static final int UBO_SIZE = new Std140SizeCalculator().putVec4().putVec4().putMat4f().putVec4().get();
+    private static final int UBO_SIZE = new Std140SizeCalculator().putVec4().putVec4().putMat4f().putVec4().putVec4().get();
     /** Mesma cor do vanilla (OVERLAY) no destino, mas sem alterar o alpha do alvo. */
     private static final BlendFunction ADD_KEEP_ALPHA =
             new BlendFunction(BlendFactor.ONE, BlendFactor.ONE, BlendFactor.ZERO, BlendFactor.ONE);
@@ -102,7 +100,7 @@ final class AtmosphereLimbRenderer {
         Matrix4f invView = new Matrix4f(event.getModelViewMatrix()).invert();
         double radius = sample.get().planet().radius();
         // o planeta atual: centro abaixo da câmera (mesmo mapeamento da curvatura)
-        drawShell(0, invView, 0.0, -(radius + altitude), 0.0, radius, model.thickness(), model.baseAltitude(),
+        drawShell(0, invView, 0.0, -(radius + altitude), 0.0, radius, model.thickness(), model.baseAltitude(), model,
                 sun[0], sun[1], sun[2], visibility,
                 altitude > PlanetMeshProjection.altitudeStart(radius));
     }
@@ -114,10 +112,11 @@ final class AtmosphereLimbRenderer {
      * {@code slot} (0 a {@link #MAX_SHELLS} - 1) escolhe o anel de buffers, para várias cascas no mesmo frame.
      * {@code skipDisc}: não brilha sobre o disco do corpo (só no limbo); a malha orbital, que cobre o disco e é desenhada
      * depois, apaga esse véu de qualquer jeito, então a esfera do corpo precisa ficar igual a ela.
+     * {@code model} dá a cor do espalhamento e a profundidade óptica do planeta (azul na Terra, caramelo em Marte).
      */
     static void drawShell(int slot, Matrix4fc invView, double centerX, double centerY, double centerZ,
-            double radius, double thickness, double baseAltitude, float sunX, float sunY, float sunZ, double visibility,
-            boolean skipDisc) {
+            double radius, double thickness, double baseAltitude, AtmosphereModel model, float sunX, float sunY, float sunZ,
+            double visibility, boolean skipDisc) {
         if (pipeline == null) {
             return;
         }
@@ -138,7 +137,8 @@ final class AtmosphereLimbRenderer {
                     .putVec4((float) radius, 0.0F, (float) thickness, (float) baseAltitude)
                     .putVec4(sunX, sunY, sunZ, (float) visibility)
                     .putMat4f(invView)
-                    .putVec4((float) centerX, (float) centerY, (float) centerZ, skipDisc ? 1.0F : 0.0F);
+                    .putVec4((float) centerX, (float) centerY, (float) centerZ, skipDisc ? 1.0F : 0.0F)
+                    .putVec4((float) model.scatterR(), (float) model.scatterG(), (float) model.scatterB(), (float) model.opticalDepth());
         }
 
         try (RenderPass pass = RenderSystem.getDevice().createCommandEncoder()

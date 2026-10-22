@@ -1,0 +1,50 @@
+{
+  "seed": 4260,
+  "circumference": 163840,
+  "sea_level": 63,
+  "max_latitude": 75.0,
+  "gravity": 0.165,
+  "style": "parametric",
+  "terrain": {
+    "amplitude": 48,
+    "relief": {
+      "base_height": 62.0,
+      "min_above_sea": 4,
+      "max_height": 300,
+      "lowlands": {"frequency": 1.2, "octaves": 3, "edge0": 0.06, "edge1": 0.26, "strength": 0.30},
+      "highlands": {"frequency": 1.8, "octaves": 3, "edge0": 0.05, "edge1": 0.28, "strength": 0.45},
+      "detail": {"frequency": 14.0, "octaves": 4, "roughness": 0.10, "lowland_smoothing": 0.8, "highland_roughening": 0.5},
+      "polar": {"wall_start": 0.90, "wall_height": 2.0, "cap_start": 0.93, "cap_type": "highland"},
+      "craters": {
+        "scales": [
+          {"frequency": 3.0, "probability": 0.45, "depth": 0.09, "rim": 0.05},
+          {"frequency": 9.0, "probability": 0.60, "depth": 0.11, "rim": 0.04},
+          {"frequency": 27.0, "probability": 0.70, "depth": 0.13, "rim": 0.035},
+          {"frequency": 81.0, "probability": 0.70, "depth": 0.16, "rim": 0.03}
+        ],
+        "radius_min": 0.20,
+        "radius_span": 0.30,
+        "influence": 2.0,
+        "rim_width": 0.22,
+        "floor_min_radius": 40.0,
+        "max_depth": 38.0,
+        "max_rise": 30.0
+      }
+    }
+  },
+  "surface": {
+    "subsurface": "minecraft:stone",
+    "types": {
+      "regolith": {"top": "minecraft:light_gray_concrete_powder", "filler": "minecraft:andesite", "biome": "spacehorizons:lunar"},
+      "mare": {"top": "minecraft:smooth_basalt", "filler": "minecraft:basalt", "biome": "spacehorizons:lunar"},
+      "highland": {"top": "minecraft:andesite", "filler": "minecraft:andesite", "biome": "spacehorizons:lunar"},
+      "crater_floor": {"top": "minecraft:tuff", "filler": "minecraft:tuff", "biome": "spacehorizons:lunar"}
+    }
+  },
+  "water": {
+    "ocean": false
+  },
+  "atmosphere": {
+    "present": false
+  }
+}

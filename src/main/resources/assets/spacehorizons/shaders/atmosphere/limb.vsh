@@ -9,6 +9,7 @@ layout(std140) uniform AtmosphereInfo {
     vec4 SunParams;    // xyz direção do sol (mundo, relativa à câmera), w intensidade já multiplicada pela visibilidade
     mat4 InvView;      // rotação da vista invertida (vista -> mundo relativo à câmera)
     vec4 CenterParams; // xyz centro do corpo relativo à câmera (eixos do mundo)
+    vec4 ScatterParams; // rgb espalhamento relativo por canal, w profundidade óptica vertical (do planeta)
 };
 
 layout(location = 0) out vec3 rayDir;
