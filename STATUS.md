@@ -14,7 +14,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | 🟡 | **Spike S5: convés andável** (estilo Create, jogador no referencial da nave), autoteste `shipdeck`. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Conteúdo do Tier 2**: motores nuclear, iônico e de fusão (1x1, 2x2x2, 3x3x3), tanques de hidrogênio e xenônio, RTG, materiais de Marte, combustível por tipo com Δv em fases no painel. Autoteste `tier2` 37/37, `multiblock` 169/169, `flight` A–D. | `docs/PLANO_TIERS.md` (seção 9), `docs/TIER2_IDS.md` |
 | ✅ | **Arte do Tier 2** escolhida pelo usuário e aplicada; `tier2` 37/0 na regressão de 22/10. | `art/tier2/` |
-| ✅ | **Gerador de planetas por parâmetros e Marte** (planetas em `data/spacehorizons/planet/*.json`; Lua idêntica; Marte por `/spacehorizons goto mars`, fora da órbita até a etapa 3). Autoteste `mars` 10/10. | `docs/GERADOR_PLANETAS.md` |
+| ✅ | **Gerador de planetas por parâmetros e Marte** (sol de Marte corrigido no autoteste depois do merge, `mars` 10/0) (planetas em `data/spacehorizons/planet/*.json`; Lua idêntica; Marte por `/spacehorizons goto mars`, fora da órbita até a etapa 3). Autoteste `mars` 10/10. | `docs/GERADOR_PLANETAS.md` |
 | ✅ | **Plantas holográficas de montagem**: item `rocket_blueprint` (menu; salto suborbital, orbital e lunar, esta trancada em sobrevivência até a história), holograma na `launch_pad` (falta = fantasma, errado = vermelho), salvar o próprio foguete como planta, progresso e destino no painel. Autoteste `blueprint` 34/0, `multiblock` 169/0. Arte do item provisória. | `docs/PLANO_TIERS.md` (seção 8) |
 | ✅ | **Naves, fase 2b: descida e pouso** (estaleiro → entidade → pouso no motor → blocos no chão), autoteste `shipdescent` 40/0 na regressão. | `docs/PLANO_NAVES.md` |
 | ✅ | **Plano: andar na nave dentro do planeta** decidido: convés andável estilo Create em movimento (máquinas param), âncora em blocos reais parada no ar. | `docs/PLANO_NAVE_ATMOSFERA.md` |
@@ -96,8 +96,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
   sobrevivência não foi testada (autoteste em criativo); plantas muito grandes, Sodium e Iris não medidos.
 - **Tier 2**: destinos do painel para foguetes do Tier 2 vêm do orçamento de Δv (sem voo simulado); naves ignoram peças do Tier 2 e a conversão
   para o estaleiro só atualiza o combustível químico; hélio-3 (clique na Lua) não testado em jogo; carga do motor não aparece no painel.
-- **Marte**: na regressão de 22/10 o check `sol_a_pino_ao_meio_dia` falhou ("sem sol"; 9/1), passou 10/10 rodando sozinho no agente — investigar
-  (provável relógio/hora do mundo no trecho paralelo).
+- **Regressão instável sob carga**: com 3 clientes em paralelo, `ship` (tremor no giro) e `tier2` (galão de hidrogênio na coluna) falharam
+  uma vez cada e passaram ao rodar de novo ou sozinhos; não investigado.
 - **Marte (visual)**: vão escuro entre os chunks e a malha orbital enquanto o DH gera; sem física orbital, foguete ou pouso em Marte (etapa 3).
 - **Não testado**: servidor dedicado, dois jogadores reais, reabrir o mundo com nave em voo.
 
