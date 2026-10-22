@@ -36,6 +36,11 @@ public class RocketFuelTankBlockEntity extends BlockEntity {
         return this.fuelMb;
     }
 
+    /** O combustível deste tanque (o do bloco: químico, hidrogênio ou xenônio; os três usam este block entity). */
+    public com.spacehorizons.space.flight.Propellant propellant() {
+        return this.getBlockState().getBlock() instanceof RocketFuelTankBlock tank ? tank.propellant() : com.spacehorizons.space.flight.Propellant.CHEMICAL;
+    }
+
     /** Põe até {@code mb} no tanque e devolve quanto coube. */
     public int add(int mb) {
         int accepted = Math.max(0, Math.min(mb, RocketFuel.space(this.fuelMb)));

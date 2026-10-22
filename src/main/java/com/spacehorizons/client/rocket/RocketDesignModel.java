@@ -92,6 +92,10 @@ public final class RocketDesignModel {
             if (l.kind() == RocketBlockKind.ION_ENGINE) {
                 sb.append(" ").append(l.power()).append('%');
             }
+            if (l.capacityMb() > 0.0) {
+                // a carga guardada no motor: o núcleo do nuclear (mB de hidrogênio) ou o hélio-3 do de fusão
+                sb.append(String.format(Locale.ROOT, " [%,.0f mB]", l.capacityMb()).replace(',', '.'));
+            }
         } else if (l.kind().isTank()) {
             if (l.cubes2() > 0) {
                 parts.add(l.cubes2() + " col");
