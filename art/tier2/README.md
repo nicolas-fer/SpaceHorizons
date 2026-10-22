@@ -18,16 +18,22 @@ com o MCP headless `bbmodel`; renders com o renderizador isométrico de `art/mul
 | `build_escolha.py` | Monta `art/_work/escolha_tier2/` (imagens + `escolha.json`). |
 | `apply_escolha.py` | Grava a escolha em `assets/` com os ids do contrato. |
 
-## Estado da geração (22/10/2026)
+## Histórico da geração (22/10/2026)
 
-O Gemini parou no job `ion_grid` com `Erro da API Gemini (429): Your project has exceeded its monthly spending cap.`
-Ficaram sem variantes do gerador: `ion_body`, `ion_plate`, `ion_pipe`, `fusion_ring`, `fusion_body`, `fusion_plasma`,
-`fusion_plate`; `ion_grid` tem só 1 bruto (processado com `--from-raw`). Para essas texturas a página traz opções de
-recolor (sem gerador; `FALLBACK` em `build_escolha.py`: texturas do mod ou as variantes de `nuclear_exit`/`nuclear_plate`
-recoloridas). Para completar quando houver cota: `python art/tier2/run_jobs.py` (pula os feitos; `--force ion_grid` para
-refazer as 3 do `ion_grid`) e `build_escolha.py` de novo. Caminho manual: `python art/tier2/run_jobs.py --so-prompt`
-grava os `prompt.txt` que faltam em `art/_work/tier2/out/_texturas/<job>/`; gere à mão e continue com
+Na primeira rodada o Gemini parou no `ion_grid` (`429: Your project has exceeded its monthly spending cap.`). Depois que o
+teto subiu, as 8 texturas dos motores iônico e de fusão foram geradas (`run_jobs.py ion_grid ... fusion_plate --force`,
+3 variantes cada). Para não mudar as letras já publicadas na página, nessas 8 texturas a ordem é: o bruto único da
+primeira rodada do `ion_grid` (guardado em `art/_work/tier2/out/_texturas/ion_grid_v0/`), as opções de recolor
+(`FALLBACK` em `build_escolha.py`) e por fim as variantes do gerador. As renders usam como padrão a primeira variante do
+gerador ("voto 1") de cada textura.
+
+Caminho manual, se a API falhar de novo: `python art/tier2/run_jobs.py --so-prompt` grava os `prompt.txt` que faltam em
+`art/_work/tier2/out/_texturas/<job>/`; gere à mão e continue com
 `texture.py <kind> --out art/_work/tier2/out/<job>.png --from-raw <imagens>`.
+
+`build_escolha.py` sobrescreve as imagens no lugar e troca o `escolha.json` de uma vez (pode rodar com a página no ar;
+`escolhas.json` nunca é tocado). O `escolha.py serve` monta o HTML só ao subir: opções novas aparecem depois de reiniciar
+o servidor. `--limpar` apaga `var/`, `render/` e `previa/` antes (só com o servidor parado).
 
 ## Motores
 

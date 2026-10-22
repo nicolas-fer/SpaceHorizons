@@ -16,7 +16,7 @@ Grupos especiais
   hydrogen_tank / xenon_tank  lado e topo no formato de moldura 4 (art/multiblocos/tank_ct.py) + coluna montada.
   rtg_generator      modelo A/B (prévia com o lado escolhido) + lado + topo.
   <motor>            modelo_1x1, modelo_2x2, modelo_3x3 (prévia com a textura principal escolhida) + as 4 texturas
-                     (extras: renders do 2x2 A e B com aquela variante; as outras texturas na letra A).
+                     (extras: renders do 2x2 A e B com aquela variante; as outras texturas na primeira variante do gerador, ou na letra A).
 """
 import json
 import shutil
@@ -111,18 +111,27 @@ def box16(raw_path, colors=7):
     return im.quantize(colors=colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).convert("RGBA")
 
 
-def candidates(job, box=True):
-    """[(rótulo, imagem 16x16)] de um job: variantes do texture.py, BOX dos brutos e o recolor alternativo."""
+def from_dir(sub, tag, box):
     out = []
-    for sub, tag in ((job, ""), (job + "_alt", "alt ")):
-        d = WORK / sub
-        for p in sorted((d / "variantes").glob("*.png"), key=lambda p: int(p.stem)):
-            kind = "recolor" if not (d / "raw").exists() else "voto"
-            out.append((f"{tag}{kind} {p.stem}", Image.open(p).convert("RGBA")))
-        if box and (d / "raw").exists():
-            for p in sorted((d / "raw").glob("raw_*.png")):
-                out.append((f"BOX {p.stem.split('_')[1]}", box16(p)))
-    out += fallback(job)
+    d = WORK / sub
+    for p in sorted((d / "variantes").glob("*.png"), key=lambda p: int(p.stem)):
+        kind = "recolor" if not (d / "raw").exists() else "voto"
+        out.append((f"{tag}{kind} {p.stem}", Image.open(p).convert("RGBA")))
+    if box and (d / "raw").exists():
+        for p in sorted((d / "raw").glob("raw_*.png")):
+            out.append((f"{tag}BOX {p.stem.split('_')[1]}", box16(p)))
+    return out
+
+
+def candidates(job, box=True):
+    """[(rótulo, imagem 16x16)] de um job: variantes do texture.py, BOX dos brutos e o recolor alternativo.
+    Jobs com FALLBACK (motores iônico e de fusão) mantêm as letras da primeira página: primeiro o que já existia
+    (o bruto único do ion_grid, guardado em _texturas/ion_grid_v0, e as opções de recolor), depois as variantes do
+    gerador feitas depois que a cota voltou."""
+    if job in FALLBACK:
+        out = from_dir(job + "_v0", "1ª rodada ", box) + fallback(job) + from_dir(job, "", box)
+    else:
+        out = from_dir(job, "", box) + from_dir(job + "_alt", "alt ", box)
     seen, keep, skip = set(), [], set(EXCLUIR.get(job, []))
     for label, im in out:
         if label in skip:
@@ -282,7 +291,9 @@ def model_group(gid, title, keys, main, models, nota):
         for L, _, im in texs[key]:
             save(im, OUT / "var" / folder / f"{L}.png")
     path = {key: (lambda L, f=folder: OUT / "var" / f / f"{L}.png") for key, _, _, folder in keys}
-    default = {key: path[key](texs[key][0][0]) for key in texs}
+    # letra padrão das renders: a primeira variante do gerador ("voto 1"), senão a letra A
+    dl = {key: next((L for L, label, _ in texs[key] if label.startswith("voto")), texs[key][0][0]) for key in texs}
+    default = {key: path[key](dl[key]) for key in texs}
     rdir = OUT / "render" / gid
     perguntas = []
     sizes = sorted({s for s, _ in models}, key=lambda s: ["1x1", "2x2", "3x3", "-"].index(s))
@@ -293,7 +304,7 @@ def model_group(gid, title, keys, main, models, nota):
             for L, _, _ in texs[main]:
                 tasks.append((str(mp), dict(default, **{main: path[main](L)}), rdir / f"{size}_{P}_{main}_{L}.png"))
             opts.append({"valor": P, "rotulo": PROPOSTAS[gid][P],
-                         "imagens": [rel(rdir / f"{size}_{P}_{main}_{texs[main][0][0]}.png")],
+                         "imagens": [rel(rdir / f"{size}_{P}_{main}_{dl[main]}.png")],
                          "previa": {"pergunta": f"tex.{main}", "modelo": rel(rdir) + f"/{size}_{P}_{main}_" + "{v}.png"}})
         qid = "modelo" if size == "-" else f"modelo_{size}"
         qt = "Forma (vista de cima e de baixo)" if size == "-" else f"Forma {size}: {SIZE_NOTE[size]} (vista de cima e de baixo)"
@@ -320,7 +331,7 @@ def engine_group(engine):
     models = {(s, P): SRC / f"{engine}_{s}_{P}.json" for s in ("1x1", "2x2", "3x3") for P in "AB"}
     nota = ("Bloco avulso e modelos da estrutura formada (2x2: mestre no canto mínimo, 0..32; 3x3: mestre no centro, "
             "-16..32). As mesmas texturas servem aos três tamanhos. As renders das formas usam a textura principal "
-            "escolhida e as outras na letra A; as extras de cada textura mostram o 2x2 A e B com aquela variante.")
+            "escolhida e as outras na primeira variante do gerador (\"voto 1\"); as extras de cada textura mostram o 2x2 A e B com aquela variante.")
     return model_group(engine, f"{title} ({engine})", keys, build_models.MAIN[engine], models, nota)
 
 
@@ -335,8 +346,11 @@ def rtg_group():
 # ---------------------------------------------------------------- main
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
-    for sub in ("var", "render", "previa"):
-        shutil.rmtree(OUT / sub, ignore_errors=True)
+    # Por padrão sobrescreve no lugar (a página pode estar sendo servida; escolhas.json nunca é tocado).
+    # --limpar apaga var/, render/ e previa/ antes (só com o servidor parado).
+    if "--limpar" in sys.argv:
+        for sub in ("var", "render", "previa"):
+            shutil.rmtree(OUT / sub, ignore_errors=True)
     OUT.mkdir(parents=True, exist_ok=True)
     grupos, tasks = [], []
 
@@ -384,7 +398,9 @@ def main():
            "descricao": "Texturas e modelos do Tier 2 (ids de docs/TIER2_IDS.md). Clique para escolher; cada clique fica "
                         "salvo. Em branco = o agente decide.",
            "grupos": grupos}
-    (OUT / "escolha.json").write_text(json.dumps(man, ensure_ascii=False, indent=1), encoding="utf-8")
+    tmp = OUT / "escolha.json.tmp"
+    tmp.write_text(json.dumps(man, ensure_ascii=False, indent=1), encoding="utf-8")
+    tmp.replace(OUT / "escolha.json")
     missing = [i for g in grupos for q in g["perguntas"] for o in q["opcoes"] for i in o["imagens"]
                if not (OUT / i).exists()]
     for g in grupos:
