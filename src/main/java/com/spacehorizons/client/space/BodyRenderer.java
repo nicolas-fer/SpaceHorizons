@@ -192,12 +192,10 @@ final class BodyRenderer {
         boolean zZeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
         projection.setPerspective(fovY, m11 / m00, FAR_PLANE, NEAR_PLANE, zZeroToOne);
 
-        // sol único (SunModel) no ponto da câmera, nos eixos do mundo: a mesma direção do disco, do céu e da luz do chão
+        // o sol do ponto da câmera, nos eixos do mundo: a mesma direção do disco, do céu e da luz do chão (a que apaga os corpos de dia)
         double[] sun = new double[3];
         observer.sun(sun);
-        float sunX = (float) sun[0];
         float sunY = (float) sun[1];
-        float sunZ = (float) sun[2];
         // o céu claro de dia apaga os corpos vistos de dentro de uma atmosfera; no espaço aberto não há céu a apagar
         double fade = 1.0;
         if (home != null) {
@@ -211,7 +209,11 @@ final class BodyRenderer {
             if (slot >= MAX_BODIES) {
                 break;
             }
-            if (draw(candidate, slot, pipeline, main, depth, camera, invView, sunX, sunY, sunZ, (float) fade, pixelAngle, observer)) {
+            // cada esfera é iluminada pelo sol a partir do centro dela (a direção verdadeira em Marte; a de sempre na Terra e na Lua)
+            double[] lit = new double[3];
+            observer.sunFor(candidate.body(), lit);
+            if (draw(candidate, slot, pipeline, main, depth, camera, invView, (float) lit[0], (float) lit[1], (float) lit[2], (float) fade, pixelAngle,
+                    observer)) {
                 slot++;
             }
         }

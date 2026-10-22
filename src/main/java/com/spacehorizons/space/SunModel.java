@@ -106,7 +106,8 @@ public final class SunModel {
      */
     public static void localDirection(SolarSystem.Body body, double x, double z, double clockTicks, double[] out) {
         double[] s = new double[3];
-        directionInSpace(clockTicks, s);
+        // Terra e Lua: o sol no infinito (a direção de sempre); Marte: a direção verdadeira do centro dele ao sol
+        SolarSystem.sunDirectionFrom(body, clockTicks, s);
         SpaceFrame.spaceToLocal(body, clockTicks, x, z, s[0], s[1], s[2], out);
     }
 

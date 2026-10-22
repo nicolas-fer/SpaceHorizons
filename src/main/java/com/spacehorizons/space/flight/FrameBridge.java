@@ -1,5 +1,6 @@
 package com.spacehorizons.space.flight;
 
+import com.spacehorizons.space.Heliocentric;
 import com.spacehorizons.space.InertialFrame;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.SpaceDimension;
@@ -151,13 +152,76 @@ public final class FrameBridge {
     }
 
     /**
-     * Posição ABSOLUTA em E (preso à Terra, eixos do {@link SpaceFrame}, a que a dimensão de espaço usa) de um estado
-     * relativo ao corpo {@code body}, cuja posição {@code r} é inercial: {@code Ry(φ)·(r + centro_I)}.
+     * Posição ABSOLUTA em I (a Terra na origem, eixos do sistema Terra-Lua) de um estado relativo ao corpo {@code body}, cuja posição
+     * {@code r} está nos eixos do estado dele: {@code r + centro_I} para a Terra e a Lua; para o sol e Marte (estado em H), a posição
+     * heliocêntrica {@code r + centro_H} menos a da Terra, girada de H a I.
      */
-    public static V3 absoluteInEarthFixed(SolarSystem.Body body, double clock, V3 r) {
+    public static V3 absoluteInEarthSystem(SolarSystem.Body body, double clock, V3 r) {
+        double[] center = new double[3];
+        if (body.frame() == SolarSystem.Frame.EARTH_SYSTEM) {
+            body.inertialPositionAt(clock, center);
+            return r.plus(V3.of(center));
+        }
+        body.inertialPositionAt(clock, center);
+        double[] earth = new double[3];
+        Heliocentric.earthPosition(clock, earth);
+        double[] out = new double[3];
+        Heliocentric.toEarthSystem(clock, r.x() + center[0] - earth[0], r.y() + center[1] - earth[1], r.z() + center[2] - earth[2], out);
+        return V3.of(out);
+    }
+
+    /**
+     * Velocidade ABSOLUTA em I (blocos por tick de JOGO) de um estado relativo a {@code body} ({@code r}, {@code v} nos eixos do estado
+     * dele). Terra e Lua: {@code v + velocidade_do_centro_I}; sol e Marte (H): a heliocêntrica menos a da Terra, só girada de H a I
+     * (sem o termo ω×r da rotação de I: ver {@link Heliocentric}).
+     */
+    public static V3 absoluteVelocityInEarthSystem(SolarSystem.Body body, double clock, double clockRate, V3 r, V3 v) {
+        double[] centerVelocity = new double[3];
+        body.inertialVelocityAt(clock, centerVelocity);
+        if (body.frame() == SolarSystem.Frame.EARTH_SYSTEM) {
+            return v.plus(V3.of(centerVelocity).times(clockRate));
+        }
+        double[] earthVelocity = new double[3];
+        Heliocentric.earthVelocity(clock, earthVelocity);
+        double[] out = new double[3];
+        Heliocentric.toEarthSystem(clock, v.x() + (centerVelocity[0] - earthVelocity[0]) * clockRate,
+                v.y() + (centerVelocity[1] - earthVelocity[1]) * clockRate, v.z() + (centerVelocity[2] - earthVelocity[2]) * clockRate, out);
+        return V3.of(out);
+    }
+
+    /**
+     * Inverso de {@link #absoluteInEarthSystem} e {@link #absoluteVelocityInEarthSystem}: o estado (posição e velocidade por tick de
+     * jogo) relativo a {@code body}, nos eixos do estado dele, de um ponto absoluto em I.
+     */
+    public static FlightState stateRelativeTo(SolarSystem.Body body, double clock, double clockRate, V3 absI, V3 velocityI,
+            double fuelMb) {
         double[] center = new double[3];
         body.inertialPositionAt(clock, center);
-        V3 absolute = r.plus(V3.of(center));
+        double[] centerVelocity = new double[3];
+        body.inertialVelocityAt(clock, centerVelocity);
+        if (body.frame() == SolarSystem.Frame.EARTH_SYSTEM) {
+            return new FlightState(body, absI.minus(V3.of(center)), velocityI.minus(V3.of(centerVelocity).times(clockRate)), fuelMb, 0.0, 0.0);
+        }
+        double[] earth = new double[3];
+        Heliocentric.earthPosition(clock, earth);
+        double[] earthVelocity = new double[3];
+        Heliocentric.earthVelocity(clock, earthVelocity);
+        double[] h = new double[3];
+        Heliocentric.fromEarthSystem(clock, absI.x(), absI.y(), absI.z(), h);
+        double[] vh = new double[3];
+        Heliocentric.fromEarthSystem(clock, velocityI.x(), velocityI.y(), velocityI.z(), vh);
+        V3 r = new V3(h[0] + earth[0] - center[0], h[1] + earth[1] - center[1], h[2] + earth[2] - center[2]);
+        V3 v = new V3(vh[0] + (earthVelocity[0] - centerVelocity[0]) * clockRate, vh[1] + (earthVelocity[1] - centerVelocity[1]) * clockRate,
+                vh[2] + (earthVelocity[2] - centerVelocity[2]) * clockRate);
+        return new FlightState(body, r, v, fuelMb, 0.0, 0.0);
+    }
+
+    /**
+     * Posição ABSOLUTA em E (preso à Terra, eixos do {@link SpaceFrame}, a que a dimensão de espaço usa) de um estado relativo ao corpo
+     * {@code body}, cuja posição {@code r} está nos eixos do estado dele: {@code Ry(φ)·posição_I} ({@link #absoluteInEarthSystem}).
+     */
+    public static V3 absoluteInEarthFixed(SolarSystem.Body body, double clock, V3 r) {
+        V3 absolute = absoluteInEarthSystem(body, clock, r);
         double[] out = new double[3];
         InertialFrame.toEarthFixed(clock, absolute.x(), absolute.y(), absolute.z(), out);
         return V3.of(out);
@@ -165,16 +229,12 @@ public final class FrameBridge {
 
     /**
      * Estado inercial relativo ao corpo → coordenadas da dimensão de espaço: posição absoluta ({@code r} mais o centro do
-     * corpo, levada de I a E) e velocidade absoluta em E (a inercial mais a do centro, girada, com o termo do giro da
-     * Terra), ambas nos eixos da dimensão.
+     * corpo, levada a I e de I a E) e velocidade absoluta em E (a inercial mais a do centro, girada, com o termo do giro da
+     * Terra), ambas nos eixos da dimensão. Para o sol e Marte a posição é a de H relativa à Terra, em escala de milhões de blocos.
      */
     public static Local toSpaceDimension(SolarSystem.Body body, double clock, double clockRate, V3 r, V3 v) {
-        double[] center = new double[3];
-        body.inertialPositionAt(clock, center);
-        double[] centerVelocity = new double[3];
-        body.inertialVelocityAt(clock, centerVelocity);
-        V3 absI = r.plus(V3.of(center));
-        V3 vI = v.plus(V3.of(centerVelocity).times(clockRate));
+        V3 absI = absoluteInEarthSystem(body, clock, r);
+        V3 vI = absoluteVelocityInEarthSystem(body, clock, clockRate, r, v);
         double[] pe = new double[3];
         InertialFrame.toEarthFixed(clock, absI.x(), absI.y(), absI.z(), pe);
         double[] ve = new double[3];
@@ -187,17 +247,12 @@ public final class FrameBridge {
     /** Coordenadas da dimensão de espaço (E) → estado inercial relativo ao corpo {@code body} (o dominante, escolhido pelo chamador). */
     public static FlightState fromSpaceDimension(SolarSystem.Body body, double clock, double clockRate, Local l,
             double fuelMb) {
-        double[] center = new double[3];
-        body.inertialPositionAt(clock, center);
-        double[] centerVelocity = new double[3];
-        body.inertialVelocityAt(clock, centerVelocity);
         V3 abs = spaceDimToSpace(l.x(), l.y(), l.z());
         V3 vAbs = spaceDimVectorToSpace(l.vx(), l.vy(), l.vz());
         double[] absI = new double[3];
         InertialFrame.toInertial(clock, abs.x(), abs.y(), abs.z(), absI);
         double[] vI = new double[3];
         InertialFrame.velocityToInertial(clock, clockRate, absI[0], absI[2], vAbs.x(), vAbs.y(), vAbs.z(), vI);
-        return new FlightState(body, V3.of(absI).minus(V3.of(center)), V3.of(vI).minus(V3.of(centerVelocity).times(clockRate)),
-                fuelMb, 0.0, 0.0);
+        return stateRelativeTo(body, clock, clockRate, V3.of(absI), V3.of(vI), fuelMb);
     }
 }

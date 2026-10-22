@@ -104,7 +104,8 @@
     "optical_depth": 0.45,
     "sky_color": "#c89a6c",
     "fog_color": "#d8ad82",
-    "clouds": false
+    "clouds": false,
+    "surface_density": 0.15
   },
   "ores": [
     {

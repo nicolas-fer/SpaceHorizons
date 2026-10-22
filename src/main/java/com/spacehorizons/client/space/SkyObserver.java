@@ -4,10 +4,12 @@ import java.util.Optional;
 
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.Planets;
+import com.spacehorizons.space.Heliocentric;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.SpaceDimension;
 import com.spacehorizons.space.SpaceFrame;
 import com.spacehorizons.space.SunModel;
+import com.spacehorizons.space.flight.BodyPhysics;
 
 import net.minecraft.world.level.Level;
 
@@ -159,10 +161,53 @@ public record SkyObserver(SolarSystem.@Nullable Body home, double clock, double[
         }
     }
 
-    /** Direção do sol (unitária) nos eixos locais da câmera: a do SunModel, a mesma do disco, das estrelas e da luz do chão. */
+    /**
+     * Direção do sol (unitária) nos eixos locais da câmera, vista DAQUI: a do SunModel, a mesma do disco, das estrelas e da luz do
+     * chão. No chão de um planeta é a do corpo dele ({@link SolarSystem#sunDirectionFrom}: o sol no infinito na Terra e na Lua, a
+     * direção verdadeira em Marte). No espaço aberto, perto da Terra (até a esfera de influência dela) é a mesma de sempre, para o
+     * céu não saltar na troca de dimensão; mais longe a direção vai passando à verdadeira, da posição do observador ao sol (que está
+     * a {@link Heliocentric#EARTH_ORBIT_RADIUS} da Terra), até valer só ela a duas esferas da Terra.
+     */
     public void sun(double[] out) {
         double[] s = new double[3];
-        SunModel.directionInSpace(clock, s);
+        sunInSpace(s);
+        spaceToLocal(s[0], s[1], s[2], out);
+    }
+
+    /** A direção do sol vista do observador, nos eixos do espaço (ver {@link #sun}). */
+    private void sunInSpace(double[] out) {
+        if (home != null) {
+            SolarSystem.sunDirectionFrom(home, clock, out);
+            return;
+        }
+        SunModel.directionInSpace(clock, out);
+        double distance = Math.sqrt(pos[0] * pos[0] + pos[1] * pos[1] + pos[2] * pos[2]);
+        double soi = BodyPhysics.of(SolarSystem.EARTH).soiRadius();
+        if (distance <= soi) {
+            return;
+        }
+        double t = Math.min(1.0, (distance - soi) / soi);
+        double w = t * t * (3.0 - 2.0 * t);
+        double x = out[0] * Heliocentric.EARTH_ORBIT_RADIUS - pos[0];
+        double y = out[1] * Heliocentric.EARTH_ORBIT_RADIUS - pos[1];
+        double z = out[2] * Heliocentric.EARTH_ORBIT_RADIUS - pos[2];
+        double n = Math.sqrt(x * x + y * y + z * z);
+        double bx = (1.0 - w) * out[0] + w * x / n;
+        double by = (1.0 - w) * out[1] + w * y / n;
+        double bz = (1.0 - w) * out[2] + w * z / n;
+        double bn = Math.sqrt(bx * bx + by * by + bz * bz);
+        out[0] = bx / bn;
+        out[1] = by / bn;
+        out[2] = bz / bn;
+    }
+
+    /**
+     * Direção do sol (unitária) a partir do centro de {@code target}, nos eixos locais da câmera: a que ilumina a esfera dele. Terra e Lua
+     * usam a de sempre; Marte, a verdadeira (as fases de Marte vistas da Terra e as da Terra vistas de Marte dependem da geometria).
+     */
+    public void sunFor(SolarSystem.Body target, double[] out) {
+        double[] s = new double[3];
+        SolarSystem.sunDirectionFrom(target, clock, s);
         spaceToLocal(s[0], s[1], s[2], out);
     }
 

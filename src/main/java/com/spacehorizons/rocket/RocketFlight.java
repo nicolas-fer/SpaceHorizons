@@ -273,13 +273,13 @@ public final class RocketFlight {
         return new V3(in.getDoubleOr(key + "x", 0.0), in.getDoubleOr(key + "y", 0.0), in.getDoubleOr(key + "z", 0.0));
     }
 
-    /** O corpo pelo nome do caminho do id do planeta ({@code earth}, {@code moon}); null se desconhecido. */
+    /** O corpo pelo nome do caminho do id do planeta ({@code earth}, {@code moon}, {@code mars}, {@code sun}); null se desconhecido. */
     static SolarSystem.@Nullable Body bodyByName(String name) {
         for (SolarSystem.Body body : SolarSystem.BODIES) {
             if (body.planet().id().getPath().equals(name)) {
                 return body;
             }
         }
-        return null;
+        return SolarSystem.SUN.planet().id().getPath().equals(name) ? SolarSystem.SUN : null;
     }
 }

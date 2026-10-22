@@ -139,6 +139,41 @@ public final class AttitudeMath {
         return toFloat(spaceLocalToInertial(toDouble(local), clock));
     }
 
+    // ------------------------------------------------------------------ entre referenciais de estado (I e H)
+
+    /**
+     * Gira uma atitude de um referencial de estado para outro. O estado de voo vive em I (a Terra e a Lua) ou em H (o sol e Marte,
+     * {@link SolarSystem.Frame}); os dois diferem por {@code Ry(θ_T)} (I = Ry(θ_T)·H). Mesmo referencial: a mesma atitude.
+     */
+    public static Quaterniond changeFrame(SolarSystem.Frame from, SolarSystem.Frame to, double clock, Quaterniondc q) {
+        if (from == to) {
+            return new Quaterniond(q);
+        }
+        double theta = com.spacehorizons.space.Heliocentric.earthAngle(clock);
+        double angle = from == SolarSystem.Frame.HELIOCENTRIC ? theta : -theta;
+        return new Quaterniond().rotationY(angle).mul(q, new Quaterniond()).normalize();
+    }
+
+    /** Atitude no referencial de estado de {@code body} → atitude em I (eixos do sistema Terra-Lua). */
+    public static Quaterniond stateToEarthSystem(SolarSystem.Body body, double clock, Quaterniondc q) {
+        return changeFrame(body.frame(), SolarSystem.Frame.EARTH_SYSTEM, clock, q);
+    }
+
+    /** Atitude em I → atitude no referencial de estado de {@code body}. */
+    public static Quaterniond earthSystemToState(SolarSystem.Body body, double clock, Quaterniondc q) {
+        return changeFrame(SolarSystem.Frame.EARTH_SYSTEM, body.frame(), clock, q);
+    }
+
+    /** Atitude do estado (eixos do referencial de {@code body}) → local da dimensão de espaço. Para a Terra e a Lua é {@link #inertialToSpaceLocal}. */
+    public static Quaterniond stateToSpaceLocal(SolarSystem.Body body, Quaterniondc q, double clock) {
+        return inertialToSpaceLocal(stateToEarthSystem(body, clock, q), clock);
+    }
+
+    /** Inverso de {@link #stateToSpaceLocal}. */
+    public static Quaterniond spaceLocalToState(SolarSystem.Body body, Quaterniondc local, double clock) {
+        return earthSystemToState(body, clock, spaceLocalToInertial(local, clock));
+    }
+
     // ------------------------------------------------------------------ direções
 
     /** Direção do nariz (e do empuxo) no referencial do quaternion {@code q}. */
