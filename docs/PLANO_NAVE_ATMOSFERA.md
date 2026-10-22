@@ -192,6 +192,9 @@ cascalho pendurados no teto **não caem** e uma fonte de água no piso **não es
 `SpawnPlacementCheck`) **recusa zumbi no teto e dentro** e aceita fora; a ponte fica no bloco registrado da âncora; o jogador sai do convés em cima de um
 bloco real (no chão no cliente).
 
+Regressão (`./gradlew regression -PshSuites=ship,shipground,shipascent,shipdescent,shipconvert`, 6,4 min): ship 30/0, shipground 16/0, shipascent 23/0,
+shipdescent 40/0, shipconvert 151/0. `./gradlew test build` passa (inclui `ShipAnchorsTest`, 3 casos).
+
 ### Como funciona
 
 - **Ancorar** (`ship/ShipAnchors.request`, comando `/spacehorizons ship anchor`): só nave (`isShip`), inclinação até 15°, até 2 b/t, fora do estaleiro e
