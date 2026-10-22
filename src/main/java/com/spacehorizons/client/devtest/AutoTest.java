@@ -215,6 +215,10 @@ public final class AutoTest {
             shipGroundScenario();
             return;
         }
+        if ("shipdeck".equals(ONLY)) {
+            shipDeckScenario();
+            return;
+        }
         if ("ship".equals(ONLY)) {
             shipScenario();
             return;
@@ -4895,4 +4899,89 @@ public final class AutoTest {
     }
 
     private double shipPeBefore;
+
+    // ===================================================================================================================
+    // CONVÉS ANDÁVEL (docs/PLANO_NAVE_ATMOSFERA.md, spike S5): -PshOnly=shipdeck. Um foguete oco de ~4.000 blocos, roteirizado (sobe, paira e desce a 1, 10,
+    // 50 e 100 b/t, gira 20 graus/s e fica a 30 graus), com o jogador no referencial dele e um robô andando em quadrado por 2.000 ticks; repete com
+    // 100 ms de latência por sentido. Bloco separado; as medidas ficam em ShipDeckDevtest. SH_DECK_CONFIGS (ambiente, só para depurar) troca a
+    // matriz: "10:0,100:100:s" (velocidade:latência[:s com prints]).
+    // ===================================================================================================================
+    private void shipDeckScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "difficulty peaceful");
+        cmd(5, "gamemode survival");
+        step(5, mc -> mc.options.fov().set(90));
+        String env = System.getenv("SH_DECK_CONFIGS");
+        List<int[]> configs = new ArrayList<>();
+        if (env == null || env.isBlank()) {
+            for (int latency : new int[] {0, 100}) {
+                for (int speed : new int[] {1, 10, 50, 100}) {
+                    // prints em 3a pessoa na nave a 50 b/t sem latência e a 100 b/t com latência
+                    configs.add(new int[] {speed, latency, (speed == 50 && latency == 0) || (speed == 100 && latency == 100) ? 1 : 0});
+                }
+            }
+        } else {
+            for (String part : env.split(",")) {
+                String[] f = part.trim().split(":");
+                configs.add(new int[] {Integer.parseInt(f[0]), Integer.parseInt(f[1]), f.length > 2 ? 1 : 0});
+            }
+        }
+        for (int[] c : configs) {
+            int speed = c[0];
+            int latency = c[1];
+            boolean shots = c[2] == 1;
+            step(10, mc -> ShipDeckDevtest.begin(mc, speed, latency));
+            tickerStep(0, waitUntil("DECK: embarcou no convés e a nave chegou ao cliente", 600, ShipDeckDevtest::ready));
+            tickerStep(0, deckWalk(ShipDeckDevtest.RUN_TICKS, shots ? "sdk_v" + speed + "_l" + latency : null));
+            step(5, mc -> {
+                ShipDeckDevtest.release(mc);
+                ShipDeckDevtest.finish(mc);
+            });
+            step(60, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
+        }
+        step(20, mc -> {
+            ShipDeckDevtest.summary();
+            ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** O robô anda em quadrado até {@code untilTick} da corrida; com {@code shotPrefix}, tira prints em 3a e em 1a pessoa em instantes fixos. */
+    private Ticker deckWalk(int untilTick, String shotPrefix) {
+        return new Ticker() {
+            int guard;
+
+            @Override
+            public boolean tick(Minecraft mc) {
+                if (mc.gui.screen() != null) {
+                    mc.gui.setScreen(null);
+                }
+                boolean done = ShipDeckDevtest.walk(mc, untilTick);
+                int t = ShipDeckDevtest.runTick();
+                if (shotPrefix != null) {
+                    switch (t) {
+                        case 200 -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                        case 260 -> grab(mc, shotPrefix + "_3a_pessoa_t260");
+                        case 650 -> grab(mc, shotPrefix + "_3a_pessoa_t650");
+                        case 700 -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+                        case 760 -> grab(mc, shotPrefix + "_1a_pessoa_t760");
+                        case 1_050 -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                        case 1_100 -> grab(mc, shotPrefix + "_3a_pessoa_t1100");
+                        case 1_500 -> grab(mc, shotPrefix + "_3a_pessoa_t1500");
+                        default -> {
+                        }
+                    }
+                }
+                if (!done && ++guard > untilTick * 2 + 600) {
+                    ShipDevtest.check("DECK: a corrida terminou no tempo", false, "tick da corrida " + t + " depois de " + guard + " ticks");
+                    return true;
+                }
+                return done;
+            }
+        };
+    }
 }

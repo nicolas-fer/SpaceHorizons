@@ -74,6 +74,14 @@ public final class CockpitCamera {
         return new Quaternionf(attitude).mul(baseView(thirdPerson)).mul(free).normalize();
     }
 
+    /**
+     * A câmera do tripulante a pé no convés (S5): {@code atitude · olhar local}. {@code lookYawDeg} e {@code lookPitchDeg} são o yaw e o pitch do
+     * jogador NO REFERENCIAL DA NAVE (o que o mouse mexe); a atitude os leva ao mundo, então a nave inclinada inclina o horizonte da câmera.
+     */
+    public static Quaternionf deckRotation(Quaternionfc attitude, float lookYawDeg, float lookPitchDeg) {
+        return new Quaternionf(attitude).mul(fromVanilla(lookYawDeg, lookPitchDeg, 0.0F)).normalize();
+    }
+
     /** O quaternion que a câmera do vanilla monta de yaw, pitch e roll (graus): {@code rotationYXZ(π − yaw, −pitch, −roll)}. */
     public static Quaternionf fromVanilla(float yawDeg, float pitchDeg, float rollDeg) {
         return new Quaternionf().rotationYXZ((float) (Math.PI - Math.toRadians(yawDeg)), (float) -Math.toRadians(pitchDeg),

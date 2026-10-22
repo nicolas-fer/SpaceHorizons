@@ -114,10 +114,15 @@ final class ShipPilotDevtest {
      */
     static double[] stopFrames() {
         sampling = false;
+        return measureFrames(FRAMES);
+    }
+
+    /** A medida de {@link #stopFrames} sobre quadros já gravados ({nanoTime, x, y, z, w} da orientação): também é a do cenário {@code shipdeck} (convés andável). */
+    static double[] measureFrames(List<double[]> frames) {
         List<double[]> speeds = new ArrayList<>();
-        for (int i = 1; i < FRAMES.size(); i++) {
-            double[] a = FRAMES.get(i - 1);
-            double[] b = FRAMES.get(i);
+        for (int i = 1; i < frames.size(); i++) {
+            double[] a = frames.get(i - 1);
+            double[] b = frames.get(i);
             double dt = (b[0] - a[0]) * 1.0e-9;
             if (dt < 1.0e-4) {
                 continue;

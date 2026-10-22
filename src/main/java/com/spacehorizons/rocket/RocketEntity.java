@@ -2,6 +2,9 @@ package com.spacehorizons.rocket;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
+import java.util.function.LongSupplier;
 
 import com.mojang.serialization.Codec;
 import com.spacehorizons.SpaceHorizons;
@@ -65,6 +68,12 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
      */
     private static final EntityDataAccessor<Boolean> VIRTUAL = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Vector3fc> VIRTUAL_POS = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.VECTOR3);
+    /**
+     * Convés andável (S5): o tick do servidor em que a pose (posição e atitude) deste momento vale, enviado a cada tick enquanto há tripulação a pé
+     * a bordo (zero sem tripulação). O cliente de um tripulante usa isto para desenhar a nave numa linha do tempo de ticks do servidor, sem os
+     * trancos da chegada dos pacotes ({@link com.spacehorizons.ship.deck.DeckPoseTimeline}). Definido DEPOIS da atitude, para chegar depois dela.
+     */
+    private static final EntityDataAccessor<Integer> POSE_STAMP = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.INT);
     /** Salto de posição (blocos) num tick de cliente acima do qual é uma costura do planeta ou um teleporte, não um passo de voo. */
     private static final double JUMP_DISTANCE = 2_000.0;
 
@@ -116,6 +125,7 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         builder.define(HELD, false);
         builder.define(VIRTUAL, false);
         builder.define(VIRTUAL_POS, new Vector3f());
+        builder.define(POSE_STAMP, 0);
     }
 
     @Override
@@ -129,6 +139,9 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
                 this.attitudePrev.set(this.attitudeTarget);
                 this.attitudeCur.set(this.attitudeTarget);
             }
+        }
+        if (POSE_STAMP.equals(accessor) && this.level().isClientSide()) {
+            recordPoseStamp(this.entityData.get(POSE_STAMP));
         }
         if (VIRTUAL_POS.equals(accessor) || VIRTUAL.equals(accessor)) {
             Vector3fc v = this.entityData.get(VIRTUAL_POS);
@@ -296,6 +309,11 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     /** Atitude interpolada para o frame (entre o tick anterior e o atual). */
     public void orientation(float partialTick, Quaternionf dest) {
         if (this.level().isClientSide()) {
+            com.spacehorizons.ship.deck.DeckFrame smooth = this.smoothFrame(this.clientTickAt(partialTick));
+            if (smooth != null) {
+                dest.set(smooth.attitude());
+                return;
+            }
             this.attitudePrev.slerp(this.attitudeCur, partialTick, dest);
         } else {
             dest.set(this.attitude);
@@ -370,11 +388,115 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
             if (this.jumped) {
                 this.setOldPosAndRot();
             }
+        } else if (this.devtestScript != null) {
+            // autoteste do convés (S5): movimento roteirizado, no lugar do voo
+            this.devtestScript.accept(this);
+            com.spacehorizons.ship.deck.DeckCrew.afterRocketTick(this);
         } else if (!com.spacehorizons.ship.ShipConversions.isFrozen(this)) {
             // congelado enquanto a nave vira blocos no estaleiro (S3): o voo não anda até a conversão terminar
             this.flight.tick(this);
             this.entityData.set(FLIGHT_MODE, this.flight.mode().id());
+            // a tripulação a pé no convés anda junto: a posição dela vem do referencial local pela pose que a nave acabou de ter
+            com.spacehorizons.ship.deck.DeckCrew.afterRocketTick(this);
         }
+    }
+
+    /** Autoteste do convés (S5): se definido, o servidor roda isto a cada tick no lugar do voo; o roteiro move a entidade e gira a atitude. */
+    private @Nullable Consumer<RocketEntity> devtestScript;
+
+    public void setDevtestScript(@Nullable Consumer<RocketEntity> script) {
+        this.devtestScript = script;
+    }
+
+    /** A tripulação a pé deixa o convés quando a entidade sai do mundo (troca de dimensão, desmontagem, descarga). */
+    @Override
+    public void onRemoval(RemovalReason reason) {
+        super.onRemoval(reason);
+        if (!this.level().isClientSide()) {
+            com.spacehorizons.ship.deck.DeckCrew.onRocketRemoved(this);
+        }
+    }
+
+    // ---------------------------------------------------------------- pose suavizada para a tripulação a pé (S5)
+
+    /** O relógio do cliente em ticks (contador de ticks do cliente com a parcial do quadro); ligado pelo código do cliente, null no servidor. */
+    public static volatile @Nullable DoubleSupplier clientClock;
+    /**
+     * O contador de ticks do CLIENTE (um por tick, sem saltos). O tempo do jogo ({@code level.getGameTime()}) NÃO serve de relógio da linha do tempo: o
+     * servidor o corrige no cliente a cada segundo, e com a rede atrasando e variando os pacotes ele salta de 1 a 2 ticks para trás ou para a frente.
+     */
+    public static volatile @Nullable LongSupplier clientTicks;
+
+    private com.spacehorizons.ship.deck.@Nullable DeckPoseTimeline deckTimeline;
+
+    /** Servidor: marca a pose atual com o tick do servidor (só enquanto há tripulação a pé a bordo). */
+    public void stampPose(int stamp) {
+        this.entityData.set(POSE_STAMP, Math.max(1, stamp));
+    }
+
+    /** Cliente: chegou o tick do servidor da pose; guarda a posição e a atitude que o vanilla acabou de receber (a posição vem antes dos dados). */
+    private void recordPoseStamp(int stamp) {
+        DoubleSupplier clock = clientClock;
+        if (stamp <= 0 || clock == null) {
+            return;
+        }
+        if (this.deckTimeline == null) {
+            this.deckTimeline = new com.spacehorizons.ship.deck.DeckPoseTimeline();
+        }
+        var handler = this.getInterpolation();
+        var target = handler.target();
+        Vec3 p = handler.hasActiveInterpolation() && target != null ? target.position() : this.position();
+        this.deckTimeline.record(stamp, p.x, p.y, p.z, this.attitudeTarget, clock.getAsDouble());
+    }
+
+    /** O tempo do cliente (ticks do jogo com fração) de um quadro com a parcial dada. */
+    public double clientTickAt(float partialTick) {
+        LongSupplier ticks = clientTicks;
+        return (ticks == null ? this.level().getGameTime() : ticks.getAsLong()) + (double) partialTick;
+    }
+
+    /** Cliente: a pose suavizada no tempo do cliente {@code clientTick}, ou null se não há (sem tripulação a pé ou sem pacotes recentes). */
+    public com.spacehorizons.ship.deck.@Nullable DeckFrame smoothFrame(double clientTick) {
+        com.spacehorizons.ship.deck.DeckPoseTimeline timeline = this.deckTimeline;
+        if (timeline == null || !this.level().isClientSide() || !timeline.active(clientTick)) {
+            return null;
+        }
+        return timeline.sample(clientTick, this.pivotLocal());
+    }
+
+    /** Cliente: a atitude suavizada em dupla precisão (para medir o tremor), ou null. */
+    public org.joml.@Nullable Quaterniond smoothAttitude(double clientTick) {
+        com.spacehorizons.ship.deck.DeckPoseTimeline timeline = this.deckTimeline;
+        return timeline == null || !this.level().isClientSide() || !timeline.active(clientTick) ? null : timeline.sampleAttitude(clientTick);
+    }
+
+    // ---------------------------------------------------------------- pose para o convés andável (S5)
+
+    /**
+     * A pose da nave neste tick: o centro da caixa, a atitude e o pivô. No servidor é a atual; no cliente, a do fim do último tick (a posição
+     * já interpolada pelo passo de rede e a atitude do tick).
+     */
+    public com.spacehorizons.ship.deck.DeckFrame deckFrame() {
+        return new com.spacehorizons.ship.deck.DeckFrame(this.getX(), this.getY(), this.getZ(), this.level().isClientSide() ? this.attitudeCur : this.attitude,
+                this.pivotLocal());
+    }
+
+    /** Cliente: a pose do tick anterior (posição e atitude), para interpolar o tripulante como o desenho interpola a nave. */
+    public com.spacehorizons.ship.deck.DeckFrame deckFramePrevious() {
+        Vec3 old = this.oldPosition();
+        return new com.spacehorizons.ship.deck.DeckFrame(old.x, old.y, old.z, this.attitudePrev, this.pivotLocal());
+    }
+
+    /** Cliente: a pose no quadro, a mesma que o desenho da nave usa (posição linear, atitude por slerp). */
+    public com.spacehorizons.ship.deck.DeckFrame deckFrameAt(float partialTick) {
+        com.spacehorizons.ship.deck.DeckFrame smooth = this.smoothFrame(this.clientTickAt(partialTick));
+        if (smooth != null) {
+            return smooth;
+        }
+        Vec3 p = this.getPosition(partialTick);
+        Quaternionf q = new Quaternionf();
+        this.orientation(partialTick, q);
+        return new com.spacehorizons.ship.deck.DeckFrame(p.x, p.y, p.z, q, this.pivotLocal());
     }
 
     /**

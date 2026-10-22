@@ -3,9 +3,12 @@ package com.spacehorizons.mixin;
 import com.spacehorizons.client.curvature.CurvatureState;
 
 import com.spacehorizons.client.rocket.RocketCamera;
+import com.spacehorizons.client.ship.DeckClient;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,18 +31,41 @@ abstract class CameraMixin {
     @Shadow
     protected abstract void setPosition(Vec3 position);
 
+    @Shadow
+    protected abstract void move(float forwards, float up, float right);
+
+    @Shadow
+    private boolean detached;
+
+    @Shadow
+    protected abstract float getMaxZoom(float cameraDist);
+
     /**
      * Piloto do foguete em primeira pessoa: o olho vai para a janela do cockpit (ver {@link RocketCamera#firstPersonEye}). Roda logo
      * depois de alinhar a câmera à entidade e antes do frustum e da perspectiva, que já leem a posição nova.
+     *
+     * <p>Tripulante a pé no convés (S5): o olho é o do referencial da nave, na pose interpolada do quadro ({@link DeckClient#eyeWorld}); em
+     * terceira pessoa a câmera recua dali pelo olhar já composto com a atitude, como o vanilla faz a partir da posição da entidade.
      */
     @Inject(
             method = "update",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;alignWithEntity(F)V", shift = At.Shift.AFTER))
     private void spacehorizons$rocketEye(DeltaTracker deltaTracker, CallbackInfo ci) {
         Camera self = (Camera) (Object) this;
-        Vec3 eye = RocketCamera.firstPersonEye(self.getCameraEntityPartialTicks(deltaTracker));
+        float partialTick = self.getCameraEntityPartialTicks(deltaTracker);
+        Vec3 eye = RocketCamera.firstPersonEye(partialTick);
         if (eye != null) {
             this.setPosition(eye);
+            return;
+        }
+        Vec3 deckEye = DeckClient.eyeWorld(partialTick);
+        if (deckEye != null) {
+            this.setPosition(deckEye);
+            if (this.detached) {
+                var player = Minecraft.getInstance().player;
+                float distance = player == null ? 4.0F : (float) player.getAttributeValue(Attributes.CAMERA_DISTANCE);
+                this.move(-this.getMaxZoom(distance * (player == null ? 1.0F : player.getScale())), 0.0F, 0.0F);
+            }
         }
     }
 }
