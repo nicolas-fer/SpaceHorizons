@@ -29,6 +29,8 @@ class RecipeReferencesTest {
     private static final Pattern ID = Pattern.compile("\"(#?)([a-z0-9_.-]+):([a-z0-9_./-]+)\"");
     /** Remove "type": "..." (tipo da receita não é um item). */
     private static final Pattern TIPO = Pattern.compile("\"type\"\\s*:\\s*\"[^\"]*\"");
+    /** Remove "components": {...} do resultado (as chaves são ids de data component, não de item; ex. o galão cheio do Tier 2). */
+    private static final Pattern COMPONENTES = Pattern.compile("\"components\"\\s*:\\s*\\{[^}]*\\}");
 
     private static String ler(String caminho) throws IOException {
         try (InputStream in = RecipeReferencesTest.class.getClassLoader().getResourceAsStream(caminho)) {
@@ -54,7 +56,7 @@ class RecipeReferencesTest {
         List<Path> arquivos = receitas();
         assertFalse(arquivos.isEmpty(), "nenhuma receita encontrada");
         for (Path arquivo : arquivos) {
-            String json = TIPO.matcher(Files.readString(arquivo)).replaceAll("");
+            String json = COMPONENTES.matcher(TIPO.matcher(Files.readString(arquivo)).replaceAll("")).replaceAll("");
             Matcher m = ID.matcher(json);
             while (m.find()) {
                 boolean tag = !m.group(1).isEmpty();

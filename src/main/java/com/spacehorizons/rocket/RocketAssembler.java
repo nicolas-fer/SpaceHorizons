@@ -9,10 +9,10 @@ import java.util.UUID;
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.content.ModEntities;
 import com.spacehorizons.content.connected.ConnectedFaces;
+import com.spacehorizons.space.flight.FuelLoad;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -133,12 +133,12 @@ public final class RocketAssembler {
         Map<BlockState, Integer> paletteIndex = new HashMap<>();
         paletteIndex.put(palette.get(0), 0);
         Long2ObjectMap<CompoundTag> blockEntities = new Long2ObjectLinkedOpenHashMap<>();
-        int fuel = 0;
-        Map<Long, Multiblocks.EngineRole> engineRoles = Multiblocks.engineRoles(found.structures().engines());
-        LongOpenHashSet tankCells = new LongOpenHashSet();
+        FuelLoad fuel = FuelLoad.EMPTY;
+        Map<Long, Multiblocks.EngineRole> engineRoles = Multiblocks.allEngineRoles(found.structures());
+        Map<Long, RocketBlockKind> tankCells = new HashMap<>();
         for (RocketAssembly.Cell cell : found.cells()) {
-            if (cell.kind() == RocketBlockKind.FUEL_TANK) {
-                tankCells.add(RocketAssembly.pack(cell.x(), cell.y(), cell.z()));
+            if (cell.kind().isTank()) {
+                tankCells.put(RocketAssembly.pack(cell.x(), cell.y(), cell.z()), cell.kind());
             }
         }
         for (RocketAssembly.Cell cell : found.cells()) {
@@ -158,8 +158,11 @@ public final class RocketAssembler {
                 tag.remove("y");
                 tag.remove("z");
                 blockEntities.put(BlockPos.asLong(lx, ly, lz), tag);
-                if (blockEntity instanceof RocketFuelTankBlockEntity tank) {
-                    fuel += tank.fuelMb();
+                if (blockEntity instanceof RocketFuelTankBlockEntity tank && RocketSpecs.tankPropellant(cell.kind()) != null) {
+                    fuel = fuel.plus(RocketSpecs.tankPropellant(cell.kind()), tank.fuelMb());
+                } else if (blockEntity instanceof EngineChargeBlockEntity charge && EngineType.of(cell.kind()) != null
+                        && EngineType.of(cell.kind()).chargePropellant() != null) {
+                    fuel = fuel.plus(EngineType.of(cell.kind()).chargePropellant(), charge.chargeMb());
                 }
             }
         }
@@ -175,7 +178,7 @@ public final class RocketAssembler {
             throw new IllegalStateException("não foi possível criar a entidade do foguete");
         }
         rocket.setPortrait(portrait);
-        rocket.setFuelMb(fuel);
+        rocket.setFuel(fuel);
         rocket.setShip(ship);
         rocket.setPos(found.minX() + found.sizeX() / 2.0, found.minY() + found.sizeY() / 2.0, found.minZ() + found.sizeZ() / 2.0);
 
@@ -192,6 +195,9 @@ public final class RocketAssembler {
         }
         SpaceHorizons.LOGGER.info("Foguete montado em {}: {} blocos, caixa {}x{}x{}, {} mB de combustível", cockpit.toShortString(),
                 portrait.blockCount(), found.sizeX(), found.sizeY(), found.sizeZ(), fuel);
+        if (!fuel.onlyChemical()) {
+            SpaceHorizons.LOGGER.info("Carga do foguete por combustível: {}", fuel);
+        }
         return rocket;
     }
 
@@ -200,14 +206,16 @@ public final class RocketAssembler {
      * lhe dá (mestre, parte ou avulso) e o tanque, as conexões com os tanques vizinhos. Assim um foguete montado por comando (que não
      * passa pela colocação do jogador) também aparece formado em voo, e o que o censo conta é o que o retrato mostra.
      */
-    static BlockState canonical(BlockState state, RocketAssembly.Cell cell, Map<Long, Multiblocks.EngineRole> engineRoles, LongOpenHashSet tankCells) {
-        if (cell.kind() == RocketBlockKind.ENGINE && state.hasProperty(RocketEngineBlock.FORM)) {
+    static BlockState canonical(BlockState state, RocketAssembly.Cell cell, Map<Long, Multiblocks.EngineRole> engineRoles,
+            Map<Long, RocketBlockKind> tankCells) {
+        if (cell.kind().isEngine() && state.hasProperty(RocketEngineBlock.FORM)) {
             return EngineForming.stateFor(state, engineRoles.getOrDefault(RocketAssembly.pack(cell.x(), cell.y(), cell.z()), Multiblocks.EngineRole.SOLO));
         }
-        if (cell.kind() == RocketBlockKind.FUEL_TANK && state.hasProperty(ConnectedFaces.UP)) {
+        if (cell.kind().isTank() && state.hasProperty(ConnectedFaces.UP)) {
+            // as conexões só com tanques do MESMO tipo (a regra do bloco, ConnectedFaces.sameBlock)
             for (net.minecraft.core.Direction side : net.minecraft.core.Direction.values()) {
-                state = state.setValue(ConnectedFaces.property(side),
-                        tankCells.contains(RocketAssembly.pack(cell.x() + side.getStepX(), cell.y() + side.getStepY(), cell.z() + side.getStepZ())));
+                state = state.setValue(ConnectedFaces.property(side), tankCells.get(RocketAssembly.pack(cell.x() + side.getStepX(),
+                        cell.y() + side.getStepY(), cell.z() + side.getStepZ())) == cell.kind());
             }
         }
         return state;

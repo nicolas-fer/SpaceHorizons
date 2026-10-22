@@ -6,6 +6,12 @@
     "spacehorizons:rocket_fuel_tank",
     "spacehorizons:rocket_parachute",
     "spacehorizons:rocket_landing_leg",
-    "spacehorizons:rocket_hull"
+    "spacehorizons:rocket_hull",
+    "spacehorizons:hydrogen_tank",
+    "spacehorizons:xenon_tank",
+    "spacehorizons:rtg_generator",
+    "spacehorizons:nuclear_engine",
+    "spacehorizons:ion_engine",
+    "spacehorizons:fusion_engine"
   ]
 }

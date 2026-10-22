@@ -8,6 +8,7 @@ import com.spacehorizons.client.rocket.RocketPanelModel.Row;
 import com.spacehorizons.client.rocket.RocketPanelModel.Tone;
 import com.spacehorizons.rocket.DesignReport;
 import com.spacehorizons.rocket.MissionBudget;
+import com.spacehorizons.rocket.RocketBlockKind;
 
 /**
  * O que o painel de projeto da plataforma mostra, já formatado (lógica pura, testada): as linhas de números, a lista de destinos e os
@@ -58,9 +59,50 @@ public final class RocketDesignModel {
         Tone twrTone = r.twr() <= MissionBudget.MIN_TWR_LIFTOFF ? Tone.BAD : r.twr() < MissionBudget.MIN_TWR_ORBIT ? Tone.WARN : Tone.GOOD;
         rows.add(new Row("design.spacehorizons.row.twr", Double.isFinite(r.twr()) ? String.format(Locale.ROOT, "%.2f", r.twr()) : RocketPanelModel.NONE, twrTone));
         rows.add(new Row("design.spacehorizons.row.delta_v", bps(r.deltaV()), r.deltaV() > 0 ? Tone.NORMAL : Tone.BAD));
-        rows.add(new Row("design.spacehorizons.row.engines", enginesText(r), Tone.NORMAL));
-        rows.add(new Row("design.spacehorizons.row.tanks", tanksText(r), Tone.NORMAL));
+        boolean tier2 = !r.lines().isEmpty();
+        if (!tier2 || r.engineBlocks() > 0) {
+            rows.add(new Row("design.spacehorizons.row.engines", enginesText(r), Tone.NORMAL));
+        }
+        if (!tier2 || r.tankBlocks() > 0) {
+            rows.add(new Row("design.spacehorizons.row.tanks", tanksText(r), Tone.NORMAL));
+        }
+        for (DesignReport.Line line : r.lines()) {
+            Tone tone = line.kind() == RocketBlockKind.ION_ENGINE && line.power() < 100 ? Tone.WARN : Tone.NORMAL;
+            rows.add(new Row("design.spacehorizons.row." + line.kind().name().toLowerCase(Locale.ROOT), lineText(line), tone));
+        }
         return rows;
+    }
+
+    /** A linha de um tipo do Tier 2: blocos e formas; motores com empuxo e Isp (e a energia do iônico); tanques com a capacidade. */
+    static String lineText(DesignReport.Line l) {
+        StringBuilder sb = new StringBuilder().append(l.blocks());
+        List<String> parts = new ArrayList<>();
+        if (l.kind().isEngine()) {
+            if (l.cubes3() > 0) {
+                parts.add(l.cubes3() + " x 3x3x3");
+            }
+            if (l.cubes2() > 0) {
+                parts.add(l.cubes2() + " x 2x2x2");
+            }
+            if (l.solo() > 0) {
+                parts.add(l.solo() + " x 1x1");
+            }
+            sb.append(parts.isEmpty() ? "" : " (" + String.join(", ", parts) + ")");
+            sb.append(String.format(Locale.ROOT, " F %.2f Isp %.0f", l.thrust(), l.ispTicks()));
+            if (l.kind() == RocketBlockKind.ION_ENGINE) {
+                sb.append(" ").append(l.power()).append('%');
+            }
+        } else if (l.kind().isTank()) {
+            if (l.cubes2() > 0) {
+                parts.add(l.cubes2() + " col");
+            }
+            if (l.solo() > 0) {
+                parts.add(l.solo() + " av");
+            }
+            sb.append(parts.isEmpty() ? "" : " (" + String.join(", ", parts) + ")");
+            sb.append(String.format(Locale.ROOT, " %,.0f mB", l.capacityMb()).replace(',', '.'));
+        }
+        return sb.toString();
     }
 
     static String enginesText(DesignReport r) {
@@ -124,9 +166,15 @@ public final class RocketDesignModel {
             Object[] args = switch (p.type()) {
                 case MULTIPLE_COCKPITS -> new Object[] {p.arg()};
                 case LOW_TWR -> new Object[] {String.format(Locale.ROOT, "%.2f", p.arg() / 100.0)};
+                case LOW_POWER -> new Object[] {p.arg()};
                 default -> new Object[] {p.x(), p.y(), p.z()};
             };
-            lines.add(new ProblemLine("design.spacehorizons.problem." + p.type().name().toLowerCase(Locale.ROOT), args, p.type().blocking(), p.x(), p.y(), p.z()));
+            String key = "design.spacehorizons.problem." + p.type().name().toLowerCase(Locale.ROOT);
+            if (p.type() == DesignReport.Type.NO_ENGINE_FUEL && p.arg() >= 0 && p.arg() < RocketBlockKind.values().length) {
+                // qual tanque falta: uma chave por tipo ("falta tanque de hidrogênio")
+                key += "." + RocketBlockKind.values()[p.arg()].name().toLowerCase(Locale.ROOT);
+            }
+            lines.add(new ProblemLine(key, args, p.type().blocking(), p.x(), p.y(), p.z()));
         }
         return lines;
     }

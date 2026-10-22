@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "trigger": "minecraft:recipe_unlocked",
+      "conditions": {
+        "recipes": "spacehorizons:rocket_blueprint"
+      }
+    },
+    "has_launch_pad": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:launch_pad"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_launch_pad"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "spacehorizons:rocket_blueprint"
+    ]
+  }
+}

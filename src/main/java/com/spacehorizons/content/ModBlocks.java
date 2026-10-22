@@ -4,6 +4,8 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.rocket.ChargedEngineBlock;
+import com.spacehorizons.rocket.EngineType;
 import com.spacehorizons.rocket.LaunchPadBlock;
 import com.spacehorizons.rocket.RocketCockpitBlock;
 import com.spacehorizons.rocket.RocketEngineBlock;
@@ -13,6 +15,7 @@ import com.spacehorizons.ship.block.ShipBridgeBlock;
 import com.spacehorizons.ship.block.ShipImpulseEngineBlock;
 import com.spacehorizons.ship.block.ShipSeatBlock;
 import com.spacehorizons.ship.block.ShipWindowBlock;
+import com.spacehorizons.space.flight.Propellant;
 import com.spacehorizons.survival.compressor.OxygenCompressorBlock;
 import com.spacehorizons.survival.fuel.RefineryBlock;
 
@@ -103,6 +106,43 @@ public final class ModBlocks {
     /** Eclusa: fechada é parede, aberta deixa passar. */
     public static final DeferredBlock<ShipAirlockBlock> SHIP_AIRLOCK = registerBlockWithItem(ContentIds.SHIP_AIRLOCK, ShipAirlockBlock::new,
             props -> props.mapColor(MapColor.METAL).strength(3.5F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion());
+
+    // --- Tier 2 (docs/TIER2_IDS.md; números em docs/PLANO_TIERS.md, "Tier 2: conteúdo"). Materiais de Marte sem worldgen (o planeta vem depois) ---
+
+    /** Regolito marciano: solo solto (pá), como o cascalho; sem toque de seda dá às vezes pó de terras raras. */
+    public static final DeferredBlock<Block> MARS_REGOLITH = registerWithItem(ContentIds.MARS_REGOLITH,
+            props -> props.mapColor(MapColor.TERRACOTTA_ORANGE).strength(0.7F).sound(SoundType.GRAVEL));
+
+    /** Minério de titânio: picareta de ferro ou melhor, como o minério de ferro do fundo. */
+    public static final DeferredBlock<Block> MARS_TITANIUM_ORE = registerWithItem(ContentIds.MARS_TITANIUM_ORE,
+            props -> props.mapColor(MapColor.TERRACOTTA_ORANGE).strength(3.5F, 3.0F).sound(SoundType.STONE).requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<Block> TITANIUM_BLOCK = registerWithItem(ContentIds.TITANIUM_BLOCK,
+            props -> props.mapColor(MapColor.METAL).strength(6.0F, 7.0F).sound(SoundType.METAL).requiresCorrectToolForDrops());
+
+    /** Tanques do Tier 2: o mesmo bloco do tanque químico (block entity, coluna, textura conectada), com outro combustível. */
+    public static final DeferredBlock<RocketFuelTankBlock> HYDROGEN_TANK = BLOCKS.registerBlock(ContentIds.HYDROGEN_TANK,
+            props -> new RocketFuelTankBlock(props, Propellant.HYDROGEN), props -> props.mapColor(MapColor.COLOR_LIGHT_BLUE).strength(3.0F, 6.0F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion());
+    public static final DeferredBlock<RocketFuelTankBlock> XENON_TANK = BLOCKS.registerBlock(ContentIds.XENON_TANK,
+            props -> new RocketFuelTankBlock(props, Propellant.XENON), props -> props.mapColor(MapColor.COLOR_PURPLE).strength(3.0F, 6.0F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion());
+
+    /** Gerador radioisotópico: cada um alimenta um motor iônico 1x1 (o 2x2x2 pede 6, o 3x3x3 pede 16); brilha de leve. */
+    public static final DeferredBlock<Block> RTG_GENERATOR = registerWithItem(ContentIds.RTG_GENERATOR,
+            props -> props.mapColor(MapColor.METAL).strength(4.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()
+                    .lightLevel(state -> 4));
+
+    /** Motores do Tier 2: formam 2x2x2 e 3x3x3 como o químico; o nuclear e o de fusão guardam carga (núcleo, hélio-3). */
+    public static final DeferredBlock<ChargedEngineBlock> NUCLEAR_ENGINE = registerBlockWithItem(ContentIds.NUCLEAR_ENGINE,
+            props -> new ChargedEngineBlock(props, EngineType.NUCLEAR), props -> props.mapColor(MapColor.METAL).strength(5.0F, 8.0F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion());
+    public static final DeferredBlock<RocketEngineBlock> ION_ENGINE = registerBlockWithItem(ContentIds.ION_ENGINE, RocketEngineBlock::new,
+            props -> props.mapColor(MapColor.METAL).strength(4.0F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()
+                    .lightLevel(state -> 6));
+    public static final DeferredBlock<ChargedEngineBlock> FUSION_ENGINE = registerBlockWithItem(ContentIds.FUSION_ENGINE,
+            props -> new ChargedEngineBlock(props, EngineType.FUSION), props -> props.mapColor(MapColor.METAL).strength(5.0F, 8.0F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion().lightLevel(state -> 8));
 
     private ModBlocks() {
     }

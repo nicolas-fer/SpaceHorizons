@@ -16,6 +16,8 @@ import com.spacehorizons.space.flight.FlightIntegrator;
 import com.spacehorizons.space.flight.FlightState;
 import com.spacehorizons.space.flight.FrameBridge;
 import com.spacehorizons.space.flight.FrameBridge.Local;
+import com.spacehorizons.space.flight.FuelLoad;
+import com.spacehorizons.space.flight.Propellant;
 import com.spacehorizons.space.flight.LandingRules;
 import com.spacehorizons.space.flight.RocketStats;
 import com.spacehorizons.space.flight.SoiTracker;
@@ -128,6 +130,16 @@ public final class FlightMachine {
      */
     public static Result step(Snapshot s, Command c, RocketStats stats, Box box, double clock, double clockRate, Ground ground,
             ZoneAccess zones, double landedFuelMb, Local landedLocal, Quaterniondc landedLocalAttitude) {
+        return step(s, c, stats, box, clock, clockRate, ground, zones, FuelLoad.chemical(landedFuelMb), landedLocal, landedLocalAttitude);
+    }
+
+    /**
+     * Como acima, com a carga pousada por combustível ({@link FuelLoad}, Tier 2): a decolagem só acontece se os motores que TÊM combustível
+     * vencem a gravidade, e o estado de voo nasce com a carga inteira.
+     */
+    public static Result step(Snapshot s, Command c, RocketStats stats, Box box, double clock, double clockRate, Ground ground,
+            ZoneAccess zones, FuelLoad landedFuel, Local landedLocal, Quaterniondc landedLocalAttitude) {
+        double landedFuelMb = landedFuel.get(Propellant.CHEMICAL);
         SasMode sas = c.nextSas() ? s.sas().next() : s.sas();
         double throttle = Math.max(0.0, Math.min(1.0, c.throttle()));
         Snapshot cur = s.withSasAndThrottle(sas, throttle);
@@ -139,14 +151,15 @@ public final class FlightMachine {
                 return stay(cur, landedLocal, landedLocalAttitude, landedFuelMb);
             }
             double g = BodyPhysics.of(zone).surfaceGravity();
-            boolean lifts = stats.engines() > 0 && landedFuelMb > 0.0 && throttle > 0.0
-                    && stats.acceleration(landedFuelMb, throttle) > g;
+            boolean lifts = stats.engines() > 0 && throttle > 0.0 && (stats.chemicalOnly() && landedFuel.onlyChemical()
+                    ? landedFuelMb > 0.0 && stats.acceleration(landedFuelMb, throttle) > g
+                    : stats.acceleration(landedFuel, throttle) > g);
             if (!lifts) {
                 return stay(cur, landedLocal, landedLocalAttitude, landedFuelMb);
             }
             // decolagem: o estado inercial nasce da posição na dimensão (com ω×r) e a atitude local vira inercial
             Local atRest = new Local(landedLocal.x(), landedLocal.y(), landedLocal.z(), 0.0, 0.0, 0.0);
-            FlightState state = FrameBridge.fromDimension(zone, clock, clockRate, atRest, landedFuelMb);
+            FlightState state = FrameBridge.fromDimension(zone, clock, clockRate, atRest, landedFuelMb).withFuelLoad(landedFuel);
             Quaterniond inertial = AttitudeMath.localToInertial(zone, clock, landedLocal.x(), landedLocal.z(), landedLocalAttitude);
             cur = new Snapshot(FlightMode.FLIGHT, state, inertial, V3.ZERO, sas, throttle, false, zone, landedFuelMb);
             event = Event.LIFTOFF;

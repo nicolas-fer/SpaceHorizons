@@ -1,0 +1,55 @@
+{
+  "variants": {
+    "form=solo,facing=north": {
+      "model": "spacehorizons:block/nuclear_engine"
+    },
+    "form=part,facing=north": {
+      "model": "spacehorizons:block/nuclear_engine_part"
+    },
+    "form=master_3,facing=north": {
+      "model": "spacehorizons:block/nuclear_engine_3x3"
+    },
+    "form=master_2,facing=north": {
+      "model": "spacehorizons:block/nuclear_engine_2x2"
+    },
+    "form=solo,facing=east": {
+      "model": "spacehorizons:block/nuclear_engine"
+    },
+    "form=part,facing=east": {
+      "model": "spacehorizons:block/nuclear_engine_part"
+    },
+    "form=master_3,facing=east": {
+      "model": "spacehorizons:block/nuclear_engine_3x3"
+    },
+    "form=master_2,facing=east": {
+      "model": "spacehorizons:block/nuclear_engine_2x2",
+      "y": 90
+    },
+    "form=solo,facing=south": {
+      "model": "spacehorizons:block/nuclear_engine"
+    },
+    "form=part,facing=south": {
+      "model": "spacehorizons:block/nuclear_engine_part"
+    },
+    "form=master_3,facing=south": {
+      "model": "spacehorizons:block/nuclear_engine_3x3"
+    },
+    "form=master_2,facing=south": {
+      "model": "spacehorizons:block/nuclear_engine_2x2",
+      "y": 180
+    },
+    "form=solo,facing=west": {
+      "model": "spacehorizons:block/nuclear_engine"
+    },
+    "form=part,facing=west": {
+      "model": "spacehorizons:block/nuclear_engine_part"
+    },
+    "form=master_3,facing=west": {
+      "model": "spacehorizons:block/nuclear_engine_3x3"
+    },
+    "form=master_2,facing=west": {
+      "model": "spacehorizons:block/nuclear_engine_2x2",
+      "y": 270
+    }
+  }
+}

@@ -2,6 +2,7 @@ package com.spacehorizons.client.atmosphere;
 
 import com.spacehorizons.client.space.BodyClient;
 import com.spacehorizons.dh.DhFogConfig;
+import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 
 import net.minecraft.client.Minecraft;
 import net.neoforged.bus.api.IEventBus;
@@ -49,8 +50,9 @@ public final class AtmosphereClient {
      * escala, relativos à câmera nos eixos do mundo (x leste, y cima, z norte); o sol é a direção no mesmo referencial.
      */
     public static void drawHalo(int slot, Matrix4fc invView, double centerX, double centerY, double centerZ,
-            double radius, double thickness, double baseAltitude, float sunX, float sunY, float sunZ, double visibility) {
-        AtmosphereLimbRenderer.drawShell(slot + 1, invView, centerX, centerY, centerZ, radius, thickness, baseAltitude,
+            double radius, double thickness, double baseAltitude, AtmosphereModel model, float sunX, float sunY, float sunZ,
+            double visibility) {
+        AtmosphereLimbRenderer.drawShell(slot + 1, invView, centerX, centerY, centerZ, radius, thickness, baseAltitude, model,
                 sunX, sunY, sunZ, visibility, true);
     }
 

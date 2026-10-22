@@ -4,7 +4,6 @@ import java.util.Optional;
 
 import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.planet.PlanetDefinition;
-import com.spacehorizons.planet.atmosphere.AtmosphereModel;
 import com.spacehorizons.planet.Planets;
 
 import net.minecraft.world.level.Level;

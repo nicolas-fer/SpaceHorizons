@@ -4,6 +4,7 @@ import com.spacehorizons.content.ModBlockEntities;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 
 import com.spacehorizons.content.connected.ConnectedFaces;
+import com.spacehorizons.space.flight.Propellant;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -38,9 +39,25 @@ public class RocketFuelTankBlock extends BaseEntityBlock {
     /** Tanques ligados formam uma coluna sem emenda (textura conectada); a estrutura formada é decidida por {@link Multiblocks}. */
     private static final ConnectedFaces.Rule RULE = ConnectedFaces.sameBlock();
 
+    private final Propellant propellant;
+
     public RocketFuelTankBlock(BlockBehaviour.Properties properties) {
+        this(properties, Propellant.CHEMICAL);
+    }
+
+    /**
+     * Tanque de outro combustível (Tier 2: {@code hydrogen_tank}, {@code xenon_tank}): o mesmo bloco, a mesma regra de coluna e as mesmas texturas
+     * conectadas; só aceita o galão do seu combustível e só forma coluna com tanques iguais a ele.
+     */
+    public RocketFuelTankBlock(BlockBehaviour.Properties properties, Propellant propellant) {
         super(properties);
+        this.propellant = propellant;
         registerDefaultState(ConnectedFaces.disconnected(stateDefinition.any()));
+    }
+
+    /** O combustível que este tanque guarda. */
+    public Propellant propellant() {
+        return this.propellant;
     }
 
     /** As conexões deste tanque, para quem escreve blocos por código ({@link ConnectedFaces#connectAround}). */
@@ -77,8 +94,17 @@ public class RocketFuelTankBlock extends BaseEntityBlock {
     @Override
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player,
             InteractionHand hand, BlockHitResult hit) {
-        if (!(stack.getItem() instanceof FuelCanisterItem) || FuelCanisterItem.getFuel(stack) <= 0) {
+        if (!(stack.getItem() instanceof FuelCanisterItem canister) || FuelCanisterItem.getFuel(stack) <= 0) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
+        }
+        if (canister.propellant() != this.propellant) {
+            // galão de outro combustível: avisa e não despeja
+            if (!level.isClientSide()) {
+                player.sendOverlayMessage(Component.translatable("message.spacehorizons.rocket.wrong_fuel",
+                        Component.translatable("propellant.spacehorizons." + canister.propellant().key()),
+                        Component.translatable("propellant.spacehorizons." + this.propellant.key())));
+            }
+            return InteractionResult.SUCCESS;
         }
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
@@ -112,6 +138,16 @@ public class RocketFuelTankBlock extends BaseEntityBlock {
      */
     public static Component levelMessage(BlockGetter level, BlockPos pos) {
         TankStructures.Found structure = TankStructures.at(level, pos);
+        Propellant propellant = level.getBlockState(pos).getBlock() instanceof RocketFuelTankBlock tank ? tank.propellant() : Propellant.CHEMICAL;
+        if (propellant != Propellant.CHEMICAL) {
+            Component name = Component.translatable("propellant.spacehorizons." + propellant.key());
+            if (structure.formed()) {
+                var box = structure.box();
+                return Component.translatable("message.spacehorizons.rocket.typed_tank_structure_level", name, box.w(), box.d(), box.h(),
+                        structure.fuelMb(), structure.capacityMb());
+            }
+            return Component.translatable("message.spacehorizons.rocket.typed_tank_level", name, structure.fuelMb(), RocketSpecs.TANK_CAPACITY_MB);
+        }
         if (structure.formed()) {
             var box = structure.box();
             return Component.translatable("message.spacehorizons.rocket.tank_structure_level", box.w(), box.d(), box.h(), structure.fuelMb(),

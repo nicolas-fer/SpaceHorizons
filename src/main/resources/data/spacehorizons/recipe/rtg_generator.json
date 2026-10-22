@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:titanium_plate",
+    "C": "spacehorizons:basic_circuit",
+    "R": "spacehorizons:rare_earth_dust",
+    "N": "spacehorizons:nuclear_fuel_rod"
+  },
+  "pattern": [
+    "PCP",
+    "RNR",
+    "PCP"
+  ],
+  "result": {
+    "id": "spacehorizons:rtg_generator"
+  }
+}

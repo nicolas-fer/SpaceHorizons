@@ -17,6 +17,8 @@
     "minecraft:basalt",
     "minecraft:calcite",
     "minecraft:dripstone_block",
-    "minecraft:light_gray_concrete_powder"
+    "minecraft:light_gray_concrete_powder",
+    "spacehorizons:mars_regolith",
+    "spacehorizons:mars_titanium_ore"
   ]
 }

@@ -227,6 +227,18 @@ public final class AutoTest {
             multiblockScenario();
             return;
         }
+        if ("blueprint".equals(ONLY)) {
+            blueprintScenario();
+            return;
+        }
+        if ("tier2".equals(ONLY)) {
+            tier2Scenario();
+            return;
+        }
+        if ("mars".equals(ONLY)) {
+            marsScenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
@@ -4898,7 +4910,243 @@ public final class AutoTest {
         });
     }
 
+    // ===================================================================================================================
+    // BLUEPRINT (plantas holográficas de montagem, docs/PLANO_TIERS.md seção 4): -PshOnly=blueprint. Bloco separado; a leitura do servidor
+    // e as verificações ficam em BlueprintDevtest.
+    // ===================================================================================================================
+
+    /**
+     * Plantas holográficas: escolhe a planta orbital pelo menu do item (clique no ar) e a põe numa plataforma vazia (clique de verdade, print do
+     * holograma); põe parte dos blocos com dois errados (print com o vermelho e o progresso no painel); completa (print sem fantasmas), monta e
+     * voa um pouco; depois salva o foguete de outra plataforma com a planta em branco, reaplica a planta salva numa terceira plataforma (print),
+     * completa e confere o projeto, e tira a planta com agachado + clique.
+     */
+    private void blueprintScenario() {
+        BlockPos a = BlueprintDevtest.PAD_A;
+        BlockPos b = BlueprintDevtest.PAD_B_CLICK;
+        BlockPos c = BlueprintDevtest.PAD_C;
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(5, "time set 6000");
+        cmd(5, "gamerule advance_time false");
+        fly(10);
+        cmd(10, "clear @s");
+
+        // A. menu e planta orbital numa plataforma vazia
+        cmd(10, "tp @s " + (a.getX() + 0.5) + " " + (a.getY() + 1.2) + " " + (a.getZ() + 3.5));
+        fly(10);
+        step(10, BlueprintDevtest::prepareA);
+        tickerStep(5, waitFor("bp_prepared_a", 200));
+        cmd(10, "give @s spacehorizons:rocket_blueprint");
+        look(10, 0f, -60f);
+        step(10, BlueprintDevtest::openMenu);
+        shot(20, "bp_1_menu");
+        step(5, mc -> BlueprintDevtest.choose(mc, "orbital"));
+        step(20, mc -> BlueprintDevtest.checkHeld(mc, "o menu trocou a planta do item pela orbital",
+                com.spacehorizons.rocket.blueprint.Blueprints.ORBITAL));
+        look(5, 180f, 45f);
+        step(5, mc -> useOnBlock(mc, a, Direction.UP));
+        step(30, mc -> BlueprintDevtest.checkActive(mc, "plataforma vazia", a, com.spacehorizons.rocket.blueprint.Blueprints.ORBITAL,
+                com.spacehorizons.rocket.blueprint.Blueprints.ORBITAL.size() - 1, 1));
+        cmd(10, "tp @s " + (a.getX() + 9.5) + " " + (a.getY() + 7.0) + " " + (a.getZ() + 0.5));
+        fly(5);
+        look(10, 90f, 25f);
+        step(5, mc -> mc.player.getInventory().setSelectedSlot(8));
+        step(5, mc -> com.spacehorizons.client.rocket.RocketDesignClient.pinForTest(a));
+        shot(60, "bp_2_hologram_orbital_empty_pad");
+
+        // B. parte dos blocos, dois errados
+        step(5, BlueprintDevtest::placePartial);
+        tickerStep(5, waitFor("bp_partial", 200));
+        step(30, BlueprintDevtest::checkPartialClient);
+        shot(20, "bp_3_partial_wrong_red_panel");
+
+        // C. completa, monta e voa
+        step(5, mc -> BlueprintDevtest.complete(mc, a, com.spacehorizons.rocket.blueprint.Blueprints.ORBITAL, "bp_complete_a"));
+        tickerStep(5, waitFor("bp_complete_a", 200));
+        step(40, mc -> BlueprintDevtest.checkCompleteClient(mc, a, com.spacehorizons.rocket.blueprint.Blueprints.ORBITAL, "orbital completa"));
+        shot(10, "bp_4_complete_no_ghosts");
+        step(5, mc -> com.spacehorizons.client.rocket.RocketDesignClient.pinForTest(null));
+        step(5, BlueprintDevtest::assemble);
+        tickerStep(10, waitFor("bp_assembled", 200));
+        step(20, BlueprintDevtest::fly);
+        tickerStep(5, waitFor("bp_burning", 600));
+        thirdPerson();
+        shot(5, "bp_5_flight");
+        tickerStep(0, waitFor("bp_landed", 6_000));
+        firstPerson();
+        cmd(20, "tp @s " + (a.getX() + 9.5) + " " + (a.getY() + 7.0) + " " + (a.getZ() + 0.5));
+        fly(5);
+        look(10, 90f, 25f);
+        step(30, BlueprintDevtest::checkAfterLaunch);
+        shot(10, "bp_6_after_launch_hologram_again");
+
+        // D. salvar um foguete como planta e reaplicar em outra plataforma
+        cmd(10, "tp @s " + (b.getX() - 1.5) + " " + (b.getY() + 1.2) + " " + (b.getZ() - 1.5));
+        fly(20);
+        step(10, BlueprintDevtest::buildSource);
+        tickerStep(5, waitFor("bp_source", 200));
+        cmd(10, "give @s spacehorizons:rocket_blueprint");
+        step(10, mc -> mc.player.getInventory().setSelectedSlot(1));
+        look(5, 45f, 60f);
+        step(5, mc -> useOnBlock(mc, b, Direction.UP));
+        step(20, BlueprintDevtest::checkSaved);
+        cmd(10, "tp @s " + (b.getX() + 14.5) + " " + (b.getY() + 9.0) + " " + (b.getZ() + 2.5));
+        fly(5);
+        look(10, 90f, 20f);
+        shot(30, "bp_7_source_rocket");
+        cmd(10, "tp @s " + (c.getX() + 0.5) + " " + (c.getY() + 1.2) + " " + (c.getZ() + 3.5));
+        fly(20);
+        look(5, 180f, 45f);
+        step(5, mc -> useOnBlock(mc, c, Direction.UP));
+        step(30, mc -> {
+            com.spacehorizons.rocket.blueprint.Blueprint saved = BlueprintDevtest.held(mc);
+            if (saved != null) {
+                BlueprintDevtest.checkActive(mc, "planta salva reaplicada", c, saved, saved.size() - 1, 1);
+            } else {
+                BlueprintDevtest.check("planta salva na mão para reaplicar", false, "sem planta");
+            }
+        });
+        cmd(10, "tp @s " + (c.getX() + 22.5) + " " + (c.getY() + 11.0) + " " + (c.getZ() + 3.0));
+        fly(5);
+        look(10, 90f, 16f);
+        step(5, mc -> mc.player.getInventory().setSelectedSlot(8));
+        step(5, mc -> com.spacehorizons.client.rocket.RocketDesignClient.pinForTest(c));
+        shot(60, "bp_8_saved_blueprint_reapplied");
+        step(5, mc -> {
+            com.spacehorizons.rocket.blueprint.Blueprint saved = com.spacehorizons.client.rocket.blueprint.BlueprintHologram.blueprintAt(mc.level, c);
+            if (saved != null) {
+                BlueprintDevtest.complete(mc, c, saved, "bp_complete_c");
+            } else {
+                FlightDevtest.mark("bp_complete_c");
+            }
+        });
+        tickerStep(5, waitFor("bp_complete_c", 200));
+        step(40, mc -> {
+            com.spacehorizons.rocket.blueprint.Blueprint saved = com.spacehorizons.client.rocket.blueprint.BlueprintHologram.blueprintAt(mc.level, c);
+            if (saved != null) {
+                BlueprintDevtest.checkCompleteClient(mc, c, saved, "planta salva completa");
+            }
+        });
+        shot(10, "bp_9_saved_blueprint_complete");
+        step(5, mc -> com.spacehorizons.client.rocket.RocketDesignClient.pinForTest(null));
+
+        // E. agachado + clique tira a planta
+        cmd(10, "tp @s " + (c.getX() + 0.5) + " " + (c.getY() + 1.2) + " " + (c.getZ() - 2.5));
+        fly(10);
+        step(5, mc -> mc.player.getInventory().setSelectedSlot(1));
+        look(5, 0f, 45f);
+        step(5, mc -> mc.options.keyShift.setDown(true));
+        step(5, mc -> useOnBlock(mc, c, Direction.UP));
+        step(5, mc -> mc.options.keyShift.setDown(false));
+        step(20, mc -> BlueprintDevtest.checkCleared(mc, c));
+        step(20, mc -> {
+            BlueprintDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
     private double shipPeBefore;
+
+    // ===================================================================================================================
+    // TIER 2 (docs/PLANO_TIERS.md, seção 9): -PshOnly=tier2. Bloco separado; as conferências ficam em Tier2Devtest.
+    // Foguete nuclear (motor 2x2x2 + hidrogênio 2x2x8: barra e galão pelo clique, painel, montagem, subida curta, pouso, combustível e núcleo
+    // conferidos), iônico com RTG e xenônio (painel: não decola, Δv alto; e tenta decolar) e fusão 3x3x3 (painel), e as receitas.
+    // ===================================================================================================================
+
+    private void tier2Scenario() {
+        BlockPos pad = Tier2Devtest.BASE;
+        double bx = pad.getX() + 0.5;
+        double by = pad.getY();
+        double bz = pad.getZ() + 0.5;
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(5, "time set 6000");
+        cmd(5, "gamerule advance_time true");
+        fly(10);
+        cmd(10, "clear @s");
+        step(10, Tier2Devtest::recipes);
+
+        // A. nuclear: construir, carregar uma barra e um galão pelo clique, completar a carga (perto: o alcance do clique no criativo é de 5 blocos)
+        cmd(10, "tp @s " + (bx + 3.5) + " " + (by + 3.0) + " " + (bz + 1.0));
+        fly(10);
+        step(10, Tier2Devtest::buildNuclear);
+        tickerStep(5, waitFor("t2_built_nuclear", 200));
+        cmd(5, "give @s spacehorizons:nuclear_fuel_rod 1");
+        cmd(5, "give @s spacehorizons:hydrogen_canister[spacehorizons:fuel_mb=1000]");
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(0);
+            useOnBlock(mc, pad.offset(1, 2, 1), Direction.EAST);
+        });
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(1);
+            useOnBlock(mc, pad.offset(1, 6, 1), Direction.EAST);
+        });
+        step(20, Tier2Devtest::fillNuclear);
+        cmd(10, "tp @s " + (bx + 14.0) + " " + (by + 7.0) + " " + (bz + 1.0));
+        fly(10);
+        look(10, 90f, 5f);
+        step(5, mc -> Tier2Devtest.pinPanel(true));
+        shot(60, "t2_nuclear_a_panel");
+        step(0, mc -> Tier2Devtest.panel(mc, "nuclear"));
+        step(5, mc -> Tier2Devtest.pinPanel(false));
+        step(10, mc -> Tier2Devtest.assemble(mc, "nuclear"));
+        tickerStep(10, waitFor("t2_assembled_nuclear", 200));
+        shot(20, "t2_nuclear_b_assembled");
+        step(10, mc -> Tier2Devtest.fly(mc, "nuclear"));
+        tickerStep(5, waitFor("t2_burning_nuclear", 600));
+        thirdPerson();
+        shot(5, "t2_nuclear_c_flight");
+        tickerStep(0, waitFor("t2_landed_nuclear", 6_000));
+        step(20, mc -> Tier2Devtest.afterLand(mc, "nuclear"));
+        tickerStep(5, waitFor("t2_land_checked_nuclear", 200));
+        firstPerson();
+        cmd(5, "tp @s " + (bx + 14.0) + " " + (by + 7.0) + " " + (bz + 1.0));
+        look(10, 90f, 5f);
+        shot(20, "t2_nuclear_d_landed_blocks");
+
+        // B. iônico: painel (não decola na Terra, Δv alto) e a tentativa de decolar
+        step(10, Tier2Devtest::buildIon);
+        cmd(10, "tp @s " + (bx + 10.0) + " " + (by + 5.0) + " " + (bz + 0.5));
+        fly(10);
+        look(10, 90f, 5f);
+        step(5, mc -> Tier2Devtest.pinPanel(true));
+        shot(60, "t2_ion_a_panel");
+        step(0, mc -> Tier2Devtest.panel(mc, "ion"));
+        step(5, mc -> Tier2Devtest.pinPanel(false));
+        step(10, mc -> Tier2Devtest.assemble(mc, "ion"));
+        tickerStep(10, waitFor("t2_assembled_ion", 200));
+        step(10, mc -> Tier2Devtest.fly(mc, "ion"));
+        tickerStep(0, waitFor("t2_landed_ion", 2_000));
+        step(10, Tier2Devtest::discardRocket);
+
+        // C. fusão 3x3x3: um galão de hélio-3 pelo clique, a carga completa e o painel
+        step(10, Tier2Devtest::buildFusion);
+        tickerStep(5, waitFor("t2_built_fusion", 200));
+        cmd(5, "clear @s");
+        cmd(5, "give @s spacehorizons:helium3_canister[spacehorizons:fuel_mb=1000]");
+        cmd(10, "tp @s " + (bx + 6.0) + " " + (by + 3.0) + " " + (bz + 0.5));
+        fly(10);
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(0);
+            useOnBlock(mc, pad.offset(1, 2, 0), Direction.EAST);
+        });
+        step(20, Tier2Devtest::fillFusion);
+        cmd(10, "tp @s " + (bx + 12.0) + " " + (by + 5.0) + " " + (bz + 0.5));
+        look(10, 90f, 5f);
+        step(5, mc -> Tier2Devtest.pinPanel(true));
+        shot(60, "t2_fusion_a_panel");
+        step(0, mc -> Tier2Devtest.panel(mc, "fusion"));
+        step(5, mc -> Tier2Devtest.pinPanel(false));
+        step(40, mc -> {
+            Tier2Devtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
 
     // ===================================================================================================================
     // CONVÉS ANDÁVEL (docs/PLANO_NAVE_ATMOSFERA.md, spike S5): -PshOnly=shipdeck. Um foguete oco de ~4.000 blocos, roteirizado (sobe, paira e desce a 1, 10,
@@ -4984,4 +5232,177 @@ public final class AutoTest {
             }
         };
     }
-}
+
+    // ===================================================================================================================
+    // MARTE (gerador de planetas por parâmetros): -PshOnly=mars. Bloco separado; buscas e conferências em MarsDevtest.
+    // ===================================================================================================================
+
+    /** Pontos achados pelas buscas do MarsDevtest durante o roteiro. */
+    private int[] marsCrater;
+    private int[] marsVein;
+    private int[] marsVolcano;
+
+    /**
+     * Marte: vai pelo comando de dev, confere chão, gravidade e paleta, tira prints do chão de dia, do céu (meio-dia, sol
+     * baixo e noite), de uma cratera vista da borda, de um veio de minério (o subsolo em volta é cavado e o minério fica), a
+     * 1.000 e 5.000 de altitude (curvatura, cores e LOD do DH) e de um vulcão de cima; mede tick e geração de chunks.
+     */
+    private void marsScenario() {
+        cmd(20, "gamerule advance_time false");
+        cmd(20, "weather clear 1000000");
+        cmd(20, "time set 6000");
+        cmd(20, "spacehorizons goto mars");
+        cmd(300, "time set 6000");
+        step(100, mc -> {
+            MarsDevtest.checkArrival(mc);
+            MarsDevtest.logStats(mc, "chegada (300 ticks)");
+        });
+        // (a) chão de dia, no ponto de chegada (meio-dia local no tick 6000)
+        look(10, EAST, 8f);
+        shot(60, "mars_ground_e");
+        look(10, 90f, 8f);
+        shot(30, "mars_ground_w");
+        look(10, SOUTH, 35f);
+        shot(30, "mars_ground_s_down");
+        // (b) céu: o sol a pino, o sol baixo da tarde e a noite
+        lookAtSun(10);
+        shot(30, "mars_sky_noon_sun");
+        step(10, mc -> {
+            long t = marsClockForSunHeight(mc, Math.toRadians(6.0));
+            SpaceHorizons.LOGGER.info(TAG + "MARS sol a 6 graus na tarde em relogio={}", t);
+            mc.player.connection.sendCommand("time set " + t);
+        });
+        look(40, 90f, 4f);
+        shot(30, "mars_sky_dusk_w");
+        lookAtSun(10);
+        shot(20, "mars_sky_dusk_sun");
+        step(10, mc -> {
+            long t = Math.round(6_000 + Planets.spec(Planets.MARS).dayLengthTicks() / 2.0);
+            mc.player.connection.sendCommand("time set " + t);
+        });
+        look(40, EAST, -50f);
+        shot(30, "mars_sky_night");
+        cmd(20, "time set 6000");
+        step(20, mc -> {
+            double[] sun = sunHere(mc);
+            MarsDevtest.check("sol_a_pino_ao_meio_dia", sun != null && sun[1] > 0.95,
+                    sun == null ? "sem sol" : "altura do sol=" + f(Math.toDegrees(Math.asin(sun[1]))) + " graus");
+        });
+
+        // (c) uma cratera vista da borda
+        step(10, mc -> {
+            marsCrater = MarsDevtest.findCrater();
+            MarsDevtest.check("cratera_encontrada", marsCrater != null, marsCrater == null ? "nenhuma em 24.000 blocos"
+                    : "fundo (" + marsCrater[0] + ", " + marsCrater[1] + "), borda x=" + marsCrater[2] + " y=" + marsCrater[4]);
+            if (marsCrater != null) {
+                mc.player.connection.sendCommand("tp @s " + marsCrater[2] + " " + (marsCrater[4] + 40) + " " + marsCrater[3]);
+            }
+        });
+        fly(300);
+        step(10, mc -> {
+            if (marsCrater == null) {
+                return;
+            }
+            // o mundo gerado tem o mesmo relevo da função (heightmap do cliente = altura analítica + 1)
+            int worst = 0;
+            for (int dx = -48; dx <= 48; dx += 16) {
+                for (int dz = -48; dz <= 48; dz += 16) {
+                    int x = marsCrater[2] + dx;
+                    int z = marsCrater[3] + dz;
+                    int h = mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z) - 1;
+                    worst = Math.max(worst, Math.abs(h - MarsDevtest.terrain().surfaceHeight(x, z)));
+                }
+            }
+            MarsDevtest.check("relevo_igual_ao_analitico", worst == 0, "maior diferença em 49 colunas da borda=" + worst);
+            mc.player.setYRot(90f);
+            mc.player.setXRot(28f);
+        });
+        shot(60, "mars_crater_from_rim");
+        step(5, mc -> mc.player.setXRot(12f));
+        shot(20, "mars_crater_wide");
+
+        // (d) um veio de minério: cava o subsolo em volta e deixa o minério à mostra
+        step(10, mc -> {
+            int bx = mc.player.getBlockX();
+            int bz = mc.player.getBlockZ();
+            marsVein = MarsDevtest.findVein(bx, bz);
+            MarsDevtest.check("veio_encontrado", marsVein != null, marsVein == null ? "nenhum perto de (" + bx + ", " + bz + ")"
+                    : "(" + marsVein[0] + ", " + marsVein[1] + ", " + marsVein[2] + ")");
+            if (marsVein != null) {
+                mc.player.connection.sendCommand("tp @s " + marsVein[0] + " " + marsVein[1] + " " + marsVein[2]);
+            }
+        });
+        step(100, mc -> {
+            if (marsVein == null) {
+                return;
+            }
+            int x = marsVein[0];
+            int y = marsVein[1];
+            int z = marsVein[2];
+            mc.player.connection.sendCommand("fill " + (x - 4) + " " + (y - 3) + " " + (z - 4) + " " + (x + 4) + " " + (y + 3) + " "
+                    + (z + 4) + " air replace " + MarsDevtest.subsurfaceId());
+            mc.player.connection.sendCommand("effect give @s minecraft:night_vision infinite 0 true");
+        });
+        step(40, mc -> {
+            if (marsVein == null) {
+                return;
+            }
+            MarsDevtest.checkVein(mc, marsVein);
+            mc.player.connection.sendCommand("tp @s " + (marsVein[0] - 4) + " " + (marsVein[1] - 1) + " " + (marsVein[2] - 3)
+                    + " facing " + marsVein[0] + " " + marsVein[1] + " " + marsVein[2]);
+        });
+        shot(40, "mars_ore_vein");
+
+        // (e) de cima: 1.000 e 5.000 de altitude sobre a chegada (malha orbital, curvatura, LOD do DH, limbo caramelo)
+        cmd(20, "effect clear @s minecraft:night_vision");
+        cmd(20, "tp @s 0 1063 0");
+        fly(20);
+        look(20, EAST, 90f);
+        shot(500, "mars_alt1000_down");
+        look(10, EAST, 25f);
+        shot(60, "mars_alt1000_horizon");
+        step(5, mc -> MarsDevtest.logStats(mc, "altitude 1000"));
+        cmd(20, "tp @s 0 5063 0");
+        fly(20);
+        look(20, EAST, 90f);
+        shot(500, "mars_alt5000_down");
+        look(10, EAST, 30f);
+        shot(60, "mars_alt5000_limb");
+        step(5, mc -> MarsDevtest.logStats(mc, "altitude 5000"));
+
+        // (f) um vulcão em escudo visto de cima
+        step(10, mc -> {
+            marsVolcano = MarsDevtest.findVolcano();
+            MarsDevtest.check("vulcao_encontrado", marsVolcano != null, marsVolcano == null ? "nenhum"
+                    : "topo (" + marsVolcano[0] + ", " + marsVolcano[1] + ") y=" + marsVolcano[2]);
+            if (marsVolcano != null) {
+                mc.player.connection.sendCommand("tp @s " + marsVolcano[0] + " " + (marsVolcano[2] + 1_500) + " " + (marsVolcano[1] - 3_000));
+            }
+        });
+        fly(20);
+        look(20, SOUTH, 40f);
+        shot(500, "mars_volcano");
+        step(5, mc -> MarsDevtest.logStats(mc, "vulcao"));
+
+        step(40, mc -> {
+            MarsDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Relógio (ticks) da tarde do dia 0 em que o sol de Marte, no ponto do jogador, está a {@code altitude} rad do horizonte. */
+    private static long marsClockForSunHeight(Minecraft mc, double altitude) {
+        SolarSystem.Body body = SolarSystem.skyBodyOf(Planets.MARS);
+        double day = Planets.spec(Planets.MARS).dayLengthTicks();
+        double target = Math.sin(altitude);
+        double[] sun = new double[3];
+        for (double t = 6_000; t < 6_000 + day / 2; t += 10) {
+            SunModel.localDirection(body, mc.player.getX(), mc.player.getZ(), t, sun);
+            if (sun[1] <= target) {
+                return Math.round(t);
+            }
+        }
+        return Math.round(6_000 + day / 4);
+    }
+}

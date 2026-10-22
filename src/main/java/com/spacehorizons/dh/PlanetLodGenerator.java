@@ -36,9 +36,10 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * Gera os LODs do DH direto da função de terreno do planeta, sem gerar chunks vanilla.
  *
- * Cada coluna do DH (2^detail blocos de lado) vira uma lista de segmentos verticais: pedra, subsolo,
- * topo e, se a superfície está abaixo do mar, água até o nível do mar. Os blocos e biomas vêm de
- * SurfacePalette, o mesmo lugar que os chunks usam, para a cor de longe bater com a de perto.
+ * Cada coluna do DH (2^detail blocos de lado) vira uma lista de segmentos verticais: rocha do subsolo, enchimento,
+ * topo e, se a superfície está abaixo do mar, água até o nível do mar. Os blocos e biomas vêm da paleta do planeta
+ * (SurfacePalette), o mesmo lugar que os chunks usam, para a cor de longe bater com a de perto. Os veios de minério
+ * ficam de fora (estão no subsolo, que o DH não mostra).
  *
  * Premissas do DH (verificadas no bytecode da 3.3.4-26.3, mas confirmar em runtime):
  *  - a origem do dado é chunkX*16, chunkZ*16 em blocos (o DH passa a posição do chunk, não do setor);
@@ -55,6 +56,7 @@ final class PlanetLodGenerator implements IDhApiWorldGenerator {
     private final Level level;
     private final PlanetDefinition planet;
     private final PlanetTerrain terrain;
+    private final SurfacePalette palette;
 
     // caches por instância (um gerador por level): wrappers do DH são caros de criar
     private final Map<BlockState, IDhApiBlockStateWrapper> blockWrappers = new ConcurrentHashMap<>();
@@ -65,6 +67,7 @@ final class PlanetLodGenerator implements IDhApiWorldGenerator {
         this.level = level;
         this.planet = planet;
         this.terrain = PlanetTerrains.analytic(planet);
+        this.palette = SurfacePalette.of(planet);
     }
 
     @Override
@@ -110,10 +113,10 @@ final class PlanetLodGenerator implements IDhApiWorldGenerator {
         IDhApiBiomeWrapper biome = biomeWrapper(type);
         List<DhApiTerrainDataPoint> points = new ArrayList<>(5);
         addSegment(points, detailLevel, minY, minY, surfaceY - FILLER_DEPTH, NO_SKY_LIGHT,
-                Blocks.STONE.defaultBlockState(), biome);
+                palette.subsurface(), biome);
         addSegment(points, detailLevel, minY, surfaceY - FILLER_DEPTH, surfaceY, NO_SKY_LIGHT,
-                SurfacePalette.filler(type), biome);
-        addSegment(points, detailLevel, minY, surfaceY, solidTop, NO_SKY_LIGHT, SurfacePalette.top(type), biome);
+                palette.filler(type), biome);
+        addSegment(points, detailLevel, minY, surfaceY, solidTop, NO_SKY_LIGHT, palette.top(type), biome);
         if (water) {
             addSegment(points, detailLevel, minY, solidTop, seaTop, FULL_SKY_LIGHT,
                     Blocks.WATER.defaultBlockState(), biome);
@@ -140,7 +143,7 @@ final class PlanetLodGenerator implements IDhApiWorldGenerator {
 
     private IDhApiBiomeWrapper biomeWrapper(SurfaceType type) {
         return biomeWrappers.computeIfAbsent(type, t -> {
-            ResourceKey<Biome> key = SurfacePalette.biome(t);
+            ResourceKey<Biome> key = palette.biome(t);
             Holder<Biome> holder = level.registryAccess().lookupOrThrow(Registries.BIOME).getOrThrow(key);
             return DhApi.Delayed.wrapperFactory.getBiomeWrapper(new Object[] {holder}, levelWrapper);
         });

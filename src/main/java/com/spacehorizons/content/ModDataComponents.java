@@ -3,6 +3,7 @@ package com.spacehorizons.content;
 import com.spacehorizons.SpaceHorizons;
 import com.mojang.serialization.Codec;
 import com.spacehorizons.rocket.RocketSpecs;
+import com.spacehorizons.rocket.blueprint.Blueprint;
 import com.spacehorizons.survival.fuel.CanisterFuel;
 import com.spacehorizons.survival.fuel.RefineryLogic;
 import com.spacehorizons.survival.oxygen.OxygenStorage;
@@ -58,6 +59,24 @@ public final class ModDataComponents {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> ROCKET_TANK_MB =
             COMPONENTS.registerComponentType("rocket_tank_mb", builder -> builder
                     .persistent(Codec.intRange(0, RocketSpecs.TANK_CAPACITY_MB))
+                    .networkSynchronized(ByteBufCodecs.VAR_INT));
+
+    /**
+     * A planta de montagem guardada no item {@code rocket_blueprint} (docs/PLANO_TIERS.md, seção 4). Sem o componente = planta em branco (que
+     * salva o foguete de uma plataforma).
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Blueprint>> ROCKET_BLUEPRINT =
+            COMPONENTS.registerComponentType("rocket_blueprint", builder -> builder
+                    .persistent(Blueprint.CODEC)
+                    .networkSynchronized(Blueprint.STREAM_CODEC));
+
+    /**
+     * Carga de um motor do Tier 2 quebrado (núcleo do nuclear ou hélio-3 do de fusão), em mB; fica no item do bloco e volta ao motor quando ele é
+     * colocado.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> ENGINE_CHARGE_MB =
+            COMPONENTS.registerComponentType("engine_charge_mb", builder -> builder
+                    .persistent(Codec.intRange(0, Integer.MAX_VALUE))
                     .networkSynchronized(ByteBufCodecs.VAR_INT));
 
     private ModDataComponents() {

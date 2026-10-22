@@ -12,6 +12,10 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | | O quê | Onde |
 |---|---|---|
 | 🟡 | **Spike S5: convés andável** (estilo Create, jogador no referencial da nave), autoteste `shipdeck`. | `docs/PLANO_NAVE_ATMOSFERA.md` |
+| ✅ | **Conteúdo do Tier 2**: motores nuclear, iônico e de fusão (1x1, 2x2x2, 3x3x3), tanques de hidrogênio e xenônio, RTG, materiais de Marte, combustível por tipo com Δv em fases no painel. Autoteste `tier2` 37/37, `multiblock` 169/169, `flight` A–D. | `docs/PLANO_TIERS.md` (seção 9), `docs/TIER2_IDS.md` |
+| ✅ | **Arte do Tier 2** escolhida pelo usuário e aplicada; `tier2` 37/0 na regressão de 22/10. | `art/tier2/` |
+| ✅ | **Gerador de planetas por parâmetros e Marte** (planetas em `data/spacehorizons/planet/*.json`; Lua idêntica; Marte por `/spacehorizons goto mars`, fora da órbita até a etapa 3). Autoteste `mars` 10/10. | `docs/GERADOR_PLANETAS.md` |
+| ✅ | **Plantas holográficas de montagem**: item `rocket_blueprint` (menu; salto suborbital, orbital e lunar, esta trancada em sobrevivência até a história), holograma na `launch_pad` (falta = fantasma, errado = vermelho), salvar o próprio foguete como planta, progresso e destino no painel. Autoteste `blueprint` 34/0, `multiblock` 169/0. Arte do item provisória. | `docs/PLANO_TIERS.md` (seção 8) |
 | ✅ | **Naves, fase 2b: descida e pouso** (estaleiro → entidade → pouso no motor → blocos no chão), autoteste `shipdescent` 40/0 na regressão. | `docs/PLANO_NAVES.md` |
 | ✅ | **Plano: andar na nave dentro do planeta** decidido: convés andável estilo Create em movimento (máquinas param), âncora em blocos reais parada no ar. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 
@@ -20,7 +24,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 1. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): spike do convés (S5), spike da âncora (S6), depois as fases 2e a 2g.
 2. Naves 2c (EVA perto do casco) e 2d (outras naves e foguetes vistos de dentro).
 3. Desorbitação real no autoteste da descida (queima retrógrada saindo de órbita fechada) e corte proporcional na circularização.
-4. Tiers: plantas holográficas de montagem → gerador de planetas por parâmetros e **Marte** → sistema solar centrado no sol.
+4. Tiers: sistema solar centrado no sol (viagem a Marte: órbita, zona de espaço e pouso em Marte).
+5. Arte final do item `rocket_blueprint` (skill `minecraft-entity`).
 
 ## Mapa geral
 
@@ -38,8 +43,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | Reentrada sem travadas, foguete estacionado no espaço, piloto automático criativo | |
 | ✅ | Multiblocos de tanque e motor, foguetes grandes (até 8.192 blocos), painel de projeto | Etapa 1 dos tiers |
 | ✅ | SAS horizontal (circularizar) no foguete e na nave | 21/10/2026 |
-| ⬜ | Plantas holográficas de montagem | Tiers, seção 4 |
-| ⬜ | Gerador de planetas por parâmetros e Marte | Tiers, etapa 2 |
+| ✅ | Plantas holográficas de montagem | Autoteste `blueprint` 34/0 (22/10/2026); arte do item provisória |
+| ✅ | Gerador de planetas por parâmetros e Marte | Autoteste `mars` 10/10 (22/10/2026); Marte fora da órbita até a etapa 3 |
 | ⬜ | Sistema solar centrado no sol (viagem a Marte) | Tiers, etapa 3 |
 | ⬜ | Base lunar (salas seladas, energia, recursos lunares, combustível na Lua) | Sobrevivência, etapa 4 |
 | ⬜ | História (estruturas abandonadas, diários, sinal lunar) | Sobrevivência, etapa 5 |
@@ -50,7 +55,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | Status | Etapa |
 |---|---|
-| ⬜ | Motores nucleares, iônicos e de fusão; planetas distantes do sistema solar (Tiers, etapa 4) |
+| ✅ | Conteúdo: materiais de Marte, combustíveis, motores nucleares, iônicos e de fusão (autoteste `tier2` 37/37, arte final aplicada) |
+| ⬜ | Planetas distantes do sistema solar (Tiers, etapa 4) |
 
 ### Tier 3: naves andáveis, `docs/PLANO_NAVES.md`
 
@@ -86,6 +92,13 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 - **Risco aberto do S2**: uma perda de blocos no estaleiro numa rodada, não reproduzida (`docs/PLANO_NAVES.md`, resultado do S2).
 - **Documentação**: o README tem seções repetidas (espaço aberto, sobrevivência, como rodar e como testar aparecem duas vezes);
   `docs/MISSAO_LUA.md` tem números do foguete antigo.
+- **Plantas holográficas**: a planta não gira; baús e blocos sem modelo não ganham fantasma (contam no progresso); a planta lunar trancada em
+  sobrevivência não foi testada (autoteste em criativo); plantas muito grandes, Sodium e Iris não medidos.
+- **Tier 2**: destinos do painel para foguetes do Tier 2 vêm do orçamento de Δv (sem voo simulado); naves ignoram peças do Tier 2 e a conversão
+  para o estaleiro só atualiza o combustível químico; hélio-3 (clique na Lua) não testado em jogo; carga do motor não aparece no painel.
+- **Marte**: na regressão de 22/10 o check `sol_a_pino_ao_meio_dia` falhou ("sem sol"; 9/1), passou 10/10 rodando sozinho no agente — investigar
+  (provável relógio/hora do mundo no trecho paralelo).
+- **Marte (visual)**: vão escuro entre os chunks e a malha orbital enquanto o DH gera; sem física orbital, foguete ou pouso em Marte (etapa 3).
 - **Não testado**: servidor dedicado, dois jogadores reais, reabrir o mundo com nave em voo.
 
 ## Decisões em aberto
@@ -125,3 +138,5 @@ shipdescent 40, multiblock 169, todos com 0 falhas (9,3 min). Um trecho sozinho:
 | `docs/PLANO_NAVE_ATMOSFERA.md` | Andar na nave dentro do planeta (estudo e plano) |
 | `docs/PLANO_LOD_PLANETA.md` | LODs do planeta inteiro |
 | `docs/TEXTURAS_CONECTADAS.md` | Texturas conectadas (vidro, tanques) |
+| `docs/GERADOR_PLANETAS.md` | Planetas por parâmetros (formato JSON) e Marte |
+| `docs/TIER2_IDS.md` | Ids do conteúdo do Tier 2 (contrato entre código e arte) |

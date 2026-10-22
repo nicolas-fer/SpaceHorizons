@@ -19,6 +19,7 @@ public final class SurfaceColors {
             case MARE -> 0x5A5A5C;
             case HIGHLAND -> 0xBDBDB8;
             case CRATER_FLOOR -> 0x76766F;
+            case VOLCANIC -> 0x6E3B2A;
         };
     }
 }

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": "minecraft:copper_ingot",
+    "R": "spacehorizons:rare_earth_dust",
+    "T": "spacehorizons:titanium_plate"
+  },
+  "pattern": [
+    "CRC",
+    "RTR",
+    "CRC"
+  ],
+  "result": {
+    "id": "spacehorizons:superconductor_coil"
+  }
+}

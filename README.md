@@ -202,6 +202,20 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
   (ou clicar para fixar) abre o painel de projeto: massa, empuxo, TWR, Δv e o destino que o foguete alcança (não decola, salto suborbital, órbita, Lua e
   volta, Lua pouso e volta), com os problemas apontados no bloco certo; usa o mesmo cálculo da montagem. O foguete aceita até 8.192 blocos e 128 x 256 x 128
   (o retrato grande vai ao cliente em partes). Autoteste: `./gradlew runClientTest -PshOnly=multiblock`.
+- **Plantas holográficas de montagem** (seção 4 do `docs/PLANO_TIERS.md`, detalhes em `docs/DESIGN_FOGUETE.md`): o item `rocket_blueprint` (2 papéis +
+  corante azul) guarda um projeto. Clique no ar abre o menu das plantas (salto suborbital, foguete orbital e, no criativo, o lunar, que a história vai entregar);
+  clique numa `launch_pad` mostra o holograma: fantasma onde falta bloco, vermelho onde está errado, some onde está certo (só sugestão). Com a planta em branco,
+  o clique salva o foguete que está sobre a plataforma; agachado + clique tira a planta. O painel de projeto mostra quanto falta e o destino do projeto da
+  planta. Autoteste: `./gradlew runClientTest -PshOnly=blueprint`.
+- **Tier 2: motores nuclear, iônico e de fusão** (`docs/PLANO_TIERS.md`, seção 9; contratos em `docs/DESIGN_FOGUETE.md`; ids em `docs/TIER2_IDS.md`):
+  os três motores têm 1x1, 2x2x2 e 3x3x3 como o químico e cada um queima o seu combustível. Nuclear: o dobro do Isp, queima hidrogênio
+  (`hydrogen_tank`) enquanto o núcleo durar (clique com `nuclear_fuel_rod` num bloco do motor: 32.000 mB de hidrogênio por barra). Iônico: Isp altíssimo
+  e empuxo minúsculo, não decola de lugar nenhum; queima xenônio (`xenon_tank`) com a energia de geradores `rtg_generator` (1 por motor 1x1, 6 pelo
+  2x2x2, 16 pelo 3x3x3). Fusão: Isp e empuxo altos, queima o hélio-3 guardado no próprio motor (clique com o galão de He-3; não precisa de tanque).
+  Hidrogênio: galão + 2 baldes de água + redstone na bancada; xenônio: galão + 4 regolitos marcianos + terras raras; hélio-3: o galão no solo da Lua
+  (125 mB por bloco). As peças pedem titânio e terras raras de Marte (`mars_titanium_ore`, `mars_regolith`; blocos e itens já existem, o planeta
+  não). O painel de projeto mostra cada tipo e o Δv com os motores misturados (em fases: quando um combustível acaba, o motor dele para).
+  Arte provisória (recolor) por `tools/gen_tier2_placeholders.py`. Autoteste: `./gradlew runClientTest -PshOnly=tier2`.
 
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
 (estabilizar, prógrado, retrógrado, horizontal), P paraquedas, V câmera, G desmontar (pousado). O SAS horizontal aponta o nariz
@@ -283,6 +297,23 @@ Autotestes: `-PshOnly=shipflight` (piloto de teste no servidor: censo, órbita e
 `-PshOnly=ship` (a nave inteira em jogo: janelas, sentar, girar com as teclas, SAS prógrado, queimar, levantar e andar durante a queima) e
 `-PshOnly=shipground` (nave montada no chão pela ponte: recusa sem motor, retrato, mundo, piloto sentado e subida de 500 blocos; prints em `run-test/screenshots/autotest_sg_*`).
 `-PshOnly=shipascent` (subida até a altitude de saída, conversão no estaleiro, baú, tanques, coluna, piloto na ponte e voo virtual; prints em `run-test/screenshots/autotest_sa_*`).
+
+## Gerador de planetas por parâmetros e Marte (etapa 2 dos tiers)
+
+Cada planeta é um JSON em `src/main/resources/data/spacehorizons/planet/<id>.json` (formato em `docs/GERADOR_PLANETAS.md`): circunferência,
+gravidade, relevo (planícies, terras altas, crateras em várias escalas com densidade e tamanho, cordilheiras e vulcões opcionais, calota
+polar), paleta de superfície e subsolo com blocos de reserva, água, atmosfera (densidade, espessura, cor do limbo, céu, neblina, nuvens, se
+tem oxigênio), veios de minério e duração do dia. `planet/spec/PlanetSpec` lê e valida; `planet/terrain/ParametricTerrain` (a
+generalização do antigo `MoonTerrain`) faz o relevo, e chunks (`PlanetChunkGenerator`), LODs do DH (`PlanetLodGenerator`), malha orbital
+(`PlanetMeshPalette`), limbo da atmosfera e oxigênio leem os mesmos parâmetros. A Lua é descrita pelo mesmo formato e o relevo dela é
+idêntico ao de antes (soma de controle no teste); a Terra continua vanilla.
+
+**Marte** (`spacehorizons:mars`, só em mundos novos com o tipo "Space Horizons"): R ≈ 55.412 (0,53 da Terra do mod, a razão real),
+gravidade 0,38, dia de 24.660 ticks, céu caramelo e atmosfera fina sem oxigênio (o traje trata como vácuo), poeira no ar, crateras, vulcões
+em escudo, calotas de gelo e veios de titânio. Os blocos `mars_regolith` e `mars_titanium_ore` do Tier 2 entram sozinhos quando existirem;
+até lá valem `red_sand`, terracota e `iron_ore`. Marte ainda não está na física orbital: chega-se por `/spacehorizons goto mars [x z]`, e o
+céu tem o sol e as estrelas (sem Terra nem Lua). Autoteste: `./gradlew runClientTest -PshOnly=mars` (10 verificações; prints `autotest_mars_*`:
+chão, céu de dia, pôr do sol e noite, cratera, veio de minério, 1.000 e 5.000 de altitude, vulcão).
 
 ## Como rodar
 
@@ -487,6 +518,20 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
   (ou clicar para fixar) abre o painel de projeto: massa, empuxo, TWR, Δv e o destino que o foguete alcança (não decola, salto suborbital, órbita, Lua e
   volta, Lua pouso e volta), com os problemas apontados no bloco certo; usa o mesmo cálculo da montagem. O foguete aceita até 8.192 blocos e 128 x 256 x 128
   (o retrato grande vai ao cliente em partes). Autoteste: `./gradlew runClientTest -PshOnly=multiblock`.
+- **Plantas holográficas de montagem** (seção 4 do `docs/PLANO_TIERS.md`, detalhes em `docs/DESIGN_FOGUETE.md`): o item `rocket_blueprint` (2 papéis +
+  corante azul) guarda um projeto. Clique no ar abre o menu das plantas (salto suborbital, foguete orbital e, no criativo, o lunar, que a história vai entregar);
+  clique numa `launch_pad` mostra o holograma: fantasma onde falta bloco, vermelho onde está errado, some onde está certo (só sugestão). Com a planta em branco,
+  o clique salva o foguete que está sobre a plataforma; agachado + clique tira a planta. O painel de projeto mostra quanto falta e o destino do projeto da
+  planta. Autoteste: `./gradlew runClientTest -PshOnly=blueprint`.
+- **Tier 2: motores nuclear, iônico e de fusão** (`docs/PLANO_TIERS.md`, seção 9; contratos em `docs/DESIGN_FOGUETE.md`; ids em `docs/TIER2_IDS.md`):
+  os três motores têm 1x1, 2x2x2 e 3x3x3 como o químico e cada um queima o seu combustível. Nuclear: o dobro do Isp, queima hidrogênio
+  (`hydrogen_tank`) enquanto o núcleo durar (clique com `nuclear_fuel_rod` num bloco do motor: 32.000 mB de hidrogênio por barra). Iônico: Isp altíssimo
+  e empuxo minúsculo, não decola de lugar nenhum; queima xenônio (`xenon_tank`) com a energia de geradores `rtg_generator` (1 por motor 1x1, 6 pelo
+  2x2x2, 16 pelo 3x3x3). Fusão: Isp e empuxo altos, queima o hélio-3 guardado no próprio motor (clique com o galão de He-3; não precisa de tanque).
+  Hidrogênio: galão + 2 baldes de água + redstone na bancada; xenônio: galão + 4 regolitos marcianos + terras raras; hélio-3: o galão no solo da Lua
+  (125 mB por bloco). As peças pedem titânio e terras raras de Marte (`mars_titanium_ore`, `mars_regolith`; blocos e itens já existem, o planeta
+  não). O painel de projeto mostra cada tipo e o Δv com os motores misturados (em fases: quando um combustível acaba, o motor dele para).
+  Arte provisória (recolor) por `tools/gen_tier2_placeholders.py`. Autoteste: `./gradlew runClientTest -PshOnly=tier2`.
 
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
 (estabilizar, prógrado, retrógrado, horizontal), P paraquedas, V câmera, G desmontar (pousado). O SAS horizontal aponta o nariz

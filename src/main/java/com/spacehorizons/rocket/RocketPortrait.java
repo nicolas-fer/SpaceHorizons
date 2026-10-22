@@ -160,23 +160,20 @@ public final class RocketPortrait {
                 kinds[i] = RocketKinds.ofPortraitState(this.palette.get(i));
                 c = c.plus(kinds[i], perIndex[i]);
             }
-            LongArrayList tanks = new LongArrayList();
-            LongArrayList engines = new LongArrayList();
-            if (c.tanks() > 0 || c.engines() > 0) {
+            Map<RocketBlockKind, List<Long>> cells = RocketCensus.emptyCellLists();
+            if (c.allTanks() > 0 || c.allEngines() > 0) {
                 for (int y = 0; y < this.sizeY; y++) {
                     for (int z = 0; z < this.sizeZ; z++) {
                         for (int x = 0; x < this.sizeX; x++) {
                             int index = this.grid.get(x, y, z);
-                            if (index != 0 && kinds[index] == RocketBlockKind.FUEL_TANK) {
-                                tanks.add(RocketAssembly.pack(x, y, z));
-                            } else if (index != 0 && kinds[index] == RocketBlockKind.ENGINE) {
-                                engines.add(RocketAssembly.pack(x, y, z));
+                            if (index != 0 && (kinds[index].isTank() || kinds[index].isEngine())) {
+                                cells.get(kinds[index]).add(RocketAssembly.pack(x, y, z));
                             }
                         }
                     }
                 }
             }
-            c = c.withStructures(Multiblocks.analyze(tanks.toLongArray(), engines.toLongArray()));
+            c = c.withStructures(Multiblocks.analyze(RocketCensus.cellsByKind(cells)));
             this.census = result = c;
         }
         return result;
@@ -187,19 +184,54 @@ public final class RocketPortrait {
         return RocketSpecs.statsFor(this.census());
     }
 
-    /** Posições locais dos tanques, de baixo para cima (y, z, x): a ordem em que o combustível é devolvido ao pousar. */
+    /** Posições locais dos tanques químicos, de baixo para cima (y, z, x): a ordem em que o combustível é devolvido ao pousar. */
     public List<BlockPos> tankPositions() {
-        List<BlockPos> tanks = new ArrayList<>();
+        return positionsOf(RocketBlockKind.FUEL_TANK);
+    }
+
+    /** Posições locais dos blocos do papel dado, de baixo para cima (y, z, x). */
+    public List<BlockPos> positionsOf(RocketBlockKind kind) {
+        List<BlockPos> found = new ArrayList<>();
+        if (this.census().count(kind) == 0) {
+            return found;
+        }
         for (int y = 0; y < this.sizeY; y++) {
             for (int z = 0; z < this.sizeZ; z++) {
                 for (int x = 0; x < this.sizeX; x++) {
-                    if (RocketKinds.ofPortraitState(this.get(x, y, z)) == RocketBlockKind.FUEL_TANK) {
-                        tanks.add(new BlockPos(x, y, z));
+                    if (RocketKinds.ofPortraitState(this.get(x, y, z)) == kind) {
+                        found.add(new BlockPos(x, y, z));
                     }
                 }
             }
         }
-        return tanks;
+        return found;
+    }
+
+    /**
+     * Toda a carga que o foguete levava quando foi montado, por combustível: os tanques (de cada tipo) e a carga guardada nos motores do Tier 2
+     * (núcleo do nuclear, hélio-3 do de fusão), lidas do NBT dos block entities.
+     */
+    public com.spacehorizons.space.flight.FuelLoad fuelLoad() {
+        com.spacehorizons.space.flight.FuelLoad load = com.spacehorizons.space.flight.FuelLoad.EMPTY;
+        for (RocketBlockKind kind : RocketBlockKind.values()) {
+            com.spacehorizons.space.flight.Propellant propellant = RocketSpecs.tankPropellant(kind);
+            String key = RocketFuelTankBlockEntity.FUEL_KEY;
+            if (propellant == null) {
+                EngineType type = EngineType.of(kind);
+                propellant = type == null ? null : type.chargePropellant();
+                key = EngineChargeBlockEntity.CHARGE_KEY;
+            }
+            if (propellant == null) {
+                continue;
+            }
+            for (BlockPos pos : positionsOf(kind)) {
+                CompoundTag tag = this.blockEntities.get(pos.asLong());
+                if (tag != null) {
+                    load = load.plus(propellant, Math.max(0, tag.getIntOr(key, 0)));
+                }
+            }
+        }
+        return load;
     }
 
     /** Combustível guardado nos tanques quando o foguete foi montado, em mB (soma do NBT dos tanques). */

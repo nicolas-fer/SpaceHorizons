@@ -26,7 +26,12 @@ public class RocketFuelTankItem extends BlockItem {
 
     /** Tanque cheio (para a aba do criativo e para testes). */
     public static ItemStack fullStack() {
-        ItemStack stack = new ItemStack(ModItems.ROCKET_FUEL_TANK.get());
+        return fullStack(ModItems.ROCKET_FUEL_TANK.get());
+    }
+
+    /** Tanque cheio do item dado (o químico ou um do Tier 2). */
+    public static ItemStack fullStack(net.minecraft.world.item.Item item) {
+        ItemStack stack = new ItemStack(item);
         stack.set(ModDataComponents.ROCKET_TANK_MB.get(), RocketSpecs.TANK_CAPACITY_MB);
         return stack;
     }

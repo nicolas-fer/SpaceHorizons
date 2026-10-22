@@ -1,0 +1,83 @@
+{
+  "fonte": "art\\_work\\escolha_tier2\\aplicar.json",
+  "escolhas": {
+    "mars_regolith": {
+      "tex": "F"
+    },
+    "mars_titanium_ore": {
+      "tex": "B"
+    },
+    "titanium_block": {
+      "tex": "D"
+    },
+    "raw_titanium": {
+      "tex": "B"
+    },
+    "titanium_ingot": {
+      "tex": "C"
+    },
+    "titanium_plate": {
+      "tex": "A"
+    },
+    "rare_earth_dust": {
+      "tex": "F"
+    },
+    "helium3_canister": {
+      "tex": "D"
+    },
+    "hydrogen_canister": {
+      "tex": "D"
+    },
+    "xenon_canister": {
+      "tex": "D"
+    },
+    "nuclear_fuel_rod": {
+      "tex": "C"
+    },
+    "superconductor_coil": {
+      "tex": "B"
+    },
+    "hydrogen_tank": {
+      "tex.lado": "E",
+      "tex.topo": "G",
+      "coluna": "B"
+    },
+    "xenon_tank": {
+      "tex.lado": "D",
+      "tex.topo": "G",
+      "coluna": "H"
+    },
+    "rtg_generator": {
+      "modelo": "B",
+      "tex.side": "E",
+      "tex.top": "F"
+    },
+    "nuclear_engine": {
+      "modelo_1x1": "B",
+      "modelo_2x2": "B",
+      "modelo_3x3": "B",
+      "tex.core": "D",
+      "tex.nozzle": "D",
+      "tex.exit": "C",
+      "tex.plate": "A"
+    },
+    "ion_engine": {
+      "modelo_1x1": "A",
+      "modelo_2x2": "B",
+      "modelo_3x3": "B",
+      "tex.grid": "B",
+      "tex.body": "C",
+      "tex.plate": "D",
+      "tex.pipe": "C"
+    },
+    "fusion_engine": {
+      "modelo_1x1": "B",
+      "modelo_2x2": "B",
+      "modelo_3x3": "B",
+      "tex.ring": "C",
+      "tex.body": "D",
+      "tex.plasma": "C",
+      "tex.plate": "D"
+    }
+  }
+}

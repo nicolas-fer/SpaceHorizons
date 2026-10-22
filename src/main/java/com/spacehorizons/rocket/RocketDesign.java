@@ -20,6 +20,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import org.jspecify.annotations.Nullable;
 
 /**
  * O painel de projeto da plataforma de lançamento, no servidor: acha o foguete montado sobre a plataforma e devolve o {@link DesignReport}
@@ -68,29 +69,55 @@ public final class RocketDesign {
 
     /** O relatório do foguete sobre a plataforma em {@code pad} (a plataforma que o jogador olhou ou clicou). */
     public static DesignReport analyze(Level level, BlockPos pad) {
-        RocketAssembly.Grid grid = RocketAssembler.worldGrid(level);
+        return analyze(RocketAssembler.worldGrid(level), pad.getX(), pad.getY(), pad.getZ());
+    }
+
+    /**
+     * O relatório do foguete sobre a plataforma em (padX, padY, padZ) de um mundo qualquer visto pela busca: o mundo de verdade
+     * ({@link #analyze(Level, BlockPos)}) ou uma planta de montagem ({@code Blueprint.design}), pelo MESMO caminho.
+     */
+    public static DesignReport analyze(RocketAssembly.Grid grid, int padX, int padY, int padZ) {
+        Search search = search(grid, padX, padY, padZ);
+        return search.report() == null ? DesignReport.nothing(padX, padY, padZ) : DesignReport.of(search.report(), padX, padY, padZ);
+    }
+
+    /**
+     * O que a busca do painel achou: o relatório da montagem (null se nada encosta nas plataformas) e as plataformas ligadas à de partida
+     * (cada uma como {x, y, z}; a de partida primeiro). A planta salva de um foguete ({@code BlueprintCapture}) usa esta mesma busca.
+     */
+    public record Search(RocketAssembly.@Nullable Report report, List<int[]> pads) {
+    }
+
+    /** A busca do painel a partir da plataforma em (padX, padY, padZ). */
+    public static Search search(RocketAssembly.Grid grid, int padX, int padY, int padZ) {
         List<int[]> seeds = new ArrayList<>();
+        List<int[]> padList = new ArrayList<>();
         LongOpenHashSet pads = new LongOpenHashSet();
-        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
-        pads.add(pad.asLong());
-        queue.add(pad.immutable());
-        BlockPos.MutableBlockPos next = new BlockPos.MutableBlockPos();
+        ArrayDeque<int[]> queue = new ArrayDeque<>();
+        pads.add(RocketAssembly.pack(padX, padY, padZ));
+        int[] start = {padX, padY, padZ};
+        queue.add(start);
+        padList.add(start);
         while (!queue.isEmpty()) {
-            BlockPos at = queue.poll();
+            int[] at = queue.poll();
             for (Direction side : Direction.values()) {
-                next.setWithOffset(at, side);
-                RocketBlockKind kind = grid.kindAt(next.getX(), next.getY(), next.getZ());
+                int nx = at[0] + side.getStepX();
+                int ny = at[1] + side.getStepY();
+                int nz = at[2] + side.getStepZ();
+                RocketBlockKind kind = grid.kindAt(nx, ny, nz);
                 if (kind == RocketBlockKind.PAD) {
-                    if (pads.size() < MAX_PADS && pads.add(next.asLong())) {
-                        queue.add(next.immutable());
+                    if (pads.size() < MAX_PADS && pads.add(RocketAssembly.pack(nx, ny, nz))) {
+                        int[] next = {nx, ny, nz};
+                        queue.add(next);
+                        padList.add(next);
                     }
                 } else if (kind.isPart()) {
-                    seeds.add(new int[] {next.getX(), next.getY(), next.getZ()});
+                    seeds.add(new int[] {nx, ny, nz});
                 }
             }
         }
         if (seeds.isEmpty()) {
-            return DesignReport.nothing(pad.getX(), pad.getY(), pad.getZ());
+            return new Search(null, List.copyOf(padList));
         }
         RocketAssembly.Report report = RocketAssembly.analyze(grid, seeds);
         if (!report.cockpits().isEmpty()) {
@@ -98,6 +125,6 @@ public final class RocketDesign {
             RocketAssembly.Cell cockpit = report.cockpits().get(0);
             report = RocketAssembly.analyze(grid, List.of(new int[] {cockpit.x(), cockpit.y(), cockpit.z()}));
         }
-        return DesignReport.of(report, pad.getX(), pad.getY(), pad.getZ());
+        return new Search(report, List.copyOf(padList));
     }
 }

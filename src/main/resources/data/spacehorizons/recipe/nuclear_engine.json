@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:titanium_plate",
+    "B": "spacehorizons:basic_circuit",
+    "E": "spacehorizons:rocket_engine",
+    "T": "spacehorizons:titanium_ingot"
+  },
+  "pattern": [
+    "PBP",
+    "PEP",
+    "T T"
+  ],
+  "result": {
+    "id": "spacehorizons:nuclear_engine"
+  }
+}

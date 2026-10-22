@@ -10,32 +10,54 @@ import com.spacehorizons.space.SolarSystem;
  *
  * <p>{@code heat} é o índice visual de aquecimento (0..{@link FlightConstants#HEAT_MAX}) e {@code chute} a abertura do
  * paraquedas (0 fechado, 1 aberto; é estado físico porque a rampa dura 80 ticks).
+ *
+ * <p>{@code fuel} é a carga por combustível ({@link FuelLoad}, Tier 2); {@link #fuelMb()} é a parte química (o foguete do Tier 1 só
+ * tem essa, e os construtores com {@code double fuelMb} são os dele).
  */
-public record FlightState(SolarSystem.Body body, V3 r, V3 v, double fuelMb, double heat, double chute) {
+public record FlightState(SolarSystem.Body body, V3 r, V3 v, FuelLoad fuel, double heat, double chute) {
+
+    public FlightState {
+        fuel = fuel == null ? FuelLoad.EMPTY : fuel;
+    }
+
+    /** Estado de um foguete químico (só {@link Propellant#CHEMICAL}). */
+    public FlightState(SolarSystem.Body body, V3 r, V3 v, double fuelMb, double heat, double chute) {
+        this(body, r, v, FuelLoad.chemical(fuelMb), heat, chute);
+    }
 
     /** Estado com o paraquedas fechado. */
     public FlightState(SolarSystem.Body body, V3 r, V3 v, double fuelMb, double heat) {
         this(body, r, v, fuelMb, heat, 0.0);
     }
 
+    /** O combustível químico, em mB (o único do foguete do Tier 1). */
+    public double fuelMb() {
+        return fuel.get(Propellant.CHEMICAL);
+    }
+
     public FlightState withBody(SolarSystem.Body newBody, V3 newR, V3 newV) {
-        return new FlightState(newBody, newR, newV, fuelMb, heat, chute);
+        return new FlightState(newBody, newR, newV, fuel, heat, chute);
     }
 
     public FlightState withRV(V3 newR, V3 newV) {
-        return new FlightState(body, newR, newV, fuelMb, heat, chute);
+        return new FlightState(body, newR, newV, fuel, heat, chute);
     }
 
+    /** O mesmo com o combustível QUÍMICO trocado (os outros combustíveis ficam). */
     public FlightState withFuel(double newFuelMb) {
-        return new FlightState(body, r, v, newFuelMb, heat, chute);
+        return new FlightState(body, r, v, fuel.with(Propellant.CHEMICAL, newFuelMb), heat, chute);
+    }
+
+    public FlightState withFuelLoad(FuelLoad newFuel) {
+        return new FlightState(body, r, v, newFuel, heat, chute);
     }
 
     public FlightState withHeat(double newHeat) {
-        return new FlightState(body, r, v, fuelMb, newHeat, chute);
+        return new FlightState(body, r, v, fuel, newHeat, chute);
     }
 
     public FlightState withChute(double newChute) {
-        return new FlightState(body, r, v, fuelMb, heat, newChute);
+        return new FlightState(body, r, v, fuel, heat, newChute);
     }
 
     /** Distância ao centro do corpo. */

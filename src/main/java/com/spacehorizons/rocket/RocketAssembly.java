@@ -3,7 +3,6 @@ package com.spacehorizons.rocket;
 import java.util.ArrayList;
 import java.util.List;
 
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 /**
@@ -208,29 +207,27 @@ public final class RocketAssembly {
             minX = minY = minZ = maxX = maxY = maxZ = 0;
         }
 
-        LongArrayList tanks = new LongArrayList();
-        LongArrayList engines = new LongArrayList();
+        // as células de cada tipo de motor e tanque (cada tipo forma as suas estruturas, com a mesma regra)
+        java.util.Map<RocketBlockKind, List<Long>> partCells = RocketCensus.emptyCellLists();
         List<Cell> cockpits = new ArrayList<>();
         for (Cell cell : cells) {
-            switch (cell.kind()) {
-                case FUEL_TANK -> tanks.add(pack(cell.x(), cell.y(), cell.z()));
-                case ENGINE -> engines.add(pack(cell.x(), cell.y(), cell.z()));
-                case COCKPIT -> cockpits.add(cell);
-                default -> {
-                }
+            if (cell.kind() == RocketBlockKind.COCKPIT) {
+                cockpits.add(cell);
+            } else if (cell.kind().isEngine() || cell.kind().isTank()) {
+                partCells.get(cell.kind()).add(pack(cell.x(), cell.y(), cell.z()));
             }
         }
-        Multiblocks.Analysis structures = Multiblocks.analyze(tanks.toLongArray(), engines.toLongArray());
+        Multiblocks.Analysis structures = Multiblocks.analyze(RocketCensus.cellsByKind(partCells));
         RocketCensus census = RocketCensus.of(cells.stream().map(Cell::kind).toList()).withStructures(structures);
         if (census.cockpits() > 1) {
             Cell extra = cockpits.get(1);
             blockers.add(new Blocker(RocketException.Reason.MULTIPLE_COCKPITS, extra.x(), extra.y(), extra.z(), new Object[] {census.cockpits()}));
         }
         Cell first = cells.isEmpty() ? new Cell(0, 0, 0, RocketBlockKind.AIR) : cells.get(0);
-        if (rules.needEngine() && census.engines() < 1) {
+        if (rules.needEngine() && census.allEngines() < 1) {
             blockers.add(new Blocker(RocketException.Reason.NO_ENGINE, first.x(), first.y(), first.z(), new Object[0]));
         }
-        if (rules.needTank() && census.tanks() < 1) {
+        if (rules.needTank() && census.allTanks() < 1 && !RocketSpecs.carriesOwnFuel(census)) {
             blockers.add(new Blocker(RocketException.Reason.NO_TANK, first.x(), first.y(), first.z(), new Object[0]));
         }
         if (padContacts < 1) {

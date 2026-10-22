@@ -96,7 +96,6 @@ final class PlanetMeshRenderer {
     private final Matrix4f projection = new Matrix4f();
     private final Matrix4f mvp = new Matrix4f();
 
-    private PlanetMeshGeometry.@Nullable Palette palette;
     private @Nullable TextureTarget depthTarget;
     private @Nullable GpuBuffer ubo;
     private @Nullable GpuBuffer indexBuffer;
@@ -307,11 +306,7 @@ final class PlanetMeshRenderer {
                 return;
             }
         }
-        PlanetMeshGeometry.Palette colors = palette;
-        if (colors == null) {
-            colors = PlanetMeshPalette.create();
-            palette = colors;
-        }
+        PlanetMeshGeometry.Palette colors = PlanetMeshPalette.of(planet);
         PlanetMeshGeometry.Layout layout = PlanetMeshGeometry.Layout.adaptive(planet.radius(),
                 camY - planet.seaLevel(), inner, outer, pixelAngle(camera), MAX_VERTICES);
         lastBuildStart = System.nanoTime();

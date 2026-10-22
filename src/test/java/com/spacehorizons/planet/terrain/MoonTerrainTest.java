@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -14,18 +16,52 @@ import com.spacehorizons.planet.Planets;
 import com.spacehorizons.planet.SurfaceType;
 import com.spacehorizons.planet.TerrainStyle;
 
+/** A Lua pelo gerador por parâmetros (data/spacehorizons/planet/moon.json). */
 class MoonTerrainTest {
     private static final PlanetDefinition MOON = Planets.MOON;
     private static final int C = MOON.circumferenceBlocks();
     private static final int MIN_Y = -64;
     private static final int MAX_Y = MIN_Y + 384 - 1;
+    private static final Set<SurfaceType> MOON_TYPES = EnumSet.of(SurfaceType.REGOLITH, SurfaceType.MARE,
+            SurfaceType.HIGHLAND, SurfaceType.CRATER_FLOOR);
 
-    private final MoonTerrain terrain = new MoonTerrain(MOON);
+    private final ParametricTerrain terrain = new ParametricTerrain(MOON);
 
     @Test
-    void usesMoonStyleWithoutOcean() {
-        assertEquals(TerrainStyle.MOON, MOON.style());
+    void usesParametricStyleWithoutOcean() {
+        assertEquals(TerrainStyle.PARAMETRIC, MOON.style());
         assertTrue(!MOON.hasOcean());
+    }
+
+    /**
+     * Referência: soma de controle de altura e tipo em 1,3 milhão de colunas (a esfera inteira, além da calota), medida com o
+     * MoonTerrain original antes da generalização (22/10/2026). O gerador por parâmetros com o JSON da Lua tem de dar
+     * exatamente o mesmo relevo, bloco a bloco: mundos lunares já gerados continuam casando com os chunks novos.
+     */
+    @Test
+    void matchesTheOriginalMoonTerrainExactly() {
+        int lat = MOON.maxLatitudeBlocks();
+        long h = 1125899906842597L;
+        long n = 0;
+        for (int x = -C / 2; x < C / 2; x += 97) {
+            for (int z = -lat - 40; z <= lat + 40; z += 89) {
+                h = 31 * h + terrain.surfaceHeight(x, z);
+                h = 31 * h + terrain.surfaceType(x, z).name().hashCode();
+                n++;
+            }
+        }
+        assertEquals(1_297_920, n);
+        assertEquals(-6487799709393207813L, h, "o relevo da Lua mudou em relação ao MoonTerrain original");
+    }
+
+    @Test
+    void moonParametersAreTheOriginalOnes() {
+        assertEquals(163_840, MOON.circumferenceBlocks());
+        assertEquals(0x10A4L, MOON.seed());
+        assertEquals(63, MOON.seaLevel());
+        assertEquals(75.0, MOON.maxLatitudeDegrees());
+        assertEquals(48, MOON.terrainAmplitude());
+        assertEquals(0.165, MOON.surfaceGravity());
     }
 
     @Test
@@ -42,10 +78,10 @@ class MoonTerrainTest {
 
     @Test
     void isDeterministicAndSeedDependent() {
-        MoonTerrain again = new MoonTerrain(MOON);
+        ParametricTerrain again = new ParametricTerrain(MOON);
         PlanetDefinition other = new PlanetDefinition(MOON.id(), MOON.seed() + 1, C, MOON.seaLevel(),
-                MOON.maxLatitudeDegrees(), MOON.terrainAmplitude(), TerrainStyle.MOON, MOON.surfaceGravity());
-        MoonTerrain otherTerrain = new MoonTerrain(other);
+                MOON.maxLatitudeDegrees(), MOON.terrainAmplitude(), TerrainStyle.PARAMETRIC, MOON.surfaceGravity());
+        ParametricTerrain otherTerrain = new ParametricTerrain(other);
         int diff = 0;
         for (int x = -4_000; x < 4_000; x += 41) {
             for (int z = -2_000; z < 2_000; z += 59) {
@@ -77,7 +113,7 @@ class MoonTerrainTest {
     }
 
     @Test
-    void allFourSurfaceTypesAppearAndNoEarthTypes() {
+    void allFourSurfaceTypesAppearAndNoOtherTypes() {
         Map<SurfaceType, Integer> counts = new EnumMap<>(SurfaceType.class);
         int total = 0;
         for (int x = -C / 2; x < C / 2; x += 29) {
@@ -86,12 +122,12 @@ class MoonTerrainTest {
                 total++;
             }
         }
-        for (SurfaceType type : SurfaceType.usedBy(TerrainStyle.MOON)) {
+        for (SurfaceType type : MOON_TYPES) {
             int n = counts.getOrDefault(type, 0);
             assertTrue(n > total / 200, type + " raro demais: " + n + " de " + total);
         }
         for (SurfaceType type : counts.keySet()) {
-            assertTrue(SurfaceType.usedBy(TerrainStyle.MOON).contains(type), "tipo da Terra na Lua: " + type);
+            assertTrue(MOON_TYPES.contains(type), "tipo que não é da Lua: " + type);
         }
     }
 
@@ -197,19 +233,6 @@ class MoonTerrainTest {
             assertEquals(SurfaceType.HIGHLAND, terrain.surfaceType(x, z));
             assertEquals(SurfaceType.HIGHLAND, terrain.surfaceType(x, -z));
             assertTrue(terrain.surfaceHeight(x, z) > MOON.seaLevel() + 80, "parede polar baixa");
-        }
-    }
-
-    @Test
-    void everySurfaceTypeBelongsToExactlyOneStyle() {
-        for (SurfaceType type : SurfaceType.values()) {
-            int styles = 0;
-            for (TerrainStyle style : TerrainStyle.values()) {
-                if (SurfaceType.usedBy(style).contains(type)) {
-                    styles++;
-                }
-            }
-            assertEquals(1, styles, type + " deve pertencer a exatamente um estilo");
         }
     }
 }
