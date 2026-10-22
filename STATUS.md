@@ -11,14 +11,14 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | | O quê | Onde |
 |---|---|---|
-| 🟡 | **Naves, fase 2b: descida e pouso** (estaleiro → entidade → blocos no chão). Parte 1 (código e testes unitários) pronta em branch; autoteste `shipdescent` sendo montado em partes (1: até virar entidade; 2: pouso e desmontagem; 3: desorbitação real e regressão). | `docs/PLANO_NAVES.md` |
+| ✅ | **Naves, fase 2b: descida e pouso** (estaleiro → entidade → pouso no motor → blocos no chão), autoteste `shipdescent` 40/0 na regressão. | `docs/PLANO_NAVES.md` |
 | ✅ | **Plano: andar na nave dentro do planeta** decidido: convés andável estilo Create em movimento (máquinas param), âncora em blocos reais parada no ar. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 
 ## Próximos passos (em ordem)
 
-1. Fechar a fase 2b das naves (autoteste órbita → descida → pouso → desmontagem sem perder blocos, regressão verde) e mesclar.
-2. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): spike do convés (S5), spike da âncora (S6), depois as fases 2e a 2g.
-3. Naves 2c (EVA perto do casco) e 2d (outras naves e foguetes vistos de dentro).
+1. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): spike do convés (S5), spike da âncora (S6), depois as fases 2e a 2g.
+2. Naves 2c (EVA perto do casco) e 2d (outras naves e foguetes vistos de dentro).
+3. Desorbitação real no autoteste da descida (queima retrógrada saindo de órbita fechada) e corte proporcional na circularização.
 4. Tiers: plantas holográficas de montagem → gerador de planetas por parâmetros e **Marte** → sistema solar centrado no sol.
 
 ## Mapa geral
@@ -60,7 +60,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | Polimento | Vidro conectado, motores pela direção do bocal, luz na nave de teste |
 | ✅ | 2a-i | Montar no chão (agachado + mão vazia na ponte) e decolar como entidade |
 | ✅ | 2a-ii | Subir até 5.000 e virar blocos no estaleiro; acelerador 0 na troca; circularizar com SAS horizontal |
-| 🟡 | 2b | Descida e pouso: código pronto (🧪), autoteste em montagem |
+| ✅ | 2b | Descida (critério de entrada do foguete), pouso no motor e desmontagem no chão sem perder blocos, NBT nem combustível |
 | ⬜ | 2c | EVA perto do casco e jogador livre no espaço |
 | ⬜ | 2d | Outras naves e foguetes vistos de dentro |
 | ⬜ | S5, S6, 2e a 2g | Andar na nave dentro do planeta: convés andável (estilo Create) e âncora no ar |
@@ -76,6 +76,9 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 - **Nave**: só o piloto senta (passageiros extras em pé); estaleiro escuro por dentro (sem luz do céu, D8); `ship torocket` depois da subida
   não testado; a órbita da subida de teste fica excêntrica (falta corte proporcional na queima); SAS horizontal não testado por jogador.
+- **Descida da nave** (fase 2b): a saída de órbita não é testada (o autoteste começa de um estado posto a 1.000 blocos, com o nariz para
+  cima, porque a nave gira devagar); na desmontagem girada, colunas de tanques vizinhas podem se reagrupar de outro jeito (mesmos blocos e
+  combustível); pouso e desmontagem pela tecla, por um jogador, não testados.
 - **Motor de impulso com bocal para cima/baixo**: a orientação do modelo não foi vista em print.
 - **Foguete gigante** (34 de largura): desmontagem recusada em terreno irregular (`SPACE_OCCUPIED`).
 - **Risco aberto do S2**: uma perda de blocos no estaleiro numa rodada, não reproduzida (`docs/PLANO_NAVES.md`, resultado do S2).
@@ -103,8 +106,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 ```
 
 A regressão roda os autotestes das naves e dos multiblocos em paralelo (3 clientes, ~8 min) em `run-test/<trecho>/` e imprime
-passou/falhou por trecho. Última rodada verde (21/10/2026): ship 30, shipflight 30, shipconvert 151, shipground 16, shipascent 22,
-multiblock 169, todos com 0 falhas. Um trecho sozinho: `./gradlew runClientTest -PshOnly=<trecho>`. Os autotestes nunca tocam em `run/`
+passou/falhou por trecho. Última rodada verde (21/10/2026): ship 30, shipflight 30, shipconvert 151, shipground 16, shipascent 23,
+shipdescent 40, multiblock 169, todos com 0 falhas (9,3 min). Um trecho sozinho: `./gradlew runClientTest -PshOnly=<trecho>`. Os autotestes nunca tocam em `run/`
 (mundos de quem joga).
 
 ## Mapa da documentação
