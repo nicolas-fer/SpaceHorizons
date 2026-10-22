@@ -11,6 +11,9 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | | O quê | Onde |
 |---|---|---|
+| 🟡 | **Base lunar** (salas seladas com ar, energia, recursos lunares, combustível na Lua). | `docs/PLANO_SOBREVIVENCIA.md` (etapa 4) |
+| 🟡 | **História e estruturas** (estruturas abandonadas, diários, terminais; planta lunar pela história). | `docs/PLANO_SOBREVIVENCIA.md` (etapa 5) |
+| 🟡 | **Naves 2f: âncora completa** (tecla, painel, gerador antigravidade). | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | 🟡 | **Sistema solar centrado no sol** (Marte na física orbital, viagem e pouso em Marte de foguete). | `docs/PLANO_TIERS.md` |
 | 🟡 | **Naves 2d**: outras naves e foguetes vistos de dentro e do espaço na posição relativa. | `docs/PLANO_NAVES.md` |
 | ✅ | **Documentação limpa**: README sem seções repetidas (com índice), `MISSAO_LUA.md` com os números atuais e as plantas embutidas. Arte da planta: o usuário manteve a atual. | `README.md`, `docs/MISSAO_LUA.md` |
@@ -49,8 +52,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | Plantas holográficas de montagem | Autoteste `blueprint` 34/0 (22/10/2026); arte do item provisória |
 | ✅ | Gerador de planetas por parâmetros e Marte | Autoteste `mars` 10/10 (22/10/2026); Marte fora da órbita até a etapa 3 |
 | 🟡 | Sistema solar centrado no sol (viagem a Marte) | Tiers, etapa 3 (em andamento) |
-| ⬜ | Base lunar (salas seladas, energia, recursos lunares, combustível na Lua) | Sobrevivência, etapa 4 |
-| ⬜ | História (estruturas abandonadas, diários, sinal lunar) | Sobrevivência, etapa 5 |
+| 🟡 | Base lunar (salas seladas, energia, recursos lunares, combustível na Lua) | Sobrevivência, etapa 4 (em andamento) |
+| 🟡 | História (estruturas abandonadas, diários, sinal lunar) | Sobrevivência, etapa 5 (em andamento) |
 | ⬜ | Separação de estágios | Sobrevivência, etapa 6 |
 | ⬜ | LODs do planeta inteiro com gerador próprio | `docs/PLANO_LOD_PLANETA.md` (polimento) |
 
@@ -75,7 +78,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | 🟡 | 2d | Outras naves e foguetes vistos de dentro (em andamento) |
 | ✅ | S5 | Spike do convés andável aprovado (22/10/2026) |
 | ✅ | S6 | Spike da âncora aprovado (22/10/2026) |
-| ⬜ | 2e a 2g | Andar na nave dentro do planeta: âncora no ar, convés na nave real, trocas sem costura |
+| 🟡 | 2f | Âncora completa (em andamento) |
+| ⬜ | 2e, 2g | Andar na nave dentro do planeta: âncora no ar, convés na nave real, trocas sem costura |
 | ⬜ | 3 | Dobra, escudos, hangar, luz do sol, ar selado; voo assistido estilo No Man's Sky |
 
 ### Tier 4: dobra e sistemas procedurais
