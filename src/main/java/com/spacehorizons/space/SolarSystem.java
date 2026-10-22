@@ -1,7 +1,9 @@
 package com.spacehorizons.space;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleFunction;
 
 import com.spacehorizons.planet.PlanetDefinition;
@@ -203,6 +205,41 @@ public final class SolarSystem {
 
     public static Optional<Body> bodyOf(PlanetDefinition planet) {
         return BODIES.stream().filter(b -> b.planet().equals(planet)).findFirst();
+    }
+
+    /** Corpos "de céu" dos planetas fora do sistema (por id do planeta), criados sob demanda. */
+    private static final Map<PlanetDefinition, Body> DETACHED = new ConcurrentHashMap<>();
+
+    /**
+     * Corpo que dá o céu (sol, dia e noite, estrelas) de um planeta: o do sistema quando ele está em {@link #BODIES}; senão
+     * um corpo DESTACADO, que não entra em nenhuma física, órbita, zona ou travessia (não está em BODIES) e só gira, para
+     * que o sol do lugar dê uma volta a cada {@code day_length_ticks} dos parâmetros do planeta. É o caso de Marte até o
+     * sistema centrado no sol (etapa 3 dos tiers); a posição é a origem, porque só as direções importam para o céu.
+     */
+    public static Body skyBodyOf(PlanetDefinition planet) {
+        Optional<Body> body = bodyOf(planet);
+        return body.isPresent() ? body.get() : DETACHED.computeIfAbsent(planet, SolarSystem::detached);
+    }
+
+    /**
+     * Corpo destacado com dia de {@code D} ticks. O sol local do ponto (0, 0) do corpo fica no ângulo β(t) = 2π·skyEase(fração
+     * do dia local desde o meio-dia), com o meio-dia no tick 6.000 do dia 0 e a mesma curva do vanilla (SunModel), então com
+     * D = 24.000 o céu é o da Terra. Como o sol local é {@code a_sol(t) − γ} para um corpo girado por Ry(γ) em E, a pose em E é
+     * Ry(a_sol − β) e a inercial, Ry(π − β) (E = Ry(φ_Terra)·I, φ_Terra = a_sol − π).
+     */
+    private static Body detached(PlanetDefinition planet) {
+        double day = com.spacehorizons.planet.Planets.spec(planet).dayLengthTicks();
+        DoubleFunction<Pose> inertial = clock -> new Pose(0, 0, 0, InertialFrame.rotationY(Math.PI - localSunAngle(clock, day)));
+        DoubleFunction<Pose> fixed = clock -> new Pose(0, 0, 0,
+                InertialFrame.rotationY(SunModel.angle(clock) - localSunAngle(clock, day)));
+        return new Body(planet, inertial, fixed, new Pose(0, 0, 0, IDENTITY));
+    }
+
+    /** Ângulo do sol local de um corpo destacado (rad, 0 = meio-dia no ponto (0, 0)) com dia de {@code day} ticks. */
+    static double localSunAngle(double clock, double day) {
+        double fraction = (clock - 6_000.0) / day;
+        fraction -= Math.floor(fraction);
+        return 2.0 * Math.PI * SunModel.skyEase(fraction);
     }
 
     /**

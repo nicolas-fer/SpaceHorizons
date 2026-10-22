@@ -20,7 +20,8 @@ import net.minecraft.world.level.Level;
  * Ponte com o Distant Horizons. Só é chamado quando o DH está carregado: classes da API do DH
  * ficam neste pacote para o mod continuar funcionando sem ele.
  *
- * Ao carregar um level que é planeta sem gerador vanilla (a Lua), registra o gerador de LOD próprio; a Terra deixa o
+ * Ao carregar um level que é planeta sem gerador vanilla (os planetas por parâmetros: Lua, Marte), registra o gerador de
+ * LOD próprio; a Terra deixa o
  * DH gerar pelo gerador do mundo. A curvatura do DH é ajustada
  * no cliente (DhCurvatureClient), pelo planeta que a câmera está vendo.
  */
@@ -42,7 +43,7 @@ public final class DhIntegration {
     }
 
     /**
-     * Só os planetas cujo terreno vem do PlanetTerrain (hoje a Lua) usam o gerador de LOD próprio. Os de estilo
+     * Só os planetas cujo terreno vem do PlanetTerrain (os por parâmetros: Lua, Marte) usam o gerador de LOD próprio. Os de estilo
      * Terra rodam o gerador vanilla completo (PlanetNoiseChunkGenerator), e o DH gera os LODs a partir dele.
      */
     static boolean usesLodOverride(PlanetDefinition planet) {

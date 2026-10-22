@@ -7,13 +7,13 @@ import org.jspecify.annotations.Nullable;
 
 import com.spacehorizons.planet.map.PlanetMap;
 import com.spacehorizons.planet.map.PlanetMapTerrain;
-import com.spacehorizons.planet.terrain.MoonTerrain;
+import com.spacehorizons.planet.terrain.ParametricTerrain;
 import com.spacehorizons.planet.terrain.SphericalTerrain;
 
 /**
  * Ponto de acesso único ao terreno visto de longe de cada planeta (cacheado, thread-safe).
  *
- * A Lua é analítica (MoonTerrain). A Terra vem do gerador vanilla do mundo: {@link #get} devolve um terreno que
+ * Os planetas por parâmetros (Lua, Marte) são analíticos (ParametricTerrain). A Terra vem do gerador vanilla do mundo: {@link #get} devolve um terreno que
  * responde pelo {@link PlanetMap} pré-calculado quando ele existe (servidor e cliente compartilham a mesma fonte) e
  * pelo terreno analítico simples enquanto ele não chega. O mapa é um estado estático por JVM: quem o publica
  * ({@code PlanetMapService} no servidor, o handler de rede no cliente) o limpa ao sair do mundo.
@@ -82,14 +82,14 @@ public final class PlanetTerrains {
     private static PlanetTerrain create(PlanetDefinition planet) {
         return switch (planet.style()) {
             case EARTH -> new PlanetMapTerrain(planet, analytic(planet));
-            case MOON -> analytic(planet);
+            case PARAMETRIC -> analytic(planet);
         };
     }
 
     private static PlanetTerrain createAnalytic(PlanetDefinition planet) {
         return switch (planet.style()) {
             case EARTH -> new SphericalTerrain(planet);
-            case MOON -> new MoonTerrain(planet);
+            case PARAMETRIC -> new ParametricTerrain(planet);
         };
     }
 }

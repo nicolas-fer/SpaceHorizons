@@ -6,6 +6,7 @@ layout(std140) uniform AtmosphereInfo {
     vec4 SunParams;
     mat4 InvView;
     vec4 CenterParams;
+    vec4 ScatterParams;
 };
 
 layout(location = 0) in vec3 rayDir;
@@ -14,10 +15,9 @@ layout(location = 0) out vec4 fragColor;
 
 // Amostras por metade do trecho (total = 2 * HALF_STEPS)
 const int HALF_STEPS = 16;
-// Espalhamento relativo por canal (Rayleigh aproximado: o azul espalha mais que o vermelho)
-const vec3 RAYLEIGH = vec3(0.26, 0.50, 1.0);
-// Profundidade óptica no azul ao atravessar a atmosfera na vertical, no centro da curva de densidade
-const float VERTICAL_OPTICAL_DEPTH = 1.0;
+// ScatterParams (do planeta, AtmosphereModel): rgb = espalhamento relativo por canal (Rayleigh aproximado na Terra,
+// 0.26/0.50/1.0: o azul espalha mais que o vermelho; poeira avermelhada em Marte); w = profundidade óptica do canal mais
+// forte ao atravessar a atmosfera na vertical, no centro da curva de densidade (1 na Terra; atmosfera fina = menos)
 // Brilho geral do halo (o limbo não deve estourar para branco)
 const float EXPOSURE = 0.85;
 
@@ -87,7 +87,7 @@ void main() {
         discard;
     }
 
-    vec3 sigma = RAYLEIGH * (VERTICAL_OPTICAL_DEPTH / thickness);
+    vec3 sigma = ScatterParams.rgb * (ScatterParams.w / thickness);
     vec3 opticalDepth = vec3(0.0);
     vec3 scattered = vec3(0.0);
 

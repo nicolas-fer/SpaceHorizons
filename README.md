@@ -298,6 +298,23 @@ Autotestes: `-PshOnly=shipflight` (piloto de teste no servidor: censo, órbita e
 `-PshOnly=shipground` (nave montada no chão pela ponte: recusa sem motor, retrato, mundo, piloto sentado e subida de 500 blocos; prints em `run-test/screenshots/autotest_sg_*`).
 `-PshOnly=shipascent` (subida até a altitude de saída, conversão no estaleiro, baú, tanques, coluna, piloto na ponte e voo virtual; prints em `run-test/screenshots/autotest_sa_*`).
 
+## Gerador de planetas por parâmetros e Marte (etapa 2 dos tiers)
+
+Cada planeta é um JSON em `src/main/resources/data/spacehorizons/planet/<id>.json` (formato em `docs/GERADOR_PLANETAS.md`): circunferência,
+gravidade, relevo (planícies, terras altas, crateras em várias escalas com densidade e tamanho, cordilheiras e vulcões opcionais, calota
+polar), paleta de superfície e subsolo com blocos de reserva, água, atmosfera (densidade, espessura, cor do limbo, céu, neblina, nuvens, se
+tem oxigênio), veios de minério e duração do dia. `planet/spec/PlanetSpec` lê e valida; `planet/terrain/ParametricTerrain` (a
+generalização do antigo `MoonTerrain`) faz o relevo, e chunks (`PlanetChunkGenerator`), LODs do DH (`PlanetLodGenerator`), malha orbital
+(`PlanetMeshPalette`), limbo da atmosfera e oxigênio leem os mesmos parâmetros. A Lua é descrita pelo mesmo formato e o relevo dela é
+idêntico ao de antes (soma de controle no teste); a Terra continua vanilla.
+
+**Marte** (`spacehorizons:mars`, só em mundos novos com o tipo "Space Horizons"): R ≈ 55.412 (0,53 da Terra do mod, a razão real),
+gravidade 0,38, dia de 24.660 ticks, céu caramelo e atmosfera fina sem oxigênio (o traje trata como vácuo), poeira no ar, crateras, vulcões
+em escudo, calotas de gelo e veios de titânio. Os blocos `mars_regolith` e `mars_titanium_ore` do Tier 2 entram sozinhos quando existirem;
+até lá valem `red_sand`, terracota e `iron_ore`. Marte ainda não está na física orbital: chega-se por `/spacehorizons goto mars [x z]`, e o
+céu tem o sol e as estrelas (sem Terra nem Lua). Autoteste: `./gradlew runClientTest -PshOnly=mars` (10 verificações; prints `autotest_mars_*`:
+chão, céu de dia, pôr do sol e noite, cratera, veio de minério, 1.000 e 5.000 de altitude, vulcão).
+
 ## Como rodar
 
 Requisitos: JDK 25 (o Gradle baixa o toolchain se preciso).

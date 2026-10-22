@@ -231,6 +231,10 @@ public final class AutoTest {
             tier2Scenario();
             return;
         }
+        if ("mars".equals(ONLY)) {
+            marsScenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
@@ -5043,7 +5047,7 @@ public final class AutoTest {
     private double shipPeBefore;
 
     // ===================================================================================================================
-    // TIER 2 (docs/PLANO_TIERS.md, seção 8): -PshOnly=tier2. Bloco separado; as conferências ficam em Tier2Devtest.
+    // TIER 2 (docs/PLANO_TIERS.md, seção 9): -PshOnly=tier2. Bloco separado; as conferências ficam em Tier2Devtest.
     // Foguete nuclear (motor 2x2x2 + hidrogênio 2x2x8: barra e galão pelo clique, painel, montagem, subida curta, pouso, combustível e núcleo
     // conferidos), iônico com RTG e xenônio (painel: não decola, Δv alto; e tenta decolar) e fusão 3x3x3 (painel), e as receitas.
     // ===================================================================================================================
@@ -5138,5 +5142,178 @@ public final class AutoTest {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });
+    }
+
+    // ===================================================================================================================
+    // MARTE (gerador de planetas por parâmetros): -PshOnly=mars. Bloco separado; buscas e conferências em MarsDevtest.
+    // ===================================================================================================================
+
+    /** Pontos achados pelas buscas do MarsDevtest durante o roteiro. */
+    private int[] marsCrater;
+    private int[] marsVein;
+    private int[] marsVolcano;
+
+    /**
+     * Marte: vai pelo comando de dev, confere chão, gravidade e paleta, tira prints do chão de dia, do céu (meio-dia, sol
+     * baixo e noite), de uma cratera vista da borda, de um veio de minério (o subsolo em volta é cavado e o minério fica), a
+     * 1.000 e 5.000 de altitude (curvatura, cores e LOD do DH) e de um vulcão de cima; mede tick e geração de chunks.
+     */
+    private void marsScenario() {
+        cmd(20, "gamerule advance_time false");
+        cmd(20, "weather clear 1000000");
+        cmd(20, "time set 6000");
+        cmd(20, "spacehorizons goto mars");
+        cmd(300, "time set 6000");
+        step(100, mc -> {
+            MarsDevtest.checkArrival(mc);
+            MarsDevtest.logStats(mc, "chegada (300 ticks)");
+        });
+        // (a) chão de dia, no ponto de chegada (meio-dia local no tick 6000)
+        look(10, EAST, 8f);
+        shot(60, "mars_ground_e");
+        look(10, 90f, 8f);
+        shot(30, "mars_ground_w");
+        look(10, SOUTH, 35f);
+        shot(30, "mars_ground_s_down");
+        // (b) céu: o sol a pino, o sol baixo da tarde e a noite
+        lookAtSun(10);
+        shot(30, "mars_sky_noon_sun");
+        step(10, mc -> {
+            long t = marsClockForSunHeight(mc, Math.toRadians(6.0));
+            SpaceHorizons.LOGGER.info(TAG + "MARS sol a 6 graus na tarde em relogio={}", t);
+            mc.player.connection.sendCommand("time set " + t);
+        });
+        look(40, 90f, 4f);
+        shot(30, "mars_sky_dusk_w");
+        lookAtSun(10);
+        shot(20, "mars_sky_dusk_sun");
+        step(10, mc -> {
+            long t = Math.round(6_000 + Planets.spec(Planets.MARS).dayLengthTicks() / 2.0);
+            mc.player.connection.sendCommand("time set " + t);
+        });
+        look(40, EAST, -50f);
+        shot(30, "mars_sky_night");
+        cmd(20, "time set 6000");
+        step(20, mc -> {
+            double[] sun = sunHere(mc);
+            MarsDevtest.check("sol_a_pino_ao_meio_dia", sun != null && sun[1] > 0.95,
+                    sun == null ? "sem sol" : "altura do sol=" + f(Math.toDegrees(Math.asin(sun[1]))) + " graus");
+        });
+
+        // (c) uma cratera vista da borda
+        step(10, mc -> {
+            marsCrater = MarsDevtest.findCrater();
+            MarsDevtest.check("cratera_encontrada", marsCrater != null, marsCrater == null ? "nenhuma em 24.000 blocos"
+                    : "fundo (" + marsCrater[0] + ", " + marsCrater[1] + "), borda x=" + marsCrater[2] + " y=" + marsCrater[4]);
+            if (marsCrater != null) {
+                mc.player.connection.sendCommand("tp @s " + marsCrater[2] + " " + (marsCrater[4] + 40) + " " + marsCrater[3]);
+            }
+        });
+        fly(300);
+        step(10, mc -> {
+            if (marsCrater == null) {
+                return;
+            }
+            // o mundo gerado tem o mesmo relevo da função (heightmap do cliente = altura analítica + 1)
+            int worst = 0;
+            for (int dx = -48; dx <= 48; dx += 16) {
+                for (int dz = -48; dz <= 48; dz += 16) {
+                    int x = marsCrater[2] + dx;
+                    int z = marsCrater[3] + dz;
+                    int h = mc.level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z) - 1;
+                    worst = Math.max(worst, Math.abs(h - MarsDevtest.terrain().surfaceHeight(x, z)));
+                }
+            }
+            MarsDevtest.check("relevo_igual_ao_analitico", worst == 0, "maior diferença em 49 colunas da borda=" + worst);
+            mc.player.setYRot(90f);
+            mc.player.setXRot(28f);
+        });
+        shot(60, "mars_crater_from_rim");
+        step(5, mc -> mc.player.setXRot(12f));
+        shot(20, "mars_crater_wide");
+
+        // (d) um veio de minério: cava o subsolo em volta e deixa o minério à mostra
+        step(10, mc -> {
+            int bx = mc.player.getBlockX();
+            int bz = mc.player.getBlockZ();
+            marsVein = MarsDevtest.findVein(bx, bz);
+            MarsDevtest.check("veio_encontrado", marsVein != null, marsVein == null ? "nenhum perto de (" + bx + ", " + bz + ")"
+                    : "(" + marsVein[0] + ", " + marsVein[1] + ", " + marsVein[2] + ")");
+            if (marsVein != null) {
+                mc.player.connection.sendCommand("tp @s " + marsVein[0] + " " + marsVein[1] + " " + marsVein[2]);
+            }
+        });
+        step(100, mc -> {
+            if (marsVein == null) {
+                return;
+            }
+            int x = marsVein[0];
+            int y = marsVein[1];
+            int z = marsVein[2];
+            mc.player.connection.sendCommand("fill " + (x - 4) + " " + (y - 3) + " " + (z - 4) + " " + (x + 4) + " " + (y + 3) + " "
+                    + (z + 4) + " air replace " + MarsDevtest.subsurfaceId());
+            mc.player.connection.sendCommand("effect give @s minecraft:night_vision infinite 0 true");
+        });
+        step(40, mc -> {
+            if (marsVein == null) {
+                return;
+            }
+            MarsDevtest.checkVein(mc, marsVein);
+            mc.player.connection.sendCommand("tp @s " + (marsVein[0] - 4) + " " + (marsVein[1] - 1) + " " + (marsVein[2] - 3)
+                    + " facing " + marsVein[0] + " " + marsVein[1] + " " + marsVein[2]);
+        });
+        shot(40, "mars_ore_vein");
+
+        // (e) de cima: 1.000 e 5.000 de altitude sobre a chegada (malha orbital, curvatura, LOD do DH, limbo caramelo)
+        cmd(20, "effect clear @s minecraft:night_vision");
+        cmd(20, "tp @s 0 1063 0");
+        fly(20);
+        look(20, EAST, 90f);
+        shot(500, "mars_alt1000_down");
+        look(10, EAST, 25f);
+        shot(60, "mars_alt1000_horizon");
+        step(5, mc -> MarsDevtest.logStats(mc, "altitude 1000"));
+        cmd(20, "tp @s 0 5063 0");
+        fly(20);
+        look(20, EAST, 90f);
+        shot(500, "mars_alt5000_down");
+        look(10, EAST, 30f);
+        shot(60, "mars_alt5000_limb");
+        step(5, mc -> MarsDevtest.logStats(mc, "altitude 5000"));
+
+        // (f) um vulcão em escudo visto de cima
+        step(10, mc -> {
+            marsVolcano = MarsDevtest.findVolcano();
+            MarsDevtest.check("vulcao_encontrado", marsVolcano != null, marsVolcano == null ? "nenhum"
+                    : "topo (" + marsVolcano[0] + ", " + marsVolcano[1] + ") y=" + marsVolcano[2]);
+            if (marsVolcano != null) {
+                mc.player.connection.sendCommand("tp @s " + marsVolcano[0] + " " + (marsVolcano[2] + 1_500) + " " + (marsVolcano[1] - 3_000));
+            }
+        });
+        fly(20);
+        look(20, SOUTH, 40f);
+        shot(500, "mars_volcano");
+        step(5, mc -> MarsDevtest.logStats(mc, "vulcao"));
+
+        step(40, mc -> {
+            MarsDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** Relógio (ticks) da tarde do dia 0 em que o sol de Marte, no ponto do jogador, está a {@code altitude} rad do horizonte. */
+    private static long marsClockForSunHeight(Minecraft mc, double altitude) {
+        SolarSystem.Body body = SolarSystem.skyBodyOf(Planets.MARS);
+        double day = Planets.spec(Planets.MARS).dayLengthTicks();
+        double target = Math.sin(altitude);
+        double[] sun = new double[3];
+        for (double t = 6_000; t < 6_000 + day / 2; t += 10) {
+            SunModel.localDirection(body, mc.player.getX(), mc.player.getZ(), t, sun);
+            if (sun[1] <= target) {
+                return Math.round(t);
+            }
+        }
+        return Math.round(6_000 + day / 4);
     }
 }

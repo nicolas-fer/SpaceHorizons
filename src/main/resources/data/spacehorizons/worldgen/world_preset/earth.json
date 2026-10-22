@@ -29,6 +29,25 @@
         }
       }
     },
+    "spacehorizons:mars": {
+      "type": "spacehorizons:mars",
+      "generator": {
+        "type": "spacehorizons:planet",
+        "planet": "spacehorizons:mars",
+        "biome_source": {
+          "type": "spacehorizons:planet",
+          "planet": "spacehorizons:mars",
+          "biomes": {
+            "regolith": "spacehorizons:martian",
+            "mare": "spacehorizons:martian",
+            "highland": "spacehorizons:martian",
+            "crater_floor": "spacehorizons:martian",
+            "polar_ice": "spacehorizons:martian",
+            "volcanic": "spacehorizons:martian"
+          }
+        }
+      }
+    },
     "spacehorizons:space": {
       "type": "spacehorizons:space",
       "generator": {

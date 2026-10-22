@@ -76,8 +76,8 @@ public final class SpaceSun {
     }
 
     /**
-     * Direção do sol nos eixos do Minecraft do ponto (camX, camZ) do planeta, unitária. Planeta fora do SolarSystem:
-     * sol a pino.
+     * Direção do sol nos eixos do Minecraft do ponto (camX, camZ) do planeta, unitária. Planeta fora do SolarSystem (Marte):
+     * o corpo destacado dele ({@link SolarSystem#skyBodyOf}), que só gira com o dia do planeta.
      */
     public static void localAt(ClientLevel level, PlanetDefinition planet, double camX, double camZ, float[] out) {
         double[] sun = new double[3];
@@ -93,11 +93,7 @@ public final class SpaceSun {
     }
 
     private static boolean local(ClientLevel level, PlanetDefinition planet, double x, double z, double[] out) {
-        SolarSystem.Body body = SolarSystem.bodyOf(planet).orElse(null);
-        if (body == null) {
-            return false;
-        }
-        SunModel.localDirection(body, x, z, clock(level), out);
+        SunModel.localDirection(SolarSystem.skyBodyOf(planet), x, z, clock(level), out);
         return true;
     }
 
@@ -118,11 +114,10 @@ public final class SpaceSun {
             return ticks;
         }
         Optional<PlanetDefinition> planet = Planets.forLevel(level);
-        Optional<SolarSystem.Body> body = planet.flatMap(SolarSystem::bodyOf);
-        if (body.isEmpty()) {
+        if (planet.isEmpty()) {
             return ticks;
         }
-        return Math.round(SunModel.effectiveClock(body.get(), viewer.getX(), viewer.getZ(), ticks));
+        return Math.round(SunModel.effectiveClock(SolarSystem.skyBodyOf(planet.get()), viewer.getX(), viewer.getZ(), ticks));
     }
 
     /**
@@ -133,11 +128,7 @@ public final class SpaceSun {
      * gira com a órbita, a rotação inclui a orientação dela no instante (o céu estrelado gira devagar sobre o chão lunar).
      */
     public static void update(ClientLevel level, PlanetDefinition planet, double x, double z) {
-        SolarSystem.Body body = SolarSystem.bodyOf(planet).orElse(null);
-        if (body == null) {
-            clearView();
-            return;
-        }
+        SolarSystem.Body body = SolarSystem.skyBodyOf(planet);
         double clock = clock(level);
         double[] sun = new double[3];
         SunModel.localDirection(body, x, z, clock, sun);

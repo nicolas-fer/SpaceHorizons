@@ -29,11 +29,12 @@ public final class OxygenMath {
     }
 
     /**
-     * Vácuo = planeta sem atmosfera ou acima do topo dela (o mesmo {@link AtmosphereModel#isVacuum} do visual).
-     * {@code y} é a altura absoluta do ponto de respiração (os olhos); a altitude é contada desde o nível do mar.
+     * Vácuo = planeta sem atmosfera, acima do topo dela (o mesmo {@link AtmosphereModel#isVacuum} do visual) ou com ar sem
+     * oxigênio (Marte: {@link AtmosphereModel#needsOxygen}). {@code y} é a altura absoluta do ponto de respiração (os olhos);
+     * a altitude é contada desde o nível do mar.
      */
     public static boolean isVacuum(PlanetDefinition planet, double y) {
-        return AtmosphereModel.of(planet).isVacuum(y - planet.seaLevel());
+        return AtmosphereModel.of(planet).needsOxygen(y - planet.seaLevel());
     }
 
     /** Soma das fontes: cada uma vale no mínimo 0 e o total satura em Integer.MAX_VALUE. */

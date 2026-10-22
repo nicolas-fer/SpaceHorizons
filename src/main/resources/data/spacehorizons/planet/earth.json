@@ -1,0 +1,40 @@
+{
+  "seed": 25413353454,
+  "circumference": 655360,
+  "sea_level": 63,
+  "max_latitude": 70.0,
+  "gravity": 1.0,
+  "style": "earth",
+  "terrain": {
+    "amplitude": 96
+  },
+  "surface": {
+    "subsurface": "minecraft:stone",
+    "types": {
+      "ocean": {"top": "minecraft:sand", "filler": "minecraft:sand", "biome": "minecraft:ocean"},
+      "beach": {"top": "minecraft:sand", "filler": "minecraft:sand", "biome": "minecraft:beach"},
+      "plains": {"top": "minecraft:grass_block", "filler": "minecraft:dirt", "biome": "minecraft:plains"},
+      "forest": {"top": "minecraft:grass_block", "filler": "minecraft:dirt", "biome": "minecraft:forest"},
+      "desert": {"top": "minecraft:sand", "filler": "minecraft:sandstone", "biome": "minecraft:desert"},
+      "mountain": {"top": "minecraft:stone", "filler": "minecraft:stone", "biome": "minecraft:stony_peaks"},
+      "snow": {"top": "minecraft:snow_block", "filler": "minecraft:stone", "biome": "minecraft:snowy_slopes"},
+      "polar_ice": {"top": "minecraft:packed_ice", "filler": "minecraft:packed_ice", "biome": "minecraft:ice_spikes"}
+    }
+  },
+  "water": {
+    "ocean": true,
+    "shallow_color": "#3f76e4",
+    "deep_color": "#1a3a8c"
+  },
+  "atmosphere": {
+    "present": true,
+    "thickness": 1800.0,
+    "base_altitude": 160.0,
+    "breathable": true,
+    "scatter": [0.26, 0.50, 1.0],
+    "optical_depth": 1.0,
+    "sky_color": "#78a7ff",
+    "fog_color": "#c0d8ff",
+    "clouds": true
+  }
+}

@@ -1,50 +1,67 @@
 package com.spacehorizons.planet;
 
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.planet.spec.PlanetSpec;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
 
-/** Catálogo de planetas. Por enquanto fixo em código; vira data-driven depois. */
+/**
+ * Catálogo de planetas. Cada um é descrito por parâmetros em {@code data/spacehorizons/planet/<id>.json} (ver
+ * {@link PlanetSpec}), lidos do jar na primeira vez que esta classe é usada; aqui ficam só os ids e os atalhos.
+ */
 public final class Planets {
-    /**
-     * Planeta de teste (10x a escala original) (R ≈ 104.303) para a curvatura ficar evidente:
-     * a 40.960 blocos o chão já caiu ~8.000 blocos abaixo do horizonte plano.
-     */
-    public static final PlanetDefinition EARTH = new PlanetDefinition(
-            Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "earth"),
-            0x5EAC0FFEEL,
-            655_360,
-            63,
-            70.0,
-            96,
-            TerrainStyle.EARTH,
-            1.0);
+    private static final Map<Identifier, PlanetSpec> SPECS = new LinkedHashMap<>();
 
     /**
-     * Lua pequena (R ≈ 26.076, um quarto da Terra): curvatura forte, sem água nem atmosfera,
-     * gravidade de ~1/6. seaLevel 63 é só a referência de altitude.
+     * Terra de teste (10x a escala original, R ≈ 104.303) para a curvatura ficar evidente: a 40.960 blocos o chão já caiu
+     * ~8.000 blocos abaixo do horizonte plano. Mundo do gerador vanilla.
      */
-    public static final PlanetDefinition MOON = new PlanetDefinition(
-            Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "moon"),
-            0x10A4L,
-            163_840,
-            63,
-            75.0,
-            48,
-            TerrainStyle.MOON,
-            0.165);
+    public static final PlanetDefinition EARTH = register("earth");
 
-    private static final Map<Identifier, PlanetDefinition> BY_ID = Map.of(EARTH.id(), EARTH, MOON.id(), MOON);
+    /**
+     * Lua pequena (R ≈ 26.076, um quarto da Terra): curvatura forte, sem água nem atmosfera, gravidade de ~1/6. seaLevel 63
+     * é só a referência de altitude.
+     */
+    public static final PlanetDefinition MOON = register("moon");
+
+    /**
+     * Marte (R ≈ 55.412, 0,53 da Terra do mod, a mesma razão da real): gravidade 0,38, atmosfera fina avermelhada sem
+     * oxigênio, crateras, vulcões em escudo e calotas de gelo. Fora da física orbital por enquanto (etapa 3 dos tiers).
+     */
+    public static final PlanetDefinition MARS = register("mars");
+
+    public static final List<PlanetDefinition> ALL = List.of(EARTH, MOON, MARS);
 
     private Planets() {
     }
 
+    private static PlanetDefinition register(String path) {
+        Identifier id = Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, path);
+        PlanetSpec spec = PlanetSpec.load(id);
+        SPECS.put(id, spec);
+        return spec.definition();
+    }
+
     public static Optional<PlanetDefinition> byId(Identifier id) {
-        return Optional.ofNullable(BY_ID.get(id));
+        return Optional.ofNullable(SPECS.get(id)).map(PlanetSpec::definition);
+    }
+
+    /**
+     * Parâmetros completos de um planeta do catálogo. Pelo id: uma definição com a mesma identidade e outros números (testes
+     * com outra semente) usa os parâmetros do planeta de mesmo id.
+     */
+    public static PlanetSpec spec(PlanetDefinition planet) {
+        PlanetSpec spec = SPECS.get(planet.id());
+        if (spec == null) {
+            throw new IllegalArgumentException("planeta fora do catálogo: " + planet.id());
+        }
+        return spec;
     }
 
     /**
