@@ -11,7 +11,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | | O quê | Onde |
 |---|---|---|
-| 🟡 | **Spike S5: convés andável** (estilo Create, jogador no referencial da nave), autoteste `shipdeck`. | `docs/PLANO_NAVE_ATMOSFERA.md` |
+| ✅ | **Spike S5: convés andável aprovado**: o jogador anda no convés da entidade a 1, 10, 50 e 100 b/t, com e sem 100 ms de latência: 0 quedas, pé a 0,0000 do piso, 0 correções; a velocidade não importa (A4 sem efeito). Autoteste `shipdeck` (fora da regressão padrão, ~15 min). | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Conteúdo do Tier 2**: motores nuclear, iônico e de fusão (1x1, 2x2x2, 3x3x3), tanques de hidrogênio e xenônio, RTG, materiais de Marte, combustível por tipo com Δv em fases no painel. Autoteste `tier2` 37/37, `multiblock` 169/169, `flight` A–D. | `docs/PLANO_TIERS.md` (seção 9), `docs/TIER2_IDS.md` |
 | ✅ | **Arte do Tier 2** escolhida pelo usuário e aplicada; `tier2` 37/0 na regressão de 22/10. | `art/tier2/` |
 | ✅ | **Gerador de planetas por parâmetros e Marte** (sol de Marte corrigido no autoteste depois do merge, `mars` 10/0) (planetas em `data/spacehorizons/planet/*.json`; Lua idêntica; Marte por `/spacehorizons goto mars`, fora da órbita até a etapa 3). Autoteste `mars` 10/10. | `docs/GERADOR_PLANETAS.md` |
@@ -21,7 +21,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 ## Próximos passos (em ordem)
 
-1. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): spike do convés (S5), spike da âncora (S6), depois as fases 2e a 2g.
+1. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): spike da âncora (S6), depois as fases 2e (convés na nave real, 2 clientes) a 2g.
 2. Naves 2c (EVA perto do casco) e 2d (outras naves e foguetes vistos de dentro).
 3. Desorbitação real no autoteste da descida (queima retrógrada saindo de órbita fechada) e corte proporcional na circularização.
 4. Tiers: sistema solar centrado no sol (viagem a Marte: órbita, zona de espaço e pouso em Marte).
@@ -70,7 +70,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | 2b | Descida (critério de entrada do foguete), pouso no motor e desmontagem no chão sem perder blocos, NBT nem combustível |
 | ⬜ | 2c | EVA perto do casco e jogador livre no espaço |
 | ⬜ | 2d | Outras naves e foguetes vistos de dentro |
-| 🟡 | S5 | Spike do convés andável (em andamento) |
+| ✅ | S5 | Spike do convés andável aprovado (22/10/2026) |
 | ⬜ | S6, 2e a 2g | Andar na nave dentro do planeta: âncora no ar, convés na nave real, trocas sem costura |
 | ⬜ | 3 | Dobra, escudos, hangar, luz do sol, ar selado; voo assistido estilo No Man's Sky |
 
@@ -96,6 +96,9 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
   sobrevivência não foi testada (autoteste em criativo); plantas muito grandes, Sodium e Iris não medidos.
 - **Tier 2**: destinos do painel para foguetes do Tier 2 vêm do orçamento de Δv (sem voo simulado); naves ignoram peças do Tier 2 e a conversão
   para o estaleiro só atualiza o combustível químico; hélio-3 (clique na Lua) não testado em jogo; carga do motor não aparece no painel.
+- **Convés (S5)**: observadores (2º cliente) veriam o tripulante atrás do casco (falta mandar o estado local a eles); embarque só por comando;
+  portas, baús e assentos em movimento não funcionam; atrito e efeitos de bloco vêm do mundo sob a posição; câmera em 3ª pessoa atravessa o casco;
+  tela de congelamento (gelo nas bordas) a bordo no print; tremor medido sensível a carga da máquina.
 - **Regressão instável sob carga**: com 3 clientes em paralelo, `ship` (tremor no giro) e `tier2` (galão de hidrogênio na coluna) falharam
   uma vez cada e passaram ao rodar de novo ou sozinhos; não investigado.
 - **Marte (visual)**: vão escuro entre os chunks e a malha orbital enquanto o DH gera; sem física orbital, foguete ou pouso em Marte (etapa 3).
