@@ -3513,7 +3513,7 @@ public final class AutoTest {
     }
 
     private static double[] sunHere(Minecraft mc) {
-        java.util.Optional<SolarSystem.Body> body = Planets.forLevel(mc.level).flatMap(SolarSystem::bodyOf);
+        java.util.Optional<SolarSystem.Body> body = Planets.forLevel(mc.level).map(SolarSystem::skyBodyOf);
         if (body.isEmpty()) {
             return null;
         }
@@ -3524,7 +3524,7 @@ public final class AutoTest {
 
     /** Loga relógio, sol local (eixos do Minecraft), altura e o relógio efetivo que o céu e a luz do chão usam. */
     private static void logSun(Minecraft mc, String label) {
-        java.util.Optional<SolarSystem.Body> body = Planets.forLevel(mc.level).flatMap(SolarSystem::bodyOf);
+        java.util.Optional<SolarSystem.Body> body = Planets.forLevel(mc.level).map(SolarSystem::skyBodyOf);
         if (body.isEmpty()) {
             if (SpaceDimension.is(mc.level)) {
                 // no espaço aberto o sol local sai do SkyObserver (os eixos da dimensão são os do spawn da Terra)
