@@ -1,5 +1,11 @@
 package com.spacehorizons.rocket;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.spacehorizons.space.flight.EngineGroup;
+import com.spacehorizons.space.flight.FuelLoad;
+import com.spacehorizons.space.flight.Propellant;
 import com.spacehorizons.space.flight.RocketStats;
 
 /**
@@ -50,6 +56,14 @@ public final class RocketSpecs {
     /** Gravidade de referência, em blocos/tick² (mesmo valor de FlightConstants.G0 da física pura). */
     private static final double G0 = 0.08;
 
+    // --- Tier 2 (docs/PLANO_TIERS.md, "Tier 2: conteúdo"); os números dos motores estão em EngineType ---
+    /** Massa seca do tanque de hidrogênio por bloco (isolamento criogênico), em toneladas. */
+    public static final double HYDROGEN_TANK_DRY_MASS_T = 0.25;
+    /** Massa seca do tanque de xenônio por bloco (vaso de pressão), em toneladas. */
+    public static final double XENON_TANK_DRY_MASS_T = 0.3;
+    /** Massa do gerador RTG, em toneladas. */
+    public static final double RTG_MASS_T = 0.5;
+
     private RocketSpecs() {
     }
 
@@ -62,8 +76,67 @@ public final class RocketSpecs {
             case PARACHUTE -> PARACHUTE_MASS_T;
             case LEG -> LEG_MASS_T;
             case HULL, STRUCTURE -> STRUCTURE_MASS_T;
+            case NUCLEAR_ENGINE -> EngineType.NUCLEAR.massT(1);
+            case ION_ENGINE -> EngineType.ION.massT(1);
+            case FUSION_ENGINE -> EngineType.FUSION.massT(1);
+            case HYDROGEN_TANK -> HYDROGEN_TANK_DRY_MASS_T;
+            case XENON_TANK -> XENON_TANK_DRY_MASS_T;
+            case RTG -> RTG_MASS_T;
             default -> 0.0;
         };
+    }
+
+    /** O combustível que um tanque guarda (null se o papel não é tanque). */
+    public static Propellant tankPropellant(RocketBlockKind kind) {
+        return switch (kind) {
+            case FUEL_TANK -> Propellant.CHEMICAL;
+            case HYDROGEN_TANK -> Propellant.HYDROGEN;
+            case XENON_TANK -> Propellant.XENON;
+            default -> null;
+        };
+    }
+
+    /** O papel do tanque de um combustível (null para os que não têm tanque: hélio-3 e núcleo ficam no motor). */
+    public static RocketBlockKind tankKindOf(Propellant propellant) {
+        return switch (propellant) {
+            case CHEMICAL -> RocketBlockKind.FUEL_TANK;
+            case HYDROGEN -> RocketBlockKind.HYDROGEN_TANK;
+            case XENON -> RocketBlockKind.XENON_TANK;
+            default -> null;
+        };
+    }
+
+    /** Massa seca de uma coluna formada de tanques do papel dado (mesmo fator de casco do tanque químico), em toneladas. */
+    public static double tankStructureMassT(RocketBlockKind kind, Multiblocks.Box box) {
+        return massOf(kind) * box.volume() * tankHullFactor(box);
+    }
+
+    /** O foguete leva combustível sem tanque (o motor de fusão guarda o hélio-3): a montagem não exige tanque. */
+    public static boolean carriesOwnFuel(RocketCensus c) {
+        return c.count(RocketBlockKind.FUSION_ENGINE) > 0;
+    }
+
+    /** Energia pedida pelos motores iônicos do censo (avulsos e formados). */
+    public static int ionPowerDemand(RocketCensus c) {
+        int demand = c.looseOf(RocketBlockKind.ION_ENGINE) * EngineType.ION.powerDemand(1);
+        for (Multiblocks.Box box : c.structuresOf(RocketBlockKind.ION_ENGINE)) {
+            demand += EngineType.ION.powerDemand(box.side());
+        }
+        return demand;
+    }
+
+    /** Energia dos geradores RTG do censo. */
+    public static int powerSupply(RocketCensus c) {
+        return c.rtgs() * EngineType.RTG_POWER;
+    }
+
+    /**
+     * Fração do empuxo iônico disponível: a energia dos RTG sobre a pedida pelos motores iônicos, até 1. Com menos geradores, todos os
+     * motores iônicos empurram na mesma proporção (o Isp não muda); sem gerador, não empurram.
+     */
+    public static double ionPowerFraction(RocketCensus c) {
+        int demand = ionPowerDemand(c);
+        return demand <= 0 ? 0.0 : Math.min(1.0, powerSupply(c) / (double) demand);
     }
 
     /** Massa seca de uma coluna de tanques formada, em toneladas. */
@@ -135,11 +208,56 @@ public final class RocketSpecs {
         return Math.max(dry, STRUCTURE_MASS_T);
     }
 
-    /** Estatísticas de um foguete com este censo (blocos e estruturas). */
+    /**
+     * Estatísticas de um foguete com este censo (blocos e estruturas). Só com peças do Tier 1, o foguete químico de sempre; com peças do
+     * Tier 2, um {@link EngineGroup} por tipo de motor (cada um queima o seu combustível) e a capacidade de cada combustível: tanques
+     * ({@value #TANK_CAPACITY_MB} mB por bloco, de qualquer tipo), o núcleo do motor nuclear ({@link EngineType#ROD_CORE_MB} por bloco) e o
+     * hélio-3 do motor de fusão ({@link EngineType#FUSION_CHARGE_PER_BLOCK_MB} por bloco).
+     */
     public static RocketStats statsFor(RocketCensus c) {
         double dragK0 = G0 / (TERMINAL_SPEED_ASCENT * TERMINAL_SPEED_ASCENT);
         double parachuteK0 = c.parachutes() > 0 ? G0 / (TERMINAL_SPEED_PARACHUTE * TERMINAL_SPEED_PARACHUTE) : 0.0;
-        return new RocketStats(dryMassOf(c), thrustOf(c), ispOf(c), (double) c.tanks() * TANK_CAPACITY_MB, dragK0, parachuteK0, c.engines(),
-                c.tanks(), c.parachutes(), c.legs());
+        if (!c.hasTier2()) {
+            return new RocketStats(dryMassOf(c), thrustOf(c), ispOf(c), (double) c.tanks() * TANK_CAPACITY_MB, dragK0, parachuteK0, c.engines(),
+                    c.tanks(), c.parachutes(), c.legs());
+        }
+        List<EngineGroup> groups = new ArrayList<>();
+        double chemical = thrustOf(c);
+        if (chemical > 0.0) {
+            groups.add(new EngineGroup(EngineType.CHEMICAL.key(), Propellant.CHEMICAL, false, chemical, ispOf(c), c.engines()));
+        }
+        double dry = dryMassOf(c);
+        for (EngineType type : new EngineType[] {EngineType.NUCLEAR, EngineType.ION, EngineType.FUSION}) {
+            RocketBlockKind kind = type.kind();
+            int loose = c.looseOf(kind);
+            double thrust = loose * type.thrust(1);
+            double flow = loose * type.thrust(1) / type.isp(1);
+            dry += loose * type.massT(1);
+            for (Multiblocks.Box box : c.structuresOf(kind)) {
+                thrust += type.thrust(box.side());
+                flow += type.thrust(box.side()) / type.isp(box.side());
+                dry += type.massT(box.side());
+            }
+            if (type == EngineType.ION) {
+                double power = ionPowerFraction(c);
+                thrust *= power;
+                flow *= power;
+            }
+            if (thrust > 0.0) {
+                groups.add(new EngineGroup(type.key(), type.propellant(), type.needsCore(), thrust, thrust / flow, c.count(kind)));
+            }
+        }
+        FuelLoad capacity = FuelLoad.chemical((double) c.tanks() * TANK_CAPACITY_MB);
+        for (RocketBlockKind kind : new RocketBlockKind[] {RocketBlockKind.HYDROGEN_TANK, RocketBlockKind.XENON_TANK}) {
+            capacity = capacity.with(tankPropellant(kind), (double) c.count(kind) * TANK_CAPACITY_MB);
+            dry += c.looseOf(kind) * massOf(kind);
+            for (Multiblocks.Box box : c.structuresOf(kind)) {
+                dry += tankStructureMassT(kind, box);
+            }
+        }
+        capacity = capacity.with(Propellant.NUCLEAR_CORE, (double) c.count(RocketBlockKind.NUCLEAR_ENGINE) * EngineType.ROD_CORE_MB)
+                .with(Propellant.HELIUM3, (double) c.count(RocketBlockKind.FUSION_ENGINE) * EngineType.FUSION_CHARGE_PER_BLOCK_MB);
+        dry += c.rtgs() * RTG_MASS_T;
+        return RocketStats.of(dry, groups, capacity, dragK0, parachuteK0, c.allEngines(), c.allTanks(), c.parachutes(), c.legs());
     }
 }

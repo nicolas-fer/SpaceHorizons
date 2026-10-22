@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "condition": {
+        "type": "minecraft:survives_explosion"
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "spacehorizons:fusion_engine",
+          "modifier": {
+            "type": "minecraft:copy_components",
+            "include": [
+              "spacehorizons:engine_charge_mb"
+            ],
+            "source": "block_entity"
+          }
+        }
+      ],
+      "rolls": 1
+    }
+  ],
+  "random_sequence": "spacehorizons:blocks/fusion_engine"
+}

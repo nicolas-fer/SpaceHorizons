@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "spacehorizons:hydrogen_canister",
+    "minecraft:water_bucket",
+    "minecraft:water_bucket",
+    "minecraft:redstone"
+  ],
+  "result": {
+    "id": "spacehorizons:hydrogen_canister",
+    "components": {
+      "spacehorizons:fuel_mb": 1000
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "R": "spacehorizons:rare_earth_dust",
+    "T": "spacehorizons:titanium_plate",
+    "G": "minecraft:glowstone_dust"
+  },
+  "pattern": [
+    "RTR",
+    "RGR",
+    "RTR"
+  ],
+  "result": {
+    "id": "spacehorizons:nuclear_fuel_rod"
+  }
+}

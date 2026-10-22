@@ -35,6 +35,12 @@ public final class ModCreativeTabs {
                 output.accept(OxygenTankItem.fullStack(ModItems.OXYGEN_TANK_LARGE.get()));
                 // e o tanque de foguete: o vazio vem da lista acima, o cheio (4.000 mB) daqui
                 output.accept(RocketFuelTankItem.fullStack());
+                // Tier 2: os galões e os tanques cheios
+                output.accept(FuelCanisterItem.fullStack(ModItems.HYDROGEN_CANISTER.get()));
+                output.accept(FuelCanisterItem.fullStack(ModItems.XENON_CANISTER.get()));
+                output.accept(FuelCanisterItem.fullStack(ModItems.HELIUM3_CANISTER.get()));
+                output.accept(RocketFuelTankItem.fullStack(ModItems.HYDROGEN_TANK.get()));
+                output.accept(RocketFuelTankItem.fullStack(ModItems.XENON_TANK.get()));
             })
             .build());
 

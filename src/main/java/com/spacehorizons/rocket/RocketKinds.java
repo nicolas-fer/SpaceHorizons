@@ -27,6 +27,18 @@ public final class RocketKinds {
             return RocketBlockKind.HULL;
         } else if (state.is(ModBlocks.LAUNCH_PAD.get())) {
             return RocketBlockKind.PAD;
+        } else if (state.is(ModBlocks.NUCLEAR_ENGINE.get())) {
+            return RocketBlockKind.NUCLEAR_ENGINE;
+        } else if (state.is(ModBlocks.ION_ENGINE.get())) {
+            return RocketBlockKind.ION_ENGINE;
+        } else if (state.is(ModBlocks.FUSION_ENGINE.get())) {
+            return RocketBlockKind.FUSION_ENGINE;
+        } else if (state.is(ModBlocks.HYDROGEN_TANK.get())) {
+            return RocketBlockKind.HYDROGEN_TANK;
+        } else if (state.is(ModBlocks.XENON_TANK.get())) {
+            return RocketBlockKind.XENON_TANK;
+        } else if (state.is(ModBlocks.RTG_GENERATOR.get())) {
+            return RocketBlockKind.RTG;
         }
         return null;
     }

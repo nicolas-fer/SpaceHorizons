@@ -45,22 +45,31 @@ public final class FlightIntegrator {
         double mu = bp.mu();
         V3 r = s.r();
         V3 v = s.v();
-        double fuel = Math.max(0.0, s.fuelMb());
+        FuelLoad load = s.fuel();
 
         // 1. empuxo: Tsiolkovsky exato no tick
         V3 thrustAccel = V3.ZERO;
         double throttle = c.throttle();
-        if (throttle > 0.0 && fuel > 0.0 && st.engines() > 0 && st.thrust() > 0.0
-                && c.thrustDirection().lengthSquared() > 0.0) {
-            double ve = st.exhaustVelocity();
-            double m0 = st.wetMass(fuel);
-            double wanted = st.thrust() * throttle / ve;
-            double available = fuel * FlightConstants.FUEL_T_PER_MB;
-            boolean emptied = wanted >= available;
-            double flow = emptied ? available : wanted;
-            double dv = Tsiolkovsky.deltaV(ve, m0, m0 - flow);
-            thrustAccel = c.thrustDirection().times(dv);
-            fuel = emptied ? 0.0 : fuel - flow / FlightConstants.FUEL_T_PER_MB;
+        if (st.chemicalOnly() && load.onlyChemical()) {
+            // o foguete químico do Tier 1: a conta de sempre, bit a bit
+            double fuel = Math.max(0.0, s.fuelMb());
+            if (throttle > 0.0 && fuel > 0.0 && st.engines() > 0 && st.thrust() > 0.0
+                    && c.thrustDirection().lengthSquared() > 0.0) {
+                double ve = st.exhaustVelocity();
+                double m0 = st.wetMass(fuel);
+                double wanted = st.thrust() * throttle / ve;
+                double available = fuel * FlightConstants.FUEL_T_PER_MB;
+                boolean emptied = wanted >= available;
+                double flow = emptied ? available : wanted;
+                double dv = Tsiolkovsky.deltaV(ve, m0, m0 - flow);
+                thrustAccel = c.thrustDirection().times(dv);
+                fuel = emptied ? 0.0 : fuel - flow / FlightConstants.FUEL_T_PER_MB;
+            }
+            load = load.with(Propellant.CHEMICAL, fuel);
+        } else if (throttle > 0.0 && st.engines() > 0 && c.thrustDirection().lengthSquared() > 0.0) {
+            Burn burn = burn(load, st, Math.min(1.0, throttle));
+            thrustAccel = c.thrustDirection().times(burn.dv);
+            load = burn.fuel;
         }
 
         // 2. kick-drift-kick com a gravidade do corpo dominante
@@ -90,7 +99,72 @@ public final class FlightIntegrator {
             heat = stepHeat(heat, 0.0, 0.0);
             chute = advanceChute(chute);
         }
-        return new FlightState(s.body(), r, v, fuel, heat, chute);
+        return new FlightState(s.body(), r, v, load, heat, chute);
+    }
+
+    /** O resultado da queima de um tick: o Δv (blocos/tick) e a carga que sobrou. */
+    record Burn(double dv, FuelLoad fuel) {
+    }
+
+    /**
+     * Um tick de queima com motores de tipos diferentes (Tier 2): cada grupo pede {@code F·acelerador/ve} toneladas do SEU combustível
+     * (e o nuclear, a mesma quantidade em mB de núcleo); se um combustível não basta para o tick, os grupos que o usam queimam só o que há
+     * (o último tick é parcial). O Δv do tick é Tsiolkovsky exato com a vazão somada e a velocidade de exaustão média pela vazão
+     * ({@code Σ(ṁ·ve)/Σṁ}, que dá {@code ΣF/Σṁ} sem limite de combustível).
+     */
+    static Burn burn(FuelLoad fuel, RocketStats st, double throttle) {
+        int n = Propellant.count();
+        double[] wantedMb = new double[n];
+        for (EngineGroup g : st.groups()) {
+            if (!g.active(fuel)) {
+                continue;
+            }
+            double mb = g.thrust() * throttle / g.exhaustVelocity() / g.propellant().tonsPerMb();
+            wantedMb[g.propellant().ordinal()] += mb;
+            if (g.needsCore()) {
+                wantedMb[Propellant.NUCLEAR_CORE.ordinal()] += mb;
+            }
+        }
+        // a fração do pedido que cada combustível atende neste tick
+        double[] share = new double[n];
+        for (Propellant p : Propellant.values()) {
+            double want = wantedMb[p.ordinal()];
+            share[p.ordinal()] = want > 0.0 ? Math.min(1.0, fuel.get(p) / want) : 1.0;
+        }
+        double flowT = 0.0;
+        double impulse = 0.0;
+        double[] usedMb = new double[n];
+        for (EngineGroup g : st.groups()) {
+            if (!g.active(fuel)) {
+                continue;
+            }
+            double s = share[g.propellant().ordinal()];
+            if (g.needsCore()) {
+                s = Math.min(s, share[Propellant.NUCLEAR_CORE.ordinal()]);
+            }
+            double flow = g.thrust() * throttle / g.exhaustVelocity() * s;
+            flowT += flow;
+            impulse += flow * g.exhaustVelocity();
+            double mb = flow / g.propellant().tonsPerMb();
+            usedMb[g.propellant().ordinal()] += mb;
+            if (g.needsCore()) {
+                usedMb[Propellant.NUCLEAR_CORE.ordinal()] += mb;
+            }
+        }
+        if (flowT <= 0.0) {
+            return new Burn(0.0, fuel);
+        }
+        double m0 = st.wetMass(fuel);
+        double dv = Tsiolkovsky.deltaV(impulse / flowT, m0, m0 - flowT);
+        FuelLoad left = fuel;
+        for (Propellant p : Propellant.values()) {
+            if (usedMb[p.ordinal()] > 0.0) {
+                // o combustível que se esgotou neste tick vai a zero exato (sem resto de ponto flutuante)
+                double rest = fuel.get(p) - usedMb[p.ordinal()];
+                left = left.with(p, rest <= 1.0e-9 * Math.max(1.0, fuel.get(p)) ? 0.0 : rest);
+            }
+        }
+        return new Burn(dv, left);
     }
 
     /** Um tick da rampa do paraquedas: só anda se já começou a abrir, e fecha em 1,0 exato (sem resto de ponto flutuante). */

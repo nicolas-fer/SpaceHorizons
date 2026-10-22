@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "S": "spacehorizons:steel_plate",
+    "P": "spacehorizons:titanium_plate",
+    "I": "minecraft:packed_ice"
+  },
+  "pattern": [
+    "SPS",
+    "PIP",
+    "SPS"
+  ],
+  "result": {
+    "count": 2,
+    "id": "spacehorizons:hydrogen_tank"
+  }
+}

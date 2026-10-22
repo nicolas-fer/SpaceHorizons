@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Set;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.space.flight.FuelLoad;
+import com.spacehorizons.space.flight.Propellant;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -31,8 +33,11 @@ public final class RocketLanding {
     private RocketLanding() {
     }
 
-    /** Um bloco a recolocar: posição no mundo, estado, NBT (null sem block entity) e, se for tanque, o combustível dele. */
-    private record Placement(BlockPos pos, BlockState state, @Nullable CompoundTag nbt, int fuelMb, boolean tank) {
+    /**
+     * Um bloco a recolocar: posição no mundo, estado, NBT (null sem block entity) e, se for tanque, o combustível dele ({@code tank}); se for motor
+     * do Tier 2 que guarda carga, a carga ({@code charge}).
+     */
+    private record Placement(BlockPos pos, BlockState state, @Nullable CompoundTag nbt, int fuelMb, boolean tank, boolean charge) {
     }
 
     /** O canto mínimo da caixa que tem o centro em {@code center}, para uma caixa deste tamanho (arredonda ao bloco mais perto). */
@@ -56,7 +61,7 @@ public final class RocketLanding {
         int turns = PortraitGrid.quarterTurnsFromYaw(rocket.yawDegrees());
         RocketPortrait rotated = portrait.rotated(turns);
         BlockPos origin = originFor(rocket.position(), rotated.sizeX, rotated.sizeY, rotated.sizeZ);
-        int fuel = (int) Math.floor(rocket.fuelMb());
+        FuelLoad fuel = rocket.fuel().floor();
 
         List<Placement> plan = plan(level, rotated, origin, fuel);
 
@@ -78,16 +83,44 @@ public final class RocketLanding {
 
     /** Recoloca um retrato (já girado) com o canto mínimo em {@code origin}; usado pelo pouso e pela volta de uma montagem que falhou. */
     public static void place(ServerLevel level, RocketPortrait portrait, BlockPos origin, int fuelMb) throws RocketException {
-        List<Placement> plan = plan(level, portrait, origin, fuelMb);
+        place(level, portrait, origin, FuelLoad.chemical(fuelMb));
+    }
+
+    /** Como acima, com a carga por combustível (tanques de cada tipo e a carga dos motores do Tier 2). */
+    public static void place(ServerLevel level, RocketPortrait portrait, BlockPos origin, FuelLoad fuel) throws RocketException {
+        List<Placement> plan = plan(level, portrait, origin, fuel);
         EngineForming.suspended(() -> commit(level, plan));
     }
 
+    /**
+     * Quanto devolver a cada bloco que guarda carga (posição local -> mB): o combustível de cada tipo repartido entre os tanques do tipo dele
+     * ({@link RocketFuel#distribute}, por igual), o núcleo entre os motores nucleares e o hélio-3 entre os de fusão. Os blocos de motor ficam
+     * com o sinal trocado (negativo = carga de motor, -1 - mB), para o plano saber o que é cada um.
+     */
+    private static java.util.Map<Long, Integer> shares(RocketPortrait portrait, FuelLoad fuel) {
+        java.util.Map<Long, Integer> out = new java.util.HashMap<>();
+        for (RocketBlockKind kind : RocketBlockKind.values()) {
+            Propellant tankFuel = RocketSpecs.tankPropellant(kind);
+            EngineType engine = EngineType.of(kind);
+            Propellant charge = engine == null ? null : engine.chargePropellant();
+            Propellant propellant = tankFuel != null ? tankFuel : charge;
+            if (propellant == null) {
+                continue;
+            }
+            List<BlockPos> positions = portrait.positionsOf(kind);
+            int[] capacities = new int[positions.size()];
+            java.util.Arrays.fill(capacities, tankFuel != null ? RocketSpecs.TANK_CAPACITY_MB : engine.chargePerBlockMb());
+            int[] given = RocketFuel.distribute((int) Math.min(Integer.MAX_VALUE, Math.floor(fuel.get(propellant))), capacities);
+            for (int i = 0; i < positions.size(); i++) {
+                out.put(positions.get(i).asLong(), tankFuel != null ? given[i] : -1 - given[i]);
+            }
+        }
+        return out;
+    }
+
     /** Confere o espaço (chunks carregados, nada que não possa ser substituído) e prepara as colocações. Não toca no mundo. */
-    private static List<Placement> plan(ServerLevel level, RocketPortrait portrait, BlockPos origin, int fuelMb) throws RocketException {
-        List<BlockPos> tanks = portrait.tankPositions();
-        int[] capacities = new int[tanks.size()];
-        java.util.Arrays.fill(capacities, RocketSpecs.TANK_CAPACITY_MB);
-        int[] shares = RocketFuel.distribute(fuelMb, capacities);
+    private static List<Placement> plan(ServerLevel level, RocketPortrait portrait, BlockPos origin, FuelLoad fuel) throws RocketException {
+        java.util.Map<Long, Integer> shares = shares(portrait, fuel);
 
         List<Placement> plan = new ArrayList<>(portrait.blockCount());
         for (int y = 0; y < portrait.sizeY; y++) {
@@ -109,9 +142,11 @@ public final class RocketLanding {
                         throw new RocketException(RocketException.Reason.SPACE_OCCUPIED, world.getX(), world.getY(), world.getZ());
                     }
                     BlockPos local = new BlockPos(x, y, z);
-                    int tankIndex = tanks.indexOf(local);
-                    plan.add(new Placement(world, state, portrait.blockEntities().get(local.asLong()),
-                            tankIndex >= 0 ? shares[tankIndex] : 0, tankIndex >= 0));
+                    Integer share = shares.get(local.asLong());
+                    boolean tank = share != null && share >= 0;
+                    boolean charge = share != null && share < 0;
+                    plan.add(new Placement(world, state, portrait.blockEntities().get(local.asLong()), share == null ? 0 : tank ? share : -1 - share,
+                            tank, charge));
                 }
             }
         }
@@ -138,13 +173,15 @@ public final class RocketLanding {
                 }
                 if (p.tank() && level.getBlockEntity(p.pos()) instanceof RocketFuelTankBlockEntity tank) {
                     tank.setFuel(p.fuelMb());
+                } else if (p.charge() && level.getBlockEntity(p.pos()) instanceof EngineChargeBlockEntity engine) {
+                    engine.setCharge(p.fuelMb());
                 }
             }
         }
         // passe final: avisa os vizinhos e manda os dados dos block entities (o tanque mostra a carga ao olhar)
         for (Placement p : plan) {
             level.updateNeighborsAt(p.pos(), p.state().getBlock());
-            if (p.nbt() != null || p.tank()) {
+            if (p.nbt() != null || p.tank() || p.charge()) {
                 level.sendBlockUpdated(p.pos(), p.state(), p.state(), Block.UPDATE_CLIENTS);
             }
         }

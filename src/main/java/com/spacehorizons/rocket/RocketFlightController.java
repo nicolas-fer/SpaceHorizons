@@ -106,7 +106,7 @@ final class RocketFlightController {
         boolean parachute = control.has(RocketControlPayload.FLAG_PARACHUTE) || (edges & RocketControlPayload.FLAG_PARACHUTE) != 0;
         boolean nextSas = (edges & RocketControlPayload.FLAG_NEXT_SAS) != 0;
 
-        double fuel = rocket.fuelMb();
+        com.spacehorizons.space.flight.FuelLoad fuel = rocket.fuel();
         Local landedLocal = new Local(rocket.getX(), rocket.getY(), rocket.getZ(), 0.0, 0.0, 0.0);
         Quaternionf attitude = new Quaternionf(rocket.attitude());
         Quaterniond landedAttitude = new Quaterniond(attitude.x, attitude.y, attitude.z, attitude.w);
@@ -274,12 +274,12 @@ final class RocketFlightController {
         syncEntity(rocket, r, moving);
 
         if (r.event() == Event.LIFTOFF) {
-            SpaceHorizons.LOGGER.info("Foguete decolou em ({}, {}, {}): {} mB, empuxo {}, massa {} t", fmt(loc.x()), fmt(loc.y()), fmt(loc.z()),
-                    fmt(next.fuelMb()), fmt(rocket.stats().thrust()), fmt(rocket.stats().wetMass(next.fuelMb())));
+            SpaceHorizons.LOGGER.info("Foguete decolou em ({}, {}, {}): {} mB ({}), empuxo {}, massa {} t", fmt(loc.x()), fmt(loc.y()), fmt(loc.z()),
+                    fmt(rocket.fuel().propellantMb()), rocket.fuel(), fmt(rocket.stats().thrust()), fmt(rocket.stats().wetMass(rocket.fuel())));
         } else if (r.event() == Event.SOFT_LANDING) {
             LandingPreloadDriver.release(f);
             SpaceHorizons.LOGGER.info("Foguete pousou suave em ({}, {}, {}): v vertical {} b/t, horizontal {} b/t, inclinação {}°, {} mB restantes",
-                    fmt(loc.x()), fmt(loc.y()), fmt(loc.z()), fmt(r.impactVertical()), fmt(r.impactHorizontal()), fmt(r.tiltDegrees()), fmt(next.fuelMb()));
+                    fmt(loc.x()), fmt(loc.y()), fmt(loc.z()), fmt(r.impactVertical()), fmt(r.impactHorizontal()), fmt(r.tiltDegrees()), rocket.fuel());
         }
 
         if (zone != null && !f.warnedNoSpace && next.flying() && Zones.shouldLeave(zone.planet(), loc.y()) && TravelTransfers.findSpace(server) == null) {
@@ -355,8 +355,8 @@ final class RocketFlightController {
         }
         rocket.setThrottle((float) next.throttle());
         rocket.syncFlightData(next.mode(), (byte) next.sas().ordinal(), next.state() != null ? (float) next.state().heat() : 0.0F);
-        if (next.flying()) {
-            rocket.setFuelMb(next.fuelMb());
+        if (next.flying() && next.state() != null) {
+            rocket.setFuel(next.state().fuel());
         }
     }
 
@@ -372,7 +372,11 @@ final class RocketFlightController {
         rocket.setAttitude(localAttitude);
         rocket.setThrottle((float) r.next().throttle());
         rocket.syncFlightData(r.next().mode(), (byte) r.next().sas().ordinal(), r.next().state() != null ? (float) r.next().state().heat() : 0.0F);
-        rocket.setFuelMb(r.next().fuelMb());
+        if (r.next().state() != null) {
+            rocket.setFuel(r.next().state().fuel());
+        } else {
+            rocket.setFuelMb(r.next().fuelMb());
+        }
         // indo ao espaço, a posição real acompanha o foguete (o dado sincronizado e o NBT da recriação); vindo dele, o foguete volta a andar
         f.spacePos = realInSpace;
         rocket.setVirtualSpacePosition(realInSpace);
@@ -517,7 +521,8 @@ final class RocketFlightController {
             if (s.zoneBody() == null) {
                 return;
             }
-            state = FrameBridge.fromDimension(s.zoneBody(), clock, rate, new Local(at.x(), at.y(), at.z(), 0.0, 0.0, 0.0), rocket.fuelMb());
+            state = FrameBridge.fromDimension(s.zoneBody(), clock, rate, new Local(at.x(), at.y(), at.z(), 0.0, 0.0, 0.0), rocket.fuelMb())
+                    .withFuelLoad(rocket.fuel());
         }
         RocketFlight flight = rocket.flight();
         RocketTelemetryPayload payload = RocketTelemetryBuilder.build(state, s.mode(), s.sas(), s.throttle(), s.zoneBody() == null,

@@ -12,6 +12,12 @@
     "spacehorizons:ship_bridge",
     "spacehorizons:ship_impulse_engine",
     "spacehorizons:ship_seat",
-    "spacehorizons:ship_airlock"
+    "spacehorizons:ship_airlock",
+    "spacehorizons:hydrogen_tank",
+    "spacehorizons:xenon_tank",
+    "spacehorizons:rtg_generator",
+    "spacehorizons:nuclear_engine",
+    "spacehorizons:ion_engine",
+    "spacehorizons:fusion_engine"
   ]
 }

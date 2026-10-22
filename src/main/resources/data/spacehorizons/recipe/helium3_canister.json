@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "N": "spacehorizons:steel_nugget",
+    "S": "spacehorizons:steel_plate",
+    "T": "spacehorizons:titanium_plate"
+  },
+  "pattern": [
+    " N ",
+    "S S",
+    "STS"
+  ],
+  "result": {
+    "id": "spacehorizons:helium3_canister"
+  }
+}

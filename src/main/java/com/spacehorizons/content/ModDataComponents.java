@@ -60,6 +60,15 @@ public final class ModDataComponents {
                     .persistent(Codec.intRange(0, RocketSpecs.TANK_CAPACITY_MB))
                     .networkSynchronized(ByteBufCodecs.VAR_INT));
 
+    /**
+     * Carga de um motor do Tier 2 quebrado (núcleo do nuclear ou hélio-3 do de fusão), em mB; fica no item do bloco e volta ao motor quando ele é
+     * colocado.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> ENGINE_CHARGE_MB =
+            COMPONENTS.registerComponentType("engine_charge_mb", builder -> builder
+                    .persistent(Codec.intRange(0, Integer.MAX_VALUE))
+                    .networkSynchronized(ByteBufCodecs.VAR_INT));
+
     private ModDataComponents() {
     }
 }

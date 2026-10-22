@@ -1,0 +1,47 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "entries": [
+        {
+          "type": "minecraft:alternatives",
+          "children": [
+            {
+              "type": "minecraft:item",
+              "condition": "minecraft:tool/can_silk_touch",
+              "name": "spacehorizons:mars_regolith"
+            },
+            {
+              "type": "minecraft:alternatives",
+              "children": [
+                {
+                  "type": "minecraft:item",
+                  "condition": {
+                    "type": "minecraft:table_bonus",
+                    "chances": [
+                      0.1,
+                      0.14285715,
+                      0.25,
+                      1.0
+                    ],
+                    "enchantment": "minecraft:fortune"
+                  },
+                  "name": "spacehorizons:rare_earth_dust"
+                },
+                {
+                  "type": "minecraft:item",
+                  "name": "spacehorizons:mars_regolith"
+                }
+              ],
+              "condition": {
+                "type": "minecraft:survives_explosion"
+              }
+            }
+          ]
+        }
+      ],
+      "rolls": 1
+    }
+  ],
+  "random_sequence": "spacehorizons:blocks/mars_regolith"
+}

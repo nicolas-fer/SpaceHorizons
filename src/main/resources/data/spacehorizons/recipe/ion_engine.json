@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:titanium_plate",
+    "B": "spacehorizons:basic_circuit",
+    "R": "spacehorizons:rare_earth_dust",
+    "E": "spacehorizons:rocket_engine"
+  },
+  "pattern": [
+    "PBP",
+    "RER",
+    "P P"
+  ],
+  "result": {
+    "id": "spacehorizons:ion_engine"
+  }
+}

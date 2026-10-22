@@ -5,6 +5,8 @@ import java.util.UUID;
 
 import com.mojang.serialization.Codec;
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.space.flight.FuelLoad;
+import com.spacehorizons.space.flight.Propellant;
 import com.spacehorizons.space.flight.RocketStats;
 
 import net.minecraft.nbt.CompoundTag;
@@ -76,8 +78,11 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     private @Nullable UUID pendingPortraitId;
     private RocketStats stats = RocketSpecs.statsFor(RocketCensus.EMPTY);
     private final RocketFlight flight = new RocketFlight();
-    /** Combustível em mB com fração (o consumo do voo é fracionário); o dado sincronizado é só o valor arredondado para baixo. */
-    private double fuelMb;
+    /**
+     * Combustível por tipo, em mB com fração (o consumo do voo é fracionário); o dado sincronizado é só o total com massa, arredondado para baixo.
+     * O foguete químico só tem {@link Propellant#CHEMICAL}; os do Tier 2 têm hidrogênio, xenônio, hélio-3 e o núcleo nuclear.
+     */
+    private FuelLoad fuel = FuelLoad.EMPTY;
     /** Atitude no servidor (a fonte da verdade) e a interpolação dela no cliente (tick anterior, atual e alvo sincronizado). */
     private final Quaternionf attitude = new Quaternionf();
     private final Quaternionf attitudePrev = new Quaternionf();
@@ -192,14 +197,25 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         this.stats = this.ship ? com.spacehorizons.ship.ShipLiftoff.stats(this.nozzlesDown, this.portrait.census()) : this.portrait.stats();
     }
 
+    /** O combustível QUÍMICO, em mB (o único do foguete do Tier 1; os do Tier 2 estão em {@link #fuel()}). */
     public double fuelMb() {
-        return this.fuelMb;
+        return this.fuel.get(Propellant.CHEMICAL);
     }
 
-    /** Combustível em mB, limitado à capacidade dos tanques; sincroniza o valor arredondado para baixo. */
+    /** Combustível químico em mB, limitado à capacidade dos tanques (os outros combustíveis ficam como estão). */
     public void setFuelMb(double mb) {
-        this.fuelMb = Math.max(0.0, Math.min(this.stats.fuelCapacityMb(), mb));
-        this.entityData.set(FUEL_MB, (float) Math.floor(this.fuelMb));
+        setFuel(this.fuel.with(Propellant.CHEMICAL, mb));
+    }
+
+    /** Toda a carga, por combustível. */
+    public FuelLoad fuel() {
+        return this.fuel;
+    }
+
+    /** A carga por combustível, cada um limitado à capacidade (tanques e motores); sincroniza o total com massa, arredondado para baixo. */
+    public void setFuel(FuelLoad load) {
+        this.fuel = load.clampTo(this.stats.capacity());
+        this.entityData.set(FUEL_MB, (float) Math.floor(this.fuel.propellantMb()));
     }
 
     /** Combustível como o cliente enxerga (sincronizado). */
@@ -607,7 +623,15 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     @Override
     protected void addAdditionalSaveData(ValueOutput output) {
         output.store("Portrait", CompoundTag.CODEC, this.portrait.save());
-        output.putDouble("FuelMb", this.fuelMb);
+        output.putDouble("FuelMb", this.fuelMb());
+        if (!this.fuel.onlyChemical()) {
+            // Tier 2: os outros combustíveis (o químico continua em "FuelMb", então saves antigos e novos se leem dos dois lados)
+            for (Propellant p : Propellant.values()) {
+                if (p != Propellant.CHEMICAL && this.fuel.get(p) > 0.0) {
+                    output.putDouble("Fuel_" + p.key(), this.fuel.get(p));
+                }
+            }
+        }
         output.putBoolean("Ship", this.ship);
         output.putInt("NozzlesDown", this.nozzlesDown);
         output.putFloat("Throttle", this.throttle());
@@ -634,7 +658,13 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
                 SpaceHorizons.LOGGER.error("Retrato do foguete corrompido; a entidade fica sem blocos", e);
             }
         });
-        this.setFuelMb(input.getDoubleOr("FuelMb", 0.0));
+        FuelLoad load = FuelLoad.chemical(input.getDoubleOr("FuelMb", 0.0));
+        for (Propellant p : Propellant.values()) {
+            if (p != Propellant.CHEMICAL) {
+                load = load.with(p, input.getDoubleOr("Fuel_" + p.key(), 0.0));
+            }
+        }
+        this.setFuel(load);
         this.ship = input.getBooleanOr("Ship", false);
         this.setNozzlesDown(input.getIntOr("NozzlesDown", 0));
         this.setThrottle(input.getFloatOr("Throttle", 0.0F));
