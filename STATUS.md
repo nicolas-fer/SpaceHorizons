@@ -15,7 +15,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | 🟡 | **Conteúdo do Tier 2**: materiais de Marte, combustíveis, tanques e motores multibloco nuclear, iônico e fusão (texturas provisórias). | `docs/PLANO_TIERS.md`, `docs/TIER2_IDS.md` |
 | 🟡 | **Arte do Tier 2**: variantes para a página de escolha. | `docs/TIER2_IDS.md` |
 | 🟡 | **Gerador de planetas por parâmetros** (base de Marte). | `docs/PLANO_TIERS.md` |
-| 🟡 | **Plantas holográficas de montagem**. | `docs/PLANO_TIERS.md` |
+| ✅ | **Plantas holográficas de montagem**: item `rocket_blueprint` (menu; salto suborbital, orbital e lunar, esta trancada em sobrevivência até a história), holograma na `launch_pad` (falta = fantasma, errado = vermelho), salvar o próprio foguete como planta, progresso e destino no painel. Autoteste `blueprint` 34/0, `multiblock` 169/0. Arte do item provisória. | `docs/PLANO_TIERS.md` (seção 8) |
 | ✅ | **Naves, fase 2b: descida e pouso** (estaleiro → entidade → pouso no motor → blocos no chão), autoteste `shipdescent` 40/0 na regressão. | `docs/PLANO_NAVES.md` |
 | ✅ | **Plano: andar na nave dentro do planeta** decidido: convés andável estilo Create em movimento (máquinas param), âncora em blocos reais parada no ar. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 
@@ -24,7 +24,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 1. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): spike do convés (S5), spike da âncora (S6), depois as fases 2e a 2g.
 2. Naves 2c (EVA perto do casco) e 2d (outras naves e foguetes vistos de dentro).
 3. Desorbitação real no autoteste da descida (queima retrógrada saindo de órbita fechada) e corte proporcional na circularização.
-4. Tiers: plantas holográficas de montagem → gerador de planetas por parâmetros e **Marte** → sistema solar centrado no sol.
+4. Tiers: gerador de planetas por parâmetros e **Marte** → sistema solar centrado no sol.
+5. Arte final do item `rocket_blueprint` (skill `minecraft-entity`).
 
 ## Mapa geral
 
@@ -42,7 +43,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | Reentrada sem travadas, foguete estacionado no espaço, piloto automático criativo | |
 | ✅ | Multiblocos de tanque e motor, foguetes grandes (até 8.192 blocos), painel de projeto | Etapa 1 dos tiers |
 | ✅ | SAS horizontal (circularizar) no foguete e na nave | 21/10/2026 |
-| 🟡 | Plantas holográficas de montagem | Tiers, seção 4 |
+| ✅ | Plantas holográficas de montagem | Autoteste `blueprint` 34/0 (22/10/2026); arte do item provisória |
 | 🟡 | Gerador de planetas por parâmetros e Marte | Tiers, etapa 2 (gerador em andamento) |
 | ⬜ | Sistema solar centrado no sol (viagem a Marte) | Tiers, etapa 3 |
 | ⬜ | Base lunar (salas seladas, energia, recursos lunares, combustível na Lua) | Sobrevivência, etapa 4 |
@@ -91,6 +92,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 - **Risco aberto do S2**: uma perda de blocos no estaleiro numa rodada, não reproduzida (`docs/PLANO_NAVES.md`, resultado do S2).
 - **Documentação**: o README tem seções repetidas (espaço aberto, sobrevivência, como rodar e como testar aparecem duas vezes);
   `docs/MISSAO_LUA.md` tem números do foguete antigo.
+- **Plantas holográficas**: a planta não gira; baús e blocos sem modelo não ganham fantasma (contam no progresso); a planta lunar trancada em
+  sobrevivência não foi testada (autoteste em criativo); plantas muito grandes, Sodium e Iris não medidos.
 - **Não testado**: servidor dedicado, dois jogadores reais, reabrir o mundo com nave em voo.
 
 ## Decisões em aberto
