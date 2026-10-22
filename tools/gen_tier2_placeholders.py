@@ -207,7 +207,7 @@ def gen_tanks():
         if FORCE or not os.path.exists(state):
             subprocess.check_call([sys.executable, os.path.join("tools", "gen_connected_block.py"), "--name", id_,
                                    "--texture", NS + ":block/" + id_ + "_frame", "--texture-end", NS + ":block/" + id_ + "_frame_end",
-                                   "--frame", "2", "--render-type", "solid", "--particle", NS + ":block/" + id_])
+                                   "--frame", "4", "--render-type", "solid", "--particle", NS + ":block/" + id_])
 
 
 # ------------------------------------------------------------------ motores
