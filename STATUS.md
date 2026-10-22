@@ -3,7 +3,7 @@
 Painel único do projeto: o que está pronto, o que está em andamento e o que vem depois. Os detalhes técnicos continuam nos
 planos de `docs/`; aqui fica só o estado. **Atualize este arquivo a cada etapa concluída ou começada.**
 
-Última atualização: 21/10/2026.
+Última atualização: 22/10/2026.
 
 Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planejado · 🧪 pronto em código, falta verificar em jogo · ⛔ bloqueado
 
@@ -11,6 +11,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | | O quê | Onde |
 |---|---|---|
+| 🟡 | **Spike S5: convés andável** (estilo Create, jogador no referencial da nave), autoteste `shipdeck`. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Naves, fase 2b: descida e pouso** (estaleiro → entidade → pouso no motor → blocos no chão), autoteste `shipdescent` 40/0 na regressão. | `docs/PLANO_NAVES.md` |
 | ✅ | **Plano: andar na nave dentro do planeta** decidido: convés andável estilo Create em movimento (máquinas param), âncora em blocos reais parada no ar. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 
@@ -63,7 +64,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | 2b | Descida (critério de entrada do foguete), pouso no motor e desmontagem no chão sem perder blocos, NBT nem combustível |
 | ⬜ | 2c | EVA perto do casco e jogador livre no espaço |
 | ⬜ | 2d | Outras naves e foguetes vistos de dentro |
-| ⬜ | S5, S6, 2e a 2g | Andar na nave dentro do planeta: convés andável (estilo Create) e âncora no ar |
+| 🟡 | S5 | Spike do convés andável (em andamento) |
+| ⬜ | S6, 2e a 2g | Andar na nave dentro do planeta: âncora no ar, convés na nave real, trocas sem costura |
 | ⬜ | 3 | Dobra, escudos, hangar, luz do sol, ar selado; voo assistido estilo No Man's Sky |
 
 ### Tier 4: dobra e sistemas procedurais
