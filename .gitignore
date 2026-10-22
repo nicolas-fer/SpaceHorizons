@@ -52,3 +52,5 @@ TRANSCRICAO_CHAT.*
 
 # saída da regressão paralela
 regression.log
+_texturas/
+art/planta/out/

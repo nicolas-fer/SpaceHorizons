@@ -7,12 +7,34 @@ um foguete só, pela física e pelas zonas de verdade (`rocket/*`, `space/flight
 
 ## O foguete
 
-O foguete de teste A do voo (4 motores, 12 tanques, Δv 253 b/t cheio) **não basta**: o mesmo piloto o leva à Lua, pousa, decola e volta, mas
-chega à Terra com ~75 b/t e precisa de ~89 para o pouso (bate a ~14 b/t; `MissionSimTest`). A missão pede ~263 b/t. O foguete da missão
-(voo `M`, `FlightDevtest`) é 3x3: 9 motores embaixo, 45 tanques (5 andares), cockpit e 8 cascos no andar de cima, paraquedas e 2 pernas.
-66 blocos, 16,3 t secas, 160,3 t cheio, empuxo 22,5, Δv 292,6 b/t, TWR 1,75 na Terra e ~30 na Lua.
+O foguete de teste A do voo (4 motores, 12 tanques avulsos, Δv 253 b/t cheio) **não basta**: o mesmo piloto o leva à Lua, pousa, decola e
+volta, mas chega à Terra sem Δv para o pouso (`MissionSimTest`). A missão pede ~264 b/t, e o painel só promete a missão inteira com 5% de
+folga (276,4 b/t, `MissionBudget`).
 
-## Resultado em jogo (relógio de lançamento 68.300, 52.289 ticks, 249 s a 300 ticks/s)
+O foguete da missão (voo `M`, `FlightDevtest`) é 3x3, **agora com os multiblocos**: camada de 9 motores
+avulsos embaixo (a camada plana não forma o cubo 3x3x3, ver `docs/DESIGN_FOGUETE.md`), **uma coluna de tanque 3x3x5** (45 blocos, 180.000 mB),
+cockpit e 8 cascos no andar de cima, paraquedas e 2 pernas (66 blocos).
+
+| | antes dos multiblocos (45 tanques avulsos) | agora (coluna 3x3x5 formada) |
+| --- | --- | --- |
+| Massa seca dos tanques | 9,0 t (45 x 0,2) | 5,16 t (`0,2 x 45 x (0,4 + 0,6 x 78 / 270)`, 78 faces expostas) |
+| Massa seca total | 16,3 t | 12,46 t |
+| Massa cheia | 160,3 t | 156,46 t (144 t de combustível) |
+| Empuxo | 22,5 | 22,5 |
+| Δv cheio | 292,6 b/t | **323,9 b/t** |
+| TWR na Terra | 1,75 | 1,80 |
+
+O Δv novo vem de `128 x ln(156,46 / 12,46)` (ve = 128 b/t, massas de `FlightConstants`; conferido com os 263,97 + 59,9 medidos em jogo); o
+`MissionSim.ROCKET_M` dos testes ainda usa os 45 tanques avulsos (Δv 292,6) e continua verde, e o teste
+`projetoDeLuaPousoEVoltaFechaAMissaoInteiraNoSimulador` voa o projeto novo (coluna formada) até o fim.
+
+## Resultado em jogo
+
+A missão em jogo (`-PshOnly=mission`) com o foguete novo (coluna 3x3x5) fechou com **Δv total 263,97 b/t de 323,9 e sobraram 59,9 b/t**
+(o primeiro fechamento, abaixo, com o foguete antigo, gastou 263,1 de 292,6 e sobraram 29,5). O Δv de cada fase é quase só da manobra, então a
+tabela por fase da primeira rodada continua valendo como referência (a rodada nova só difere 0,87 b/t no total); não foi refeita fase a fase.
+
+### Primeira rodada (foguete antigo; relógio de lançamento 68.300, 52.289 ticks, 249 s a 300 ticks/s)
 
 | Fase | Resultado | Δv (b/t) |
 | --- | --- | --- |
@@ -32,7 +54,7 @@ chega à Terra com ~75 b/t e precisa de ~89 para o pouso (bate a ~14 b/t; `Missi
 | Correções da volta | nenhuma necessária (erro < 25 blocos) | 0 |
 | Reentrada (chega a 14.000 de altitude, 109,7 b/t) | freio com o motor de 3.000 a 1.200; entra na dimensão da Terra a 1.246, 14,7 b/t | 1,65 + 87,8 |
 | Pouso na Terra | paraquedas abre a 8 b/t, **vertical −0,44, horizontal 0,01, inclinação 1,4°**, 5.276 mB restantes | |
-| **Total** | **263,1 de 292,6** (sobram 29,5) | |
+| **Total** | **263,1 de 292,6** (sobram 29,5); com o foguete novo, 263,97 de 323,9 (sobram 59,9) | |
 
 Zonas: LEO e a captura ficam na dimensão de espaço; a descida lunar cruza para `spacehorizons:moon` a 420 de altura (altitude de entrada
 1.000, entrada lenta a 300 sobre o terreno); a decolagem sai para o espaço aos 1.250. O foguete espera ao máximo 5 ticks pelo piloto nas
@@ -55,10 +77,10 @@ print mostra `tela=nenhuma`) e o cliente acompanha em 3ª pessoa o tempo todo. N
   órbita saía com o apoastro dezenas de milhares de blocos acima; o piloto agora queima na horizontal segurando a altitude. Isso é do piloto
   de teste, não do jogo, mas é o que o jogador também tem de fazer.
 
-## Roteiro da missão (orçamento de Δv por fase, foguete de 292 b/t)
+## Roteiro da missão (orçamento de Δv por fase, foguete de 324 b/t)
 
-1. **Plataforma**: monte o foguete (cockpit, motores, tanques, paraquedas, pernas) e abasteça. Para a ida e volta o Δv precisa de ≥ 270 com folga:
-   o foguete de 253 não fecha a volta. Lance para o **leste** (o planejador avisa se a órbita for para o oeste).
+1. **Plataforma**: monte o foguete (cockpit, motores, tanques, paraquedas, pernas) e abasteça. Para a ida e volta o Δv precisa de ≥ 276 (o painel promete com 5% de folga):
+   o foguete de 253 não fecha o pouso lunar. Lance para o **leste** (o planejador avisa se a órbita for para o oeste).
 2. **Subida até a órbita baixa** (~79 b/t, ~900 ticks): curva de gravidade para o leste (vertical até 100, inclina até a horizontal aos 3.000),
    corte com Ap 6.000; no apoastro, queime na horizontal até Pe 5.200. Fique acima de 5.000 (altitude de saída).
 3. **Janela da TLI** (~27 b/t): o painel "Moon planner" mostra a fase atual e a ideal e acende "queime agora". Lance perto do relógio em
@@ -77,7 +99,7 @@ print mostra `tela=nenhuma`) e o cliente acompanha em 3ª pessoa o tempo todo. N
    retrógrado com o motor de ~3.000 a ~1.200 de altura até a horizontal ao chão ficar ≤ 25 b/t (a dimensão da Terra só carrega o terreno
    assim), abra o paraquedas abaixo de 8 b/t e deixe o motor só para suavizar o fim. Guarde ≥ 90 b/t para isso.
 
-Total ~263 b/t; as fases mais caras são a órbita baixa (79), a reentrada (90) e o pouso e decolagem lunares (47).
+Total ~264 b/t (263,97 na rodada com o foguete novo); as fases mais caras são a órbita baixa (79), a reentrada (90) e o pouso e decolagem lunares (47).
 
 ## Como rodar
 
@@ -91,3 +113,31 @@ o jogo é `MissionSimTest`; o do planejador, `LunarPlannerTest`.
 
 Não verificado: o jogador no teclado (o piloto é do servidor), o painel guiando a correção de meio de curso e a volta (não há planejador
 delas no painel; só o da TLI), outros relógios de lançamento em jogo, a reentrada com paraquedas só (sem freio no espaço) a 110 b/t.
+
+## Plantas embutidas e painel de projeto (guia para montar o foguete)
+
+Com `docs/PLANO_TIERS.md` (seção 8) o jogador não precisa descobrir o foguete: o item `rocket_blueprint` (planta) abre o menu de plantas e a
+`launch_pad` mostra o holograma (peça que falta = fantasma, errada = vermelho). Plantas embutidas (`rocket/blueprint/Blueprints`, as mesmas
+que o `MissionBudgetTest` voa no simulador), cada uma com uma base de plataformas:
+
+| Planta | Projeto | Blocos (+ plataformas) | Destino prometido pelo painel |
+| --- | --- | --- | --- |
+| `suborbital` | motor 1x1, coluna 1x1x8, cockpit, paraquedas | 11 + 9 | salto suborbital |
+| `orbital` | motor 2x2x2, coluna 1x1x4, cockpit, paraquedas | 14 + 16 | órbita baixa (Δv 164,9 b/t) |
+| `lunar` | camada 3x3 de motores, coluna 3x3x5, cockpit, paraquedas, 8 cascos (sem pernas) | 64 + 25 | Lua, pouso e volta (é este roteiro) |
+
+A `lunar` é trancada em sobrevivência até a história (livre no criativo). Sem as pernas do foguete `M` ela pesa 12,26 t seca e dá Δv ~325,8.
+
+O **painel de projeto** (olhar a plataforma de mão vazia, clique direito fixa) calcula o Δv, o TWR e o destino do que está montado, com os
+mesmos números da montagem (`RocketSpecs.statsFor`), e usa as fases desta missão como orçamento (`MissionBudget`, margem de 5%):
+
+| Destino | Δv medido (b/t) | Exigido (+5%) |
+| --- | --- | --- |
+| salto suborbital | 50,0 | 52,5 |
+| órbita baixa (TWR >= 1,2) | 78,8 | 82,7 |
+| Lua e volta, sem pousar (paraquedas) | 216,0 | 226,8 |
+| Lua, pouso e volta (paraquedas) | 263,2 | 276,4 |
+
+Os orçamentos do painel ainda usam as fases da primeira rodada (263,2 no total; a rodada nova deu 263,97, dentro dos 5% de folga). O painel também
+aponta no bloco certo o que impede ou piora o foguete (sem cockpit, motor sem tanque, tanque avulso que não fechou a coluna, falta de
+paraquedas, TWR baixo). Limites: o `MissionPilot` só foi ajustado ao foguete `M` (um motor 3x3x3 de TWR 4 bate no pouso lunar) e o painel não considera a janela da Lua.
