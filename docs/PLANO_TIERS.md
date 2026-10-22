@@ -81,7 +81,7 @@ A montagem continua a mesma (blocos livres sobre a plataforma, clique no cockpit
 | # | Etapa | Tier |
 |---|---|---|
 | 1 | Multiblocos de tanque e motor e guias de montagem (painel primeiro, depois plantas) | 1 (multiblocos e painel feitos, plantas pendentes: seção 7) |
-| 2 | Gerador de planetas por parâmetros e Marte | 1 |
+| 2 | Gerador de planetas por parâmetros e Marte | 1 (gerador e Marte feitos, Marte fora da órbita: seção 8) |
 | 3 | Sistema solar centrado no sol (viagem a Marte) | 1 |
 | 4 | Motores e planetas do Tier 2 | 2 |
 | 5 | Naves andáveis com voo assistido (`PLANO_NAVES.md`) | 3 |
@@ -109,3 +109,30 @@ Implementado e verificado em jogo (`-PshOnly=multiblock`); números, fórmulas e
 
 Verificação: 839 testes unitários passando; autoteste `-PshOnly=multiblock` com 169 verificações (formação no mundo, galão na estrutura, projeto com defeitos, e para cada projeto o painel, a montagem, o voo curto, o pouso e as estruturas formadas de novo; o foguete grande de 1.650 blocos e o gigante de ~6.700 blocos, com o retrato em partes); `flight` (A a D), `mission` (263,97 b/t, pouso suave nos dois corpos, agora com a coluna 3x3x5 formada), `shipconvert` e `ship` sem falhas. No gigante (34 de largura) o pouso em terreno irregular pode ser recusado com `SPACE_OCCUPIED` (o foguete fica pousado intacto); o autoteste aceita essa recusa.
 
+
+## 8. Etapa 2 (gerador de planetas e Marte): o que foi feito
+
+Formato e parâmetros em `docs/GERADOR_PLANETAS.md`.
+
+- **Planeta por parâmetros, data-driven**: `data/spacehorizons/planet/<id>.json` (lido do jar por `planet/spec/PlanetSpec`, com validação e
+  mensagens de erro) descreve circunferência, gravidade, estilo, relevo, paleta de superfície e subsolo (blocos com reserva), água,
+  atmosfera, veios de minério e duração do dia. `Planets` só guarda os ids.
+- **Generalizado a partir da Lua**: `ParametricTerrain` substitui o `MoonTerrain` (as constantes viraram parâmetros; com o JSON da Lua o relevo
+  é idêntico, conferido por soma de controle), com cordilheiras e vulcões em escudo opcionais e calota configurável; `SurfacePalette` por
+  planeta alimenta chunks (`PlanetChunkGenerator`, agora com subsolo e veios), LOD do DH (`PlanetLodGenerator`) e malha orbital
+  (`PlanetMeshPalette`, cor declarada ou cor de mapa do topo); `AtmosphereModel` ganhou `breathable` (oxigênio) e a cor do espalhamento e a
+  profundidade óptica do limbo (shader `atmosphere/limb`); o céu de um planeta fora do sistema vem de um corpo destacado
+  (`SolarSystem.skyBodyOf`) que só gira com o dia dele. A Terra continua vanilla; o JSON dela repete os números de antes.
+- **Marte** (`spacehorizons:mars`, world preset para mundos novos): R ≈ 55.412 (0,53 da Terra do mod), gravidade 0,38, dia de 24.660 ticks,
+  planícies escuras, terras altas, crateras, cordilheiras, vulcões de 110 blocos com caldeira, calotas de gelo, céu caramelo, atmosfera fina
+  sem oxigênio, poeira no bioma, veio de titânio. `mars_regolith` e `mars_titanium_ore` com reserva vanilla (`red_sand`/terracota/`iron_ore`)
+  até o conteúdo do Tier 2 existir. Acesso por `/spacehorizons goto mars [x z]`; fora da física orbital até a etapa 3.
+
+Verificação (22/10/2026): 898 testes unitários passando (novos: formato e recusa de parâmetros inválidos, Marte determinístico, periódico em X,
+faixas de altura, tipos e paleta, crateras e vulcões, veios, céu destacado, dados do jogo coerentes com os parâmetros; a Lua idêntica por
+soma de controle). Autoteste `-PshOnly=mars` com 10 verificações passando (dimensão, gravidade 0,0304, chão da paleta, pé no chão, sol a pino
+ao meio-dia, cratera achada, relevo do mundo = função em 49 colunas, veio achado, veio gerado = função 37/37, vulcão achado); prints do chão de
+dia, do céu (meio-dia, pôr do sol, noite), da cratera vista da borda, do veio, de 1.000 e 5.000 de altitude e de um vulcão. Tick de Marte
+~3 ms, geração de terreno ~6 ms por chunk. `to_d` (Terra: chão, costura, latitudes, Lua no céu, malha orbital a 5.000 e 15.000) e
+`moonback` sem erros. A 1.000 de altitude, logo depois do teleporte, aparece o vão entre os chunks e a malha orbital enquanto o DH gera os
+LODs (o mesmo comportamento conhecido da Terra, `docs/PLANO_LOD_PLANETA.md`).
