@@ -219,6 +219,10 @@ public final class AutoTest {
             shipDeckScenario();
             return;
         }
+        if ("shipanchor".equals(ONLY)) {
+            shipAnchorScenario();
+            return;
+        }
         if ("ship".equals(ONLY)) {
             shipScenario();
             return;
@@ -5405,4 +5409,104 @@ public final class AutoTest {
         }
         return Math.round(6_000 + day / 4);
     }
-}
+
+    // ===================================================================================================================
+    // ÂNCORA NO AR (docs/PLANO_NAVE_ATMOSFERA.md, spike S6): -PshOnly=shipanchor. A nave de ~4.000 blocos para a 60 blocos do chão com o jogador a pé no
+    // convés, ancora (vira blocos reais no ar), o robô anda, abre o baú e liga a fornalha, desancora, voa 100 blocos e ancora de novo; depois monta pela
+    // ponte e ancora com o jogador sentado, e uma nave de ~8.000 blocos mede o tempo. Bloco separado; as medidas ficam em ShipAnchorDevtest.
+    // ===================================================================================================================
+    private void shipAnchorScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "difficulty peaceful");
+        cmd(5, "gamemode survival");
+        step(5, mc -> mc.options.fov().set(90));
+        // (1) a nave desce até parar a 60 blocos do chão, com o jogador em pé no convés
+        step(10, ShipAnchorDevtest::begin);
+        tickerStep(0, waitUntil("ANCHOR: embarcou no convés e a nave chegou ao cliente", 600, ShipAnchorDevtest::aboard));
+        tickerStep(0, waitUntil("ANCHOR: a nave parou a 60 blocos do chão", 400, ShipAnchorDevtest::scriptDone));
+        step(20, ShipAnchorDevtest::stopScript);
+        // (2) recusa sem volume livre
+        step(10, ShipAnchorDevtest::refusalCheck);
+        // (3) ancora com o jogador parado no convés
+        step(20, mc -> ShipAnchorDevtest.anchorNow(mc, "ancorar 1 (em pé no convés)"));
+        tickerStep(0, waitUntil("ANCHOR: ancorou 1", 400, ShipAnchorDevtest::anchored));
+        step(2, mc -> ShipAnchorDevtest.checkAnchored(mc, "ancorar 1 (em pé no convés)", false));
+        step(15, mc -> ShipAnchorDevtest.checkClientAfterAnchor(mc, "ancorar 1 (em pé no convés)"));
+        // (4) areia, cascalho, água e mobs
+        step(5, ShipAnchorDevtest::placeHazards);
+        step(60, ShipAnchorDevtest::checkHazards);
+        // (5) prints: de dentro e de fora
+        step(5, mc -> lookAtPoint(mc, ShipAnchorDevtest.worldPoint(20.5, 6.0, 20.5)));
+        shot(40, "shipanchor_01_dentro");
+        cmd(5, "gamemode spectator");
+        step(10, mc -> {
+            Vec3 eye = ShipAnchorDevtest.outsideEye();
+            mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f", eye.x, eye.y - 1.62, eye.z));
+        });
+        step(10, mc -> lookAtPoint(mc, ShipAnchorDevtest.anchorCenter()));
+        shot(80, "shipanchor_02_fora");
+        cmd(5, "gamemode survival");
+        step(10, ShipAnchorDevtest::standAtStart);
+        // (6) o robô anda até um baú e abre, depois liga a fornalha
+        step(20, mc -> {
+        });
+        tickerStep(0, mc -> ShipAnchorDevtest.walkTo(mc, ShipAnchorDevtest.worldPoint(5.5, 1.0, 2.5), 300, "até o baú"));
+        step(10, mc -> ShipAnchorDevtest.use(mc, ShipAnchorDevtest.CHEST_LOCAL, Direction.SOUTH, "baú"));
+        step(20, ShipAnchorDevtest::checkChestOpen);
+        shot(5, "shipanchor_03_bau_aberto");
+        step(10, mc -> mc.player.closeContainer());
+        step(5, ShipAnchorDevtest::giveFurnaceItems);
+        tickerStep(10, mc -> ShipAnchorDevtest.walkTo(mc, ShipAnchorDevtest.worldPoint(13.5, 1.0, 3.5), 300, "até a fornalha"));
+        step(10, mc -> ShipAnchorDevtest.use(mc, ShipAnchorDevtest.furnaceLocal(), Direction.SOUTH, "fornalha"));
+        step(20, ShipAnchorDevtest::loadFurnace);
+        step(10, mc -> mc.player.closeContainer());
+        step(40, ShipAnchorDevtest::checkFurnaceLit);
+        step(5, mc -> {
+            BlockPos furnace = ShipAnchorDevtest.worldOf(ShipAnchorDevtest.furnaceLocal());
+            lookAtPoint(mc, Vec3.atCenterOf(furnace).add(0.0, 0.0, 0.5));
+        });
+        shot(20, "shipanchor_04_fornalha_acesa");
+        // (7) desancora (comando de dev: o jogador em pé volta ao convés), voa 100 blocos e ancora de novo
+        step(10, ShipAnchorDevtest::standAtStart);
+        step(30, ShipAnchorDevtest::unanchor);
+        step(15, ShipAnchorDevtest::checkClientAfterUnanchor);
+        step(5, ShipAnchorDevtest::fly);
+        tickerStep(0, waitUntil("ANCHOR: voou 100 blocos", 400, ShipAnchorDevtest::scriptDone));
+        step(20, ShipAnchorDevtest::stopScript);
+        step(20, mc -> ShipAnchorDevtest.anchorNow(mc, "ancorar 2 (depois de voar 100 blocos)"));
+        tickerStep(0, waitUntil("ANCHOR: ancorou 2", 400, ShipAnchorDevtest::anchored));
+        step(2, mc -> ShipAnchorDevtest.checkAnchored(mc, "ancorar 2 (depois de voar 100 blocos)", false));
+        step(15, mc -> ShipAnchorDevtest.checkClientAfterAnchor(mc, "ancorar 2 (depois de voar 100 blocos)"));
+        cmd(5, "gamemode spectator");
+        step(10, mc -> {
+            Vec3 eye = ShipAnchorDevtest.outsideEye();
+            mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.2f %.2f %.2f", eye.x, eye.y - 1.62, eye.z));
+        });
+        step(10, mc -> lookAtPoint(mc, ShipAnchorDevtest.anchorCenter()));
+        shot(80, "shipanchor_05_fora_depois_de_voar");
+        cmd(5, "gamemode survival");
+        // (8) monta pela ponte (agachado, mão vazia) e ancora com o jogador sentado
+        step(10, ShipAnchorDevtest::standAtBridge);
+        step(20, mc -> mc.options.keyShift.setDown(true));
+        step(10, ShipAnchorDevtest::clickBridge);
+        step(10, mc -> mc.options.keyShift.setDown(false));
+        step(20, ShipAnchorDevtest::checkBridgeMounted);
+        step(20, mc -> ShipAnchorDevtest.anchorNow(mc, "ancorar 3 (piloto sentado)"));
+        tickerStep(0, waitUntil("ANCHOR: ancorou 3", 400, ShipAnchorDevtest::anchored));
+        step(2, mc -> ShipAnchorDevtest.checkAnchored(mc, "ancorar 3 (piloto sentado)", true));
+        step(15, mc -> ShipAnchorDevtest.checkClientAfterAnchor(mc, "ancorar 3 (piloto sentado)"));
+        // (9) nave grande: o tempo da conversão de ~8.000 blocos
+        step(10, ShipAnchorDevtest::bigShip);
+        tickerStep(0, waitUntil("ANCHOR: nave grande ancorou", 400, ShipAnchorDevtest::bigAnchored));
+        step(2, ShipAnchorDevtest::checkBig);
+        step(20, mc -> {
+            ShipAnchorDevtest.summary();
+            ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+}

@@ -61,7 +61,9 @@ final class ShipCommands {
                                 .executes(ctx -> census(ctx.getSource(), -1))
                                 .then(Commands.argument("id", IntegerArgumentType.integer(1))
                                         .executes(ctx -> census(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "id")))))
-                        .then(Commands.literal("convstatus").executes(ctx -> convStatus(ctx.getSource())))));
+                        .then(Commands.literal("convstatus").executes(ctx -> convStatus(ctx.getSource())))
+                        .then(Commands.literal("anchor").executes(ctx -> anchor(ctx.getSource())))
+                        .then(Commands.literal("unanchor").executes(ctx -> unanchor(ctx.getSource())))));
     }
 
     /** Conta os blocos da nave (a do id, ou a que cerca o operador) e mostra a especificação: massa, empuxo, Δv e combustível. */
@@ -286,6 +288,73 @@ final class ShipCommands {
         source.sendSuccess(() -> Component.literal("Orçamento da conversão: " + ConversionBudget.unitsPerTick() + " blocos por tick, teto de "
                 + ConversionBudget.millisPerTick() + " ms por tick (0 = sem teto)."), false);
         return ConversionBudget.unitsPerTick();
+    }
+
+    // ---------------------------------------------------------------- âncora no ar (spike S6)
+
+    /**
+     * Ancora no ar a nave do jogador (a que ele pilota, a do convés onde anda, a que olha ou a mais perto): ela acomoda na grade e vira blocos reais.
+     * No jogo de verdade a decisão A3 pede um gerador antigravidade; no spike é este comando de dev.
+     */
+    private static int anchor(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = (ServerLevel) player.level();
+        RocketEntity rocket = player.getVehicle() instanceof RocketEntity r ? r : null;
+        if (rocket == null) {
+            var member = com.spacehorizons.ship.deck.DeckCrew.member(player.getUUID());
+            if (member != null && level.getEntity(member.rocketUuid()) instanceof RocketEntity r) {
+                rocket = r;
+            }
+        }
+        if (rocket == null) {
+            rocket = findRocket(player);
+        }
+        if (rocket == null) {
+            source.sendFailure(Component.literal("Nenhuma nave à vista (olhe para uma) nem a menos de 64 blocos."));
+            return 0;
+        }
+        try {
+            ShipAnchors.request(level, rocket);
+            int blocks = rocket.portrait().blockCount();
+            source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "Ancorando a nave (%d blocos) no ar: acomodação na grade e conversão em lotes.",
+                    blocks)), true);
+            return blocks;
+        } catch (ShipConversionException e) {
+            source.sendFailure(Component.literal(e.getMessage()));
+            return 0;
+        }
+    }
+
+    /** Desancora a nave onde o jogador está (ou a âncora mais perto, a menos de 64 blocos): ela volta a entidade e quem estava em pé fica no convés. */
+    private static int unanchor(CommandSourceStack source) throws CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        ServerLevel level = (ServerLevel) player.level();
+        ShipAnchors.get(source.getServer());
+        ShipAnchors.Anchor best = null;
+        double bestDist = 64.0 * 64.0;
+        for (ShipAnchors.Anchor a : ShipAnchors.all()) {
+            if (!a.dimension().equals(level.dimension().identifier())) {
+                continue;
+            }
+            double d = a.box().distanceToSqr(player.position());
+            if (d <= bestDist) {
+                bestDist = d;
+                best = a;
+            }
+        }
+        if (best == null) {
+            source.sendFailure(Component.literal("Nenhuma nave ancorada a menos de 64 blocos."));
+            return 0;
+        }
+        try {
+            RocketEntity ship = ShipAnchors.unanchor(level, best, null);
+            int blocks = ship.portrait().blockCount();
+            source.sendSuccess(() -> Component.literal(String.format(Locale.ROOT, "Nave desancorada: %d blocos de volta a entidade.", blocks)), true);
+            return blocks;
+        } catch (com.spacehorizons.rocket.RocketException e) {
+            source.sendFailure(e.component());
+            return 0;
+        }
     }
 
     private static int convStatus(CommandSourceStack source) {

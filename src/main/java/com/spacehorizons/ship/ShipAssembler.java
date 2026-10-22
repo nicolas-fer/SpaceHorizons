@@ -18,6 +18,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.state.BlockState;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Monta uma nave no chão a partir da ponte ({@code ship_bridge}), com o clique agachado de mão vazia fora do estaleiro: a busca
  * ({@link ShipAssembly}) e a validação são as da montagem do foguete ({@link RocketAssembler}), e a remoção e a entidade também. A nave
@@ -30,6 +32,16 @@ public final class ShipAssembler {
 
     /** O clique agachado na ponte: monta a nave, senta o jogador e conta o que aconteceu. */
     public static void assembleFor(ServerLevel level, BlockPos bridge, ServerPlayer player) {
+        ShipAnchors.Anchor anchor = ShipAnchors.at(level, bridge);
+        if (anchor != null) {
+            // nave ancorada no ar (spike S6): monta de novo sem chão, o jogador senta e quem estava em pé fica no convés
+            try {
+                ShipAnchors.unanchor(level, anchor, player);
+            } catch (RocketException e) {
+                player.sendSystemMessage(e.component());
+            }
+            return;
+        }
         try {
             RocketEntity ship = assemble(level, bridge, player);
             RocketPortrait portrait = ship.portrait();
@@ -47,8 +59,17 @@ public final class ShipAssembler {
      * (inclusive a falta de motor para decolar).
      */
     public static RocketEntity assemble(ServerLevel level, BlockPos bridge, ServerPlayer player) throws RocketException {
-        RocketAssembly.Result found = ShipAssembly.scan(RocketAssembler.worldGrid(level, ShipKinds::assemblyKind), bridge.getX(),
-                bridge.getY(), bridge.getZ());
+        return assemble(level, bridge, player, false);
+    }
+
+    /**
+     * Como acima; {@code airborne}: a nave está ancorada no ar (spike S6) e é montada sem exigir a plataforma de lançamento. {@code player} pode
+     * ser null (o comando de dev {@code ship unanchor}).
+     */
+    public static RocketEntity assemble(ServerLevel level, BlockPos bridge, @Nullable ServerPlayer player, boolean airborne) throws RocketException {
+        RocketAssembly.Grid grid = RocketAssembler.worldGrid(level, ShipKinds::assemblyKind);
+        RocketAssembly.Result found = airborne ? ShipAssembly.scanAirborne(grid, bridge.getX(), bridge.getY(), bridge.getZ())
+                : ShipAssembly.scan(grid, bridge.getX(), bridge.getY(), bridge.getZ());
         ShipLiftoff.Nozzles nozzles = nozzles(level, found);
         double liftoffThrust = ShipLiftoff.require(nozzles, found.census());
         SpaceHorizons.LOGGER.info("Nave montada em {}: empuxo de decolagem {}", bridge.toShortString(), liftoffThrust);

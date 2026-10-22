@@ -35,9 +35,13 @@ public final class RocketAssembly {
 
     /**
      * O que a montagem exige além da busca (a regra comum: cockpit único, plataforma e nenhum terreno/proibido encostado). O foguete exige motor e
-     * tanque; a nave ({@code ShipAssembly}) não: é montada pela ponte e pode ser só casco com a ponte.
+     * tanque; a nave ({@code ShipAssembly}) não: é montada pela ponte e pode ser só casco com a ponte. {@code needPad}: a plataforma de lançamento
+     * é exigida (sempre, menos na nave ancorada no ar, que é montada de novo sem chão: spike S6).
      */
-    public record Rules(boolean needEngine, boolean needTank) {
+    public record Rules(boolean needEngine, boolean needTank, boolean needPad) {
+        public Rules(boolean needEngine, boolean needTank) {
+            this(needEngine, needTank, true);
+        }
     }
 
     /** As regras do foguete (motor e tanque). */
@@ -230,7 +234,7 @@ public final class RocketAssembly {
         if (rules.needTank() && census.allTanks() < 1 && !RocketSpecs.carriesOwnFuel(census)) {
             blockers.add(new Blocker(RocketException.Reason.NO_TANK, first.x(), first.y(), first.z(), new Object[0]));
         }
-        if (padContacts < 1) {
+        if (rules.needPad() && padContacts < 1) {
             blockers.add(new Blocker(RocketException.Reason.NO_PAD, first.x(), first.y(), first.z(), new Object[0]));
         }
         if (census.cockpits() < 1) {

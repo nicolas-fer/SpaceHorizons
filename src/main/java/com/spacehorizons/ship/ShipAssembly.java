@@ -19,6 +19,9 @@ public final class ShipAssembly {
     /** As exigências de uma nave: nenhum motor nem tanque obrigatório (a ponte basta como núcleo). */
     public static final RocketAssembly.Rules RULES = new RocketAssembly.Rules(false, false);
 
+    /** A nave ancorada no ar (spike S6) é montada de novo sem chão: as mesmas exigências, sem a plataforma de lançamento. */
+    public static final RocketAssembly.Rules AIRBORNE_RULES = new RocketAssembly.Rules(false, false, false);
+
     private ShipAssembly() {
     }
 
@@ -26,6 +29,12 @@ public final class ShipAssembly {
     public static RocketAssembly.Result scan(RocketAssembly.Grid grid, int x, int y, int z) throws RocketException {
         return RocketAssembly.scan(grid, x, y, z, RocketAssembly.MAX_BLOCKS, RocketAssembly.MAX_ITERATIONS, RocketAssembly.MAX_EXTENT_XZ,
                 RocketAssembly.MAX_EXTENT_Y, RULES);
+    }
+
+    /** Como {@link #scan}, para a nave ancorada no ar: sem exigir a plataforma ({@link #AIRBORNE_RULES}). */
+    public static RocketAssembly.Result scanAirborne(RocketAssembly.Grid grid, int x, int y, int z) throws RocketException {
+        return RocketAssembly.scan(grid, x, y, z, RocketAssembly.MAX_BLOCKS, RocketAssembly.MAX_ITERATIONS, RocketAssembly.MAX_EXTENT_XZ,
+                RocketAssembly.MAX_EXTENT_Y, AIRBORNE_RULES);
     }
 
     /** O relatório inteiro (sem lançar), com todos os problemas: o mesmo que a montagem usaria. */

@@ -37,7 +37,7 @@ public final class RocketLanding {
      * Um bloco a recolocar: posição no mundo, estado, NBT (null sem block entity) e, se for tanque, o combustível dele ({@code tank}); se for motor
      * do Tier 2 que guarda carga, a carga ({@code charge}).
      */
-    private record Placement(BlockPos pos, BlockState state, @Nullable CompoundTag nbt, int fuelMb, boolean tank, boolean charge) {
+    public record Placement(BlockPos pos, BlockState state, @Nullable CompoundTag nbt, int fuelMb, boolean tank, boolean charge) {
     }
 
     /** O canto mínimo da caixa que tem o centro em {@code center}, para uma caixa deste tamanho (arredonda ao bloco mais perto). */
@@ -118,8 +118,11 @@ public final class RocketLanding {
         return out;
     }
 
-    /** Confere o espaço (chunks carregados, nada que não possa ser substituído) e prepara as colocações. Não toca no mundo. */
-    private static List<Placement> plan(ServerLevel level, RocketPortrait portrait, BlockPos origin, FuelLoad fuel) throws RocketException {
+    /**
+     * Confere o espaço (chunks carregados, nada que não possa ser substituído) e prepara as colocações. Não toca no mundo. Público para a âncora
+     * no ar (spike S6, {@code ShipAnchors}), que coloca as mesmas colocações em lotes.
+     */
+    public static List<Placement> plan(ServerLevel level, RocketPortrait portrait, BlockPos origin, FuelLoad fuel) throws RocketException {
         java.util.Map<Long, Integer> shares = shares(portrait, fuel);
 
         List<Placement> plan = new ArrayList<>(portrait.blockCount());

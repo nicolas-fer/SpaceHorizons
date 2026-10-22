@@ -414,6 +414,9 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
             this.entityData.set(FLIGHT_MODE, this.flight.mode().id());
             // a tripulação a pé no convés anda junto: a posição dela vem do referencial local pela pose que a nave acabou de ter
             com.spacehorizons.ship.deck.DeckCrew.afterRocketTick(this);
+        } else {
+            // congelada (conversão ou âncora, S6): a tripulação a pé continua andando no convés parado; a posição dela vem da pose de agora
+            com.spacehorizons.ship.deck.DeckCrew.afterRocketTick(this);
         }
     }
 

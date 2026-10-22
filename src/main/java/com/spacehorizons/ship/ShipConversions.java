@@ -82,6 +82,25 @@ public final class ShipConversions {
         JOBS.add(new YardToRocketJob(server, shipId, descending));
     }
 
+    /**
+     * Começa a ancorar a nave no ar (spike S6): o retrato girado {@code quarterTurns} quartos de volta vira blocos com o canto mínimo em
+     * {@code origin}, em lotes, e a entidade (já congelada pela acomodação, {@link #freeze}) sai no fim. Ver {@link ShipAnchors}.
+     */
+    static void startAnchor(ServerLevel level, RocketEntity rocket, int quarterTurns, net.minecraft.core.BlockPos origin) throws ShipConversionException {
+        AnchorJob job = new AnchorJob(level, rocket, quarterTurns, origin);
+        FROZEN.add(rocket.getUUID());
+        JOBS.add(job);
+    }
+
+    /** Congela o voo do foguete (a âncora acomoda a nave na grade antes do job; ver {@link ShipAnchors}). */
+    static boolean freeze(UUID rocket) {
+        return FROZEN.add(rocket);
+    }
+
+    static void unfreeze(UUID rocket) {
+        FROZEN.remove(rocket);
+    }
+
     /** Põe um job no fim da fila (usado pelos jobs que desfazem a si mesmos). */
     static void enqueue(ConversionJob job) {
         JOBS.add(job);
@@ -107,6 +126,9 @@ public final class ShipConversions {
             JOBS.pollFirst();
             if (job instanceof RocketToYardJob toYard) {
                 FROZEN.remove(toYard.rocketUuid());
+            }
+            if (job instanceof AnchorJob anchor) {
+                FROZEN.remove(anchor.rocketUuid());
             }
             tail = job;
         }

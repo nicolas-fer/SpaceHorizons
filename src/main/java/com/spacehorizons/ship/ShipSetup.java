@@ -6,6 +6,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.living.MobSpawnEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -41,9 +43,22 @@ public final class ShipSetup {
     @SubscribeEvent
     static void onServerTick(ServerTickEvent.Post event) {
         ShipChunkTickets.tick(event.getServer());
+        ShipAnchors.tick(event.getServer());
         ShipConversions.tick(event.getServer());
         ShipCensusService.tick(event.getServer());
         ShipFlightTicker.tick(event.getServer());
+    }
+
+    /** O mundo abriu: carrega as naves ancoradas no ar (o índice dos ticks de bloco precisa delas desde o primeiro tick). */
+    @SubscribeEvent
+    static void onServerStarted(ServerStartedEvent event) {
+        ShipAnchors.onServerStarted(event.getServer());
+    }
+
+    /** Mobs não nascem numa nave ancorada no ar nem no teto dela (spike S6). */
+    @SubscribeEvent
+    static void onSpawnCheck(MobSpawnEvent.SpawnPlacementCheck event) {
+        ShipAnchors.onSpawnCheck(event);
     }
 
     /** O servidor vai parar: grava o estado de voo das naves antes de salvar o mundo. */
@@ -57,6 +72,7 @@ public final class ShipSetup {
     static void onServerStopped(ServerStoppedEvent event) {
         ShipChunkTickets.reset();
         ShipConversions.reset();
+        ShipAnchors.reset();
         ShipCensusService.reset();
         ShipFlightTicker.reset();
     }
