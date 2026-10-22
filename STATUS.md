@@ -13,7 +13,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 |---|---|---|
 | 🟡 | **Sistema solar centrado no sol** (Marte na física orbital, viagem e pouso em Marte de foguete). | `docs/PLANO_TIERS.md` |
 | 🟡 | **Naves 2d**: outras naves e foguetes vistos de dentro e do espaço na posição relativa. | `docs/PLANO_NAVES.md` |
-| 🟡 | **Arte do item de planta** (página de escolha) e limpeza do README e do `MISSAO_LUA.md`. | `art/`, `README.md` |
+| ✅ | **Documentação limpa**: README sem seções repetidas (com índice), `MISSAO_LUA.md` com os números atuais e as plantas embutidas. Arte da planta: o usuário manteve a atual. | `README.md`, `docs/MISSAO_LUA.md` |
 | ✅ | **Spike S6: âncora no ar aprovado**: a nave parada vira blocos reais no ar e volta pela ponte; romaneio 0 perdas, conversão 281–312 ms (4.003 blocos) e 450 ms (7.997), jogador a 0,0000 bloco da posição no convés; areia, água e mobs contidos. Autoteste `shipanchor` 38/0; regressão ship* verde. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Spike S5: convés andável aprovado**: o jogador anda no convés da entidade a 1, 10, 50 e 100 b/t, com e sem 100 ms de latência: 0 quedas, pé a 0,0000 do piso, 0 correções; a velocidade não importa (A4 sem efeito). Autoteste `shipdeck` (fora da regressão padrão, ~15 min). | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Conteúdo do Tier 2**: motores nuclear, iônico e de fusão (1x1, 2x2x2, 3x3x3), tanques de hidrogênio e xenônio, RTG, materiais de Marte, combustível por tipo com Δv em fases no painel. Autoteste `tier2` 37/37, `multiblock` 169/169, `flight` A–D. | `docs/PLANO_TIERS.md` (seção 9), `docs/TIER2_IDS.md` |
@@ -29,7 +29,6 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 2. Naves 2c (EVA perto do casco) e 2d (outras naves e foguetes vistos de dentro).
 3. Desorbitação real no autoteste da descida (queima retrógrada saindo de órbita fechada) e corte proporcional na circularização.
 4. Tiers: sistema solar centrado no sol (viagem a Marte: órbita, zona de espaço e pouso em Marte).
-5. Arte final do item `rocket_blueprint` (skill `minecraft-entity`).
 
 ## Mapa geral
 
@@ -95,8 +94,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 - **Motor de impulso com bocal para cima/baixo**: a orientação do modelo não foi vista em print.
 - **Foguete gigante** (34 de largura): desmontagem recusada em terreno irregular (`SPACE_OCCUPIED`).
 - **Risco aberto do S2**: uma perda de blocos no estaleiro numa rodada, não reproduzida (`docs/PLANO_NAVES.md`, resultado do S2).
-- **Documentação**: o README tem seções repetidas (espaço aberto, sobrevivência, como rodar e como testar aparecem duas vezes);
-  `docs/MISSAO_LUA.md` tem números do foguete antigo.
+- **Documentação**: a tabela por fase do `docs/MISSAO_LUA.md` ainda é da primeira rodada (foguete antigo); `MissionSim.ROCKET_M` usa tanques
+  avulsos (Δv 292,6) e não o foguete atual.
 - **Plantas holográficas**: a planta não gira; baús e blocos sem modelo não ganham fantasma (contam no progresso); a planta lunar trancada em
   sobrevivência não foi testada (autoteste em criativo); plantas muito grandes, Sodium e Iris não medidos.
 - **Tier 2**: destinos do painel para foguetes do Tier 2 vêm do orçamento de Δv (sem voo simulado); naves ignoram peças do Tier 2 e a conversão
