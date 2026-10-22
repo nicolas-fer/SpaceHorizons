@@ -202,7 +202,6 @@ public final class DeckCrew {
             RocketPortrait p = rocket.portrait();
             if (outsideBox(m.good.pos, p)) {
                 LEFT_BOX.incrementAndGet();
-                applyToPlayer(player, rocket, m);
                 leave(player, "saiu da caixa da nave");
                 continue;
             }
