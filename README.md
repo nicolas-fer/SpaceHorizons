@@ -351,6 +351,14 @@ na vertical, 0,5 na horizontal e 15° de inclinação; pousada, a tecla de desmo
 chão. Autoteste: `./gradlew runClientTest -PshOnly=shipdescent` (sobe, circulariza, desce, pousa e confere os blocos contra a foto
 do chão).
 
+### Convés andável (spike S5)
+
+Num foguete em movimento no planeta, o jogador pode ficar a pé dentro da entidade (`docs/PLANO_NAVE_ATMOSFERA.md`): a posição dele é guardada
+e simulada nas coordenadas do retrato, no cliente e no servidor, e o movimento da nave entra só como transformação na hora de desenhar e de
+sincronizar. Por enquanto o embarque é manual, só para teste: dentro da caixa de uma nave, `/spacehorizons deck board` põe você no convés
+(`deck leave` tira, `deck info` mostra as contagens). Autoteste (um robô anda em quadrado por 2.000 ticks na nave que sobe, paira e desce a 1, 10,
+50 e 100 b/t girando e inclinada, com e sem 100 ms de latência por sentido): `./gradlew runClientTest -PshOnly=shipdeck`.
+
 ### Regressão em paralelo
 
 ```bash

@@ -49,6 +49,13 @@ public class RocketRenderer extends EntityRenderer<RocketEntity, RocketRenderSta
         state.mesh = portrait.isEmpty() ? null : MESHES.get(portrait);
         rocket.orientation(partialTick, state.orientation);
         state.pivot.set(rocket.pivotLocal());
+        // com tripulação a pé a bordo (S5) o casco é desenhado na linha do tempo de ticks do servidor, a mesma da câmera e do tripulante
+        com.spacehorizons.ship.deck.DeckFrame smooth = rocket.smoothFrame(rocket.clientTickAt(partialTick));
+        if (smooth != null) {
+            state.x = smooth.cx();
+            state.y = smooth.cy();
+            state.z = smooth.cz();
+        }
 
         state.blockEntities.clear();
         if (rocket.level() instanceof ClientLevel level && state.mesh != null) {
@@ -96,7 +103,8 @@ public class RocketRenderer extends EntityRenderer<RocketEntity, RocketRenderSta
     protected AABB getBoundingBoxForCulling(RocketEntity rocket, float partialTick) {
         RocketPortrait p = rocket.portrait();
         double r = 0.5 * Math.sqrt((double) p.sizeX * p.sizeX + (double) p.sizeY * p.sizeY + (double) p.sizeZ * p.sizeZ) + 1.0;
-        Vec3 c = rocket.getPosition(partialTick);
+        com.spacehorizons.ship.deck.DeckFrame smooth = rocket.smoothFrame(rocket.clientTickAt(partialTick));
+        Vec3 c = smooth != null ? new Vec3(smooth.cx(), smooth.cy(), smooth.cz()) : rocket.getPosition(partialTick);
         return new AABB(c.x - r, c.y - r, c.z - r, c.x + r, c.y + r, c.z + r);
     }
 }

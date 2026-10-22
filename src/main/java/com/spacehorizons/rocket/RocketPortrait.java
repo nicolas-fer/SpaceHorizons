@@ -59,6 +59,7 @@ public final class RocketPortrait {
     private final BlockPos cockpit;
     private volatile RocketCensus census;
     private volatile List<LoadedBlockEntity> loaded;
+    private volatile com.spacehorizons.ship.deck.DeckColliders deckColliders;
     /** O pacote de spawn deste retrato (imutável, então calculado uma vez): um retrato grande é enviado a cada jogador que o vê. */
     private volatile byte[] encoded;
 
@@ -105,6 +106,15 @@ public final class RocketPortrait {
     /** Posição local do cockpit (o assento do piloto). */
     public BlockPos cockpit() {
         return this.cockpit;
+    }
+
+    /** Os sólidos do retrato como caixas locais, para a colisão do tripulante a pé no convés (S5); calculados uma vez por retrato. */
+    public com.spacehorizons.ship.deck.DeckColliders deckColliders() {
+        com.spacehorizons.ship.deck.DeckColliders result = this.deckColliders;
+        if (result == null) {
+            this.deckColliders = result = new com.spacehorizons.ship.deck.DeckColliders(this);
+        }
+        return result;
     }
 
     public boolean inside(int x, int y, int z) {

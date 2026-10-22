@@ -5,12 +5,17 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "ChunkMapMixin",
+    "ConnectionLatencyMixin",
     "EntityMixin",
     "ServerGamePacketListenerImplMixin"
   ],
   "client": [
     "ClientPacketListenerMixin",
     "ClientPacketProbeMixin",
+    "DeckAnimationMixin",
+    "DeckCullingMixin",
+    "DeckMoveMixin",
+    "DeckSendMixin",
     "RocketPositionMixin"
   ],
   "injectors": {
