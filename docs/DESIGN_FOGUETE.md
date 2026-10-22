@@ -238,3 +238,62 @@ vale um a um, como antes.
 - A regra de TWR >= 1,2 para a órbita e a de "sem paraquedas não promete a volta da Lua" são conservadoras e não foram simuladas além dos casos do teste.
 - Um conjunto de motores (ou de tanques) com mais de 4.096 blocos ligados não é refeito de uma vez no mundo (a montagem refaz tudo do mesmo jeito).
 - O painel não considera a janela da Lua (o relógio de lançamento, ver `docs/MISSAO_LUA.md`).
+
+## Plantas holográficas de montagem (seção 4 do `docs/PLANO_TIERS.md`)
+
+Pacotes `rocket/blueprint` (comum) e `client/rocket/blueprint` (cliente). Autoteste `-PshOnly=blueprint`; testes em `BlueprintTest`.
+
+### Formato da planta (`Blueprint`)
+
+- Blocos RELATIVOS à plataforma-âncora (a `launch_pad` clicada, em 0, 0, 0), cada um com o estado (string de bloco do Minecraft,
+  `spacehorizons:rocket_engine[facing=north,form=solo]`) e o papel na montagem (`RocketBlockKind`, gravado pelo nome; nome desconhecido vale `STRUCTURE`).
+- NBT/JSON (`Blueprint.CODEC`): `id` (planta embutida ou vazio), `name`, `author`, `palette` (estados), `kinds` (um por estado), `positions` (int por bloco:
+  dx, dy, dz em 10 bits cada, deslocados de 512, alcance -512 a 511) e `states` (índice da paleta). Rede (`STREAM_CODEC`): o mesmo em varints, com tetos ao
+  ler (16.384 blocos). Imutável e comparável por valor (é data component do item e conteúdo do block entity da plataforma).
+- **Estado normalizado** (`BlueprintStates`): as propriedades DERIVADAS voltam ao padrão, porque o jogo as recalcula e elas não dizem nada do projeto:
+  `form` (qualquer propriedade `EngineForm`) e `facing` do motor, as seis conexões das texturas conectadas, `facing` do cockpit e `waterlogged`. Assim a
+  planta guarda motores e tanques bloco a bloco e o fantasma de um motor que falta é o motor 1x1 (a parte invisível de um 2x2x2 não teria fantasma). O resto
+  compara exato (escada para o leste ≠ escada para o oeste).
+- **Destino do projeto** (`Blueprint.design`): a planta vira um `RocketAssembly.Grid` (papéis nos deslocamentos, ar no resto, plataforma na âncora) e passa
+  por `RocketDesign.analyze(grid, 0, 0, 0)`, a MESMA busca do painel (que agora é `RocketDesign.search` sobre qualquer grade: o mundo ou a planta).
+
+### Plantas embutidas (`Blueprints`)
+
+Os projetos de `TestWorld.design` que o `MissionBudgetTest` voa no simulador, com uma base de plataformas (pegada + borda de 1):
+
+| id | projeto | blocos | destino (painel = simulador) |
+|---|---|---|---|
+| `suborbital` | motor 1x1, coluna 1x1x8, cockpit, paraquedas | 11 + 9 plataformas | salto suborbital |
+| `orbital` | motor 2x2x2, coluna 1x1x4, cockpit, paraquedas | 14 + 16 plataformas | chega à órbita (Δv 164,9 b/t) |
+| `lunar` | camada 3x3 de motores, coluna 3x3x5, cockpit, paraquedas, 8 cascos | 64 + 25 plataformas | Lua, pouso e volta |
+
+A `lunar` é `locked`: trancada no menu em sobrevivência (o servidor recusa) e livre no criativo, até a história entregá-la (terminal de uma base abandonada).
+
+### Salvar o foguete como planta (`BlueprintCapture`)
+
+A planta em branco clicada numa plataforma roda `RocketDesign.search` a partir dela (as peças encostadas nas plataformas ligadas; havendo cockpit, a busca de
+novo a partir dele, como a montagem): as peças são as células do relatório, e entram as plataformas ligadas dentro da caixa do foguete com borda de 1 (mais a
+clicada, a âncora). Foguete incompleto também vira planta (é projeto); nada encostado = nada a salvar. Block entities (inventários, combustível) não vão
+na planta. O nome é o do item renomeado na bigorna, ou "Foguete de &lt;autor&gt;".
+
+### Comparação e holograma
+
+- `BlueprintCheck` (puro) e `BlueprintWorld.check` (mundo): por bloco da planta, FALTA (ar ou substituível no lugar), ERRADO (outro estado normalizado),
+  CERTO; estado que não existe no jogo (mod ausente) é ignorado.
+- `LaunchPadBlockEntity` guarda a planta ativa (só o servidor muda; o cliente recebe pelo pacote de block entity, inclusive no carregamento do chunk).
+- `LaunchPadRenderer` (renderer do block entity): plataforma sem planta sai no `shouldRender`; com planta, a caixa da planta é o recorte (aparece mesmo com a
+  plataforma fora da tela) e o alcance é de 96 blocos da caixa. `GhostMesh` tesselou a planta INTEIRA uma vez em worker thread (cada bloco sozinho, sem
+  esconder faces entre fantasmas, para o que sobra continuar fechado), guardando o intervalo de vértices de cada bloco; por quadro, `submitCustomGeometry`
+  com `translucentMovingBlock` reproduz só os intervalos dos que faltam (azulados, alfa ~0,43, encolhidos a 96% para não brigar com as faces vizinhas) e
+  dos errados (vermelhos, 104%, envolvendo o bloco errado), luz cheia, até 4.096 blocos por planta. A comparação é refeita a cada 10 ticks
+  (`BlueprintHologram`), não por quadro; a malha é limpa na recarga de recursos.
+- Painel: `BlueprintPanel` acha a plataforma com planta no conjunto de plataformas da que o painel mostra e acrescenta nome, "faltam N de T blocos" / "M
+  errados" / "planta completa" e o destino do projeto da planta.
+
+### Limites
+
+- A planta não gira nem espelha (vale na orientação salva).
+- Blocos sem modelo de bloco (baús, por exemplo) não ganham fantasma; contam no progresso.
+- A planta fica na plataforma depois da decolagem (o holograma volta a mostrar o foguete inteiro, para reconstruir) até agachado + clique.
+- Item com planta grande: até 16.384 blocos no componente (sincronizado com o inventário).
+

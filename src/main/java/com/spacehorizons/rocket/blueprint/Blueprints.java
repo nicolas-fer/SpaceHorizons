@@ -57,7 +57,7 @@ public final class Blueprints {
      * 0: camada 3x3 de motores avulsos), coluna de tanques {@code tankW x tankH x tankD} em cima, cockpit no topo da coluna, paraquedas em cima
      * do cockpit e {@code hulls} cascos em placas 3x3 acima dele; a base de plataformas cobre a pegada mais uma borda de 1.
      */
-    static Blueprint design(String id, int engineSide, int tankW, int tankH, int tankD, int hulls) {
+    public static Blueprint design(String id, int engineSide, int tankW, int tankH, int tankD, int hulls) {
         Blueprint.Builder b = Blueprint.builder(id, "", "");
         int engineW = engineSide == 0 ? 3 : engineSide;
         int engineH = Math.max(1, engineSide);

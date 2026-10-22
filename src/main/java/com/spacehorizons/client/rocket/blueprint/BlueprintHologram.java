@@ -41,7 +41,7 @@ public final class BlueprintHologram {
     public static final class State {
         final Blueprint blueprint;
         BlueprintCheck.@Nullable Progress progress;
-        long checkedAt = Long.MIN_VALUE;
+        long checkedAt;
         long usedAt;
 
         State(Blueprint blueprint) {
@@ -84,7 +84,7 @@ public final class BlueprintHologram {
     /** Força a próxima comparação (o autoteste, logo depois de pôr blocos). */
     public static void invalidate() {
         for (State s : STATES.values()) {
-            s.checkedAt = Long.MIN_VALUE;
+            s.progress = null; // (não mexer em checkedAt: now - Long.MIN_VALUE estoura)
         }
         ANCHORS.clear();
     }

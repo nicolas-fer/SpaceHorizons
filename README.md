@@ -202,6 +202,11 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
   (ou clicar para fixar) abre o painel de projeto: massa, empuxo, TWR, Δv e o destino que o foguete alcança (não decola, salto suborbital, órbita, Lua e
   volta, Lua pouso e volta), com os problemas apontados no bloco certo; usa o mesmo cálculo da montagem. O foguete aceita até 8.192 blocos e 128 x 256 x 128
   (o retrato grande vai ao cliente em partes). Autoteste: `./gradlew runClientTest -PshOnly=multiblock`.
+- **Plantas holográficas de montagem** (seção 4 do `docs/PLANO_TIERS.md`, detalhes em `docs/DESIGN_FOGUETE.md`): o item `rocket_blueprint` (2 papéis +
+  corante azul) guarda um projeto. Clique no ar abre o menu das plantas (salto suborbital, foguete orbital e, no criativo, o lunar, que a história vai entregar);
+  clique numa `launch_pad` mostra o holograma: fantasma onde falta bloco, vermelho onde está errado, some onde está certo (só sugestão). Com a planta em branco,
+  o clique salva o foguete que está sobre a plataforma; agachado + clique tira a planta. O painel de projeto mostra quanto falta e o destino do projeto da
+  planta. Autoteste: `./gradlew runClientTest -PshOnly=blueprint`.
 
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
 (estabilizar, prógrado, retrógrado, horizontal), P paraquedas, V câmera, G desmontar (pousado). O SAS horizontal aponta o nariz
@@ -479,6 +484,11 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
   (ou clicar para fixar) abre o painel de projeto: massa, empuxo, TWR, Δv e o destino que o foguete alcança (não decola, salto suborbital, órbita, Lua e
   volta, Lua pouso e volta), com os problemas apontados no bloco certo; usa o mesmo cálculo da montagem. O foguete aceita até 8.192 blocos e 128 x 256 x 128
   (o retrato grande vai ao cliente em partes). Autoteste: `./gradlew runClientTest -PshOnly=multiblock`.
+- **Plantas holográficas de montagem** (seção 4 do `docs/PLANO_TIERS.md`, detalhes em `docs/DESIGN_FOGUETE.md`): o item `rocket_blueprint` (2 papéis +
+  corante azul) guarda um projeto. Clique no ar abre o menu das plantas (salto suborbital, foguete orbital e, no criativo, o lunar, que a história vai entregar);
+  clique numa `launch_pad` mostra o holograma: fantasma onde falta bloco, vermelho onde está errado, some onde está certo (só sugestão). Com a planta em branco,
+  o clique salva o foguete que está sobre a plataforma; agachado + clique tira a planta. O painel de projeto mostra quanto falta e o destino do projeto da
+  planta. Autoteste: `./gradlew runClientTest -PshOnly=blueprint`.
 
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
 (estabilizar, prógrado, retrógrado, horizontal), P paraquedas, V câmera, G desmontar (pousado). O SAS horizontal aponta o nariz

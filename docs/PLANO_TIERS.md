@@ -80,7 +80,7 @@ A montagem continua a mesma (blocos livres sobre a plataforma, clique no cockpit
 
 | # | Etapa | Tier |
 |---|---|---|
-| 1 | Multiblocos de tanque e motor e guias de montagem (painel primeiro, depois plantas) | 1 (multiblocos e painel feitos, plantas pendentes: seção 7) |
+| 1 | Multiblocos de tanque e motor e guias de montagem (painel primeiro, depois plantas) | 1 (multiblocos, painel e plantas holográficas feitos: seções 7 e 8) |
 | 2 | Gerador de planetas por parâmetros e Marte | 1 |
 | 3 | Sistema solar centrado no sol (viagem a Marte) | 1 |
 | 4 | Motores e planetas do Tier 2 | 2 |
@@ -105,7 +105,41 @@ Implementado e verificado em jogo (`-PshOnly=multiblock`); números, fórmulas e
   no simulador da missão); problemas no bloco certo.
 - **Arte provisória**: textura do tanque derivada por processamento (`tools/derive_tank_frame.py`) e modelos dos motores por ampliação dos elements do motor atual
   (`tools/gen_engine_structures.py`); a arte final entra nos mesmos ids sem código.
-- **Falta (próxima etapa)**: plantas holográficas (seção 4, item 1), que não foram começadas.
+- **Plantas holográficas** (seção 4, item 1): feitas depois, na seção 8.
 
 Verificação: 839 testes unitários passando; autoteste `-PshOnly=multiblock` com 169 verificações (formação no mundo, galão na estrutura, projeto com defeitos, e para cada projeto o painel, a montagem, o voo curto, o pouso e as estruturas formadas de novo; o foguete grande de 1.650 blocos e o gigante de ~6.700 blocos, com o retrato em partes); `flight` (A a D), `mission` (263,97 b/t, pouso suave nos dois corpos, agora com a coluna 3x3x5 formada), `shipconvert` e `ship` sem falhas. No gigante (34 de largura) o pouso em terreno irregular pode ser recusado com `SPACE_OCCUPIED` (o foguete fica pousado intacto); o autoteste aceita essa recusa.
+
+## 8. Plantas holográficas (seção 4, itens 1 e 3): o que foi feito
+
+Implementado em código e no autoteste `-PshOnly=blueprint`; detalhes técnicos em `docs/DESIGN_FOGUETE.md` ("Plantas holográficas de montagem").
+
+- **Planta** (`rocket/blueprint/Blueprint`): lista de blocos relativos à plataforma-âncora (a `launch_pad` em que a planta é posta fica em 0, 0, 0), com o
+  estado de cada bloco (string de bloco do Minecraft, normalizada) e o papel na montagem; inclui a base de plataformas e as peças dos multiblocos bloco a
+  bloco (a estrutura formada é derivada). Salva em NBT/JSON (paleta + papéis + posições empacotadas) e vai na rede em varints. O destino do projeto da planta
+  sai do MESMO cálculo do painel sobre a planta montada (`RocketDesign.analyze` sobre a planta como mundo).
+- **Item `rocket_blueprint`** (componente `rocket_blueprint`): clique no ar abre o menu das plantas ("livro"); clique numa plataforma ativa a planta nela;
+  com a planta em branco, salva o foguete que está sobre a plataforma (a mesma busca do painel e da montagem, com as plataformas sob ele); agachado + clique
+  tira a planta. Receita: 2 papéis + corante azul (desbloqueada ao pegar uma plataforma). Aba do criativo com a em branco e as três embutidas; JEI separa as
+  variantes pelo componente.
+- **Plantas embutidas** (`Blueprints`): salto suborbital, foguete orbital e foguete lunar, exatamente os projetos que o simulador da missão já voou
+  (`MissionBudgetTest`): o destino prometido é o voado. **Gancho de história**: a lunar deve vir de um terminal numa base abandonada na Lua
+  (`PLANO_SOBREVIVENCIA.md`, etapa 5); até lá fica trancada no menu em sobrevivência e livre no criativo; o terminal só precisará entregar
+  `RocketBlueprintItem.stackOf(Blueprints.LUNAR)`.
+- **Holograma**: fantasmas translúcidos onde falta bloco, vermelho onde o bloco está errado, nada onde está certo; é só sugestão (não trava a montagem).
+  Renderer do block entity da plataforma, malha por planta assada uma vez, por quadro só os intervalos dos blocos que faltam ou estão errados (até 4.096
+  blocos por planta, até 96 blocos de distância), comparação planta × mundo a cada 10 ticks.
+- **Rede**: a planta ativa é um block entity da plataforma (`LaunchPadBlockEntity`), salvo com o mundo e sincronizado pelo pacote de block entity; só o servidor
+  a muda; a escolha no menu é pedida ao servidor (`BlueprintChoicePayload`), que confere o item e a trava.
+- **Painel de projeto**: com uma planta no conjunto de plataformas, o painel mostra o nome dela, "faltam N de T blocos" / "M errados" (ou "planta completa") e o
+  destino do projeto da planta. O painel também abre olhando a plataforma com a planta na mão.
+- **Arte provisória**: o item usa o mapa vanilla recolorido (`tools/derive_blueprint_item.py`: azul para a planta com projeto, cinza-azulado para a em branco);
+  a arte final entra nos mesmos arquivos (`textures/item/rocket_blueprint.png` e `rocket_blueprint_blank.png`) pela skill `minecraft-entity`.
+- **Limites**: a planta não gira (vale na orientação em que foi salva); estados sem modelo de bloco (baús) não ganham fantasma, mas contam no progresso; a
+  planta fica na plataforma depois da decolagem (o holograma volta a mostrar o foguete para reconstruir) até ser tirada; plantas modulares (Tier 3 e 4) não foram feitas.
+
+Verificação: 872 testes unitários passando (`BlueprintTest`: formato em NBT, JSON e rede; plantas embutidas = projetos voados no simulador; planta × mundo
+com falta, errado e certo; salvar a estrutura como planta e reaplicar); autoteste `-PshOnly=blueprint` com 34 verificações e 9 prints (menu, holograma
+na plataforma vazia, dois blocos errados em vermelho com "faltam 4 de 30 / 2 errados" no painel, planta completa sem fantasmas, montagem e voo curto até
+68 blocos com pouso, holograma de volta depois da decolagem, planta salva de um foguete de 83 peças com baú e escada, reaplicada noutra plataforma, completada
+com o mesmo projeto do original, e agachado + clique tirando a planta); `-PshOnly=multiblock` continua com 169 verificações sem falha.
 

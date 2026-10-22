@@ -223,6 +223,10 @@ public final class AutoTest {
             multiblockScenario();
             return;
         }
+        if ("blueprint".equals(ONLY)) {
+            blueprintScenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
@@ -4889,6 +4893,144 @@ public final class AutoTest {
         cmd(5, "gamerule show_advancement_messages true");
         step(20, mc -> {
             ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    // ===================================================================================================================
+    // BLUEPRINT (plantas holográficas de montagem, docs/PLANO_TIERS.md seção 4): -PshOnly=blueprint. Bloco separado; a leitura do servidor
+    // e as verificações ficam em BlueprintDevtest.
+    // ===================================================================================================================
+
+    /**
+     * Plantas holográficas: escolhe a planta orbital pelo menu do item (clique no ar) e a põe numa plataforma vazia (clique de verdade, print do
+     * holograma); põe parte dos blocos com dois errados (print com o vermelho e o progresso no painel); completa (print sem fantasmas), monta e
+     * voa um pouco; depois salva o foguete de outra plataforma com a planta em branco, reaplica a planta salva numa terceira plataforma (print),
+     * completa e confere o projeto, e tira a planta com agachado + clique.
+     */
+    private void blueprintScenario() {
+        BlockPos a = BlueprintDevtest.PAD_A;
+        BlockPos b = BlueprintDevtest.PAD_B_CLICK;
+        BlockPos c = BlueprintDevtest.PAD_C;
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(5, "time set 6000");
+        cmd(5, "gamerule advance_time false");
+        fly(10);
+        cmd(10, "clear @s");
+
+        // A. menu e planta orbital numa plataforma vazia
+        cmd(10, "tp @s " + (a.getX() + 0.5) + " " + (a.getY() + 1.2) + " " + (a.getZ() + 3.5));
+        fly(10);
+        step(10, BlueprintDevtest::prepareA);
+        tickerStep(5, waitFor("bp_prepared_a", 200));
+        cmd(10, "give @s spacehorizons:rocket_blueprint");
+        look(10, 0f, -60f);
+        step(10, BlueprintDevtest::openMenu);
+        shot(20, "bp_1_menu");
+        step(5, mc -> BlueprintDevtest.choose(mc, "orbital"));
+        step(20, mc -> BlueprintDevtest.checkHeld(mc, "o menu trocou a planta do item pela orbital",
+                com.spacehorizons.rocket.blueprint.Blueprints.ORBITAL));
+        look(5, 180f, 45f);
+        step(5, mc -> useOnBlock(mc, a, Direction.UP));
+        step(30, mc -> BlueprintDevtest.checkActive(mc, "plataforma vazia", a, com.spacehorizons.rocket.blueprint.Blueprints.ORBITAL,
+                com.spacehorizons.rocket.blueprint.Blueprints.ORBITAL.size() - 1, 1));
+        cmd(10, "tp @s " + (a.getX() + 9.5) + " " + (a.getY() + 7.0) + " " + (a.getZ() + 0.5));
+        fly(5);
+        look(10, 90f, 25f);
+        step(5, mc -> mc.player.getInventory().setSelectedSlot(8));
+        step(5, mc -> com.spacehorizons.client.rocket.RocketDesignClient.pinForTest(a));
+        shot(60, "bp_2_hologram_orbital_empty_pad");
+
+        // B. parte dos blocos, dois errados
+        step(5, BlueprintDevtest::placePartial);
+        tickerStep(5, waitFor("bp_partial", 200));
+        step(30, BlueprintDevtest::checkPartialClient);
+        shot(20, "bp_3_partial_wrong_red_panel");
+
+        // C. completa, monta e voa
+        step(5, mc -> BlueprintDevtest.complete(mc, a, com.spacehorizons.rocket.blueprint.Blueprints.ORBITAL, "bp_complete_a"));
+        tickerStep(5, waitFor("bp_complete_a", 200));
+        step(40, mc -> BlueprintDevtest.checkCompleteClient(mc, a, com.spacehorizons.rocket.blueprint.Blueprints.ORBITAL, "orbital completa"));
+        shot(10, "bp_4_complete_no_ghosts");
+        step(5, mc -> com.spacehorizons.client.rocket.RocketDesignClient.pinForTest(null));
+        step(5, BlueprintDevtest::assemble);
+        tickerStep(10, waitFor("bp_assembled", 200));
+        step(20, BlueprintDevtest::fly);
+        tickerStep(5, waitFor("bp_burning", 600));
+        thirdPerson();
+        shot(5, "bp_5_flight");
+        tickerStep(0, waitFor("bp_landed", 6_000));
+        firstPerson();
+        cmd(20, "tp @s " + (a.getX() + 9.5) + " " + (a.getY() + 7.0) + " " + (a.getZ() + 0.5));
+        fly(5);
+        look(10, 90f, 25f);
+        step(30, BlueprintDevtest::checkAfterLaunch);
+        shot(10, "bp_6_after_launch_hologram_again");
+
+        // D. salvar um foguete como planta e reaplicar em outra plataforma
+        cmd(10, "tp @s " + (b.getX() - 1.5) + " " + (b.getY() + 1.2) + " " + (b.getZ() - 1.5));
+        fly(20);
+        step(10, BlueprintDevtest::buildSource);
+        tickerStep(5, waitFor("bp_source", 200));
+        cmd(10, "give @s spacehorizons:rocket_blueprint");
+        step(10, mc -> mc.player.getInventory().setSelectedSlot(1));
+        look(5, 45f, 60f);
+        step(5, mc -> useOnBlock(mc, b, Direction.UP));
+        step(20, BlueprintDevtest::checkSaved);
+        cmd(10, "tp @s " + (b.getX() + 14.5) + " " + (b.getY() + 9.0) + " " + (b.getZ() + 2.5));
+        fly(5);
+        look(10, 90f, 20f);
+        shot(30, "bp_7_source_rocket");
+        cmd(10, "tp @s " + (c.getX() + 0.5) + " " + (c.getY() + 1.2) + " " + (c.getZ() + 3.5));
+        fly(20);
+        look(5, 180f, 45f);
+        step(5, mc -> useOnBlock(mc, c, Direction.UP));
+        step(30, mc -> {
+            com.spacehorizons.rocket.blueprint.Blueprint saved = BlueprintDevtest.held(mc);
+            if (saved != null) {
+                BlueprintDevtest.checkActive(mc, "planta salva reaplicada", c, saved, saved.size() - 1, 1);
+            } else {
+                BlueprintDevtest.check("planta salva na mão para reaplicar", false, "sem planta");
+            }
+        });
+        cmd(10, "tp @s " + (c.getX() + 22.5) + " " + (c.getY() + 11.0) + " " + (c.getZ() + 3.0));
+        fly(5);
+        look(10, 90f, 16f);
+        step(5, mc -> mc.player.getInventory().setSelectedSlot(8));
+        step(5, mc -> com.spacehorizons.client.rocket.RocketDesignClient.pinForTest(c));
+        shot(60, "bp_8_saved_blueprint_reapplied");
+        step(5, mc -> {
+            com.spacehorizons.rocket.blueprint.Blueprint saved = com.spacehorizons.client.rocket.blueprint.BlueprintHologram.blueprintAt(mc.level, c);
+            if (saved != null) {
+                BlueprintDevtest.complete(mc, c, saved, "bp_complete_c");
+            } else {
+                FlightDevtest.mark("bp_complete_c");
+            }
+        });
+        tickerStep(5, waitFor("bp_complete_c", 200));
+        step(40, mc -> {
+            com.spacehorizons.rocket.blueprint.Blueprint saved = com.spacehorizons.client.rocket.blueprint.BlueprintHologram.blueprintAt(mc.level, c);
+            if (saved != null) {
+                BlueprintDevtest.checkCompleteClient(mc, c, saved, "planta salva completa");
+            }
+        });
+        shot(10, "bp_9_saved_blueprint_complete");
+        step(5, mc -> com.spacehorizons.client.rocket.RocketDesignClient.pinForTest(null));
+
+        // E. agachado + clique tira a planta
+        cmd(10, "tp @s " + (c.getX() + 0.5) + " " + (c.getY() + 1.2) + " " + (c.getZ() - 2.5));
+        fly(10);
+        step(5, mc -> mc.player.getInventory().setSelectedSlot(1));
+        look(5, 0f, 45f);
+        step(5, mc -> mc.options.keyShift.setDown(true));
+        step(5, mc -> useOnBlock(mc, c, Direction.UP));
+        step(5, mc -> mc.options.keyShift.setDown(false));
+        step(20, mc -> BlueprintDevtest.checkCleared(mc, c));
+        step(20, mc -> {
+            BlueprintDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });
