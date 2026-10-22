@@ -11,6 +11,9 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | | O quê | Onde |
 |---|---|---|
+| 🟡 | **Sistema solar centrado no sol** (Marte na física orbital, viagem e pouso em Marte de foguete). | `docs/PLANO_TIERS.md` |
+| 🟡 | **Naves 2d**: outras naves e foguetes vistos de dentro e do espaço na posição relativa. | `docs/PLANO_NAVES.md` |
+| 🟡 | **Arte do item de planta** (página de escolha) e limpeza do README e do `MISSAO_LUA.md`. | `art/`, `README.md` |
 | ✅ | **Spike S6: âncora no ar aprovado**: a nave parada vira blocos reais no ar e volta pela ponte; romaneio 0 perdas, conversão 281–312 ms (4.003 blocos) e 450 ms (7.997), jogador a 0,0000 bloco da posição no convés; areia, água e mobs contidos. Autoteste `shipanchor` 38/0; regressão ship* verde. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Spike S5: convés andável aprovado**: o jogador anda no convés da entidade a 1, 10, 50 e 100 b/t, com e sem 100 ms de latência: 0 quedas, pé a 0,0000 do piso, 0 correções; a velocidade não importa (A4 sem efeito). Autoteste `shipdeck` (fora da regressão padrão, ~15 min). | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Conteúdo do Tier 2**: motores nuclear, iônico e de fusão (1x1, 2x2x2, 3x3x3), tanques de hidrogênio e xenônio, RTG, materiais de Marte, combustível por tipo com Δv em fases no painel. Autoteste `tier2` 37/37, `multiblock` 169/169, `flight` A–D. | `docs/PLANO_TIERS.md` (seção 9), `docs/TIER2_IDS.md` |
@@ -46,7 +49,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | SAS horizontal (circularizar) no foguete e na nave | 21/10/2026 |
 | ✅ | Plantas holográficas de montagem | Autoteste `blueprint` 34/0 (22/10/2026); arte do item provisória |
 | ✅ | Gerador de planetas por parâmetros e Marte | Autoteste `mars` 10/10 (22/10/2026); Marte fora da órbita até a etapa 3 |
-| ⬜ | Sistema solar centrado no sol (viagem a Marte) | Tiers, etapa 3 |
+| 🟡 | Sistema solar centrado no sol (viagem a Marte) | Tiers, etapa 3 (em andamento) |
 | ⬜ | Base lunar (salas seladas, energia, recursos lunares, combustível na Lua) | Sobrevivência, etapa 4 |
 | ⬜ | História (estruturas abandonadas, diários, sinal lunar) | Sobrevivência, etapa 5 |
 | ⬜ | Separação de estágios | Sobrevivência, etapa 6 |
@@ -70,7 +73,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | 2a-ii | Subir até 5.000 e virar blocos no estaleiro; acelerador 0 na troca; circularizar com SAS horizontal |
 | ✅ | 2b | Descida (critério de entrada do foguete), pouso no motor e desmontagem no chão sem perder blocos, NBT nem combustível |
 | ⬜ | 2c | EVA perto do casco e jogador livre no espaço |
-| ⬜ | 2d | Outras naves e foguetes vistos de dentro |
+| 🟡 | 2d | Outras naves e foguetes vistos de dentro (em andamento) |
 | ✅ | S5 | Spike do convés andável aprovado (22/10/2026) |
 | ✅ | S6 | Spike da âncora aprovado (22/10/2026) |
 | ⬜ | 2e a 2g | Andar na nave dentro do planeta: âncora no ar, convés na nave real, trocas sem costura |
