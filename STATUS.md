@@ -11,6 +11,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | | O quê | Onde |
 |---|---|---|
+| 🟡 | **Spike S6: âncora no ar** (nave parada vira blocos reais no ar), autoteste `shipanchor`. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Spike S5: convés andável aprovado**: o jogador anda no convés da entidade a 1, 10, 50 e 100 b/t, com e sem 100 ms de latência: 0 quedas, pé a 0,0000 do piso, 0 correções; a velocidade não importa (A4 sem efeito). Autoteste `shipdeck` (fora da regressão padrão, ~15 min). | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Conteúdo do Tier 2**: motores nuclear, iônico e de fusão (1x1, 2x2x2, 3x3x3), tanques de hidrogênio e xenônio, RTG, materiais de Marte, combustível por tipo com Δv em fases no painel. Autoteste `tier2` 37/37, `multiblock` 169/169, `flight` A–D. | `docs/PLANO_TIERS.md` (seção 9), `docs/TIER2_IDS.md` |
 | ✅ | **Arte do Tier 2** escolhida pelo usuário e aplicada; `tier2` 37/0 na regressão de 22/10. | `art/tier2/` |
@@ -71,7 +72,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ⬜ | 2c | EVA perto do casco e jogador livre no espaço |
 | ⬜ | 2d | Outras naves e foguetes vistos de dentro |
 | ✅ | S5 | Spike do convés andável aprovado (22/10/2026) |
-| ⬜ | S6, 2e a 2g | Andar na nave dentro do planeta: âncora no ar, convés na nave real, trocas sem costura |
+| 🟡 | S6 | Spike da âncora (em andamento) |
+| ⬜ | 2e a 2g | Andar na nave dentro do planeta: âncora no ar, convés na nave real, trocas sem costura |
 | ⬜ | 3 | Dobra, escudos, hangar, luz do sol, ar selado; voo assistido estilo No Man's Sky |
 
 ### Tier 4: dobra e sistemas procedurais
