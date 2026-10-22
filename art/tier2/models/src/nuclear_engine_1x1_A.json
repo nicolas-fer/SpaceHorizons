@@ -1,0 +1,2614 @@
+{
+ "parent": "minecraft:block/block",
+ "textures": {
+  "particle": "spacehorizons:block/nuclear_engine",
+  "core": "spacehorizons:block/nuclear_engine_core",
+  "nozzle": "spacehorizons:block/nuclear_engine_nozzle",
+  "exit": "spacehorizons:block/nuclear_engine_exit",
+  "plate": "spacehorizons:block/nuclear_engine_plate"
+ },
+ "elements": [
+  {
+   "name": "placa",
+   "from": [
+    1,
+    15,
+    1
+   ],
+   "to": [
+    15,
+    16,
+    15
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      1,
+      0,
+      15,
+      1
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      1,
+      0,
+      15,
+      1
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      1,
+      0,
+      15,
+      1
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      1,
+      0,
+      15,
+      1
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      1,
+      1,
+      15,
+      15
+     ],
+     "texture": "#plate",
+     "cullface": "up"
+    },
+    "down": {
+     "uv": [
+      1,
+      1,
+      15,
+      15
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "escudo_f0",
+   "from": [
+    2,
+    14,
+    5.5
+   ],
+   "to": [
+    14,
+    15,
+    10.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      2,
+      1,
+      14,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      5.5,
+      1,
+      10.5,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      2,
+      1,
+      14,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      5.5,
+      1,
+      10.5,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      2,
+      5.5,
+      14,
+      10.5
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      2,
+      5.5,
+      14,
+      10.5
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "escudo_f1n",
+   "from": [
+    5.5,
+    14,
+    2
+   ],
+   "to": [
+    10.5,
+    15,
+    5.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      5.5,
+      1,
+      10.5,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      10.5,
+      1,
+      14,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      5.5,
+      1,
+      10.5,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      2,
+      1,
+      5.5,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      5.5,
+      2,
+      10.5,
+      5.5
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      5.5,
+      10.5,
+      10.5,
+      14
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "escudo_f1s",
+   "from": [
+    5.5,
+    14,
+    10.5
+   ],
+   "to": [
+    10.5,
+    15,
+    14
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      5.5,
+      1,
+      10.5,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      2,
+      1,
+      5.5,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      5.5,
+      1,
+      10.5,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      10.5,
+      1,
+      14,
+      2
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      5.5,
+      10.5,
+      10.5,
+      14
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      5.5,
+      2,
+      10.5,
+      5.5
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "reator_f0",
+   "from": [
+    3,
+    8.5,
+    6
+   ],
+   "to": [
+    13,
+    14,
+    10
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      3,
+      2,
+      13,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "east": {
+     "uv": [
+      6,
+      2,
+      10,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "south": {
+     "uv": [
+      3,
+      2,
+      13,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "west": {
+     "uv": [
+      6,
+      2,
+      10,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "up": {
+     "uv": [
+      3,
+      6,
+      13,
+      10
+     ],
+     "texture": "#core"
+    },
+    "down": {
+     "uv": [
+      3,
+      6,
+      13,
+      10
+     ],
+     "texture": "#core"
+    }
+   }
+  },
+  {
+   "name": "reator_f1n",
+   "from": [
+    6,
+    8.5,
+    3
+   ],
+   "to": [
+    10,
+    14,
+    6
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6,
+      2,
+      10,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "east": {
+     "uv": [
+      10,
+      2,
+      13,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "south": {
+     "uv": [
+      6,
+      2,
+      10,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "west": {
+     "uv": [
+      3,
+      2,
+      6,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "up": {
+     "uv": [
+      6,
+      3,
+      10,
+      6
+     ],
+     "texture": "#core"
+    },
+    "down": {
+     "uv": [
+      6,
+      10,
+      10,
+      13
+     ],
+     "texture": "#core"
+    }
+   }
+  },
+  {
+   "name": "reator_f1s",
+   "from": [
+    6,
+    8.5,
+    10
+   ],
+   "to": [
+    10,
+    14,
+    13
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6,
+      2,
+      10,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "east": {
+     "uv": [
+      3,
+      2,
+      6,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "south": {
+     "uv": [
+      6,
+      2,
+      10,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "west": {
+     "uv": [
+      10,
+      2,
+      13,
+      7.5
+     ],
+     "texture": "#core"
+    },
+    "up": {
+     "uv": [
+      6,
+      10,
+      10,
+      13
+     ],
+     "texture": "#core"
+    },
+    "down": {
+     "uv": [
+      6,
+      3,
+      10,
+      6
+     ],
+     "texture": "#core"
+    }
+   }
+  },
+  {
+   "name": "anel_reator_f0",
+   "from": [
+    2.5,
+    8,
+    5.5
+   ],
+   "to": [
+    13.5,
+    8.5,
+    10.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      2.5,
+      7.5,
+      13.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      5.5,
+      7.5,
+      10.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      2.5,
+      7.5,
+      13.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      5.5,
+      7.5,
+      10.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      2.5,
+      5.5,
+      13.5,
+      10.5
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      2.5,
+      5.5,
+      13.5,
+      10.5
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "anel_reator_f1n",
+   "from": [
+    5.5,
+    8,
+    2.5
+   ],
+   "to": [
+    10.5,
+    8.5,
+    5.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      5.5,
+      7.5,
+      10.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      10.5,
+      7.5,
+      13.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      5.5,
+      7.5,
+      10.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      2.5,
+      7.5,
+      5.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      5.5,
+      2.5,
+      10.5,
+      5.5
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      5.5,
+      10.5,
+      10.5,
+      13.5
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "anel_reator_f1s",
+   "from": [
+    5.5,
+    8,
+    10.5
+   ],
+   "to": [
+    10.5,
+    8.5,
+    13.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      5.5,
+      7.5,
+      10.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      2.5,
+      7.5,
+      5.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      5.5,
+      7.5,
+      10.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      10.5,
+      7.5,
+      13.5,
+      8
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      5.5,
+      10.5,
+      10.5,
+      13.5
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      5.5,
+      2.5,
+      10.5,
+      5.5
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "garganta_f0",
+   "from": [
+    6,
+    6.5,
+    7
+   ],
+   "to": [
+    10,
+    8,
+    9
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6,
+      8,
+      10,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      7,
+      8,
+      9,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6,
+      8,
+      10,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      7,
+      8,
+      9,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6,
+      7,
+      10,
+      9
+     ],
+     "texture": "#nozzle"
+    },
+    "down": {
+     "uv": [
+      6,
+      7,
+      10,
+      9
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "garganta_f1n",
+   "from": [
+    7,
+    6.5,
+    6
+   ],
+   "to": [
+    9,
+    8,
+    7
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      7,
+      8,
+      9,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      9,
+      8,
+      10,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      7,
+      8,
+      9,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      6,
+      8,
+      7,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      7,
+      6,
+      9,
+      7
+     ],
+     "texture": "#nozzle"
+    },
+    "down": {
+     "uv": [
+      7,
+      9,
+      9,
+      10
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "garganta_f1s",
+   "from": [
+    7,
+    6.5,
+    9
+   ],
+   "to": [
+    9,
+    8,
+    10
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      7,
+      8,
+      9,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      6,
+      8,
+      7,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      7,
+      8,
+      9,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      9,
+      8,
+      10,
+      9.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      7,
+      9,
+      9,
+      10
+     ],
+     "texture": "#nozzle"
+    },
+    "down": {
+     "uv": [
+      7,
+      6,
+      9,
+      7
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_00_f0",
+   "from": [
+    5,
+    5.5,
+    7
+   ],
+   "to": [
+    11,
+    6.5,
+    9
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      5,
+      9.5,
+      11,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      7,
+      9.5,
+      9,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      5,
+      9.5,
+      11,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      7,
+      9.5,
+      9,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      5,
+      7,
+      11,
+      9
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_00_f1n",
+   "from": [
+    7,
+    5.5,
+    5
+   ],
+   "to": [
+    9,
+    6.5,
+    7
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      7,
+      9.5,
+      9,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      9,
+      9.5,
+      11,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      7,
+      9.5,
+      9,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      5,
+      9.5,
+      7,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      7,
+      5,
+      9,
+      7
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_00_f1s",
+   "from": [
+    7,
+    5.5,
+    9
+   ],
+   "to": [
+    9,
+    6.5,
+    11
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      7,
+      9.5,
+      9,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      5,
+      9.5,
+      7,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      7,
+      9.5,
+      9,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      9,
+      9.5,
+      11,
+      10.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      7,
+      9,
+      9,
+      11
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_01_f0",
+   "from": [
+    5,
+    4.5,
+    7
+   ],
+   "to": [
+    11,
+    5.5,
+    9
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      5,
+      10.5,
+      11,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      7,
+      10.5,
+      9,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      5,
+      10.5,
+      11,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      7,
+      10.5,
+      9,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      5,
+      7,
+      11,
+      9
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_01_f1n",
+   "from": [
+    7,
+    4.5,
+    5
+   ],
+   "to": [
+    9,
+    5.5,
+    7
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      7,
+      10.5,
+      9,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      9,
+      10.5,
+      11,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      7,
+      10.5,
+      9,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      5,
+      10.5,
+      7,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      7,
+      5,
+      9,
+      7
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_01_f1s",
+   "from": [
+    7,
+    4.5,
+    9
+   ],
+   "to": [
+    9,
+    5.5,
+    11
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      7,
+      10.5,
+      9,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      5,
+      10.5,
+      7,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      7,
+      10.5,
+      9,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      9,
+      10.5,
+      11,
+      11.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      7,
+      9,
+      9,
+      11
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_02_f0",
+   "from": [
+    4.5,
+    3.5,
+    6.5
+   ],
+   "to": [
+    11.5,
+    4.5,
+    9.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      4.5,
+      11.5,
+      11.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      6.5,
+      11.5,
+      9.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      4.5,
+      11.5,
+      11.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      6.5,
+      11.5,
+      9.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      4.5,
+      6.5,
+      11.5,
+      9.5
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_02_f1n",
+   "from": [
+    6.5,
+    3.5,
+    4.5
+   ],
+   "to": [
+    9.5,
+    4.5,
+    6.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6.5,
+      11.5,
+      9.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      9.5,
+      11.5,
+      11.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6.5,
+      11.5,
+      9.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      4.5,
+      11.5,
+      6.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6.5,
+      4.5,
+      9.5,
+      6.5
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_02_f1s",
+   "from": [
+    6.5,
+    3.5,
+    9.5
+   ],
+   "to": [
+    9.5,
+    4.5,
+    11.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6.5,
+      11.5,
+      9.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      4.5,
+      11.5,
+      6.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6.5,
+      11.5,
+      9.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      9.5,
+      11.5,
+      11.5,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6.5,
+      9.5,
+      9.5,
+      11.5
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_03_f0",
+   "from": [
+    4,
+    3,
+    6
+   ],
+   "to": [
+    12,
+    3.5,
+    10
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      4,
+      12.5,
+      12,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      6,
+      12.5,
+      10,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      4,
+      12.5,
+      12,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      6,
+      12.5,
+      10,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      4,
+      6,
+      12,
+      10
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_03_f1n",
+   "from": [
+    6,
+    3,
+    4
+   ],
+   "to": [
+    10,
+    3.5,
+    6
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6,
+      12.5,
+      10,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      10,
+      12.5,
+      12,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6,
+      12.5,
+      10,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      4,
+      12.5,
+      6,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6,
+      4,
+      10,
+      6
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_03_f1s",
+   "from": [
+    6,
+    3,
+    10
+   ],
+   "to": [
+    10,
+    3.5,
+    12
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6,
+      12.5,
+      10,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      4,
+      12.5,
+      6,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6,
+      12.5,
+      10,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      10,
+      12.5,
+      12,
+      13
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6,
+      10,
+      10,
+      12
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_04_f0",
+   "from": [
+    4,
+    2,
+    6.5
+   ],
+   "to": [
+    12,
+    3,
+    9.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      4,
+      13,
+      12,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      6.5,
+      13,
+      9.5,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      4,
+      13,
+      12,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      6.5,
+      13,
+      9.5,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      4,
+      6.5,
+      12,
+      9.5
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_04_f1n",
+   "from": [
+    6.5,
+    2,
+    4
+   ],
+   "to": [
+    9.5,
+    3,
+    6.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6.5,
+      13,
+      9.5,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      9.5,
+      13,
+      12,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6.5,
+      13,
+      9.5,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      4,
+      13,
+      6.5,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6.5,
+      4,
+      9.5,
+      6.5
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_04_f1s",
+   "from": [
+    6.5,
+    2,
+    9.5
+   ],
+   "to": [
+    9.5,
+    3,
+    12
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6.5,
+      13,
+      9.5,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      4,
+      13,
+      6.5,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6.5,
+      13,
+      9.5,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      9.5,
+      13,
+      12,
+      14
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6.5,
+      9.5,
+      9.5,
+      12
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_05_f0",
+   "from": [
+    4,
+    1,
+    6
+   ],
+   "to": [
+    12,
+    2,
+    10
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      4,
+      14,
+      12,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      6,
+      14,
+      10,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      4,
+      14,
+      12,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      6,
+      14,
+      10,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      4,
+      6,
+      12,
+      10
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_05_f1n",
+   "from": [
+    6,
+    1,
+    4
+   ],
+   "to": [
+    10,
+    2,
+    6
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6,
+      14,
+      10,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      10,
+      14,
+      12,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6,
+      14,
+      10,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      4,
+      14,
+      6,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6,
+      4,
+      10,
+      6
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_05_f1s",
+   "from": [
+    6,
+    1,
+    10
+   ],
+   "to": [
+    10,
+    2,
+    12
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6,
+      14,
+      10,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      4,
+      14,
+      6,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6,
+      14,
+      10,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      10,
+      14,
+      12,
+      15
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6,
+      10,
+      10,
+      12
+     ],
+     "texture": "#nozzle"
+    }
+   }
+  },
+  {
+   "name": "bocal_06_f0",
+   "from": [
+    3.5,
+    0,
+    6
+   ],
+   "to": [
+    12.5,
+    1,
+    10
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      3.5,
+      15,
+      12.5,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      6,
+      15,
+      10,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      3.5,
+      15,
+      12.5,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      6,
+      15,
+      10,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      3.5,
+      6,
+      12.5,
+      10
+     ],
+     "texture": "#nozzle"
+    },
+    "down": {
+     "uv": [
+      0.0,
+      4.444,
+      16.0,
+      11.556
+     ],
+     "texture": "#exit",
+     "cullface": "down"
+    }
+   }
+  },
+  {
+   "name": "bocal_06_f1n",
+   "from": [
+    6,
+    0,
+    3.5
+   ],
+   "to": [
+    10,
+    1,
+    6
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6,
+      15,
+      10,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      10,
+      15,
+      12.5,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6,
+      15,
+      10,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      3.5,
+      15,
+      6,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6,
+      3.5,
+      10,
+      6
+     ],
+     "texture": "#nozzle"
+    },
+    "down": {
+     "uv": [
+      4.444,
+      11.556,
+      11.556,
+      16.0
+     ],
+     "texture": "#exit",
+     "cullface": "down"
+    }
+   }
+  },
+  {
+   "name": "bocal_06_f1s",
+   "from": [
+    6,
+    0,
+    10
+   ],
+   "to": [
+    10,
+    1,
+    12.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      6,
+      15,
+      10,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "east": {
+     "uv": [
+      3.5,
+      15,
+      6,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "south": {
+     "uv": [
+      6,
+      15,
+      10,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "west": {
+     "uv": [
+      10,
+      15,
+      12.5,
+      16
+     ],
+     "texture": "#nozzle"
+    },
+    "up": {
+     "uv": [
+      6,
+      10,
+      10,
+      12.5
+     ],
+     "texture": "#nozzle"
+    },
+    "down": {
+     "uv": [
+      4.444,
+      0.0,
+      11.556,
+      4.444
+     ],
+     "texture": "#exit",
+     "cullface": "down"
+    }
+   }
+  },
+  {
+   "name": "tubo_h2_o",
+   "from": [
+    1.5,
+    6.5,
+    7.5
+   ],
+   "to": [
+    2.5,
+    15,
+    8.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      13.5,
+      1,
+      14.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      7.5,
+      1,
+      8.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      1.5,
+      1,
+      2.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      7.5,
+      1,
+      8.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      1.5,
+      7.5,
+      2.5,
+      8.5
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      1.5,
+      7.5,
+      2.5,
+      8.5
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "tubo_h2_o_2",
+   "from": [
+    2.5,
+    6.5,
+    7.5
+   ],
+   "to": [
+    6,
+    7.5,
+    8.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      10,
+      8.5,
+      13.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      7.5,
+      8.5,
+      8.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      2.5,
+      8.5,
+      6,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      7.5,
+      8.5,
+      8.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      2.5,
+      7.5,
+      6,
+      8.5
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      2.5,
+      7.5,
+      6,
+      8.5
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "tubo_h2_l",
+   "from": [
+    13.5,
+    6.5,
+    7.5
+   ],
+   "to": [
+    14.5,
+    15,
+    8.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      1.5,
+      1,
+      2.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      7.5,
+      1,
+      8.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      13.5,
+      1,
+      14.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      7.5,
+      1,
+      8.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      13.5,
+      7.5,
+      14.5,
+      8.5
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      13.5,
+      7.5,
+      14.5,
+      8.5
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "tubo_h2_l_2",
+   "from": [
+    10,
+    6.5,
+    7.5
+   ],
+   "to": [
+    13.5,
+    7.5,
+    8.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      2.5,
+      8.5,
+      6,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      7.5,
+      8.5,
+      8.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      10,
+      8.5,
+      13.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      7.5,
+      8.5,
+      8.5,
+      9.5
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      10,
+      7.5,
+      13.5,
+      8.5
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      10,
+      7.5,
+      13.5,
+      8.5
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "bomba",
+   "from": [
+    2,
+    9.5,
+    2
+   ],
+   "to": [
+    4,
+    14,
+    4
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      12,
+      2,
+      14,
+      6.5
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      12,
+      2,
+      14,
+      6.5
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      2,
+      2,
+      4,
+      6.5
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      2,
+      2,
+      4,
+      6.5
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      2,
+      2,
+      4,
+      4
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      2,
+      12,
+      4,
+      14
+     ],
+     "texture": "#plate"
+    }
+   }
+  },
+  {
+   "name": "tubo_bomba",
+   "from": [
+    4,
+    11,
+    2.5
+   ],
+   "to": [
+    6,
+    12,
+    3.5
+   ],
+   "faces": {
+    "north": {
+     "uv": [
+      10,
+      4,
+      12,
+      5
+     ],
+     "texture": "#plate"
+    },
+    "east": {
+     "uv": [
+      12.5,
+      4,
+      13.5,
+      5
+     ],
+     "texture": "#plate"
+    },
+    "south": {
+     "uv": [
+      4,
+      4,
+      6,
+      5
+     ],
+     "texture": "#plate"
+    },
+    "west": {
+     "uv": [
+      2.5,
+      4,
+      3.5,
+      5
+     ],
+     "texture": "#plate"
+    },
+    "up": {
+     "uv": [
+      4,
+      2.5,
+      6,
+      3.5
+     ],
+     "texture": "#plate"
+    },
+    "down": {
+     "uv": [
+      4,
+      12.5,
+      6,
+      13.5
+     ],
+     "texture": "#plate"
+    }
+   }
+  }
+ ]
+}
