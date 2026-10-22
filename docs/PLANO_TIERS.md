@@ -83,7 +83,7 @@ A montagem continua a mesma (blocos livres sobre a plataforma, clique no cockpit
 | 1 | Multiblocos de tanque e motor e guias de montagem (painel primeiro, depois plantas) | 1 (multiblocos e painel feitos, plantas pendentes: seção 7) |
 | 2 | Gerador de planetas por parâmetros e Marte | 1 |
 | 3 | Sistema solar centrado no sol (viagem a Marte) | 1 |
-| 4 | Motores e planetas do Tier 2 | 2 |
+| 4 | Motores e planetas do Tier 2 | 2 (motores, combustíveis e materiais de Marte: seção 8; planetas pendentes) |
 | 5 | Naves andáveis com voo assistido (`PLANO_NAVES.md`) | 3 |
 | 6 | Spike de dimensão em tempo real; se passar, dobra e sistemas procedurais | 4 |
 
@@ -109,3 +109,105 @@ Implementado e verificado em jogo (`-PshOnly=multiblock`); números, fórmulas e
 
 Verificação: 839 testes unitários passando; autoteste `-PshOnly=multiblock` com 169 verificações (formação no mundo, galão na estrutura, projeto com defeitos, e para cada projeto o painel, a montagem, o voo curto, o pouso e as estruturas formadas de novo; o foguete grande de 1.650 blocos e o gigante de ~6.700 blocos, com o retrato em partes); `flight` (A a D), `mission` (263,97 b/t, pouso suave nos dois corpos, agora com a coluna 3x3x5 formada), `shipconvert` e `ship` sem falhas. No gigante (34 de largura) o pouso em terreno irregular pode ser recusado com `SPACE_OCCUPIED` (o foguete fica pousado intacto); o autoteste aceita essa recusa.
 
+## 8. Tier 2: conteúdo (motores, combustíveis, materiais de Marte)
+
+Design de 22/10/2026 (ids em `docs/TIER2_IDS.md`, o contrato com a arte). A física é a do Tier 1 (Tsiolkovsky, `FlightIntegrator`, `FlightMachine`):
+só entram números novos e um combustível por tipo de motor. Unidades do jogo: empuxo em t·b/t², massa em t, Isp em ticks (`ve = Isp · 0,08`),
+combustível em mB.
+
+### 8.1 Motores por tamanho
+
+As três formas de cada motor seguem a regra do químico ("peças maiores rendem mais"): o cubo 2x2x2 tem o empuxo de 8 blocos x 1,2, a massa
+de 8 blocos x 0,8 e Isp + 1 passo; o 3x3x3, 27 x 1,5, 27 x 0,7 e Isp + 2 passos. Números em `rocket/EngineType`.
+
+| Motor | Forma | Empuxo | Massa seca | Isp | Empuxo/t | Combustível |
+|---|---|---|---|---|---|---|
+| químico (Tier 1) | 1x1 / 2x2x2 / 3x3x3 | 2,5 / 24 / 101,25 | 0,6 / 3,84 / 11,34 | 1.600 / 1.700 / 1.800 | 4,17 / 6,25 / 8,93 | químico (tanque de combustível) |
+| nuclear (NERVA) | idem | 2,0 / 19,2 / 81 | 1,2 / 7,68 / 22,68 | 3.200 / 3.400 / 3.600 | 1,67 / 2,5 / 3,57 | hidrogênio + núcleo (barras) |
+| iônico | idem | 0,1 / 0,96 / 4,05 | 0,4 / 2,56 / 7,56 | 12.000 / 13.000 / 14.000 | 0,25 / 0,375 / 0,54 | xenônio + energia (RTG) |
+| fusão | idem | 4,0 / 38,4 / 162 | 1,0 / 6,4 / 18,9 | 10.000 / 11.000 / 12.000 | 4,0 / 6,0 / 8,57 | hélio-3 (guardado no motor) |
+
+- **Nuclear**: o dobro do Isp do químico em cada tamanho, empuxo por tonelada de 40% do químico. Queima hidrogênio enquanto o **núcleo** durar:
+  cada bloco do motor recebe uma barra `nuclear_fuel_rod` (clique com a barra; vai num bloco vazio do conjunto), e a barra aquece **32.000 mB de
+  hidrogênio** (a vida útil). O núcleo é um "combustível" sem massa (`Propellant.NUCLEAR_CORE`), gasto na mesma quantidade em mB que o hidrogênio:
+  sem núcleo o motor para, mesmo com hidrogênio. Um 2x2x2 leva 8 barras (256.000 mB), o dobro de um tanque 2x2x8.
+- **Iônico**: Isp 7,5x o químico, empuxo 1/25: empuxo por tonelada de 0,25 a 0,54, que com a carga não passa nem da gravidade da Lua (0,013 b/t²):
+  **não decola de lugar nenhum**, só serve no espaço (num foguete que decola com outro motor, ou como estágio de cruzeiro). Precisa de
+  energia: **cada gerador `rtg_generator` no foguete fornece 1**, o 1x1 pede 1, o 2x2x2 pede 6 e o 3x3x3 pede 16. Com menos geradores que o pedido,
+  todos os motores iônicos empurram na proporção (o Isp não muda); sem gerador, não empurram (`RocketSpecs.ionPowerFraction`). O RTG pesa 0,5 t.
+- **Fusão**: Isp de 6,25x o químico com o empuxo por tonelada perto do químico; o topo da progressão. Queima hélio-3 que o **próprio motor guarda**
+  (não há tanque de He-3 no contrato de ids): **1.000 mB por bloco**, carregado com o galão de He-3 (clique no motor; enche os blocos do conjunto em
+  ordem). Por isso um foguete só com motor de fusão pode ser montado sem tanque. Se um tanque de He-3 for desejado depois, é um id novo
+  (`helium3_tank`) e entra pela mesma classe dos tanques.
+
+### 8.2 Combustíveis e tanques
+
+| Combustível | Densidade (t por 1.000 mB) | Onde fica | Massa seca do tanque por bloco |
+|---|---|---|---|
+| químico | 0,8 | `rocket_fuel_tank` | 0,2 t |
+| hidrogênio líquido | 0,4 (leve: o nuclear precisa de tanque grande) | `hydrogen_tank` | 0,25 t (isolamento criogênico) |
+| xenônio | 1,2 (gás denso sob pressão) | `xenon_tank` | 0,3 t (vaso de pressão) |
+| hélio-3 | 0,8 | dentro do `fusion_engine` (1.000 mB por bloco) | (no motor) |
+| núcleo nuclear | 0 (vida útil, em mB de hidrogênio) | dentro do `nuclear_engine` (32.000 mB por bloco) | (no motor) |
+
+- `hydrogen_tank` e `xenon_tank` são o MESMO bloco do tanque químico (`RocketFuelTankBlock` com outro combustível): 4.000 mB por bloco, a mesma regra
+  de coluna (1 a 3 de lado, 4 a 12 de altura), o mesmo fator de casco `0,4 + 0,6 A / 6V` sobre a massa seca do bloco, textura conectada (`_frame`,
+  `_frame_end`, moldura 2), a carga é da estrutura e volta proporcional ao pousar. Cada tipo forma colunas só com o seu bloco (hidrogênio sobre
+  xenônio são duas colunas), e só aceita o galão do seu combustível.
+- Galões (`hydrogen_canister`, `xenon_canister`, `helium3_canister`): o mesmo galão de 1.000 mB do combustível químico, com o seu combustível.
+- Saves: a entidade e o voo guardam o químico onde sempre guardaram (`FuelMb`, `Fuel`) e os outros combustíveis em chaves novas (`Fuel_<tipo>`);
+  um save antigo carrega como só químico.
+
+### 8.3 Motores misturados
+
+Cada tipo de motor queima o seu combustível (`EngineGroup`: um grupo por tipo, com o empuxo somado e o Isp harmônico dos tamanhos). Com tudo a 100%,
+a vazão de massa soma e o Isp do conjunto é `ΣF / Σ(F/Isp)` dos grupos que AINDA têm combustível. O Δv do painel e da telemetria é calculado em
+**fases** (`RocketStats.deltaV(FuelLoad)`): enquanto todos os grupos queimam, Tsiolkovsky com o Isp do conjunto; quando o primeiro combustível acaba
+(ou o núcleo), o grupo dele para e os outros seguem com a massa que sobrou (o combustível que nenhum motor queima é peso morto). No voo, o
+`FlightIntegrator` faz o mesmo tick a tick (cada grupo pede `F·acelerador/ve` do seu combustível; o tick em que um acaba é parcial). O foguete só
+químico continua com a conta antiga, bit a bit. A decolagem exige que os motores COM combustível vençam a gravidade.
+
+Exemplos (painel, tanques cheios e motores carregados, com cockpit e paraquedas):
+
+| Foguete | Massa seca / cheia | TWR na Terra | Δv |
+|---|---|---|---|
+| químico 2x2x2 + tanque 2x2x8 | 8,74 / 111,1 t | 2,70 | 346 b/t (6.917 b/s) |
+| nuclear 2x2x2 + hidrogênio 2x2x8 (8 barras) | 13,58 / 64,8 t | 3,70 | 425 b/t (8.499 b/s) |
+| iônico 1x1 + 1 RTG + xenônio 1x1x4 | 2,82 / 22,0 t | 0,057 (não decola) | 1.973 b/t (39.460 b/s) |
+| fusão 3x3x3 (27.000 mB de He-3) | 19,8 / 41,4 t | 48,9 | 708 b/t (14.162 b/s) |
+
+### 8.4 Materiais de Marte e receitas
+
+Os materiais existem como blocos e itens; o worldgen de Marte é da frente do gerador de planetas.
+
+- `mars_regolith` (pá): sem toque de seda, 10% de chance de `rare_earth_dust` (fortuna como o cascalho com o sílex). `mars_titanium_ore` (picareta de
+  ferro): `raw_titanium` com fortuna. `raw_titanium` ou o minério → `titanium_ingot` (fornalha ou alto-forno). `titanium_block` = 9 lingotes.
+  `titanium_plate` = martelo de forja + 2 lingotes (como a placa de aço).
+- Peças (todas pedem titânio ou terras raras de Marte: o Tier 2 não deixa o Tier 1 obsoleto e exige ter ido a Marte):
+  - `nuclear_fuel_rod`: 6 terras raras + 2 placas de titânio + 1 pó de pedra luminosa (barra de tório). `superconductor_coil`: 4 cobre + 4 terras raras
+    + 1 placa de titânio.
+  - `nuclear_engine`: 4 placas de titânio + circuito + **motor químico** + 2 lingotes de titânio. `ion_engine`: 4 placas de titânio + circuito +
+    2 terras raras + motor químico. `fusion_engine`: 4 placas de titânio + 4 bobinas + circuito + **motor nuclear**.
+  - `hydrogen_tank` (2 por receita): 4 placas de aço + 4 de titânio + gelo compactado. `xenon_tank` (2): 4 placas de aço + 4 de titânio + bloco de cobre.
+  - `rtg_generator`: 4 placas de titânio + circuito + 2 terras raras + 1 barra nuclear (a fonte de calor).
+  - Galões vazios: pepita de aço + 4 placas de aço + 1 de titânio.
+- **De onde vem cada combustível**:
+  - hidrogênio: numa bancada, galão de hidrogênio + 2 baldes de água + 1 redstone → galão cheio (eletrólise; os baldes voltam vazios).
+  - xenônio: galão de xenônio + 4 regolitos marcianos + 1 terras raras → galão cheio (o gás preso no regolito de Marte).
+  - **hélio-3 (da Lua)**: clique direito com o galão de He-3 no solo da Lua (tag `spacehorizons:helium3_sources`; hoje a pedra da Lua, e o regolito
+    lunar quando o gerador de planetas o criar): o bloco é processado (some) e o galão ganha 125 mB (8 blocos = 1 galão). Só funciona na dimensão
+    da Lua.
+- Conquistas de receita para todas as receitas (pai `minecraft:recipes/root`, como as outras).
+
+### 8.5 Arte provisória
+
+Gerada por `tools/gen_tier2_placeholders.py` (recolor de texturas do mod e do vanilla da versão, por processamento simples; modelos dos motores =
+cópias retexturizadas dos do motor químico) nos nomes do contrato; a arte final grava por cima, sem código. Sem `--force` o script não sobrescreve.
+
+### 8.6 Limites desta etapa
+
+- O piloto de teste da missão (`MissionPilot`) e o `MissionBudget` continuam medidos com o foguete químico; os destinos do painel para foguetes do
+  Tier 2 vêm do orçamento de Δv (e do TWR na Terra), não de um voo simulado com esses motores. Os destinos além da Lua (planetas do Tier 2) ainda
+  não existem.
+- As naves (`ship/*`) ignoram as peças do Tier 2 (contam como estrutura); o estaleiro não tem tanque de hidrogênio nem motores novos.
+- Uma barra nuclear entra só num bloco de motor com o núcleo vazio (não se completa um núcleo gasto pela metade).
