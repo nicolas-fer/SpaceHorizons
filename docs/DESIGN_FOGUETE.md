@@ -297,3 +297,70 @@ na planta. O nome é o do item renomeado na bigorna, ou "Foguete de &lt;autor&gt
 - A planta fica na plataforma depois da decolagem (o holograma volta a mostrar o foguete inteiro, para reconstruir) até agachado + clique.
 - Item com planta grande: até 16.384 blocos no componente (sincronizado com o inventário).
 
+## Tier 2: combustível por tipo e motores novos (`docs/PLANO_TIERS.md`, seção 9)
+
+Números, receitas e o porquê no plano; aqui ficam os contratos. A física é a mesma: só o combustível deixou de ser um número só.
+
+### Física pura (`space/flight`)
+
+- `Propellant`: `CHEMICAL` (0,0008 t/mB), `HYDROGEN` (0,0004), `XENON` (0,0012), `HELIUM3` (0,0008), `NUCLEAR_CORE` (0: a vida útil do núcleo
+  do motor nuclear, em mB de hidrogênio). A ordem é a do NBT; só se acrescenta no fim.
+- `FuelLoad`: mB de cada combustível (imutável, igualdade por conteúdo); `massT()`, `propellantMb()` (só os com massa), `clampTo`, `floor`.
+- `EngineGroup(type, propellant, needsCore, thrust, ispTicks, blocks)`: os motores de um tipo, somados (Isp harmônico pelo empuxo entre os
+  tamanhos). `needsCore` (nuclear): gasta `NUCLEAR_CORE` na mesma quantidade em mB que o hidrogênio; sem núcleo o grupo não empurra.
+- `RocketStats` ganhou `groups` e `capacity` (`FuelLoad`). O construtor antigo de 10 argumentos continua (um grupo químico); `RocketStats.of(...)`
+  monta a partir dos grupos (empuxo somado, Isp do conjunto, `fuelCapacityMb` = combustível com massa). Os métodos com `double fuelMb` são os do
+  foguete químico, inalterados; os com `FuelLoad` (`wetMass`, `activeThrust`, `activeIsp`, `acceleration`, `twr`, `deltaV`, `firstBurnoutTicks`)
+  servem a qualquer foguete. `deltaV(FuelLoad)` é em FASES (todos os grupos com combustível queimam juntos; quando o primeiro combustível acaba, o
+  grupo dele para). `chemicalOnly()` diz se é o foguete do Tier 1.
+- `FlightState` tem `FuelLoad fuel` como componente; `fuelMb()` é o químico, `withFuel(double)` troca o químico e mantém os outros,
+  `withFuelLoad` troca tudo. Os construtores com `double fuelMb` continuam (químico).
+- `FlightIntegrator.step`: com `chemicalOnly()` e carga só química, a conta de antes, bit a bit; senão `burn(...)`: cada grupo pede
+  `F·acelerador/ve` toneladas do seu combustível, o combustível que não basta para o tick limita os grupos dele (o tick é parcial), e o Δv do tick é
+  Tsiolkovsky com a vazão somada e a exaustão média pela vazão. A soma dos ticks bate com `deltaV(FuelLoad)` a ~1e-5 (o tick da troca de fase mistura
+  as duas).
+
+### Foguete (`rocket`)
+
+- Papéis novos em `RocketBlockKind` (no fim, sem mudar os ordinais de antes): `NUCLEAR_ENGINE`, `ION_ENGINE`, `FUSION_ENGINE`, `HYDROGEN_TANK`,
+  `XENON_TANK`, `RTG`; `isEngine()`/`isTank()` valem para todos os tipos.
+- `EngineType`: números por tipo e tamanho (`thrust(side)`, `massT(side)`, `isp(side)`, `powerDemand(side)`, `chargePerBlockMb()`,
+  `chargePropellant()`). O químico reproduz as constantes de `RocketSpecs`.
+- `Multiblocks.analyze(Map<RocketBlockKind, long[]>)`: cada tipo de motor e de tanque é partido pela MESMA regra, só com os seus blocos;
+  `Analysis.of(kind)` e `allEngineRoles`. `RocketCensus` ganhou `tier2` (contagens e estruturas por papel); `engines`/`tanks` continuam sendo os
+  blocos químicos e `allEngines()`/`allTanks()`/`count(kind)`/`structuresOf(kind)`/`looseOf(kind)`/`rtgs()` cobrem tudo. A montagem exige
+  `allEngines() > 0` e `allTanks() > 0`, exceto com motor de fusão (`RocketSpecs.carriesOwnFuel`: o He-3 fica no motor).
+- `RocketSpecs.statsFor`: sem peças do Tier 2, exatamente o de antes; com elas, um `EngineGroup` por tipo, o iônico multiplicado por
+  `ionPowerFraction` (energia dos RTG / pedida, até 1), massas dos tanques novos com o mesmo fator de casco, capacidade por combustível (tanques
+  4.000 mB por bloco; núcleo 32.000 por bloco de motor nuclear; He-3 1.000 por bloco de fusão).
+- Blocos: `hydrogen_tank`/`xenon_tank` são `RocketFuelTankBlock(props, Propellant)` com o MESMO block entity (`RocketFuelTankBlockEntity`,
+  `fuel_mb`) e o mesmo item (`RocketFuelTankItem`); `TankStructures` só junta tanques do mesmo bloco. Os motores novos são `RocketEngineBlock`
+  (iônico) e `ChargedEngineBlock(props, EngineType)` (nuclear e fusão, com `EngineChargeBlockEntity`: `charge_mb`, componente
+  `engine_charge_mb` no item); `EngineForming` forma cada tipo com o seu bloco (o estado `form`/`facing` é o mesmo do motor químico). O galão de
+  outro combustível é `FuelCanisterItem(props, Propellant)` (mesmo componente `fuel_mb`).
+- Carga do foguete: `RocketEntity.fuel()`/`setFuel(FuelLoad)` (limitado a `stats.capacity()`); `fuelMb()`/`setFuelMb` continuam sendo o químico.
+  NBT: `FuelMb` (químico, como antes) e `Fuel_<tipo>` para os outros; o voo (`RocketFlight`) guarda `Fuel` e `Fuel_<tipo>`. O dado sincronizado
+  `FUEL_MB` é o total com massa. A montagem soma tanques por tipo e a carga dos motores (`RocketPortrait.fuelLoad()` lê o mesmo do NBT do retrato);
+  o pouso devolve cada combustível aos blocos do seu tipo (`RocketFuel.distribute`) e o núcleo/He-3 aos motores.
+- `FlightMachine.step(..., FuelLoad landedFuel, ...)`: a decolagem exige que os grupos COM combustível vençam a gravidade; o estado nasce com a
+  carga inteira. A versão com `double landedFuelMb` continua (químico).
+- Telemetria: o foguete químico como antes; com Tier 2, `fuelMb` = total com massa, Δv em fases e TWR dos grupos ativos.
+- Painel (`DesignReport`): ganhou `lines` (uma `Line` por tipo de motor, de tanque e os RTG, com formas, empuxo, Isp, capacidade e energia); os
+  campos de antes são os do químico; Δv, TWR e massas contam tudo. Avisos novos: `NO_ENGINE_FUEL` (motor sem nenhum tanque do seu combustível;
+  `arg` = o papel do tanque que falta), `LOW_POWER` (iônicos com menos energia que a pedida; `arg` = %), e `ENGINE_WITHOUT_TANK`/`INCOMPLETE_TANK`
+  olham o tanque do tipo certo.
+
+### Ids que a arte final preenche (Tier 2)
+
+Os nomes estão em `docs/TIER2_IDS.md`. Arquivos provisórios (gerados por `tools/gen_tier2_placeholders.py`, que não sobrescreve sem `--force`):
+
+- Itens: `textures/item/<id>.png` para `raw_titanium`, `titanium_ingot`, `titanium_plate`, `rare_earth_dust`, `helium3_canister`,
+  `hydrogen_canister`, `xenon_canister`, `nuclear_fuel_rod`, `superconductor_coil`.
+- Blocos simples: `textures/block/mars_regolith.png`, `mars_titanium_ore.png`, `titanium_block.png`, `rtg_generator.png` (lados) e
+  `rtg_generator_top.png` (cima e baixo).
+- Tanques: `textures/block/<tanque>_frame.png` e `<tanque>_frame_end.png` (moldura de 2), `<tanque>.png` e `<tanque>_top.png` (o cubo do item);
+  depois `python tools/gen_connected_block.py --name <tanque> --texture spacehorizons:block/<tanque>_frame --texture-end spacehorizons:block/<tanque>_frame_end --frame 2 --render-type solid --particle spacehorizons:block/<tanque>`.
+- Motores: `models/block/<motor>.json` (1x1), `<motor>_2x2.json` (de 0 a 32, mestre no canto mínimo), `<motor>_3x3.json` (de -16 a 32, mestre no
+  centro), `<motor>_part.json` (vazio). Os provisórios são os modelos do motor químico com as texturas `<motor>.png`, `<motor>_top.png`,
+  `<motor>_bottom.png` e `<motor>_2x2_{nozzle,exit,plate,pump}.png`, `<motor>_3x3_{...}.png` recoloridas; a arte final pode trocar modelos e
+  texturas à vontade, desde que os quatro ids de modelo existam (o blockstate os usa).

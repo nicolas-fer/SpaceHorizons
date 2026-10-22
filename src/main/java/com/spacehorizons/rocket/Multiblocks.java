@@ -79,13 +79,68 @@ public final class Multiblocks {
         PART
     }
 
-    /** As estruturas de um foguete: tanques e motores formados e o que sobrou avulso. */
-    public record Analysis(Tiling tanks, Tiling engines) {
-        public static final Analysis NONE = new Analysis(new Tiling(List.of(), new long[0]), new Tiling(List.of(), new long[0]));
+    private static final Tiling NO_TILING = new Tiling(List.of(), new long[0]);
+
+    /**
+     * As estruturas de um foguete: tanques e motores químicos formados ({@code tanks}, {@code engines}) e, no Tier 2, as dos outros tipos de
+     * motor e tanque ({@code others}, por papel de bloco). Cada tipo forma só com o seu próprio bloco (um tanque de hidrogênio não fecha a
+     * coluna de um tanque químico).
+     */
+    public record Analysis(Tiling tanks, Tiling engines, Map<RocketBlockKind, Tiling> others) {
+        public static final Analysis NONE = new Analysis(NO_TILING, NO_TILING);
+
+        public Analysis {
+            others = Map.copyOf(others);
+        }
+
+        public Analysis(Tiling tanks, Tiling engines) {
+            this(tanks, engines, Map.of());
+        }
+
+        /** A partição dos blocos do papel dado (vazia se não há nenhum). */
+        public Tiling of(RocketBlockKind kind) {
+            if (kind == RocketBlockKind.FUEL_TANK) {
+                return this.tanks;
+            }
+            if (kind == RocketBlockKind.ENGINE) {
+                return this.engines;
+            }
+            return this.others.getOrDefault(kind, NO_TILING);
+        }
     }
 
     public static Analysis analyze(long[] tankCells, long[] engineCells) {
         return new Analysis(tileTanks(tankCells), tileEngines(engineCells));
+    }
+
+    /** As estruturas de cada tipo de motor e tanque (as células de cada papel em {@code cells}; os outros papéis são ignorados). */
+    public static Analysis analyze(Map<RocketBlockKind, long[]> cells) {
+        Map<RocketBlockKind, Tiling> others = new HashMap<>();
+        for (Map.Entry<RocketBlockKind, long[]> e : cells.entrySet()) {
+            RocketBlockKind kind = e.getKey();
+            if (kind == RocketBlockKind.FUEL_TANK || kind == RocketBlockKind.ENGINE || e.getValue().length == 0) {
+                continue;
+            }
+            if (kind.isTank()) {
+                others.put(kind, tileTanks(e.getValue()));
+            } else if (kind.isEngine()) {
+                others.put(kind, tileEngines(e.getValue()));
+            }
+        }
+        long[] none = new long[0];
+        return new Analysis(tileTanks(cells.getOrDefault(RocketBlockKind.FUEL_TANK, none)),
+                tileEngines(cells.getOrDefault(RocketBlockKind.ENGINE, none)), others);
+    }
+
+    /** Os papéis dos blocos de TODOS os motores (de todos os tipos; as células de tipos diferentes nunca coincidem). */
+    public static Map<Long, EngineRole> allEngineRoles(Analysis analysis) {
+        Map<Long, EngineRole> roles = new HashMap<>(engineRoles(analysis.engines()));
+        for (Map.Entry<RocketBlockKind, Tiling> e : analysis.others().entrySet()) {
+            if (e.getKey().isEngine()) {
+                roles.putAll(engineRoles(e.getValue()));
+            }
+        }
+        return roles;
     }
 
     // ---------------------------------------------------------------- partição

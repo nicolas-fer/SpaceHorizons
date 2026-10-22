@@ -5,6 +5,8 @@ import java.util.List;
 
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.flight.BodyPhysics;
+import com.spacehorizons.space.flight.FuelLoad;
+import com.spacehorizons.space.flight.Propellant;
 import com.spacehorizons.space.flight.RocketStats;
 
 import net.minecraft.network.FriendlyByteBuf;
@@ -18,11 +20,39 @@ import net.minecraft.network.FriendlyByteBuf;
  * os destinos vêm de {@link MissionBudget}, medido no simulador da missão. Logo o painel mostra o que o foguete montado terá.
  *
  * Os números são com os tanques CHEIOS (o projeto); o combustível de cada tanque no mundo é outra coisa e aparece na barra de ação do tanque.
+ *
+ * <p>Tier 2: {@code engineBlocks}, {@code soloEngines}, {@code engines2}, {@code engines3}, {@code tankBlocks}, {@code looseTanks} e {@code tankColumns}
+ * são as peças QUÍMICAS (as do Tier 1); os motores e tanques dos outros tipos e os geradores RTG vêm em {@code lines} ({@link Line}), e o Δv, o TWR e as
+ * massas já contam tudo (cada motor queimando o seu combustível, os motores nucleares e de fusão carregados, {@link RocketStats#deltaV(FuelLoad)}).
  */
 public record DesignReport(int padX, int padY, int padZ, boolean found, int blocks, int sizeX, int sizeY, int sizeZ, double dryMassT, double wetMassT,
         double fuelCapacityMb, double thrust, double ispTicks, double twr, double deltaV, int engineBlocks, int soloEngines, int engines2,
         int engines3, int tankBlocks, int looseTanks, int tankColumns, int parachutes, boolean assemblable, byte destination,
-        double nextRequiredDeltaV, List<Problem> problems) {
+        double nextRequiredDeltaV, List<Problem> problems, List<Line> lines) {
+
+    /** Sem peças do Tier 2 (o relatório de antes). */
+    public DesignReport(int padX, int padY, int padZ, boolean found, int blocks, int sizeX, int sizeY, int sizeZ, double dryMassT, double wetMassT,
+            double fuelCapacityMb, double thrust, double ispTicks, double twr, double deltaV, int engineBlocks, int soloEngines, int engines2,
+            int engines3, int tankBlocks, int looseTanks, int tankColumns, int parachutes, boolean assemblable, byte destination,
+            double nextRequiredDeltaV, List<Problem> problems) {
+        this(padX, padY, padZ, found, blocks, sizeX, sizeY, sizeZ, dryMassT, wetMassT, fuelCapacityMb, thrust, ispTicks, twr, deltaV, engineBlocks,
+                soloEngines, engines2, engines3, tankBlocks, looseTanks, tankColumns, parachutes, assemblable, destination, nextRequiredDeltaV, problems,
+                List.of());
+    }
+
+    public DesignReport {
+        problems = List.copyOf(problems);
+        lines = List.copyOf(lines);
+    }
+
+    /**
+     * Uma linha do Tier 2 no painel: um tipo de motor, de tanque ou os geradores RTG ({@code kind}, o papel do bloco). Motor: {@code blocks} e os
+     * avulsos, cubos 2x2x2 e 3x3x3, o empuxo efetivo e o Isp do tipo, e {@code power} a energia em % (só o iônico; 100 nos outros). Tanque:
+     * {@code blocks}, avulsos, colunas ({@code cubes2}) e {@code capacityMb}. RTG: {@code blocks}. {@code capacityMb} do motor é a carga dele
+     * (núcleo do nuclear, hélio-3 do de fusão).
+     */
+    public record Line(RocketBlockKind kind, int blocks, int solo, int cubes2, int cubes3, double thrust, double ispTicks, double capacityMb, int power) {
+    }
 
     /** Tipos de problema; os de {@link #blocking} impedem a montagem de verdade, os outros são avisos de projeto. */
     public enum Type {
@@ -30,7 +60,9 @@ public record DesignReport(int padX, int padY, int padZ, boolean found, int bloc
         NO_COCKPIT(true), MULTIPLE_COCKPITS(true), NO_ENGINE(true), NO_TANK(true), NO_PAD(true), TOO_LARGE(true), TOUCHES_TERRAIN(true),
         FORBIDDEN_BLOCK(true), UNLOADED_CHUNK(true),
         // avisos de projeto
-        NO_PARACHUTE(false), ENGINE_WITHOUT_TANK(false), INCOMPLETE_TANK(false), LOW_TWR(false);
+        NO_PARACHUTE(false), ENGINE_WITHOUT_TANK(false), INCOMPLETE_TANK(false), LOW_TWR(false),
+        // Tier 2: motor sem nenhum tanque do combustível dele (arg = o papel do tanque que falta) e motores iônicos sem energia bastante (arg = %)
+        NO_ENGINE_FUEL(false), LOW_POWER(false);
 
         private final boolean blocking;
 
@@ -85,8 +117,11 @@ public record DesignReport(int padX, int padY, int padZ, boolean found, int bloc
         RocketCensus census = r.census();
         RocketStats stats = RocketSpecs.statsFor(census);
         double fuel = stats.fuelCapacityMb();
-        double twr = stats.twr(fuel, EARTH_GRAVITY);
-        double dv = stats.deltaV(fuel);
+        boolean chemical = stats.chemicalOnly();
+        FuelLoad full = stats.fullLoad();
+        double twr = chemical ? stats.twr(fuel, EARTH_GRAVITY) : stats.twr(full, EARTH_GRAVITY);
+        double dv = chemical ? stats.deltaV(fuel) : stats.deltaV(full);
+        double wet = chemical ? stats.wetMass(fuel) : stats.wetMass(full);
         MissionBudget.Destination destination = MissionBudget.reachable(dv, twr, census.parachutes() > 0);
         MissionBudget.Destination next = MissionBudget.next(destination);
 
@@ -100,11 +135,49 @@ public record DesignReport(int padX, int padY, int padZ, boolean found, int bloc
         if (problems.size() > MAX_PROBLEMS) {
             problems = new ArrayList<>(problems.subList(0, MAX_PROBLEMS));
         }
-        return new DesignReport(padX, padY, padZ, true, r.cells().size(), r.sizeX(), r.sizeY(), r.sizeZ(), stats.dryMassT(), stats.wetMass(fuel), fuel,
+        return new DesignReport(padX, padY, padZ, true, r.cells().size(), r.sizeX(), r.sizeY(), r.sizeZ(), stats.dryMassT(), wet, fuel,
                 stats.thrust(), stats.ispTicks(), twr, dv, census.engines(), census.soloEngines(), census.engineStructuresOfSide(Multiblocks.ENGINE_SMALL),
                 census.engineStructuresOfSide(Multiblocks.ENGINE_LARGE), census.tanks(), census.looseTanks(), census.tankStructures().size(),
                 census.parachutes(), report.assemblable(), (byte) destination.ordinal(),
-                next == null ? 0.0 : MissionBudget.required(next), List.copyOf(problems));
+                next == null ? 0.0 : MissionBudget.required(next), List.copyOf(problems), tier2Lines(census, stats));
+    }
+
+    /** As linhas do Tier 2: cada tipo de motor e de tanque presente e os geradores RTG. */
+    static List<Line> tier2Lines(RocketCensus census, RocketStats stats) {
+        List<Line> lines = new ArrayList<>();
+        if (!census.hasTier2()) {
+            return lines;
+        }
+        for (EngineType type : new EngineType[] {EngineType.NUCLEAR, EngineType.ION, EngineType.FUSION}) {
+            RocketBlockKind kind = type.kind();
+            int blocks = census.count(kind);
+            if (blocks == 0) {
+                continue;
+            }
+            double thrust = 0.0;
+            double isp = type.isp(1);
+            for (com.spacehorizons.space.flight.EngineGroup g : stats.groups()) {
+                if (g.type().equals(type.key())) {
+                    thrust = g.thrust();
+                    isp = g.ispTicks();
+                }
+            }
+            List<Multiblocks.Box> boxes = census.structuresOf(kind);
+            int power = type == EngineType.ION ? (int) Math.round(RocketSpecs.ionPowerFraction(census) * 100.0) : 100;
+            lines.add(new Line(kind, blocks, census.looseOf(kind), (int) boxes.stream().filter(b -> b.side() == 2).count(),
+                    (int) boxes.stream().filter(b -> b.side() == 3).count(), thrust, isp, (double) blocks * type.chargePerBlockMb(), power));
+        }
+        for (RocketBlockKind kind : new RocketBlockKind[] {RocketBlockKind.HYDROGEN_TANK, RocketBlockKind.XENON_TANK}) {
+            int blocks = census.count(kind);
+            if (blocks > 0) {
+                lines.add(new Line(kind, blocks, census.looseOf(kind), census.structuresOf(kind).size(), 0, 0.0, 0.0,
+                        (double) blocks * RocketSpecs.TANK_CAPACITY_MB, 100));
+            }
+        }
+        if (census.rtgs() > 0) {
+            lines.add(new Line(RocketBlockKind.RTG, census.rtgs(), census.rtgs(), 0, 0, 0.0, 0.0, 0.0, 100));
+        }
+        return lines;
     }
 
     private static void addOnce(List<Problem> problems, Problem problem) {
@@ -131,29 +204,57 @@ public record DesignReport(int padX, int padY, int padZ, boolean found, int bloc
             addOnce(problems, new Problem(Type.NO_PARACHUTE, top.x(), top.y(), top.z(), 0));
         }
         // TWR baixo: não decola (<= 1) ou só chega ao salto (< 1,2); marca o cockpit
-        if (census.engines() > 0 && twr < MissionBudget.MIN_TWR_ORBIT) {
+        if (census.allEngines() > 0 && twr < MissionBudget.MIN_TWR_ORBIT) {
             addOnce(problems, new Problem(Type.LOW_TWR, r.cockpitX(), r.cockpitY(), r.cockpitZ(), (int) Math.round(twr * 100.0)));
         }
-        // motor sem tanque acima, na coluna dele (só se há tanque: sem nenhum, o problema é NO_TANK)
-        if (census.tanks() > 0) {
-            for (long cell : engineHeads(report)) {
+        // motor sem tanque acima, na coluna dele (só se há tanque: sem nenhum, o problema é NO_TANK). Cada tipo de motor olha o tanque do SEU
+        // combustível; o de fusão leva o hélio-3 dentro dele e não precisa de tanque. Tipo sem nenhum tanque do seu combustível: NO_ENGINE_FUEL.
+        for (EngineType type : EngineType.values()) {
+            RocketBlockKind tankKind = RocketSpecs.tankKindOf(type.propellant());
+            if (tankKind == null || census.count(type.kind()) == 0) {
+                continue;
+            }
+            Multiblocks.Tiling engines = report.structures().of(type.kind());
+            boolean anyTank = census.count(tankKind) > 0;
+            if (!anyTank && type == EngineType.CHEMICAL && census.allTanks() == 0 && !RocketSpecs.carriesOwnFuel(census)) {
+                continue; // foguete sem tanque nenhum: o problema é NO_TANK
+            }
+            for (long cell : engineHeads(engines)) {
                 int x = net.minecraft.core.BlockPos.getX(cell);
                 int y = net.minecraft.core.BlockPos.getY(cell);
                 int z = net.minecraft.core.BlockPos.getZ(cell);
-                if (!hasTankAbove(cells, report.structures().engines(), x, y, z)) {
+                if (!anyTank) {
+                    addOnce(problems, new Problem(Type.NO_ENGINE_FUEL, x, y, z, tankKind.ordinal()));
+                } else if (!hasTankAbove(cells, engines, tankKind, x, y, z)) {
                     addOnce(problems, new Problem(Type.ENGINE_WITHOUT_TANK, x, y, z, 0));
                 }
             }
         }
-        // estrutura de tanque incompleta: tanques que valem um a um mas encostam em outro tanque (uma coluna que não fechou)
+        // motores iônicos com menos energia que a pedida (geradores RTG de menos): marca o primeiro motor iônico
+        if (census.count(RocketBlockKind.ION_ENGINE) > 0 && RocketSpecs.ionPowerFraction(census) < 1.0) {
+            List<Long> heads = engineHeads(report.structures().of(RocketBlockKind.ION_ENGINE));
+            if (!heads.isEmpty()) {
+                long cell = heads.get(0);
+                addOnce(problems, new Problem(Type.LOW_POWER, net.minecraft.core.BlockPos.getX(cell), net.minecraft.core.BlockPos.getY(cell),
+                        net.minecraft.core.BlockPos.getZ(cell), (int) Math.round(RocketSpecs.ionPowerFraction(census) * 100.0)));
+            }
+        }
+        // estrutura de tanque incompleta: tanques que valem um a um mas encostam em outro tanque igual (uma coluna que não fechou)
+        int flagged = 0;
+        for (RocketBlockKind tankKind : new RocketBlockKind[] {RocketBlockKind.FUEL_TANK, RocketBlockKind.HYDROGEN_TANK, RocketBlockKind.XENON_TANK}) {
+            flagged = incompleteTanks(report, tankKind, problems, flagged);
+        }
+    }
+
+    /** Marca (até 8 no total) os tanques do papel dado que ficaram avulsos encostados num tanque igual. */
+    private static int incompleteTanks(RocketAssembly.Report report, RocketBlockKind tankKind, List<Problem> problems, int flagged) {
         java.util.Set<Long> tankCells = new java.util.HashSet<>();
-        for (RocketAssembly.Cell c : cells) {
-            if (c.kind() == RocketBlockKind.FUEL_TANK) {
+        for (RocketAssembly.Cell c : report.result().cells()) {
+            if (c.kind() == tankKind) {
                 tankCells.add(RocketAssembly.pack(c.x(), c.y(), c.z()));
             }
         }
-        int flagged = 0;
-        for (long cell : report.structures().tanks().loose()) {
+        for (long cell : report.structures().of(tankKind).loose()) {
             int x = net.minecraft.core.BlockPos.getX(cell);
             int y = net.minecraft.core.BlockPos.getY(cell);
             int z = net.minecraft.core.BlockPos.getZ(cell);
@@ -165,22 +266,23 @@ public record DesignReport(int padX, int padY, int padZ, boolean found, int bloc
                 flagged++;
             }
         }
+        return flagged;
     }
 
     /** Uma célula por motor (o mestre de cada estrutura, o bloco de cada motor avulso), em posições do mundo. */
-    private static List<Long> engineHeads(RocketAssembly.Report report) {
+    private static List<Long> engineHeads(Multiblocks.Tiling engines) {
         List<Long> heads = new ArrayList<>();
-        for (long cell : report.structures().engines().loose()) {
+        for (long cell : engines.loose()) {
             heads.add(cell);
         }
-        for (Multiblocks.Box box : report.structures().engines().boxes()) {
+        for (Multiblocks.Box box : engines.boxes()) {
             heads.add(Multiblocks.masterOf(box));
         }
         return heads;
     }
 
-    /** Há um tanque numa das colunas do motor (a pegada dele), acima dele? */
-    private static boolean hasTankAbove(List<RocketAssembly.Cell> cells, Multiblocks.Tiling engines, int x, int y, int z) {
+    /** Há um tanque do papel dado numa das colunas do motor (a pegada dele), acima dele? */
+    private static boolean hasTankAbove(List<RocketAssembly.Cell> cells, Multiblocks.Tiling engines, RocketBlockKind tankKind, int x, int y, int z) {
         Multiblocks.Box box = Multiblocks.boxAt(engines, x, y, z);
         int x0 = box != null ? box.x() : x;
         int z0 = box != null ? box.z() : z;
@@ -188,7 +290,7 @@ public record DesignReport(int padX, int padY, int padZ, boolean found, int bloc
         int d = box != null ? box.d() : 1;
         int top = box != null ? box.y() + box.h() : y + 1;
         for (RocketAssembly.Cell c : cells) {
-            if (c.kind() == RocketBlockKind.FUEL_TANK && c.y() >= top && c.x() >= x0 && c.x() < x0 + w && c.z() >= z0 && c.z() < z0 + d) {
+            if (c.kind() == tankKind && c.y() >= top && c.x() >= x0 && c.x() < x0 + w && c.z() >= z0 && c.z() < z0 + d) {
                 return true;
             }
         }
@@ -231,6 +333,18 @@ public record DesignReport(int padX, int padY, int padZ, boolean found, int bloc
             buf.writeInt(p.y());
             buf.writeInt(p.z());
             buf.writeVarInt(p.arg());
+        }
+        buf.writeVarInt(this.lines.size());
+        for (Line l : this.lines) {
+            buf.writeByte(l.kind().ordinal());
+            buf.writeVarInt(l.blocks());
+            buf.writeVarInt(l.solo());
+            buf.writeVarInt(l.cubes2());
+            buf.writeVarInt(l.cubes3());
+            buf.writeDouble(l.thrust());
+            buf.writeDouble(l.ispTicks());
+            buf.writeDouble(l.capacityMb());
+            buf.writeVarInt(l.power());
         }
     }
 
@@ -276,7 +390,20 @@ public record DesignReport(int padX, int padY, int padZ, boolean found, int bloc
             }
             problems.add(new Problem(Type.values()[type], buf.readInt(), buf.readInt(), buf.readInt(), buf.readVarInt()));
         }
+        int lineCount = buf.readVarInt();
+        if (lineCount < 0 || lineCount > RocketBlockKind.values().length) {
+            throw new IllegalArgumentException("linhas demais no painel: " + lineCount);
+        }
+        List<Line> lines = new ArrayList<>(lineCount);
+        for (int i = 0; i < lineCount; i++) {
+            int kind = buf.readByte();
+            if (kind < 0 || kind >= RocketBlockKind.values().length) {
+                throw new IllegalArgumentException("papel inválido no painel: " + kind);
+            }
+            lines.add(new Line(RocketBlockKind.values()[kind], buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readDouble(),
+                    buf.readDouble(), buf.readDouble(), buf.readVarInt()));
+        }
         return new DesignReport(padX, padY, padZ, found, blocks, sizeX, sizeY, sizeZ, dry, wet, capacity, thrust, isp, twr, dv, engineBlocks, solo, e2, e3,
-                tankBlocks, loose, columns, chutes, assemblable, destination, next, List.copyOf(problems));
+                tankBlocks, loose, columns, chutes, assemblable, destination, next, List.copyOf(problems), lines);
     }
 }

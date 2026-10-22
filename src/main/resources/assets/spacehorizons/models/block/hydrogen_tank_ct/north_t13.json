@@ -1,0 +1,32 @@
+{
+  "textures": {
+    "all": "spacehorizons:block/hydrogen_tank_ct/t13",
+    "particle": "spacehorizons:block/hydrogen_tank"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            16
+          ],
+          "texture": "#all",
+          "cullface": "north"
+        }
+      }
+    }
+  ]
+}

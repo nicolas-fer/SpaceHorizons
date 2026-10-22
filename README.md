@@ -207,6 +207,15 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
   clique numa `launch_pad` mostra o holograma: fantasma onde falta bloco, vermelho onde está errado, some onde está certo (só sugestão). Com a planta em branco,
   o clique salva o foguete que está sobre a plataforma; agachado + clique tira a planta. O painel de projeto mostra quanto falta e o destino do projeto da
   planta. Autoteste: `./gradlew runClientTest -PshOnly=blueprint`.
+- **Tier 2: motores nuclear, iônico e de fusão** (`docs/PLANO_TIERS.md`, seção 9; contratos em `docs/DESIGN_FOGUETE.md`; ids em `docs/TIER2_IDS.md`):
+  os três motores têm 1x1, 2x2x2 e 3x3x3 como o químico e cada um queima o seu combustível. Nuclear: o dobro do Isp, queima hidrogênio
+  (`hydrogen_tank`) enquanto o núcleo durar (clique com `nuclear_fuel_rod` num bloco do motor: 32.000 mB de hidrogênio por barra). Iônico: Isp altíssimo
+  e empuxo minúsculo, não decola de lugar nenhum; queima xenônio (`xenon_tank`) com a energia de geradores `rtg_generator` (1 por motor 1x1, 6 pelo
+  2x2x2, 16 pelo 3x3x3). Fusão: Isp e empuxo altos, queima o hélio-3 guardado no próprio motor (clique com o galão de He-3; não precisa de tanque).
+  Hidrogênio: galão + 2 baldes de água + redstone na bancada; xenônio: galão + 4 regolitos marcianos + terras raras; hélio-3: o galão no solo da Lua
+  (125 mB por bloco). As peças pedem titânio e terras raras de Marte (`mars_titanium_ore`, `mars_regolith`; blocos e itens já existem, o planeta
+  não). O painel de projeto mostra cada tipo e o Δv com os motores misturados (em fases: quando um combustível acaba, o motor dele para).
+  Arte provisória (recolor) por `tools/gen_tier2_placeholders.py`. Autoteste: `./gradlew runClientTest -PshOnly=tier2`.
 
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
 (estabilizar, prógrado, retrógrado, horizontal), P paraquedas, V câmera, G desmontar (pousado). O SAS horizontal aponta o nariz
@@ -489,6 +498,15 @@ Plano completo em `docs/PLANO_SOBREVIVENCIA.md`; decisões e contratos do foguet
   clique numa `launch_pad` mostra o holograma: fantasma onde falta bloco, vermelho onde está errado, some onde está certo (só sugestão). Com a planta em branco,
   o clique salva o foguete que está sobre a plataforma; agachado + clique tira a planta. O painel de projeto mostra quanto falta e o destino do projeto da
   planta. Autoteste: `./gradlew runClientTest -PshOnly=blueprint`.
+- **Tier 2: motores nuclear, iônico e de fusão** (`docs/PLANO_TIERS.md`, seção 9; contratos em `docs/DESIGN_FOGUETE.md`; ids em `docs/TIER2_IDS.md`):
+  os três motores têm 1x1, 2x2x2 e 3x3x3 como o químico e cada um queima o seu combustível. Nuclear: o dobro do Isp, queima hidrogênio
+  (`hydrogen_tank`) enquanto o núcleo durar (clique com `nuclear_fuel_rod` num bloco do motor: 32.000 mB de hidrogênio por barra). Iônico: Isp altíssimo
+  e empuxo minúsculo, não decola de lugar nenhum; queima xenônio (`xenon_tank`) com a energia de geradores `rtg_generator` (1 por motor 1x1, 6 pelo
+  2x2x2, 16 pelo 3x3x3). Fusão: Isp e empuxo altos, queima o hélio-3 guardado no próprio motor (clique com o galão de He-3; não precisa de tanque).
+  Hidrogênio: galão + 2 baldes de água + redstone na bancada; xenônio: galão + 4 regolitos marcianos + terras raras; hélio-3: o galão no solo da Lua
+  (125 mB por bloco). As peças pedem titânio e terras raras de Marte (`mars_titanium_ore`, `mars_regolith`; blocos e itens já existem, o planeta
+  não). O painel de projeto mostra cada tipo e o Δv com os motores misturados (em fases: quando um combustível acaba, o motor dele para).
+  Arte provisória (recolor) por `tools/gen_tier2_placeholders.py`. Autoteste: `./gradlew runClientTest -PshOnly=tier2`.
 
 Controles no cockpit: Shift/Ctrl acelerador, Z cheio, X corta, W/S arfagem, A/D guinada, Q/E rolagem, T modo do SAS
 (estabilizar, prógrado, retrógrado, horizontal), P paraquedas, V câmera, G desmontar (pousado). O SAS horizontal aponta o nariz

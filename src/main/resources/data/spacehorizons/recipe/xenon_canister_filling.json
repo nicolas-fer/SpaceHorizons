@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "spacehorizons:xenon_canister",
+    "spacehorizons:mars_regolith",
+    "spacehorizons:mars_regolith",
+    "spacehorizons:mars_regolith",
+    "spacehorizons:mars_regolith",
+    "spacehorizons:rare_earth_dust"
+  ],
+  "result": {
+    "id": "spacehorizons:xenon_canister",
+    "components": {
+      "spacehorizons:fuel_mb": 1000
+    }
+  }
+}

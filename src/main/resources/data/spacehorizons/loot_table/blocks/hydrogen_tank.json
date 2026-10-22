@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "condition": {
+        "type": "minecraft:survives_explosion"
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "spacehorizons:hydrogen_tank",
+          "modifier": {
+            "type": "minecraft:copy_components",
+            "include": [
+              "spacehorizons:rocket_tank_mb"
+            ],
+            "source": "block_entity"
+          }
+        }
+      ],
+      "rolls": 1
+    }
+  ],
+  "random_sequence": "spacehorizons:blocks/hydrogen_tank"
+}

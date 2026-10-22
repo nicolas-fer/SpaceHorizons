@@ -58,9 +58,14 @@ public final class RocketTelemetryBuilder {
                 burnNow = plan.burnNow();
             }
         }
+        // o foguete químico (Tier 1) com a conta de sempre; com motores do Tier 2, a carga por combustível (o painel mostra o total com massa)
+        boolean chemical = stats.chemicalOnly() && s.fuel().onlyChemical();
+        double fuelMb = chemical ? s.fuelMb() : s.fuel().propellantMb();
+        double deltaV = chemical ? stats.deltaV(s.fuelMb()) : stats.deltaV(s.fuel());
+        double twr = chemical ? stats.twr(s.fuelMb(), bp.gravityAt(r.length())) : stats.twr(s.fuel(), bp.gravityAt(r.length()));
         return new RocketTelemetryPayload(s.body().planet().id().getPath(), inSpace, bp.altitude(r.length()), radial, horizontal,
-                s.v().length(), apoapsis, periapsis, Math.toDegrees(orbit.inclination()), timeToApoapsis, s.fuelMb(),
-                stats.fuelCapacityMb(), stats.deltaV(s.fuelMb()), stats.twr(s.fuelMb(), bp.gravityAt(r.length())), (float) throttle,
+                s.v().length(), apoapsis, periapsis, Math.toDegrees(orbit.inclination()), timeToApoapsis, fuelMb,
+                stats.fuelCapacityMb(), deltaV, twr, (float) throttle,
                 (byte) sas.ordinal(), (byte) mode.ordinal(), (float) s.heat(), (float) s.chute(), plannerStatus, phaseNow, phaseIdeal,
                 tliDeltaV, burnNow, held, landingState, landingPercent);
     }

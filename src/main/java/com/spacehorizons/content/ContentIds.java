@@ -69,16 +69,50 @@ public final class ContentIds {
     /** Eclusa: porta de uma célula que abre e fecha com o botão direito. */
     public static final String SHIP_AIRLOCK = "ship_airlock";
 
+    // --- Tier 2 (docs/TIER2_IDS.md, o contrato com a arte; números e receitas em docs/PLANO_TIERS.md, "Tier 2: conteúdo") ---
+    /** Regolito marciano: solo de Marte; sem toque de seda dá às vezes pó de terras raras (como o cascalho dá sílex). */
+    public static final String MARS_REGOLITH = "mars_regolith";
+    /** Minério de titânio no regolito marciano: dá titânio bruto. */
+    public static final String MARS_TITANIUM_ORE = "mars_titanium_ore";
+    public static final String RAW_TITANIUM = "raw_titanium";
+    public static final String TITANIUM_INGOT = "titanium_ingot";
+    /** Placa de titânio: martelo de forja + 2 lingotes (como a placa de aço); a base das peças do Tier 2. */
+    public static final String TITANIUM_PLATE = "titanium_plate";
+    public static final String TITANIUM_BLOCK = "titanium_block";
+    /** Pó de terras raras (Marte): barras nucleares, bobinas e motores do Tier 2. */
+    public static final String RARE_EARTH_DUST = "rare_earth_dust";
+    /** Galões dos combustíveis do Tier 2 (1.000 mB cada, como o galão de combustível). */
+    public static final String HELIUM3_CANISTER = "helium3_canister";
+    public static final String HYDROGEN_CANISTER = "hydrogen_canister";
+    public static final String XENON_CANISTER = "xenon_canister";
+    /** Barra de combustível nuclear: carregada no motor nuclear, aquece 32.000 mB de hidrogênio. */
+    public static final String NUCLEAR_FUEL_ROD = "nuclear_fuel_rod";
+    /** Bobina supercondutora: peça do motor de fusão. */
+    public static final String SUPERCONDUCTOR_COIL = "superconductor_coil";
+    /** Tanques multibloco do Tier 2 (mesma regra de coluna do tanque químico). */
+    public static final String HYDROGEN_TANK = "hydrogen_tank";
+    public static final String XENON_TANK = "xenon_tank";
+    /** Gerador radioisotópico: a energia do motor iônico. */
+    public static final String RTG_GENERATOR = "rtg_generator";
+    /** Motores do Tier 2 (1x1, 2x2x2 e 3x3x3 como o motor químico). */
+    public static final String NUCLEAR_ENGINE = "nuclear_engine";
+    public static final String ION_ENGINE = "ion_engine";
+    public static final String FUSION_ENGINE = "fusion_engine";
+
     /** Itens que não são BlockItems. */
     public static final List<String> ITEMS = List.of(
             STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER,
             OXYGEN_TANK_SMALL, OXYGEN_TANK_LARGE,
-            SPACE_HELMET, SPACE_CHESTPLATE, SPACE_LEGGINGS, SPACE_BOOTS, ROCKET_BLUEPRINT);
+            SPACE_HELMET, SPACE_CHESTPLATE, SPACE_LEGGINGS, SPACE_BOOTS, ROCKET_BLUEPRINT,
+            RAW_TITANIUM, TITANIUM_INGOT, TITANIUM_PLATE, RARE_EARTH_DUST, HELIUM3_CANISTER, HYDROGEN_CANISTER, XENON_CANISTER,
+            NUCLEAR_FUEL_ROD, SUPERCONDUCTOR_COIL);
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
     public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR,
             LAUNCH_PAD, ROCKET_COCKPIT, ROCKET_ENGINE, ROCKET_FUEL_TANK, ROCKET_PARACHUTE, ROCKET_LANDING_LEG, ROCKET_HULL,
-            SHIP_BRIDGE, SHIP_IMPULSE_ENGINE, SHIP_WINDOW, SHIP_SEAT, SHIP_AIRLOCK);
+            SHIP_BRIDGE, SHIP_IMPULSE_ENGINE, SHIP_WINDOW, SHIP_SEAT, SHIP_AIRLOCK,
+            MARS_REGOLITH, MARS_TITANIUM_ORE, TITANIUM_BLOCK, HYDROGEN_TANK, XENON_TANK, RTG_GENERATOR, NUCLEAR_ENGINE, ION_ENGINE,
+            FUSION_ENGINE);
 
     private ContentIds() {
     }

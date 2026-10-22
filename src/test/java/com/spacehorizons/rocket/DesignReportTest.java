@@ -198,8 +198,8 @@ class DesignReportTest {
         DesignReport.nothing(0, 0, 0).write(buf);
         byte[] bytes = new byte[buf.readableBytes()];
         buf.getBytes(0, bytes);
-        // o byte do destino fica antes do double e da contagem de problemas: força um destino inexistente
-        int destinationIndex = bytes.length - 1 - 8 - 1;
+        // o byte do destino fica antes do double, da contagem de problemas e da contagem de linhas do Tier 2: força um destino inexistente
+        int destinationIndex = bytes.length - 1 - 1 - 8 - 1;
         bytes[destinationIndex] = 99;
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
                 () -> DesignReport.read(new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes))));

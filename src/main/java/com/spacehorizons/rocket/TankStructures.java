@@ -4,8 +4,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.spacehorizons.content.ModBlocks;
-
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
@@ -34,8 +32,14 @@ public final class TankStructures {
         }
     }
 
+    /** Um tanque (de qualquer combustível) em {@code pos}. */
     private static boolean isTank(BlockGetter level, BlockPos pos) {
-        return level.getBlockState(pos).is(ModBlocks.ROCKET_FUEL_TANK.get());
+        return level.getBlockState(pos).getBlock() instanceof RocketFuelTankBlock;
+    }
+
+    /** O mesmo tipo de tanque de {@code block} em {@code pos}: só tanques iguais formam coluna (químico, hidrogênio, xenônio). */
+    private static boolean sameTank(BlockGetter level, BlockPos pos, net.minecraft.world.level.block.Block block) {
+        return level.getBlockState(pos).is(block);
     }
 
     /** A estrutura que contém {@code pos} (que deve ser um tanque). */
@@ -43,7 +47,7 @@ public final class TankStructures {
         List<BlockPos> blocks = new ArrayList<>();
         Multiblocks.Box box = null;
         if (isTank(level, pos)) {
-            LongArrayList cluster = cluster(level, pos);
+            LongArrayList cluster = cluster(level, pos, level.getBlockState(pos).getBlock());
             if (cluster.size() < MAX_CLUSTER) {
                 box = Multiblocks.boxAt(Multiblocks.tileTanks(cluster.toLongArray()), pos.getX(), pos.getY(), pos.getZ());
             }
@@ -69,7 +73,7 @@ public final class TankStructures {
         return new Found(box, List.copyOf(blocks), fuel, blocks.size() * RocketSpecs.TANK_CAPACITY_MB);
     }
 
-    private static LongArrayList cluster(BlockGetter level, BlockPos start) {
+    private static LongArrayList cluster(BlockGetter level, BlockPos start, net.minecraft.world.level.block.Block block) {
         LongArrayList cells = new LongArrayList();
         LongOpenHashSet seen = new LongOpenHashSet();
         ArrayDeque<BlockPos> queue = new ArrayDeque<>();
@@ -81,7 +85,7 @@ public final class TankStructures {
             cells.add(at.asLong());
             for (Direction side : Direction.values()) {
                 neighbor.setWithOffset(at, side);
-                if (isTank(level, neighbor) && seen.add(neighbor.asLong())) {
+                if (sameTank(level, neighbor, block) && seen.add(neighbor.asLong())) {
                     queue.add(neighbor.immutable());
                 }
             }

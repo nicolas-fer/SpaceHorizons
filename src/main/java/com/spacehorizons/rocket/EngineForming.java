@@ -3,8 +3,6 @@ package com.spacehorizons.rocket;
 import java.util.ArrayDeque;
 import java.util.Map;
 
-import com.spacehorizons.content.ModBlocks;
-
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
@@ -48,7 +46,7 @@ public final class EngineForming {
         }
         running = true;
         try {
-            apply(level, cluster(level, pos));
+            apply(level, cluster(level, pos, level.getBlockState(pos).getBlock()));
         } finally {
             running = false;
         }
@@ -66,7 +64,7 @@ public final class EngineForming {
             for (Direction side : Direction.values()) {
                 neighbor.setWithOffset(removed, side);
                 if (isEngine(level, neighbor) && !done.contains(neighbor.asLong())) {
-                    LongArrayList cluster = cluster(level, neighbor.immutable());
+                    LongArrayList cluster = cluster(level, neighbor.immutable(), level.getBlockState(neighbor).getBlock());
                     for (long cell : cluster) {
                         done.add(cell);
                     }
@@ -78,14 +76,18 @@ public final class EngineForming {
         }
     }
 
-    private static boolean isEngine(LevelAccessor level, BlockPos pos) {
-        return level.getBlockState(pos).is(ModBlocks.ROCKET_ENGINE.get());
+    /** Um motor de qualquer tipo (o químico e os do Tier 2 são todos {@link RocketEngineBlock}). */
+    private static boolean isEngine(net.minecraft.world.level.BlockGetter level, BlockPos pos) {
+        return level.getBlockState(pos).getBlock() instanceof RocketEngineBlock;
     }
 
-    /** Os motores ligados por face a {@code start} (inclusive), em posições do mundo (BlockPos.asLong). */
-    private static LongArrayList cluster(LevelAccessor level, BlockPos start) {
+    /**
+     * Os motores do MESMO bloco ({@code block}) ligados por face a {@code start} (inclusive), em posições do mundo (BlockPos.asLong): cada tipo
+     * de motor forma estruturas só com o seu bloco. Teto de {@value #MAX_CLUSTER} blocos.
+     */
+    public static LongArrayList cluster(net.minecraft.world.level.BlockGetter level, BlockPos start, Block block) {
         LongArrayList cells = new LongArrayList();
-        if (!isEngine(level, start)) {
+        if (!level.getBlockState(start).is(block)) {
             return cells;
         }
         LongOpenHashSet seen = new LongOpenHashSet();
@@ -98,7 +100,7 @@ public final class EngineForming {
             cells.add(at.asLong());
             for (Direction side : Direction.values()) {
                 neighbor.setWithOffset(at, side);
-                if (isEngine(level, neighbor) && seen.add(neighbor.asLong())) {
+                if (level.getBlockState(neighbor).is(block) && seen.add(neighbor.asLong())) {
                     queue.add(neighbor.immutable());
                 }
             }
@@ -115,7 +117,7 @@ public final class EngineForming {
         for (long cell : cluster) {
             BlockPos pos = BlockPos.of(cell);
             BlockState current = level.getBlockState(pos);
-            if (!current.is(ModBlocks.ROCKET_ENGINE.get())) {
+            if (!(current.getBlock() instanceof RocketEngineBlock)) {
                 continue;
             }
             BlockState wanted = stateFor(current, roles.getOrDefault(cell, Multiblocks.EngineRole.SOLO));

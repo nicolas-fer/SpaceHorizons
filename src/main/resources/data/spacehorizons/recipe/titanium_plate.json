@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "spacehorizons:forge_hammer",
+    "spacehorizons:titanium_ingot",
+    "spacehorizons:titanium_ingot"
+  ],
+  "result": {
+    "id": "spacehorizons:titanium_plate"
+  }
+}

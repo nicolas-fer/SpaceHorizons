@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:titanium_plate",
+    "S": "spacehorizons:superconductor_coil",
+    "E": "spacehorizons:nuclear_engine",
+    "B": "spacehorizons:basic_circuit"
+  },
+  "pattern": [
+    "PSP",
+    "SES",
+    "PBP"
+  ],
+  "result": {
+    "id": "spacehorizons:fusion_engine"
+  }
+}

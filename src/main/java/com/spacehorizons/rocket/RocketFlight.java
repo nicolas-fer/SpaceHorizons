@@ -203,6 +203,12 @@ public final class RocketFlight {
         putVec(out, "R", st.r());
         putVec(out, "V", st.v());
         out.putDouble("Fuel", st.fuelMb());
+        // Tier 2: os outros combustíveis em chaves próprias (o químico continua em "Fuel": saves antigos e novos se leem dos dois lados)
+        for (com.spacehorizons.space.flight.Propellant p : com.spacehorizons.space.flight.Propellant.values()) {
+            if (p != com.spacehorizons.space.flight.Propellant.CHEMICAL && st.fuel().get(p) > 0.0) {
+                out.putDouble("Fuel_" + p.key(), st.fuel().get(p));
+            }
+        }
         out.putDouble("Heat", st.heat());
         out.putDouble("Chute", st.chute());
         if (s.zoneBody() == null && this.spacePos != null) {
@@ -232,8 +238,14 @@ public final class RocketFlight {
             if (body == null || (zone == null && !"space".equals(zoneName))) {
                 return;
             }
-            FlightState state = new FlightState(body, getVec(in, "R"), getVec(in, "V"), in.getDoubleOr("Fuel", 0.0),
-                    in.getDoubleOr("Heat", 0.0), in.getDoubleOr("Chute", 0.0));
+            com.spacehorizons.space.flight.FuelLoad fuel = com.spacehorizons.space.flight.FuelLoad.chemical(in.getDoubleOr("Fuel", 0.0));
+            for (com.spacehorizons.space.flight.Propellant p : com.spacehorizons.space.flight.Propellant.values()) {
+                if (p != com.spacehorizons.space.flight.Propellant.CHEMICAL) {
+                    fuel = fuel.with(p, in.getDoubleOr("Fuel_" + p.key(), 0.0));
+                }
+            }
+            FlightState state = new FlightState(body, getVec(in, "R"), getVec(in, "V"), fuel, in.getDoubleOr("Heat", 0.0),
+                    in.getDoubleOr("Chute", 0.0));
             Quaterniond q = new Quaterniond(in.getDoubleOr("Qx", 0.0), in.getDoubleOr("Qy", 0.0), in.getDoubleOr("Qz", 0.0),
                     in.getDoubleOr("Qw", 1.0)).normalize();
             FlightMode loaded = FlightMode.byId(in.getByteOr("Mode", FlightMode.FLIGHT.id()));

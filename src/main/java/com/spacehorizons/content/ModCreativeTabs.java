@@ -41,6 +41,12 @@ public final class ModCreativeTabs {
                 for (Blueprints.Entry entry : Blueprints.ALL) {
                     output.accept(RocketBlueprintItem.stackOf(entry.blueprint()));
                 }
+                // Tier 2: os galões e os tanques cheios
+                output.accept(FuelCanisterItem.fullStack(ModItems.HYDROGEN_CANISTER.get()));
+                output.accept(FuelCanisterItem.fullStack(ModItems.XENON_CANISTER.get()));
+                output.accept(FuelCanisterItem.fullStack(ModItems.HELIUM3_CANISTER.get()));
+                output.accept(RocketFuelTankItem.fullStack(ModItems.HYDROGEN_TANK.get()));
+                output.accept(RocketFuelTankItem.fullStack(ModItems.XENON_TANK.get()));
             })
             .build());
 

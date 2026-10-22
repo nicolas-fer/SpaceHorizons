@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.spacehorizons.SpaceHorizons;
-import com.spacehorizons.content.ModBlocks;
 import com.spacehorizons.rocket.RocketEntity;
 import com.spacehorizons.rocket.RocketPortrait;
 
@@ -113,7 +112,7 @@ public final class RocketEffects {
         boolean any = false;
         for (int i = 0; i < isEngine.length; i++) {
             BlockState state = portrait.palette().get(i);
-            isEngine[i] = state.is(ModBlocks.ROCKET_ENGINE.get());
+            isEngine[i] = state.getBlock() instanceof com.spacehorizons.rocket.RocketEngineBlock;
             any |= isEngine[i];
         }
         if (any) {

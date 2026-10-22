@@ -227,6 +227,10 @@ public final class AutoTest {
             blueprintScenario();
             return;
         }
+        if ("tier2".equals(ONLY)) {
+            tier2Scenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
@@ -5037,4 +5041,102 @@ public final class AutoTest {
     }
 
     private double shipPeBefore;
+
+    // ===================================================================================================================
+    // TIER 2 (docs/PLANO_TIERS.md, seção 8): -PshOnly=tier2. Bloco separado; as conferências ficam em Tier2Devtest.
+    // Foguete nuclear (motor 2x2x2 + hidrogênio 2x2x8: barra e galão pelo clique, painel, montagem, subida curta, pouso, combustível e núcleo
+    // conferidos), iônico com RTG e xenônio (painel: não decola, Δv alto; e tenta decolar) e fusão 3x3x3 (painel), e as receitas.
+    // ===================================================================================================================
+
+    private void tier2Scenario() {
+        BlockPos pad = Tier2Devtest.BASE;
+        double bx = pad.getX() + 0.5;
+        double by = pad.getY();
+        double bz = pad.getZ() + 0.5;
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(5, "time set 6000");
+        cmd(5, "gamerule advance_time true");
+        fly(10);
+        cmd(10, "clear @s");
+        step(10, Tier2Devtest::recipes);
+
+        // A. nuclear: construir, carregar uma barra e um galão pelo clique, completar a carga (perto: o alcance do clique no criativo é de 5 blocos)
+        cmd(10, "tp @s " + (bx + 3.5) + " " + (by + 3.0) + " " + (bz + 1.0));
+        fly(10);
+        step(10, Tier2Devtest::buildNuclear);
+        tickerStep(5, waitFor("t2_built_nuclear", 200));
+        cmd(5, "give @s spacehorizons:nuclear_fuel_rod 1");
+        cmd(5, "give @s spacehorizons:hydrogen_canister[spacehorizons:fuel_mb=1000]");
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(0);
+            useOnBlock(mc, pad.offset(1, 2, 1), Direction.EAST);
+        });
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(1);
+            useOnBlock(mc, pad.offset(1, 6, 1), Direction.EAST);
+        });
+        step(20, Tier2Devtest::fillNuclear);
+        cmd(10, "tp @s " + (bx + 14.0) + " " + (by + 7.0) + " " + (bz + 1.0));
+        fly(10);
+        look(10, 90f, 5f);
+        step(5, mc -> Tier2Devtest.pinPanel(true));
+        shot(60, "t2_nuclear_a_panel");
+        step(0, mc -> Tier2Devtest.panel(mc, "nuclear"));
+        step(5, mc -> Tier2Devtest.pinPanel(false));
+        step(10, mc -> Tier2Devtest.assemble(mc, "nuclear"));
+        tickerStep(10, waitFor("t2_assembled_nuclear", 200));
+        shot(20, "t2_nuclear_b_assembled");
+        step(10, mc -> Tier2Devtest.fly(mc, "nuclear"));
+        tickerStep(5, waitFor("t2_burning_nuclear", 600));
+        thirdPerson();
+        shot(5, "t2_nuclear_c_flight");
+        tickerStep(0, waitFor("t2_landed_nuclear", 6_000));
+        step(20, mc -> Tier2Devtest.afterLand(mc, "nuclear"));
+        tickerStep(5, waitFor("t2_land_checked_nuclear", 200));
+        firstPerson();
+        cmd(5, "tp @s " + (bx + 14.0) + " " + (by + 7.0) + " " + (bz + 1.0));
+        look(10, 90f, 5f);
+        shot(20, "t2_nuclear_d_landed_blocks");
+
+        // B. iônico: painel (não decola na Terra, Δv alto) e a tentativa de decolar
+        step(10, Tier2Devtest::buildIon);
+        cmd(10, "tp @s " + (bx + 10.0) + " " + (by + 5.0) + " " + (bz + 0.5));
+        fly(10);
+        look(10, 90f, 5f);
+        step(5, mc -> Tier2Devtest.pinPanel(true));
+        shot(60, "t2_ion_a_panel");
+        step(0, mc -> Tier2Devtest.panel(mc, "ion"));
+        step(5, mc -> Tier2Devtest.pinPanel(false));
+        step(10, mc -> Tier2Devtest.assemble(mc, "ion"));
+        tickerStep(10, waitFor("t2_assembled_ion", 200));
+        step(10, mc -> Tier2Devtest.fly(mc, "ion"));
+        tickerStep(0, waitFor("t2_landed_ion", 2_000));
+        step(10, Tier2Devtest::discardRocket);
+
+        // C. fusão 3x3x3: um galão de hélio-3 pelo clique, a carga completa e o painel
+        step(10, Tier2Devtest::buildFusion);
+        tickerStep(5, waitFor("t2_built_fusion", 200));
+        cmd(5, "clear @s");
+        cmd(5, "give @s spacehorizons:helium3_canister[spacehorizons:fuel_mb=1000]");
+        cmd(10, "tp @s " + (bx + 6.0) + " " + (by + 3.0) + " " + (bz + 0.5));
+        fly(10);
+        step(10, mc -> {
+            mc.player.getInventory().setSelectedSlot(0);
+            useOnBlock(mc, pad.offset(1, 2, 0), Direction.EAST);
+        });
+        step(20, Tier2Devtest::fillFusion);
+        cmd(10, "tp @s " + (bx + 12.0) + " " + (by + 5.0) + " " + (bz + 0.5));
+        look(10, 90f, 5f);
+        step(5, mc -> Tier2Devtest.pinPanel(true));
+        shot(60, "t2_fusion_a_panel");
+        step(0, mc -> Tier2Devtest.panel(mc, "fusion"));
+        step(5, mc -> Tier2Devtest.pinPanel(false));
+        step(40, mc -> {
+            Tier2Devtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
 }

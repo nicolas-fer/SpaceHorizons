@@ -61,6 +61,10 @@ public class SpaceHorizonsJeiPlugin implements IModPlugin {
         registration.registerFromDataComponentTypes(ModItems.OXYGEN_TANK_LARGE.get(), ModDataComponents.OXYGEN.get());
         // a planta em branco e as embutidas (aba criativa) também
         registration.registerFromDataComponentTypes(ModItems.ROCKET_BLUEPRINT.get(), ModDataComponents.ROCKET_BLUEPRINT.get());
+        // Tier 2: os galões dos outros combustíveis (vazio e cheio)
+        registration.registerFromDataComponentTypes(ModItems.HYDROGEN_CANISTER.get(), ModDataComponents.FUEL_MB.get());
+        registration.registerFromDataComponentTypes(ModItems.XENON_CANISTER.get(), ModDataComponents.FUEL_MB.get());
+        registration.registerFromDataComponentTypes(ModItems.HELIUM3_CANISTER.get(), ModDataComponents.FUEL_MB.get());
     }
 
     @Override
@@ -87,6 +91,18 @@ public class SpaceHorizonsJeiPlugin implements IModPlugin {
         registration.addIngredientInfo(ModBlocks.SHIP_WINDOW.get(), Component.translatable("jei.spacehorizons.info.ship_window"));
         registration.addIngredientInfo(ModBlocks.SHIP_SEAT.get(), Component.translatable("jei.spacehorizons.info.ship_seat"));
         registration.addIngredientInfo(ModBlocks.SHIP_AIRLOCK.get(), Component.translatable("jei.spacehorizons.info.ship_airlock"));
+
+        // Tier 2: de onde vêm os combustíveis, o que cada motor queima e como se carregam (docs/PLANO_TIERS.md, "Tier 2: conteúdo")
+        for (Item item : List.of(ModBlocks.NUCLEAR_ENGINE.get().asItem(), ModBlocks.ION_ENGINE.get().asItem(), ModBlocks.FUSION_ENGINE.get().asItem(),
+                ModBlocks.HYDROGEN_TANK.get().asItem(), ModBlocks.XENON_TANK.get().asItem(), ModBlocks.RTG_GENERATOR.get().asItem(),
+                ModBlocks.MARS_REGOLITH.get().asItem(), ModItems.NUCLEAR_FUEL_ROD.get(), ModItems.RARE_EARTH_DUST.get())) {
+            registration.addIngredientInfo(item, Component.translatable("jei.spacehorizons.info."
+                    + net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).getPath()));
+        }
+        for (Item canister : List.of(ModItems.HYDROGEN_CANISTER.get(), ModItems.XENON_CANISTER.get(), ModItems.HELIUM3_CANISTER.get())) {
+            registration.addItemStackInfo(List.of(new ItemStack(canister), com.spacehorizons.survival.fuel.FuelCanisterItem.fullStack(canister)),
+                    Component.translatable("jei.spacehorizons.info." + net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(canister).getPath()));
+        }
 
         // compressor: um tanque vazio virando um cheio, por tamanho de tanque; e a informação curta dos tanques
         Item small = ModItems.OXYGEN_TANK_SMALL.get();

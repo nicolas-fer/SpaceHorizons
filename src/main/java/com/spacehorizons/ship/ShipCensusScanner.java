@@ -88,7 +88,9 @@ final class ShipCensusScanner {
     /** Os tanques de combustível da coluna que estão dentro da caixa e o combustível deles. */
     private void readTanks(LevelChunk chunk) {
         for (java.util.Map.Entry<BlockPos, BlockEntity> e : chunk.getBlockEntities().entrySet()) {
-            if (e.getValue() instanceof RocketFuelTankBlockEntity tank && this.box.contains(e.getKey().getX(), e.getKey().getY(), e.getKey().getZ())) {
+            // só o tanque químico: os tanques do Tier 2 (hidrogênio, xenônio) usam o mesmo block entity, mas a nave não queima esses combustíveis
+            if (e.getValue() instanceof RocketFuelTankBlockEntity tank && tank.propellant() == com.spacehorizons.space.flight.Propellant.CHEMICAL
+                    && this.box.contains(e.getKey().getX(), e.getKey().getY(), e.getKey().getZ())) {
                 this.tanks.add(e.getKey().immutable());
                 this.fuelMb += tank.fuelMb();
             }
