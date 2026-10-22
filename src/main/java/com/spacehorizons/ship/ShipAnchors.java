@@ -249,7 +249,9 @@ public final class ShipAnchors extends SavedData {
             throw new ShipConversionException(String.format(java.util.Locale.ROOT, "A nave está inclinada demais para ancorar (%.0f graus; máximo %.0f).", tilt,
                     MAX_TILT_DEGREES));
         }
-        double speed = Math.max(rocket.position().distanceTo(rocket.oldPosition()), rocket.getDeltaMovement().length());
+        // a posição antiga só vale depois do primeiro tick (uma entidade recém-criada tem a antiga na origem)
+        double moved = rocket.tickCount > 1 ? rocket.position().distanceTo(rocket.oldPosition()) : 0.0;
+        double speed = Math.max(moved, rocket.getDeltaMovement().length());
         if (speed > MAX_SPEED) {
             throw new ShipConversionException(String.format(java.util.Locale.ROOT, "A nave precisa estar parada para ancorar (%.1f b/t; máximo %.1f).", speed,
                     MAX_SPEED));

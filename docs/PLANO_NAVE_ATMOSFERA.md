@@ -70,7 +70,7 @@ flutuante. Para voar de novo, monta-se pela ponte (fase 2a-i).
 |---|---|---|---|
 | Pré-requisito | Fase 2b das naves (descida e pouso) fechada e mesclada | — | `shipdescent` e regressão verdes |
 | S5 | Spike do convés | M/G | `-PshOnly=shipdeck`: um robô anda em quadrado no convés por 2.000 ticks com a entidade subindo a 1, 10, 50 e 100 b/t, girando 20°/s em guinada e inclinando 30°, pairando e descendo; repetir com 100 ms de latência simulada. Critérios: 0 quedas pelo piso, altura do pé com p99 < 0,05 bloco e máximo < 0,15, deriva parado < 0,02 bloco/tick, 0 correções "moved wrongly", câmera dentro de 5% da medida de tremor do `ship`. Morre se houver queda ou o p99 passar de 0,1 bloco |
-| S6 | Spike da âncora | P | `-PshOnly=shipanchor`: entidade para a 60 blocos do chão, ancora, o robô anda, abre o baú e liga a fornalha, desancora, voa 100 blocos e ancora de novo; romaneio (`ShipManifest`) com 0 perdas nas duas idas; conversão < 1 s para 8.000 blocos; o jogador em pé fica a < 0,1 bloco da posição relativa ao convés |
+| S6 | Spike da âncora (**aprovado**, ver o resultado) | P | `-PshOnly=shipanchor`: entidade para a 60 blocos do chão, ancora, o robô anda, abre o baú e liga a fornalha, desancora, voa 100 blocos e ancora de novo; romaneio (`ShipManifest`) com 0 perdas nas duas idas; conversão < 1 s para 8.000 blocos; o jogador em pé fica a < 0,1 bloco da posição relativa ao convés |
 | 2e | Convés andável | G | Critérios do S5 na nave real; subida e descida com tripulante **em pé** (a recusa da D4 cai); porta, baú e assento em movimento; 2 clientes (montar o autoteste de dois clientes faz parte do aceite) |
 | 2f | Âncora no ar | P/M | S6 + regressão `ship*` verde; tecla e botão no painel; recusa sem volume livre |
 | 2g | Trocas sem costura | M | Entrar e sair do convés, ancorar e desancorar, pousar e decolar sem salto (< 0,1 bloco no jogador, < 1° na câmera) |
@@ -171,6 +171,68 @@ Leituras e ressalvas:
 - **Ao entrar e sair** do convés a nave troca da interpolação do vanilla para a linha do tempo (e de volta): um pulo único de até 2 ticks de
   movimento no desenho (fase 2g). Estalo de quadro maior que 2 ticks (estalo do cliente) também aparece como tranco.
 - Chunks à frente da nave em voo horizontal rápido, dimensões diferentes e a troca planeta/espaço com tripulante a pé são da 2e.
+
+## Resultado do spike S6 (22/10/2026): aprovado
+
+**Veredito: a âncora no ar funciona.** Autoteste `-PshOnly=shipanchor` (`ShipAnchorDevtest`, `run-test/`): **38 verificações, 0 falhas**. A nave de
+~4.000 blocos para a 60 blocos do chão com o jogador em pé no convés, ancora, o robô anda (2,8 e 7,9 blocos com as teclas, pés sempre no piso),
+abre um baú (807 itens, iguais ao servidor) e liga a fornalha (acesa no servidor, cozinhando), desancora, voa 100 blocos e ancora de novo; depois
+monta pela ponte no ar (agachado, mão vazia) e ancora com o piloto sentado; uma nave de ~8.000 blocos mede o tempo.
+
+| Troca | Romaneio | Conversão (parede) | Ticks de job | Tick do servidor (média / máx) | Posição relativa ao convés (servidor / cliente) |
+|---|---|---|---|---|---|
+| ancorar 1 (em pé, nave fora da grade e girada 4°) | 0 perdas (4.003 blocos, 50 block entities, 33.969 itens) | 281 ms | 5 | 8,5 / 10,6 ms | 0,0000 / 0,0000 |
+| desancorar (comando, volta ao convés) | mesmos blocos e itens; caixa do mundo vazia | 84 ms (montagem num tick) | — | — | 0,0000 / 0,0000 |
+| ancorar 2 (depois de voar 100 blocos) | 0 perdas | 312 ms | 5 | 7,9 / 10,4 ms | 0,0000 / 0,0000 |
+| ancorar 3 (piloto sentado, depois da ponte) | 0 perdas | 312 ms | 5 | 8,4 / 8,9 ms | em pé dentro da nave |
+| nave grande (`ship genrocket 8000`: 7.997 blocos, 74 block entities, 50.559 itens) | 0 perdas | **450 ms** | 8 | 9,1 / 14,1 ms | — |
+
+Também verificado: a âncora é **recusada sem volume livre** (uma pedra encostada no casco) antes de tocar no mundo, e a nave segue normal; areia e
+cascalho pendurados no teto **não caem** e uma fonte de água no piso **não escorre** (60 ticks); a checagem de nascimento natural (evento
+`SpawnPlacementCheck`) **recusa zumbi no teto e dentro** e aceita fora; a ponte fica no bloco registrado da âncora; o jogador sai do convés em cima de um
+bloco real (no chão no cliente).
+
+### Como funciona
+
+- **Ancorar** (`ship/ShipAnchors.request`, comando `/spacehorizons ship anchor`): só nave (`isShip`), inclinação até 15°, até 2 b/t, fora do estaleiro e
+  do espaço. O retrato é girado ao quarto de volta mais perto e o canto mínimo é o do centro arredondado à grade (`RocketLanding.originFor`, como o
+  pouso). **Pré-verificação de volume livre no ar** (`preCheck`): cada bloco da nave cai em ar carregado dentro da altura de construção, e cada vizinho por
+  face que não é da nave também é ar (a montagem de volta levaria o vizinho junto). Recusa com a posição e o bloco.
+- **Sem teleporte**: antes da conversão a entidade é **acomodada** na grade em 10 ticks (posição e atitude vão suavemente, `smoothstep` e `slerp`, ao
+  ponto exato onde os blocos vão aparecer; a nave fica congelada e a tripulação a pé continua andando no convés parado, porque `RocketEntity.tick`
+  passou a chamar `DeckCrew.afterRocketTick` também congelada). No teste a acomodação foi de 0,45 bloco e 4°. Sem desvio, a conversão começa no mesmo
+  tick. A acomodação (0,5 s) fica fora do tempo da conversão da tabela.
+- **Conversão** (`ship/AnchorJob`, na fila de `ShipConversions`, orçamento padrão 1.500 blocos/tick e 20 ms): as colocações do pouso
+  (`RocketLanding.plan`, agora público: retrato girado, combustível repartido pelos tanques, carga dos motores), sólidos antes dos presos, NBT de cada
+  block entity conferido na hora, aviso aos vizinhos e conferência contra o romaneio (`ShipManifest`); avisar e conferir custam 1/4 da colocação. Num
+  tick só, no fim: quem anda no convés sai dele no mesmo ponto do mundo (`DeckCrew.leave`, a pose da entidade já é a da grade), os sentados ficam em pé
+  no chão livre mais perto da ponte, a entidade some e a âncora é registrada. Com perda ou erro, os blocos colocados saem e a entidade fica.
+- **Enquanto ancorada** (`ShipAnchors`, `SavedData` `spacehorizons:ship_anchors` no Overworld, com um índice estático para o caminho quente):
+  `mixin/travel/AnchorTickMixin` descarta, dentro da caixa da nave, os ticks agendados de fluido e de blocos que caem (`FallingBlock`); os outros ticks
+  (redstone) seguem. Mobs: `MobSpawnEvent.SpawnPlacementCheck` com FAIL para nascimento natural, da geração e patrulha na caixa com 1 bloco de folga
+  (o pé de um mob no teto fica um acima da caixa).
+- **Desancorar**: pela ponte, como na 2a-i (agachado + mão vazia): `ShipAssembler.assembleFor` vê que a ponte é de uma nave ancorada e chama
+  `ShipAnchors.unanchor`, que usa a montagem da nave sem exigir a plataforma (`RocketAssembly.Rules.needPad`, `ShipAssembly.scanAirborne`). Quem montou
+  senta; quem estava em pé na caixa entra no convés na mesma posição (`DeckCrew.boardAtWorld`). A entidade nasce `LANDED` no ar (parada, sem cair:
+  o `LANDED` não integra a física) e decola com empuxo. Comando de dev: `/spacehorizons ship unanchor` (ninguém senta).
+- **Decisão A3** (gerador antigravidade): continua recomendada, não implementada; no spike a âncora é o comando de dev. A 2f põe a tecla, o botão no
+  painel e, se aceita, o bloco gerador.
+
+### Limites e o que não foi verificado
+
+- Só giro em Y ao quarto de volta (como o pouso); a nave do teste estava a 4° (0 quarto de volta). Um giro de 1 a 3 quartos de volta só tem o teste
+  unitário da pose (`ShipAnchorsTest`), não o autoteste.
+- Fluidos e blocos que caem ficam parados **na caixa inteira** da nave, inclusive água posta pelo jogador lá dentro (não escorre nada). A montagem de
+  volta recusa areia, cascalho e fluido (são terreno ou fluido para a busca), como no chão; o teste os tira antes de desancorar.
+- A âncora continua registrada se o jogador quebrar a nave ancorada (a caixa segue protegida até alguém desancorar); blocos postos encostados nela
+  entram na próxima montagem (a busca é por face), e terreno encostado recusa.
+- Um foguete pousado no ar pelo clique agachado na entidade (`RocketLanding.land`, caminho antigo) vira blocos sem registrar âncora.
+- Não testados: dois clientes (um observador vendo a troca), servidor dedicado, reabrir o mundo com a nave ancorada (o registro persiste, mas não foi
+  exercitado), a pré-verificação perto do teto de construção e de chunks não carregados, e o jogador andando (em vez de parado) no instante da troca.
+- A fornalha acesa aparece no print pelas partículas de fogo; a face acesa não se distingue bem com a luz do teto.
+
+Prints (examinados): `art/_work/shipanchor_prints/autotest_shipanchor_01_dentro.png` (interior, mensagem "Nave ancorada no ar: 4003 blocos"),
+`_02_fora.png` (a nave parada no ar sobre o mar, sombra no chão), `_04_fornalha_acesa.png`, `_05_fora_depois_de_voar.png`; `_03_bau_aberto.png` não foi examinado (o baú aberto é conferido pela tela no cliente).
 
 ## Arquivos que mudam
 

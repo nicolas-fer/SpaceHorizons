@@ -5491,8 +5491,11 @@ public final class AutoTest {
         // (8) monta pela ponte (agachado, mão vazia) e ancora com o jogador sentado
         step(10, ShipAnchorDevtest::standAtBridge);
         step(20, mc -> mc.options.keyShift.setDown(true));
-        step(10, ShipAnchorDevtest::clickBridge);
-        step(10, mc -> mc.options.keyShift.setDown(false));
+        // solta o agachar no mesmo tick do clique: segurado, o vanilla desmonta o piloto logo depois de sentar
+        step(10, mc -> {
+            ShipAnchorDevtest.clickBridge(mc);
+            mc.options.keyShift.setDown(false);
+        });
         step(20, ShipAnchorDevtest::checkBridgeMounted);
         step(20, mc -> ShipAnchorDevtest.anchorNow(mc, "ancorar 3 (piloto sentado)"));
         tickerStep(0, waitUntil("ANCHOR: ancorou 3", 400, ShipAnchorDevtest::anchored));
