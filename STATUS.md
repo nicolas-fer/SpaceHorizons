@@ -12,6 +12,10 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | | O quê | Onde |
 |---|---|---|
 | 🟡 | **Spike S5: convés andável** (estilo Create, jogador no referencial da nave), autoteste `shipdeck`. | `docs/PLANO_NAVE_ATMOSFERA.md` |
+| 🟡 | **Conteúdo do Tier 2**: materiais de Marte, combustíveis, tanques e motores multibloco nuclear, iônico e fusão (texturas provisórias). | `docs/PLANO_TIERS.md`, `docs/TIER2_IDS.md` |
+| 🟡 | **Arte do Tier 2**: variantes para a página de escolha. | `docs/TIER2_IDS.md` |
+| 🟡 | **Gerador de planetas por parâmetros** (base de Marte). | `docs/PLANO_TIERS.md` |
+| 🟡 | **Plantas holográficas de montagem**. | `docs/PLANO_TIERS.md` |
 | ✅ | **Naves, fase 2b: descida e pouso** (estaleiro → entidade → pouso no motor → blocos no chão), autoteste `shipdescent` 40/0 na regressão. | `docs/PLANO_NAVES.md` |
 | ✅ | **Plano: andar na nave dentro do planeta** decidido: convés andável estilo Create em movimento (máquinas param), âncora em blocos reais parada no ar. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 
@@ -38,8 +42,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | Reentrada sem travadas, foguete estacionado no espaço, piloto automático criativo | |
 | ✅ | Multiblocos de tanque e motor, foguetes grandes (até 8.192 blocos), painel de projeto | Etapa 1 dos tiers |
 | ✅ | SAS horizontal (circularizar) no foguete e na nave | 21/10/2026 |
-| ⬜ | Plantas holográficas de montagem | Tiers, seção 4 |
-| ⬜ | Gerador de planetas por parâmetros e Marte | Tiers, etapa 2 |
+| 🟡 | Plantas holográficas de montagem | Tiers, seção 4 |
+| 🟡 | Gerador de planetas por parâmetros e Marte | Tiers, etapa 2 (gerador em andamento) |
 | ⬜ | Sistema solar centrado no sol (viagem a Marte) | Tiers, etapa 3 |
 | ⬜ | Base lunar (salas seladas, energia, recursos lunares, combustível na Lua) | Sobrevivência, etapa 4 |
 | ⬜ | História (estruturas abandonadas, diários, sinal lunar) | Sobrevivência, etapa 5 |
@@ -50,7 +54,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | Status | Etapa |
 |---|---|
-| ⬜ | Motores nucleares, iônicos e de fusão; planetas distantes do sistema solar (Tiers, etapa 4) |
+| 🟡 | Conteúdo: materiais de Marte, combustíveis, motores nucleares, iônicos e de fusão (em andamento) |
+| ⬜ | Planetas distantes do sistema solar (Tiers, etapa 4) |
 
 ### Tier 3: naves andáveis, `docs/PLANO_NAVES.md`
 
@@ -125,3 +130,4 @@ shipdescent 40, multiblock 169, todos com 0 falhas (9,3 min). Um trecho sozinho:
 | `docs/PLANO_NAVE_ATMOSFERA.md` | Andar na nave dentro do planeta (estudo e plano) |
 | `docs/PLANO_LOD_PLANETA.md` | LODs do planeta inteiro |
 | `docs/TEXTURAS_CONECTADAS.md` | Texturas conectadas (vidro, tanques) |
+| `docs/TIER2_IDS.md` | Ids do conteúdo do Tier 2 (contrato entre código e arte) |
