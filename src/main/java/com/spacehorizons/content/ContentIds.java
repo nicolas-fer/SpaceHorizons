@@ -54,6 +54,9 @@ public final class ContentIds {
     public static final String ROCKET_LANDING_LEG = "rocket_landing_leg";
     public static final String ROCKET_HULL = "rocket_hull";
 
+    /** Planta de montagem: guarda um projeto de foguete e o mostra em holograma sobre a plataforma (docs/PLANO_TIERS.md, seção 4). */
+    public static final String ROCKET_BLUEPRINT = "rocket_blueprint";
+
     // --- Naves (fase 1b, docs/PLANO_NAVES.md): blocos especiais; a nave é construída livremente com blocos no estaleiro ---
     /** Ponte de comando: o núcleo que define a nave; clicar mostra a especificação (massa, empuxo, Δv, combustível). */
     public static final String SHIP_BRIDGE = "ship_bridge";
@@ -70,7 +73,7 @@ public final class ContentIds {
     public static final List<String> ITEMS = List.of(
             STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER,
             OXYGEN_TANK_SMALL, OXYGEN_TANK_LARGE,
-            SPACE_HELMET, SPACE_CHESTPLATE, SPACE_LEGGINGS, SPACE_BOOTS);
+            SPACE_HELMET, SPACE_CHESTPLATE, SPACE_LEGGINGS, SPACE_BOOTS, ROCKET_BLUEPRINT);
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
     public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR,

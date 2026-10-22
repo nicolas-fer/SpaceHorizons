@@ -2,6 +2,7 @@ package com.spacehorizons.content;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketFuelTankItem;
+import com.spacehorizons.rocket.blueprint.RocketBlueprintItem;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 import com.spacehorizons.survival.oxygen.OxygenAmounts;
 import com.spacehorizons.survival.oxygen.OxygenTankItem;
@@ -64,6 +65,10 @@ public final class ModItems {
      */
     public static final DeferredItem<RocketFuelTankItem> ROCKET_FUEL_TANK = ITEMS.registerItem(ContentIds.ROCKET_FUEL_TANK,
             props -> new RocketFuelTankItem(ModBlocks.ROCKET_FUEL_TANK.get(), props), () -> new Item.Properties().useBlockDescriptionPrefix());
+
+    /** Planta de montagem (em branco ou com um projeto no componente {@code rocket_blueprint}); não empilha: cada uma tem o seu projeto. */
+    public static final DeferredItem<RocketBlueprintItem> ROCKET_BLUEPRINT = ITEMS.registerItem(ContentIds.ROCKET_BLUEPRINT,
+            RocketBlueprintItem::new, props -> props.stacksTo(1));
 
     private ModItems() {
     }

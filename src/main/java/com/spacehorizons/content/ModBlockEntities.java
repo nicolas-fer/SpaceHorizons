@@ -4,6 +4,7 @@ import java.util.Set;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
+import com.spacehorizons.rocket.blueprint.LaunchPadBlockEntity;
 import com.spacehorizons.survival.compressor.OxygenCompressorBlockEntity;
 import com.spacehorizons.survival.fuel.RefineryBlockEntity;
 
@@ -27,6 +28,10 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RocketFuelTankBlockEntity>> ROCKET_FUEL_TANK =
             TYPES.register(ContentIds.ROCKET_FUEL_TANK,
                     () -> new BlockEntityType<>(RocketFuelTankBlockEntity::new, Set.of(ModBlocks.ROCKET_FUEL_TANK.get())));
+
+    /** A planta de montagem ativa na plataforma de lançamento (o holograma). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LaunchPadBlockEntity>> LAUNCH_PAD =
+            TYPES.register(ContentIds.LAUNCH_PAD, () -> new BlockEntityType<>(LaunchPadBlockEntity::new, Set.of(ModBlocks.LAUNCH_PAD.get())));
 
     private ModBlockEntities() {
     }

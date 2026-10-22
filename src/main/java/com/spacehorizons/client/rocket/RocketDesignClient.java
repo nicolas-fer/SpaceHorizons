@@ -127,7 +127,8 @@ public final class RocketDesignClient {
             }
             pinned = null;
         }
-        if (mc.gui.screen() == null && mc.player.getMainHandItem().isEmpty()
+        if (mc.gui.screen() == null && (mc.player.getMainHandItem().isEmpty()
+                || mc.player.getMainHandItem().getItem() instanceof com.spacehorizons.rocket.blueprint.RocketBlueprintItem)
                 && mc.hitResult instanceof net.minecraft.world.phys.BlockHitResult hit && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK
                 && mc.level.getBlockState(hit.getBlockPos()).is(ModBlocks.LAUNCH_PAD.get())) {
             return hit.getBlockPos();
@@ -206,7 +207,11 @@ public final class RocketDesignClient {
 
         int width = 270;
         int lineHeight = 10;
-        int height = 16 + (r == null || !r.found() ? lineHeight : rows.size() * lineHeight + 4 + lineHeight + destinations.size() * lineHeight + 4);
+        // a planta de montagem ativa no conjunto de plataformas (holograma): nome, quanto falta e o destino do projeto dela
+        var blueprint = com.spacehorizons.client.rocket.blueprint.BlueprintPanel.stateFor(mc.level, pad);
+        int blueprintHeight = blueprint == null ? 0 : com.spacehorizons.client.rocket.blueprint.BlueprintPanel.LINES * lineHeight + 4;
+        int height = 16 + blueprintHeight
+                + (r == null || !r.found() ? lineHeight : rows.size() * lineHeight + 4 + lineHeight + destinations.size() * lineHeight + 4);
         if (!problems.isEmpty()) {
             height += 4 + problems.size() * lineHeight;
         }
@@ -220,6 +225,9 @@ public final class RocketDesignClient {
         Component title = Component.translatable(pinned != null ? "design.spacehorizons.title_pinned" : "design.spacehorizons.title");
         g.text(font, title, x + 5, y + 4, COLOR_TITLE);
         int ry = y + 16;
+        if (blueprint != null) {
+            ry = com.spacehorizons.client.rocket.blueprint.BlueprintPanel.render(g, font, x, ry, width, lineHeight, blueprint) + 4;
+        }
         if (r == null) {
             g.text(font, Component.translatable("design.spacehorizons.loading"), x + 5, ry, COLOR_LABEL);
             return;

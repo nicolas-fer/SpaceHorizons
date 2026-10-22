@@ -4,6 +4,8 @@ import java.util.function.Supplier;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketFuelTankItem;
+import com.spacehorizons.rocket.blueprint.Blueprints;
+import com.spacehorizons.rocket.blueprint.RocketBlueprintItem;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 import com.spacehorizons.survival.oxygen.OxygenTankItem;
 
@@ -35,6 +37,10 @@ public final class ModCreativeTabs {
                 output.accept(OxygenTankItem.fullStack(ModItems.OXYGEN_TANK_LARGE.get()));
                 // e o tanque de foguete: o vazio vem da lista acima, o cheio (4.000 mB) daqui
                 output.accept(RocketFuelTankItem.fullStack());
+                // as plantas embutidas (a em branco vem da lista acima); a lunar só aqui e no menu do criativo até a história existir
+                for (Blueprints.Entry entry : Blueprints.ALL) {
+                    output.accept(RocketBlueprintItem.stackOf(entry.blueprint()));
+                }
             })
             .build());
 

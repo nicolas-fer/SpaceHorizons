@@ -3,6 +3,7 @@ package com.spacehorizons.content;
 import com.spacehorizons.SpaceHorizons;
 import com.mojang.serialization.Codec;
 import com.spacehorizons.rocket.RocketSpecs;
+import com.spacehorizons.rocket.blueprint.Blueprint;
 import com.spacehorizons.survival.fuel.CanisterFuel;
 import com.spacehorizons.survival.fuel.RefineryLogic;
 import com.spacehorizons.survival.oxygen.OxygenStorage;
@@ -59,6 +60,15 @@ public final class ModDataComponents {
             COMPONENTS.registerComponentType("rocket_tank_mb", builder -> builder
                     .persistent(Codec.intRange(0, RocketSpecs.TANK_CAPACITY_MB))
                     .networkSynchronized(ByteBufCodecs.VAR_INT));
+
+    /**
+     * A planta de montagem guardada no item {@code rocket_blueprint} (docs/PLANO_TIERS.md, seção 4). Sem o componente = planta em branco (que
+     * salva o foguete de uma plataforma).
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Blueprint>> ROCKET_BLUEPRINT =
+            COMPONENTS.registerComponentType("rocket_blueprint", builder -> builder
+                    .persistent(Blueprint.CODEC)
+                    .networkSynchronized(Blueprint.STREAM_CODEC));
 
     private ModDataComponents() {
     }

@@ -59,6 +59,8 @@ public class SpaceHorizonsJeiPlugin implements IModPlugin {
         // idem para os tanques de oxigênio: vazio e cheio (aba criativa) são subtipos diferentes
         registration.registerFromDataComponentTypes(ModItems.OXYGEN_TANK_SMALL.get(), ModDataComponents.OXYGEN.get());
         registration.registerFromDataComponentTypes(ModItems.OXYGEN_TANK_LARGE.get(), ModDataComponents.OXYGEN.get());
+        // a planta em branco e as embutidas (aba criativa) também
+        registration.registerFromDataComponentTypes(ModItems.ROCKET_BLUEPRINT.get(), ModDataComponents.ROCKET_BLUEPRINT.get());
     }
 
     @Override
