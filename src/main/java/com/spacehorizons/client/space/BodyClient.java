@@ -31,6 +31,8 @@ public final class BodyClient {
 
     private static void onAfterSky(RenderLevelStageEvent.AfterSky event) {
         BodyRenderer.INSTANCE.render(event.getLevelRenderState(), event.getModelViewMatrix());
+        // as outras naves e foguetes por cima dos corpos (fase 2d das naves)
+        VesselRenderer.INSTANCE.render(event.getLevelRenderState(), event.getModelViewMatrix());
     }
 
     /**
@@ -50,6 +52,7 @@ public final class BodyClient {
 
     private static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         BodyRenderer.INSTANCE.reset();
+        VesselRenderer.INSTANCE.reset();
         SunDisc.reset();
         SpaceSun.reset();
         SkyAttitude.reset();

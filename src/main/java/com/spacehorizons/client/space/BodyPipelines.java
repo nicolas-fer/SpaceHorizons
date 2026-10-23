@@ -47,6 +47,22 @@ final class BodyPipelines {
             .build();
 
     /**
+     * O casco de outra nave ou foguete visto de longe (VesselRenderer): triângulos com posição + cor, o mesmo bloco de uniforms dos corpos, sem
+     * mistura e sem culling, com profundidade própria (invertida, como o resto). O alvo de profundidade é do VesselRenderer.
+     */
+    static final RenderPipeline VESSEL = RenderPipeline.builder()
+            .withLocation(Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "pipeline/space_vessel"))
+            .withVertexShader(Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "space/vessel"))
+            .withFragmentShader(Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "space/vessel"))
+            .withBindGroupLayout(INFO_LAYOUT)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+            .withColorTargetState(ColorTargetState.DEFAULT)
+            .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, true))
+            .withCull(false)
+            .build();
+
+    /**
      * O disco do sol (SunDisc): triângulos com posição + cor (alfa por vértice) e os shaders de posição e cor do vanilla, a mesma mistura
      * translúcida do brilho do nascer do sol e sem culling. Sem profundidade: é só o céu, desenhado antes de tudo.
      */
@@ -69,5 +85,6 @@ final class BodyPipelines {
     static void register(RegisterRenderPipelinesEvent event) {
         event.registerOptionalPipeline(BODY);
         event.registerOptionalPipeline(SUN_DISC);
+        event.registerOptionalPipeline(VESSEL);
     }
 }

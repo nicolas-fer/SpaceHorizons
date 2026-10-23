@@ -367,6 +367,13 @@ converte em lotes; quem está no convés fica no mesmo lugar, em cima dos blocos
 mobs não nascem nela. Para voar de novo, agachado e de mão vazia na ponte (ou `/spacehorizons ship unanchor`, que deixa todos em pé no convés).
 Autoteste: `./gradlew runClientTest -PshOnly=shipanchor`.
 
+### Outras naves e foguetes no céu (fase 2d)
+
+Quem está no espaço, num foguete estacionado ou dentro de uma nave do estaleiro vê as outras naves e os foguetes próximos (até 20 km) na posição relativa
+certa, com o casco externo (pedido ao servidor dentro de 5 km; além disso, uma caixa mínima). Estado a 5 Hz e casco em partes pela rede; desenho em
+`client/space/VesselRenderer`. Comandos de dev: `/spacehorizons vessel rocketboard <nave> <dx> <dy> <dz>`, `vessel yaw`, `vessel freeze on|off`, `vessel list`.
+Autoteste (caixa na tela medida em pixels contra a calculada): `./gradlew runClientTest -PshOnly=shipsee`. Resultado em `docs/PLANO_NAVES.md`.
+
 ### Regressão em paralelo
 
 ```bash

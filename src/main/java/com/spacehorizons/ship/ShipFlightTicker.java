@@ -95,6 +95,21 @@ public final class ShipFlightTicker {
             return this.arrangement;
         }
 
+        /** O id da nave. */
+        public int shipId() {
+            return this.shipId;
+        }
+
+        /** O relógio no fim do último passo (o do estado {@link #state}); NaN antes do primeiro passo. */
+        public double clockAfterStep() {
+            return this.lastClock + this.rate;
+        }
+
+        /** A descida da nave já começou (a conversão para entidade está na fila): ela não é mais um veículo do estaleiro. */
+        public boolean descending() {
+            return this.descentStarted;
+        }
+
         /** O eixo do empuxo líquido, nos eixos canônicos da nave (a proa é -Z). */
         public V3 thrustAxis() {
             return this.thrustAxis;
@@ -131,6 +146,11 @@ public final class ShipFlightTicker {
     /** O voo vivo da nave, ou null se ela não voa (ou ainda não foi carregada neste servidor). */
     public static @Nullable Live live(int shipId) {
         return LIVE.get(shipId);
+    }
+
+    /** Os voos vivos (cópia), para quem desenha as naves umas para as outras ({@link VesselSync}). */
+    public static List<Live> liveAll() {
+        return new ArrayList<>(LIVE.values());
     }
 
     /** O combustível em mB: o do voo se a nave voa, senão o dos tanques do último censo. */
