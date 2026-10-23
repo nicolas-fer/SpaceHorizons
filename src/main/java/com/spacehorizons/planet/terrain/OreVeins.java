@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.spacehorizons.planet.PlanetDefinition;
 import com.spacehorizons.planet.PlanetMath;
+import com.spacehorizons.planet.SurfaceType;
 import com.spacehorizons.planet.spec.OreVeinSpec;
 
 /**
@@ -59,13 +60,26 @@ public final class OreVeins {
         return max;
     }
 
-    /** Índice do veio cujo minério ocupa o bloco, ou -1. O primeiro veio da lista ganha quando dois se cruzam. */
+    /**
+     * Índice do veio cujo minério ocupa o bloco, ou -1. O primeiro veio da lista ganha quando dois se cruzam. Os filtros de tipo de
+     * superfície ({@code surface_types}) não valem aqui (sem a coluna não há como saber); o gerador usa
+     * {@link #veinAt(int, int, int, SurfaceType)}. A latitude mínima vale sempre.
+     */
     public int veinAt(int x, int y, int z) {
+        return veinAt(x, y, z, null);
+    }
+
+    /** Como {@link #veinAt(int, int, int)}, mas só aceita os veios cujo {@code surface_types} inclui {@code surface} (ou é vazio). */
+    public int veinAt(int x, int y, int z, SurfaceType surface) {
         long wx = PlanetMath.wrapX(planet, x);
+        double latitude = Math.abs(Math.toDegrees(PlanetMath.latitudeRadians(planet, z)));
         for (int i = 0; i < veins.length; i++) {
             Vein v = veins[i];
             OreVeinSpec s = v.spec;
-            if (y < s.minY() || y > s.maxY()) {
+            if (y < s.minY() || y > s.maxY() || latitude < s.minLatitude()) {
+                continue;
+            }
+            if (surface != null && !s.surfaceTypes().isEmpty() && !s.surfaceTypes().contains(surface)) {
                 continue;
             }
             double g = 1.0 / s.gateScale();

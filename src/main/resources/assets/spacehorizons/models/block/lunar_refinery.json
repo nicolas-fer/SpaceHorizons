@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "side": "spacehorizons:block/lunar_refinery_side",
+    "top": "spacehorizons:block/lunar_refinery_top",
+    "bottom": "spacehorizons:block/lunar_refinery_top",
+    "particle": "spacehorizons:block/lunar_refinery_side"
+  }
+}

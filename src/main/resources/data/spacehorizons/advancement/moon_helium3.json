@@ -1,0 +1,31 @@
+{
+  "parent": "spacehorizons:lunar_ice",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:helium3_extractor"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:helium3_extractor"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.moon_helium3.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.moon_helium3.description"
+    }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

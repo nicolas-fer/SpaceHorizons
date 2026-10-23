@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "side": "spacehorizons:block/oxygen_generator_side_on",
+    "top": "spacehorizons:block/oxygen_generator_top",
+    "bottom": "spacehorizons:block/oxygen_generator_top",
+    "particle": "spacehorizons:block/oxygen_generator_side_on"
+  }
+}

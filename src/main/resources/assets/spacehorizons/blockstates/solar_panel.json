@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "spacehorizons:block/solar_panel"
+    },
+    "lit=true": {
+      "model": "spacehorizons:block/solar_panel"
+    }
+  }
+}

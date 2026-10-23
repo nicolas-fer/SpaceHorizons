@@ -100,6 +100,13 @@ public class SpaceHorizonsJeiPlugin implements IModPlugin {
             registration.addIngredientInfo(item, Component.translatable("jei.spacehorizons.info."
                     + net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).getPath()));
         }
+        // base lunar (docs/PLANO_SOBREVIVENCIA.md, "Etapa 4"): o que cada bloco faz e os números
+        for (Item item : List.of(ModBlocks.LUNAR_ICE_ORE.get().asItem(), ModItems.LUNAR_ICE.get(), ModBlocks.SOLAR_PANEL.get().asItem(),
+                ModBlocks.BATTERY.get().asItem(), ModBlocks.POWER_CABLE.get().asItem(), ModBlocks.OXYGEN_GENERATOR.get().asItem(),
+                ModBlocks.HELIUM3_EXTRACTOR.get().asItem(), ModBlocks.ELECTROLYZER.get().asItem(), ModBlocks.LUNAR_REFINERY.get().asItem())) {
+            registration.addIngredientInfo(item, Component.translatable("jei.spacehorizons.info."
+                    + net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item).getPath()));
+        }
         for (Item canister : List.of(ModItems.HYDROGEN_CANISTER.get(), ModItems.XENON_CANISTER.get(), ModItems.HELIUM3_CANISTER.get())) {
             registration.addItemStackInfo(List.of(new ItemStack(canister), com.spacehorizons.survival.fuel.FuelCanisterItem.fullStack(canister)),
                     Component.translatable("jei.spacehorizons.info." + net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(canister).getPath()));

@@ -23,6 +23,14 @@
     "spacehorizons:nuclear_engine",
     "spacehorizons:ion_engine",
     "spacehorizons:fusion_engine",
-    "spacehorizons:antigravity_generator"
+    "spacehorizons:antigravity_generator",
+    "spacehorizons:lunar_ice_ore",
+    "spacehorizons:solar_panel",
+    "spacehorizons:battery",
+    "spacehorizons:power_cable",
+    "spacehorizons:oxygen_generator",
+    "spacehorizons:helium3_extractor",
+    "spacehorizons:electrolyzer",
+    "spacehorizons:lunar_refinery"
   ]
 }

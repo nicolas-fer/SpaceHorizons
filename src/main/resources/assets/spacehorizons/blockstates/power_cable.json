@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "spacehorizons:block/power_cable"
+    },
+    "lit=true": {
+      "model": "spacehorizons:block/power_cable"
+    }
+  }
+}

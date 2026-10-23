@@ -101,20 +101,41 @@ public final class ContentIds {
     public static final String ION_ENGINE = "ion_engine";
     public static final String FUSION_ENGINE = "fusion_engine";
 
+    // --- Base lunar (etapa 4 da sobrevivência; docs/PLANO_SOBREVIVENCIA.md, "Etapa 4: o que foi feito/decidido") ---
+    /** Gelo de água dos polos da Lua (item): vira oxigênio, hidrogênio e combustível. Vem do minério {@link #LUNAR_ICE_ORE}. */
+    public static final String LUNAR_ICE = "lunar_ice";
+    /** Minério de gelo lunar: veios sob o fundo das crateras de latitude alta; sem toque de seda dá 1 a 3 gelos lunares. */
+    public static final String LUNAR_ICE_ORE = "lunar_ice_ore";
+    /** Painel solar: gera UE só com o sol alto e o céu livre. */
+    public static final String SOLAR_PANEL = "solar_panel";
+    /** Bateria: guarda 200.000 UE. */
+    public static final String BATTERY = "battery";
+    /** Cabo de energia: estende a adjacência entre painéis, baterias e máquinas. */
+    public static final String POWER_CABLE = "power_cable";
+    /** Gerador de oxigênio: pressuriza a sala selada em volta dele (gasta tanques ou gelo e energia). */
+    public static final String OXYGEN_GENERATOR = "oxygen_generator";
+    /** Extrator de hélio-3: regolito lunar vira hélio-3 no galão. */
+    public static final String HELIUM3_EXTRACTOR = "helium3_extractor";
+    /** Eletrolisador: gelo vira hidrogênio (galão) e oxigênio (tanque). */
+    public static final String ELECTROLYZER = "electrolyzer";
+    /** Refinaria lunar: gelo vira combustível químico do Tier 1 (galão). */
+    public static final String LUNAR_REFINERY = "lunar_refinery";
+
     /** Itens que não são BlockItems. */
     public static final List<String> ITEMS = List.of(
             STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER,
             OXYGEN_TANK_SMALL, OXYGEN_TANK_LARGE,
             SPACE_HELMET, SPACE_CHESTPLATE, SPACE_LEGGINGS, SPACE_BOOTS, ROCKET_BLUEPRINT,
             RAW_TITANIUM, TITANIUM_INGOT, TITANIUM_PLATE, RARE_EARTH_DUST, HELIUM3_CANISTER, HYDROGEN_CANISTER, XENON_CANISTER,
-            NUCLEAR_FUEL_ROD, SUPERCONDUCTOR_COIL);
+            NUCLEAR_FUEL_ROD, SUPERCONDUCTOR_COIL, LUNAR_ICE);
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
     public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR,
             LAUNCH_PAD, ROCKET_COCKPIT, ROCKET_ENGINE, ROCKET_FUEL_TANK, ROCKET_PARACHUTE, ROCKET_LANDING_LEG, ROCKET_HULL,
             SHIP_BRIDGE, SHIP_IMPULSE_ENGINE, SHIP_WINDOW, SHIP_SEAT, SHIP_AIRLOCK, ANTIGRAVITY_GENERATOR,
             MARS_REGOLITH, MARS_TITANIUM_ORE, TITANIUM_BLOCK, HYDROGEN_TANK, XENON_TANK, RTG_GENERATOR, NUCLEAR_ENGINE, ION_ENGINE,
-            FUSION_ENGINE);
+            FUSION_ENGINE, LUNAR_ICE_ORE, SOLAR_PANEL, BATTERY, POWER_CABLE, OXYGEN_GENERATOR, HELIUM3_EXTRACTOR, ELECTROLYZER,
+            LUNAR_REFINERY);
 
     private ContentIds() {
     }

@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "side": "spacehorizons:block/helium3_extractor_side_on",
+    "top": "spacehorizons:block/helium3_extractor_top",
+    "bottom": "spacehorizons:block/helium3_extractor_top",
+    "particle": "spacehorizons:block/helium3_extractor_side_on"
+  }
+}

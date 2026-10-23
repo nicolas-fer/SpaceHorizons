@@ -93,6 +93,9 @@ public final class ModItems {
     public static final DeferredItem<RocketFuelTankItem> XENON_TANK = ITEMS.registerItem(ContentIds.XENON_TANK,
             props -> new RocketFuelTankItem(ModBlocks.XENON_TANK.get(), props), () -> new Item.Properties().useBlockDescriptionPrefix());
 
+    /** Gelo lunar (dos veios das crateras polares): alimenta o eletrolisador, a refinaria lunar e o gerador de oxigênio. */
+    public static final DeferredItem<Item> LUNAR_ICE = ITEMS.registerSimpleItem(ContentIds.LUNAR_ICE);
+
     private ModItems() {
     }
 }

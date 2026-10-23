@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "S": "spacehorizons:steel_nugget",
+    "C": "minecraft:copper_ingot"
+  },
+  "pattern": [
+    "SSS",
+    "CCC",
+    "SSS"
+  ],
+  "result": {
+    "id": "spacehorizons:power_cable",
+    "count": 6
+  }
+}

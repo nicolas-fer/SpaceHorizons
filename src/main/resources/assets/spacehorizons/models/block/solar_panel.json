@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "side": "spacehorizons:block/solar_panel_side",
+    "top": "spacehorizons:block/solar_panel_top",
+    "bottom": "spacehorizons:block/solar_panel_top",
+    "particle": "spacehorizons:block/solar_panel_side"
+  }
+}

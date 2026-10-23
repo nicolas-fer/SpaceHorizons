@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "spacehorizons:block/helium3_extractor"
+    },
+    "lit=true": {
+      "model": "spacehorizons:block/helium3_extractor_on"
+    }
+  }
+}

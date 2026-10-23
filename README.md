@@ -318,6 +318,15 @@ Autotestes: `-PshOnly=shipflight` (piloto de teste no servidor: censo, órbita e
 `-PshOnly=shipground` (nave montada no chão pela ponte: recusa sem motor, retrato, mundo, piloto sentado e subida de 500 blocos; prints em `run-test/screenshots/autotest_sg_*`).
 `-PshOnly=shipascent` (subida até a altitude de saída, conversão no estaleiro, baú, tanques, coluna, piloto na ponte e voo virtual; prints em `run-test/screenshots/autotest_sa_*`).
 
+## Base lunar (etapa 4 da sobrevivência)
+
+Salas seladas com ar, energia simples, recursos lunares e combustível produzido na Lua (design e números em `docs/PLANO_SOBREVIVENCIA.md`,
+"Etapa 4"). Blocos: `solar_panel`, `battery`, `power_cable` (energia por adjacência, 8 UE/t por painel ao sol), `oxygen_generator` (pressuriza
+a sala fechada em volta, até 1.000 blocos de ar; dentro dela não se gasta o tanque do traje nem se congela), `electrolyzer` (gelo vira
+hidrogênio e oxigênio), `lunar_refinery` (gelo vira combustível do Tier 1: 10 gelos enchem um tanque de foguete) e `helium3_extractor`
+(regolito vira hélio-3). O gelo lunar (`lunar_ice_ore`) fica sob o fundo das crateras de latitude 55 graus ou mais. Teste:
+`./gradlew runClientTest -PshOnly=moonbase` (prints `autotest_moonbase_*`).
+
 ## Gerador de planetas por parâmetros e Marte (etapa 2 dos tiers)
 
 Cada planeta é um JSON em `src/main/resources/data/spacehorizons/planet/<id>.json` (formato em `docs/GERADOR_PLANETAS.md`): circunferência,

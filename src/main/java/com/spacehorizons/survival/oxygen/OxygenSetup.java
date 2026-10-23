@@ -8,11 +8,13 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.moonbase.room.PressurizedRooms;
 import com.spacehorizons.planet.Planets;
 import com.spacehorizons.space.SpaceDimension;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -106,9 +108,13 @@ public final class OxygenSetup {
         return Planets.forLevel(level).map(planet -> OxygenMath.isVacuum(planet, y)).orElseGet(() -> SpaceDimension.is(level));
     }
 
-    /** O jogador está no vácuo? Pontos de respiração: os olhos do jogador, não os pés. */
+    /**
+     * O jogador está no vácuo? Pontos de respiração: os olhos do jogador, não os pés. Dentro de uma sala selada e pressurizada da base
+     * lunar ({@link PressurizedRooms}) o ar é respirável: não é vácuo (nem consome tanque, nem congela).
+     */
     public static boolean isInVacuum(ServerPlayer player) {
-        return isVacuumAt(player.level(), player.getEyeY());
+        return isVacuumAt(player.level(), player.getEyeY())
+                && !PressurizedRooms.breathableAt(player.level(), BlockPos.containing(player.getEyePosition()));
     }
 
     private static void tick(ServerPlayer player) {

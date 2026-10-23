@@ -80,10 +80,11 @@ class PlanetSpecTest {
     }
 
     @Test
-    void moonHasNoAirNoOresAndAFourTypePalette() {
+    void moonHasNoAirOnlyTheIceVeinAndAFourTypePalette() {
         PlanetSpec moon = Planets.spec(Planets.MOON);
         assertEquals(AtmosphereModel.NONE, moon.atmosphere().model());
-        assertTrue(moon.ores().isEmpty());
+        assertEquals(1, moon.ores().size());
+        assertEquals("spacehorizons:lunar_ice_ore", moon.ores().get(0).block().get(0).toString());
         assertEquals(4, moon.surface().types().size());
         assertEquals("minecraft:stone", moon.surface().subsurface().get(0).toString());
     }

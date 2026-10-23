@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "spacehorizons:block/electrolyzer"
+    },
+    "lit=true": {
+      "model": "spacehorizons:block/electrolyzer_on"
+    }
+  }
+}
