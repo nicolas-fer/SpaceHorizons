@@ -85,6 +85,29 @@ final class BodyRenderer {
     private final Matrix4f mvp = new Matrix4f();
     private final double[] meshBasis = new double[9];
 
+    /**
+     * Diagnóstico do autoteste (pisca de corpos): quadros desenhados, mudanças do conjunto de corpos desenhados de um quadro para o seguinte e a
+     * máscara do último quadro (um bit por corpo de {@code SolarSystem.BODIES}).
+     */
+    public static volatile long diagFrames;
+    public static volatile long diagFlips;
+    public static volatile int diagMask;
+    private static boolean diagHasPrevious;
+
+    private static void diagRecord(int mask, double camY, SolarSystem.@Nullable Body home) {
+        diagFrames++;
+        if (diagHasPrevious && mask != diagMask) {
+            diagFlips++;
+            if (diagFlips <= 60) {
+                SpaceHorizons.LOGGER.info("[AUTOTEST] PISCA quadro {}: corpos desenhados {} -> {} (camera y={}, planeta do observador={})", diagFrames,
+                        Integer.toBinaryString(diagMask), Integer.toBinaryString(mask), String.format(java.util.Locale.ROOT, "%.1f", camY),
+                        home == null ? "espaco" : home.planet().id().getPath());
+            }
+        }
+        diagHasPrevious = true;
+        diagMask = mask;
+    }
+
     private @Nullable TextureTarget depthTarget;
     private boolean disabled;
     private boolean warnedPipeline;
@@ -173,6 +196,7 @@ final class BodyRenderer {
             visible.add(new Candidate(body, apparent, body == home));
         }
         if (visible.isEmpty()) {
+            diagRecord(0, camY, home);
             return;
         }
         // de longe para perto: o mais próximo fica por cima
@@ -205,6 +229,7 @@ final class BodyRenderer {
         TextureTarget depth = ensureDepthTarget(main.width, main.height);
 
         int slot = 0;
+        int drawn = 0;
         for (Candidate candidate : visible) {
             if (slot >= MAX_BODIES) {
                 break;
@@ -215,8 +240,10 @@ final class BodyRenderer {
             if (draw(candidate, slot, pipeline, main, depth, camera, invView, (float) lit[0], (float) lit[1], (float) lit[2], (float) fade, pixelAngle,
                     observer)) {
                 slot++;
+                drawn |= 1 << SolarSystem.BODIES.indexOf(candidate.body());
             }
         }
+        diagRecord(drawn, camY, home);
     }
 
     /**

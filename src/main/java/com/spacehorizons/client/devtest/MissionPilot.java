@@ -76,6 +76,13 @@ final class MissionPilot {
     /** A missão é a de Marte (depois da órbita baixa vai à janela da injeção interplanetária, não à da TLI). */
     private boolean mars;
     private MarsPlanner.@Nullable Plan marsPlan;
+    /** Decolagem DE Marte até a órbita de espera (cenário {@code marsorbit}): sobe, circulariza, fica em órbita e desce de volta. */
+    private boolean marsLaunch;
+    /** Ticks que o piloto fica na órbita de Marte antes de frear para descer. */
+    private int orbitWait = 200;
+    /** Apoastro da subida de Marte (altitude): acima da altitude de saída (2.656) e da atmosfera (1.100). */
+    static final double MARS_LAUNCH_APOAPSIS = 3_600.0;
+    static final double MARS_LAUNCH_PERIAPSIS = 3_300.0;
 
     private Phase phase = Phase.PAD;
     private int ticks;
@@ -121,6 +128,13 @@ final class MissionPilot {
 
     Phase phase() {
         return this.phase;
+    }
+
+    /** Faz do piloto o da decolagem de Marte e volta (começa pousado em Marte); {@code orbitTicks} é a espera na órbita. */
+    MissionPilot marsLaunch(int orbitTicks) {
+        this.marsLaunch = true;
+        this.orbitWait = orbitTicks;
+        return this;
     }
 
     /** Faz do piloto o da missão a Marte: depois da órbita baixa segue as fases {@code MARS_*}. */
@@ -178,9 +192,10 @@ final class MissionPilot {
         }
         this.maxHeat = Math.max(this.maxHeat, st.heat());
         Out out = switch (this.phase) {
-            case ASCENT -> ascent(s, st, clock, Phase.COAST_TO_APOAPSIS, true);
+            case ASCENT -> ascent(s, st, clock, Phase.COAST_TO_APOAPSIS, !this.marsLaunch);
             case COAST_TO_APOAPSIS -> coastToApoapsis(s, st, clock, Phase.CIRCULARIZE, false);
-            case CIRCULARIZE -> circularize(s, st, clock, LEO_PERIAPSIS, this.mars ? Phase.MARS_LEO_WAIT : Phase.LEO_WAIT);
+            case CIRCULARIZE -> this.marsLaunch ? circularize(s, st, clock, MARS_LAUNCH_PERIAPSIS, Phase.MARS_ORBIT)
+                    : circularize(s, st, clock, LEO_PERIAPSIS, this.mars ? Phase.MARS_LEO_WAIT : Phase.LEO_WAIT);
             case LEO_WAIT -> leoWait(s, st, clock);
             case TLI -> tli(s, st, clock);
             case COAST_TO_MOON -> coastToMoon(s, st, clock);
@@ -314,7 +329,7 @@ final class MissionPilot {
         BodyPhysics bp = BodyPhysics.of(st.body());
         Orbit o = Orbit.of(st, clock);
         double apoapsisAlt = o.bound() ? o.apoapsis() - bp.radius() : Double.POSITIVE_INFINITY;
-        double target = earth ? LEO_APOAPSIS : LLO_ALTITUDE + 60.0;
+        double target = earth ? LEO_APOAPSIS : this.marsLaunch ? MARS_LAUNCH_APOAPSIS : LLO_ALTITUDE + 60.0;
         if (apoapsisAlt >= target && st.altitude() > 80.0) {
             next(after, s, st);
             return Out.IDLE;
@@ -986,7 +1001,7 @@ final class MissionPilot {
         if (this.phaseTicks == 1) {
             this.log.accept("ÓRBITA DE MARTE: " + orbitText(st, clock));
         }
-        if (this.phaseTicks > 200) {
+        if (this.phaseTicks > this.orbitWait) {
             next(Phase.MARS_BRAKE, s, st);
         }
         return new Out(c[0], c[1], 0.0, false, false);

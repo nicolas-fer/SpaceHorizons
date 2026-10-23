@@ -325,9 +325,21 @@ public final class MarsPlanner {
         if (bestDirection == null) {
             return null;
         }
-        V3 dv = bestDirection.times(best);
-        Arrival after = arrival(s.withRV(s.r(), s.v().plus(dv)), clock, horizon);
-        return after == null ? null : new Correction(dv, after, 0);
+        // o alvo do parâmetro de impacto depende da velocidade de chegada, que a correção muda: refaz com a velocidade nova (até 3 vezes)
+        Arrival after = arrival(s.withRV(s.r(), s.v().plus(bestDirection.times(best))), clock, horizon);
+        int iterations = 0;
+        while (after != null && iterations < 3 && Math.abs(after.periapsisAltitude() - targetPeriapsisAltitude) > 150.0) {
+            iterations++;
+            double v = Math.sqrt(Math.max(1.0, after.relativeSpeed() * after.relativeSpeed() - 2.0 * MARS.mu() / MARS.soiEnterRadius()));
+            double x = solveAlong(s, clock, bestDirection, targetImpact(targetPeriapsisAltitude, v, prograde), Math.max(-maxDeltaV, best - 1.0),
+                    Math.min(maxDeltaV, best + 1.0), 0.02, horizon);
+            if (Double.isNaN(x)) {
+                break;
+            }
+            best = x;
+            after = arrival(s.withRV(s.r(), s.v().plus(bestDirection.times(best))), clock, horizon);
+        }
+        return after == null ? null : new Correction(bestDirection.times(best), after, iterations);
     }
 
     /**
@@ -487,8 +499,11 @@ public final class MarsPlanner {
             double a = wrap2Pi(psi - start);
             double position = a / step;
             int i = (int) Math.floor(position);
-            if (i < 0 || i >= values.length - 1) {
+            if (i < 0 || i >= values.length) {
                 return Double.NaN;
+            }
+            if (i == values.length - 1) {
+                return values[i];
             }
             double lo = values[i];
             double hi = values[i + 1];

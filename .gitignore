@@ -43,6 +43,7 @@ repo/
 # logs soltos de execuções fora de run/
 logs/
 run-client.log
+run-client-*.log
 
 # arquivos de trabalho da geração de texturas (brutos do Gemini, variantes, folhas de comparação)
 art/_work/

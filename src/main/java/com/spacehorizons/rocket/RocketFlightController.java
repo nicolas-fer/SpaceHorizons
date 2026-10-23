@@ -205,8 +205,10 @@ final class RocketFlightController {
         if (r.event() == Event.CRASH) {
             f.snapshot = r.next(); // pousado: o foguete devolve o ponto de saída no chão ao piloto
             LandingPreloadDriver.release(f);
-            rocket.setPos(center);
-            RocketCrash.crash(level, rocket, pilot, center, FlightMachineSpeed.of(r));
+            // no espaço aberto (caiu no sol) o foguete está estacionado: a batida é no ponto de estacionamento, não na posição real
+            Vec3 crashAt = zone == null ? SpaceParking.pointFor(rocket.getUUID()) : center;
+            rocket.setPos(crashAt);
+            RocketCrash.crash(level, rocket, pilot, crashAt, FlightMachineSpeed.of(r));
             return;
         }
 

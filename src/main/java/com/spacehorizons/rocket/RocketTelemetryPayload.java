@@ -39,12 +39,29 @@ import net.minecraft.resources.Identifier;
  * @param heldForChunks      true se o passo da simulação está segurado esperando chunks
  * @param landingState       pré-carga do local de pouso: 0 sem previsão, 1 carregando, 2 pronta ({@link LandingPreloader.State})
  * @param landingPercent     porcentagem (0..100) dos chunks do local de pouso previsto já carregados
+ * @param marsStatus         ordinal do status do MarsPlanner (ou -1 sem plano: fora da órbita da Terra)
+ * @param marsPhaseNow       quanto Marte está à frente da Terra na órbita em volta do sol (graus)
+ * @param marsPhaseIdeal     a fase ideal para queimar a partir do ponto em que a nave está (NaN fora da faixa de queima)
+ * @param marsDeltaV         delta-v da injeção para Marte (b/t)
+ * @param marsBurnNow        true se é hora de queimar para Marte
+ * @param marsTimeToBurn     ticks até a próxima queima possível para Marte (NaN sem previsão)
  */
 public record RocketTelemetryPayload(String body, boolean inSpace, double altitude, double verticalSpeed, double horizontalSpeed,
         double orbitalSpeed, double apoapsisAltitude, double periapsisAltitude, double inclination, double timeToApoapsis,
         double fuelMb, double fuelCapacityMb, double deltaV, double twr, float throttle, byte sasMode, byte flightMode, float heat,
         float chute, byte plannerStatus, float phaseNow, float phaseIdeal, float tliDeltaV, boolean burnNow, boolean heldForChunks,
-        byte landingState, byte landingPercent) implements CustomPacketPayload {
+        byte landingState, byte landingPercent, byte marsStatus, float marsPhaseNow, float marsPhaseIdeal, float marsDeltaV, boolean marsBurnNow,
+        float marsTimeToBurn) implements CustomPacketPayload {
+    /** Sem o plano de Marte (o que a telemetria do Tier 1 sempre foi). */
+    public RocketTelemetryPayload(String body, boolean inSpace, double altitude, double verticalSpeed, double horizontalSpeed, double orbitalSpeed,
+            double apoapsisAltitude, double periapsisAltitude, double inclination, double timeToApoapsis, double fuelMb, double fuelCapacityMb,
+            double deltaV, double twr, float throttle, byte sasMode, byte flightMode, float heat, float chute, byte plannerStatus, float phaseNow,
+            float phaseIdeal, float tliDeltaV, boolean burnNow, boolean heldForChunks, byte landingState, byte landingPercent) {
+        this(body, inSpace, altitude, verticalSpeed, horizontalSpeed, orbitalSpeed, apoapsisAltitude, periapsisAltitude, inclination, timeToApoapsis,
+                fuelMb, fuelCapacityMb, deltaV, twr, throttle, sasMode, flightMode, heat, chute, plannerStatus, phaseNow, phaseIdeal, tliDeltaV, burnNow,
+                heldForChunks, landingState, landingPercent, (byte) -1, 0.0F, Float.NaN, 0.0F, false, Float.NaN);
+    }
+
     public static final Type<RocketTelemetryPayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath(SpaceHorizons.MODID, "rocket_telemetry"));
 
@@ -79,6 +96,12 @@ public record RocketTelemetryPayload(String body, boolean inSpace, double altitu
         buf.writeBoolean(heldForChunks);
         buf.writeByte(landingState);
         buf.writeByte(landingPercent);
+        buf.writeByte(marsStatus);
+        buf.writeFloat(marsPhaseNow);
+        buf.writeFloat(marsPhaseIdeal);
+        buf.writeFloat(marsDeltaV);
+        buf.writeBoolean(marsBurnNow);
+        buf.writeFloat(marsTimeToBurn);
     }
 
     private static RocketTelemetryPayload read(FriendlyByteBuf buf) {
@@ -86,7 +109,7 @@ public record RocketTelemetryPayload(String body, boolean inSpace, double altitu
                 buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat(), buf.readByte(), buf.readByte(), buf.readFloat(),
                 buf.readFloat(), buf.readByte(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readBoolean(), buf.readBoolean(), buf.readByte(),
-                buf.readByte());
+                buf.readByte(), buf.readByte(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readBoolean(), buf.readFloat());
     }
 
     @Override

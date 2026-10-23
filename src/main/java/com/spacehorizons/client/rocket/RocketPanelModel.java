@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Locale;
 
 import com.spacehorizons.rocket.RocketTelemetryPayload;
+import com.spacehorizons.space.flight.MarsPlanner;
 import com.spacehorizons.space.flight.TransferPlanner;
 
 import org.jspecify.annotations.Nullable;
@@ -164,7 +165,7 @@ public final class RocketPanelModel {
     /** Avisos em ordem de importância (o primeiro é o mais grave). */
     public static List<Warning> warnings(@Nullable RocketTelemetryPayload t, float heat) {
         List<Warning> list = new ArrayList<>();
-        if (t != null && t.burnNow()) {
+        if (t != null && (t.burnNow() || t.marsBurnNow())) {
             list.add(new Warning("hud.spacehorizons.rocket.burn_now", Tone.GOOD));
         }
         if (heat > HEAT_WARNING) {
@@ -197,6 +198,35 @@ public final class RocketPanelModel {
                 rows.add(new Row("hud.spacehorizons.rocket.planner.phase", degrees(t.phaseNow()) + " / " + degrees(t.phaseIdeal()),
                         t.burnNow() ? Tone.GOOD : Tone.NORMAL));
                 rows.add(new Row("hud.spacehorizons.rocket.planner.tli", speed(t.tliDeltaV()), Tone.NORMAL));
+            }
+            case WRONG_DIRECTION -> rows.add(new Row("hud.spacehorizons.rocket.planner.wrong_direction", "", Tone.WARN));
+            case NOT_IN_ORBIT -> {
+                if (t.inSpace()) {
+                    rows.add(new Row("hud.spacehorizons.rocket.planner.not_in_orbit", "", Tone.NORMAL));
+                }
+            }
+            case NOT_AROUND_EARTH -> {
+            }
+        }
+        return rows;
+    }
+
+    /**
+     * As linhas do planejador de Marte (Terra → Marte), vazio se não há plano a mostrar: fase atual contra a ideal do ponto da órbita, Δv da
+     * injeção interplanetária e o tempo até a próxima queima possível; com a órbita errada, a dica do que falta.
+     */
+    public static List<Row> marsPlannerRows(@Nullable RocketTelemetryPayload t) {
+        List<Row> rows = new ArrayList<>();
+        if (t == null || t.marsStatus() < 0 || t.marsStatus() >= MarsPlanner.Status.values().length) {
+            return rows;
+        }
+        switch (MarsPlanner.Status.values()[t.marsStatus()]) {
+            case OK -> {
+                rows.add(new Row("hud.spacehorizons.rocket.mars.phase", degrees(t.marsPhaseNow()) + " / "
+                        + (Float.isNaN(t.marsPhaseIdeal()) ? NONE : degrees(t.marsPhaseIdeal())), t.marsBurnNow() ? Tone.GOOD : Tone.NORMAL));
+                rows.add(new Row("hud.spacehorizons.rocket.mars.dv", speed(t.marsDeltaV()), Tone.NORMAL));
+                rows.add(new Row("hud.spacehorizons.rocket.mars.next", t.marsBurnNow() ? "0" : Float.isNaN(t.marsTimeToBurn()) ? NONE : time(t.marsTimeToBurn()),
+                        t.marsBurnNow() ? Tone.GOOD : Tone.NORMAL));
             }
             case WRONG_DIRECTION -> rows.add(new Row("hud.spacehorizons.rocket.planner.wrong_direction", "", Tone.WARN));
             case NOT_IN_ORBIT -> {
