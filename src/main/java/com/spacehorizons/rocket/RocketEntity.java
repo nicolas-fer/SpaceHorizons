@@ -279,16 +279,28 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Servidor: marca o foguete como estacionado no espaço, com a posição real {@code real} (coordenadas da dimensão de espaço), ou
-     * (null) como andando de verdade (na dimensão de um corpo). O dado só é reenviado quando o valor muda.
+     * Servidor: marca o foguete como estacionado no espaço, com a posição real {@code spaceDimPosition} (coordenadas da dimensão de espaço, em E,
+     * calculada para o relógio {@code clock}). O dado sincronizado guarda a posição em I (inercial: não gira com a Terra), porque o cliente a
+     * interpola entre ticks e a leva de volta a E com o relógio DELE: em E um ponto perto de Marte anda ~1.400 blocos por tick (a Terra gira), e um
+     * pacote atrasado de um tick bastava para o planeta que a câmera orbita parecer a mais de um raio de distância e sumir do céu.
      */
-    public void setVirtualSpacePosition(@Nullable Vec3 real) {
-        if (real == null) {
-            this.entityData.set(VIRTUAL, false);
-            return;
-        }
+    public void setVirtualSpacePosition(Vec3 spaceDimPosition, double clock) {
+        double[] e = new double[3];
+        com.spacehorizons.space.SpaceDimension.toSpace(spaceDimPosition.x, spaceDimPosition.y, spaceDimPosition.z, e);
+        double[] inertial = new double[3];
+        com.spacehorizons.space.InertialFrame.toInertial(clock, e[0], e[1], e[2], inertial);
+        setVirtualInertial(new Vec3(inertial[0], inertial[1], inertial[2]));
+    }
+
+    /** Marca como estacionado com a posição real já em I (a carga do NBT e o servidor, depois da conversão). */
+    private void setVirtualInertial(Vec3 inertial) {
         this.entityData.set(VIRTUAL, true);
-        this.entityData.set(VIRTUAL_POS, new Vector3f((float) real.x, (float) real.y, (float) real.z));
+        this.entityData.set(VIRTUAL_POS, new Vector3f((float) inertial.x, (float) inertial.y, (float) inertial.z));
+    }
+
+    /** Servidor: o foguete anda de verdade (na dimensão de um corpo): sem posição virtual. O dado só é reenviado quando o valor muda. */
+    public void clearVirtualSpacePosition() {
+        this.entityData.set(VIRTUAL, false);
     }
 
     /** O foguete está estacionado no espaço (a posição da entidade é o ponto fixo; a real é {@link #virtualSpacePosition}). */
@@ -297,8 +309,8 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     }
 
     /**
-     * Cliente: a posição real do foguete no espaço (coordenadas da dimensão de espaço, interpolada entre ticks), de onde o céu é visto; null
-     * se o foguete não está estacionado.
+     * Cliente: a posição real do foguete no espaço em I (inercial, centrada na Terra, interpolada entre ticks), de onde o céu é visto (o cliente a
+     * leva a E com o relógio do quadro); null se o foguete não está estacionado.
      */
     public @Nullable Vec3 virtualSpacePosition(float partialTick) {
         if (!this.isVirtual()) {
@@ -800,7 +812,7 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         this.flight.load(input);
         double virtualY = input.getDoubleOr("VirtualY", Double.NaN);
         if (!Double.isNaN(virtualY)) {
-            this.setVirtualSpacePosition(new Vec3(input.getDoubleOr("VirtualX", 0.0), virtualY, input.getDoubleOr("VirtualZ", 0.0)));
+            this.setVirtualInertial(new Vec3(input.getDoubleOr("VirtualX", 0.0), virtualY, input.getDoubleOr("VirtualZ", 0.0)));
         }
     }
 }

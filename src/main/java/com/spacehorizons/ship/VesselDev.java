@@ -194,7 +194,7 @@ public final class VesselDev {
         FrameBridge.Local local = FrameBridge.toSpaceDimension(s.orbit().body(), clock, live.rate(), r, s.orbit().v());
         rocket.flight().devtestSetSpaceState(local, clock, live.rate());
         rocket.setFlightMode(FlightMode.FLIGHT);
-        rocket.setVirtualSpacePosition(new Vec3(local.x(), local.y(), local.z()));
+        rocket.setVirtualSpacePosition(new Vec3(local.x(), local.y(), local.z()), clock);
         SpaceHorizons.LOGGER.info("[vessel] foguete de teste {}: {} blocos, posição no espaço ({}, {}, {}) = nave + ({}, {}, {}) em eixos da nave", rocket.getUUID(),
                 built.portrait().blockCount(), String.format(Locale.ROOT, "%.1f", local.x()), String.format(Locale.ROOT, "%.1f", local.y()),
                 String.format(Locale.ROOT, "%.1f", local.z()), dx, dy, dz);

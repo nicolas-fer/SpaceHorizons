@@ -9,7 +9,11 @@ import org.junit.jupiter.api.Test;
 
 import com.spacehorizons.planet.Planets;
 
-/** O céu de Marte enquanto ele não está no sistema solar: um corpo destacado que só gira com o dia de Marte. */
+/**
+ * O céu de um planeta que tem dia mas não tem órbita: um corpo destacado que só gira com o dia dele. Marte JÁ ERA o exemplo; desde o
+ * sistema centrado no sol ele é um corpo real ({@link SolarSystem#MARS}), e o corpo destacado dele ({@code detached}) continua sendo o
+ * modelo do sol local, que o Marte real tem de reproduzir.
+ */
 class DetachedSkyBodyTest {
     private static final double DAY = Planets.spec(Planets.MARS).dayLengthTicks();
 
@@ -26,11 +30,26 @@ class DetachedSkyBodyTest {
     }
 
     @Test
-    void marsIsDetachedFromPhysicsAndTravel() {
+    void marsIsARealBodyOfTheSystemNow() {
         SolarSystem.Body mars = SolarSystem.skyBodyOf(Planets.MARS);
-        assertSame(mars, SolarSystem.skyBodyOf(Planets.MARS));
-        assertFalse(SolarSystem.BODIES.contains(mars), "Marte não pode entrar na física orbital antes da etapa 3");
-        assertTrue(SolarSystem.bodyOf(Planets.MARS).isEmpty());
+        assertSame(SolarSystem.MARS, mars);
+        assertTrue(SolarSystem.BODIES.contains(mars));
+        assertSame(mars, SolarSystem.bodyOf(Planets.MARS).orElseThrow());
+        assertFalse(SolarSystem.BODIES.contains(SolarSystem.SUN), "o sol é só o centro de H, não tem dimensão nem céu");
+    }
+
+    @Test
+    void theDetachedBodyStillGivesTheSameLocalSunAsTheRealMars() {
+        // o corpo destacado (planeta sem órbita) e o Marte real dão o MESMO sol local, em qualquer ponto e instante: o dia de Marte não mudou
+        SolarSystem.Body detached = SolarSystem.detached(Planets.MARS, DAY);
+        SolarSystem.Body real = SolarSystem.MARS;
+        for (double t = 0; t < 600_000; t += 12_347) {
+            double[] a = sun(detached, 2_345, -1_234, t);
+            double[] b = sun(real, 2_345, -1_234, t);
+            for (int i = 0; i < 3; i++) {
+                assertEquals(a[i], b[i], 1e-9, "t=" + t);
+            }
+        }
     }
 
     @Test

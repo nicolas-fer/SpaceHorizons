@@ -7,6 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 import com.spacehorizons.rocket.GroundContact.Extents;
 import com.spacehorizons.rocket.GroundContact.Ground;
+import com.spacehorizons.space.Heliocentric;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.flight.AttitudeMath;
 import com.spacehorizons.space.flight.AttitudeMath.SasMode;
@@ -49,7 +50,7 @@ public final class FlightMachine {
     /**
      * O estado do voo entre dois ticks. Em {@code LANDED} só valem o modo de SAS, o acelerador e a zona (o combustível, a
      * posição e a atitude pousados são da entidade); em voo, {@code state} é a verdade (inclusive o combustível) e
-     * {@code attitude} é o quaternion INERCIAL (eixos de I). Os objetos mutáveis (quaternion) não são alterados depois
+     * {@code attitude} é o quaternion INERCIAL (nos eixos do referencial de estado do corpo dominante: I para a Terra e a Lua, H para o sol e Marte). Os objetos mutáveis (quaternion) não são alterados depois
      * de criados.
      */
     public record Snapshot(FlightMode mode, @Nullable FlightState state, Quaterniond attitude, V3 spin, SasMode sas,
@@ -176,11 +177,23 @@ public final class FlightMachine {
         FlightState moved = FlightIntegrator.step(state, control, stats, clock, clockRate);
         double clockEnd = clock + clockRate;
         moved = SoiTracker.update(moved, clockEnd, clockRate);
+        // a troca entre a Terra e o sol muda o referencial do estado (I e H): a atitude acompanha
+        Quaterniond attitude = moved.body().frame() == state.body().frame() ? att.attitude()
+                : AttitudeMath.changeFrame(state.body().frame(), moved.body().frame(), clockEnd, att.attitude());
         boolean chuteStillWanted = wantsChute && moved.chute() <= 0.0;
         FlightMode mode = moved.chute() > 0.0 ? FlightMode.PARACHUTE : FlightMode.FLIGHT;
+        if (moved.body() == SolarSystem.SUN && moved.r().length() < Heliocentric.SUN_RADIUS) {
+            // caiu no sol: o foguete é queimado (o chamador o desfaz no ponto de estacionamento)
+            Local at = FrameBridge.toSpaceDimension(moved.body(), clockEnd, clockRate, moved.r(), moved.v());
+            Snapshot gone = new Snapshot(FlightMode.LANDED, null, new Quaterniond(), V3.ZERO, sas, 0.0, false, null, 0.0);
+            return new Result(gone, Event.CRASH, null, at, new Quaterniond(), moved.v().length(), 0.0, 0.0);
+        }
 
         if (zone != null) {
             FlightState inZone = moved.body() == zone ? moved : rebase(moved, zone, clockEnd, clockRate);
+            if (inZone.body().frame() != moved.body().frame()) {
+                attitude = AttitudeMath.changeFrame(moved.body().frame(), inZone.body().frame(), clockEnd, attitude);
+            }
             Local loc = FrameBridge.toDimension(zone, clockEnd, clockRate, inZone.r(), inZone.v());
             var planet = zone.planet();
             double altitude = loc.y() - planet.seaLevel();
@@ -190,11 +203,11 @@ public final class FlightMachine {
                     && ZoneSwitch.shouldLeaveEarly(planet, altitude, loc.y() - zones.terrainHeight(zone, loc.x(), loc.z()), horizontal));
             if (leaves && zones.hasSpace()) {
                 Local dest = FrameBridge.toSpaceDimension(moved.body(), clockEnd, clockRate, moved.r(), moved.v());
-                Quaterniond localAtt = AttitudeMath.inertialToSpaceLocal(att.attitude(), clockEnd);
-                Snapshot next = new Snapshot(mode, moved, att.attitude(), att.spin(), sas, throttle, chuteStillWanted, null, moved.fuelMb());
+                Quaterniond localAtt = AttitudeMath.stateToSpaceLocal(moved.body(), attitude, clockEnd);
+                Snapshot next = new Snapshot(mode, moved, attitude, att.spin(), sas, throttle, chuteStillWanted, null, moved.fuelMb());
                 return new Result(next, Event.LEAVE_ZONE, null, dest, localAtt, 0.0, 0.0, 0.0);
             }
-            Quaterniond la = AttitudeMath.inertialToLocal(zone, clockEnd, loc.x(), loc.z(), att.attitude());
+            Quaterniond la = AttitudeMath.inertialToLocal(zone, clockEnd, loc.x(), loc.z(), attitude);
             if (loc.y() - planet.seaLevel() < CONTACT_ALTITUDE) {
                 Extents e = GroundContact.extents(la, box.hx(), box.hy(), box.hz());
                 double vVertical = loc.vy();
@@ -204,7 +217,7 @@ public final class FlightMachine {
                     return contact(cur, moved, loc, la, top, e, box, vVertical, Math.hypot(loc.vx(), loc.vz()), sas, throttle);
                 }
             }
-            Snapshot next = new Snapshot(mode, inZone, att.attitude(), att.spin(), sas, throttle, chuteStillWanted, zone, inZone.fuelMb());
+            Snapshot next = new Snapshot(mode, inZone, attitude, att.spin(), sas, throttle, chuteStillWanted, zone, inZone.fuelMb());
             return new Result(next, event, zone, loc, la, 0.0, 0.0, 0.0);
         }
 
@@ -218,14 +231,16 @@ public final class FlightMachine {
             double height = dest.y() - zones.terrainHeight(enter, dest.x(), dest.z());
             // rápido demais para a dimensão do corpo carregar o terreno: segue na dimensão de espaço (vazia), freando no ar
             if (ZoneSwitch.canEnter(enter.planet(), height, ZoneSwitch.horizontalSpeed(dest))) {
-                Quaterniond localAtt = AttitudeMath.inertialToLocal(enter, clockEnd, dest.x(), dest.z(), att.attitude());
-                Snapshot next = new Snapshot(mode, rebased, att.attitude(), att.spin(), sas, throttle, chuteStillWanted, enter, rebased.fuelMb());
+                Quaterniond enterAttitude = rebased.body().frame() == moved.body().frame() ? attitude
+                        : AttitudeMath.changeFrame(moved.body().frame(), rebased.body().frame(), clockEnd, attitude);
+                Quaterniond localAtt = AttitudeMath.inertialToLocal(enter, clockEnd, dest.x(), dest.z(), enterAttitude);
+                Snapshot next = new Snapshot(mode, rebased, enterAttitude, att.spin(), sas, throttle, chuteStillWanted, enter, rebased.fuelMb());
                 return new Result(next, Event.ENTER_ZONE, enter, dest, localAtt, 0.0, 0.0, 0.0);
             }
         }
         Local loc = FrameBridge.toSpaceDimension(moved.body(), clockEnd, clockRate, moved.r(), moved.v());
-        Quaterniond la = AttitudeMath.inertialToSpaceLocal(att.attitude(), clockEnd);
-        Snapshot next = new Snapshot(mode, moved, att.attitude(), att.spin(), sas, throttle, chuteStillWanted, null, moved.fuelMb());
+        Quaterniond la = AttitudeMath.stateToSpaceLocal(moved.body(), attitude, clockEnd);
+        Snapshot next = new Snapshot(mode, moved, attitude, att.spin(), sas, throttle, chuteStillWanted, null, moved.fuelMb());
         return new Result(next, event, null, loc, la, 0.0, 0.0, 0.0);
     }
 
@@ -258,10 +273,20 @@ public final class FlightMachine {
         return new Quaterniond().rotationY(-yaw);
     }
 
-    /** Muda a origem e o referencial da velocidade do estado para outro corpo (a posição e a velocidade absolutas se conservam). */
+    /**
+     * Muda a origem e o referencial da velocidade do estado para outro corpo (a posição e a velocidade absolutas se conservam). Entre
+     * corpos do mesmo referencial (Terra e Lua; sol e Marte) é só uma troca de origem; entre os dois referenciais (I e H) o estado passa
+     * pelo absoluto em I.
+     */
     public static FlightState rebase(FlightState s, SolarSystem.Body to, double clock, double clockRate) {
         if (s.body() == to) {
             return s;
+        }
+        if (s.body().frame() != to.frame()) {
+            V3 absoluteR = FrameBridge.absoluteInEarthSystem(s.body(), clock, s.r());
+            V3 absoluteV = FrameBridge.absoluteVelocityInEarthSystem(s.body(), clock, clockRate, s.r(), s.v());
+            FlightState moved = FrameBridge.stateRelativeTo(to, clock, clockRate, absoluteR, absoluteV, 0.0);
+            return s.withBody(to, moved.r(), moved.v());
         }
         double[] from = new double[3];
         double[] fromV = new double[3];

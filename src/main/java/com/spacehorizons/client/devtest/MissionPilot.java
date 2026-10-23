@@ -17,7 +17,9 @@ import com.spacehorizons.space.flight.BodyPhysics;
 import com.spacehorizons.space.flight.FlightState;
 import com.spacehorizons.space.flight.FrameBridge;
 import com.spacehorizons.space.flight.FrameBridge.Local;
+import com.spacehorizons.space.flight.Kepler;
 import com.spacehorizons.space.flight.LunarPlanner;
+import com.spacehorizons.space.flight.MarsPlanner;
 import com.spacehorizons.space.flight.Orbit;
 import com.spacehorizons.space.flight.RocketStats;
 import com.spacehorizons.space.flight.TransferPlanner;
@@ -38,7 +40,10 @@ final class MissionPilot {
     enum Phase {
         PAD, ASCENT, COAST_TO_APOAPSIS, CIRCULARIZE, LEO_WAIT, TLI, COAST_TO_MOON, CAPTURE_COAST, CAPTURE, LUNAR_ORBIT, LUNAR_BRAKE,
         LUNAR_DESCENT, MOON_LANDED, LUNAR_ASCENT, LUNAR_COAST_TO_APOAPSIS, LUNAR_CIRCULARIZE, LUNAR_ORBIT_2, TEI_WAIT, TEI, COAST_HOME,
-        EARTH_ENTRY, EARTH_LANDING, DONE, FAILED
+        EARTH_ENTRY, EARTH_LANDING,
+        /** A viagem a Marte (sistema solar centrado no sol): espera da janela, injeção, voo, captura, descida com paraquedas e pouso. */
+        MARS_LEO_WAIT, MARS_TMI, MARS_COAST, MARS_CAPTURE_COAST, MARS_CAPTURE, MARS_ORBIT, MARS_BRAKE, MARS_DESCENT, MARS_LANDED,
+        DONE, FAILED
     }
 
     /** O comando de um tick. */
@@ -58,6 +63,8 @@ final class MissionPilot {
     static final double LLO_ALTITUDE = 1_500.0;
     /** Periastro da Terra (altitude) da volta: dentro da atmosfera (1.800), para a reentrada frear no ar. */
     static final double ENTRY_PERIAPSIS_ALTITUDE = 1_000.0;
+    /** Altitude (sobre o nível do mar de Marte) do periastro da chegada e da órbita de espera: acima da altitude de saída (2.656) e da atmosfera (1.100). */
+    static final double MARS_ORBIT_ALTITUDE = 3_400.0;
 
     private static final double BURN_ALIGNMENT_RAD = Math.toRadians(2.0);
 
@@ -65,6 +72,17 @@ final class MissionPilot {
     private final double boxHalfHeight;
     private final Terrain terrain;
     private final Consumer<String> log;
+
+    /** A missão é a de Marte (depois da órbita baixa vai à janela da injeção interplanetária, não à da TLI). */
+    private boolean mars;
+    private MarsPlanner.@Nullable Plan marsPlan;
+    /** Decolagem DE Marte até a órbita de espera (cenário {@code marsorbit}): sobe, circulariza, fica em órbita e desce de volta. */
+    private boolean marsLaunch;
+    /** Ticks que o piloto fica na órbita de Marte antes de frear para descer. */
+    private int orbitWait = 200;
+    /** Apoastro da subida de Marte (altitude): acima da altitude de saída (2.656) e da atmosfera (1.100). */
+    static final double MARS_LAUNCH_APOAPSIS = 3_600.0;
+    static final double MARS_LAUNCH_PERIAPSIS = 3_300.0;
 
     private Phase phase = Phase.PAD;
     private int ticks;
@@ -81,6 +99,9 @@ final class MissionPilot {
     private String maneuverName = "";
     private boolean maneuverResolved;
     private boolean maneuverToMoon;
+    private boolean maneuverToMars;
+    /** Periastro (altitude) que a correção do corpo dominante (Terra na volta, Marte na chegada) persegue. */
+    private double maneuverPeriapsis = ENTRY_PERIAPSIS_ALTITUDE;
     private int nextCorrection;
 
     // queima planejada (TLI, captura, TEI)
@@ -107,6 +128,19 @@ final class MissionPilot {
 
     Phase phase() {
         return this.phase;
+    }
+
+    /** Faz do piloto o da decolagem de Marte e volta (começa pousado em Marte); {@code orbitTicks} é a espera na órbita. */
+    MissionPilot marsLaunch(int orbitTicks) {
+        this.marsLaunch = true;
+        this.orbitWait = orbitTicks;
+        return this;
+    }
+
+    /** Faz do piloto o da missão a Marte: depois da órbita baixa segue as fases {@code MARS_*}. */
+    MissionPilot toMars() {
+        this.mars = true;
+        return this;
     }
 
     /**
@@ -158,9 +192,10 @@ final class MissionPilot {
         }
         this.maxHeat = Math.max(this.maxHeat, st.heat());
         Out out = switch (this.phase) {
-            case ASCENT -> ascent(s, st, clock, Phase.COAST_TO_APOAPSIS, true);
+            case ASCENT -> ascent(s, st, clock, Phase.COAST_TO_APOAPSIS, !this.marsLaunch);
             case COAST_TO_APOAPSIS -> coastToApoapsis(s, st, clock, Phase.CIRCULARIZE, false);
-            case CIRCULARIZE -> circularize(s, st, clock, LEO_PERIAPSIS, Phase.LEO_WAIT);
+            case CIRCULARIZE -> this.marsLaunch ? circularize(s, st, clock, MARS_LAUNCH_PERIAPSIS, Phase.MARS_ORBIT)
+                    : circularize(s, st, clock, LEO_PERIAPSIS, this.mars ? Phase.MARS_LEO_WAIT : Phase.LEO_WAIT);
             case LEO_WAIT -> leoWait(s, st, clock);
             case TLI -> tli(s, st, clock);
             case COAST_TO_MOON -> coastToMoon(s, st, clock);
@@ -177,6 +212,14 @@ final class MissionPilot {
             case TEI -> tei(s, st, clock);
             case COAST_HOME -> coastHome(s, st, clock);
             case EARTH_ENTRY, EARTH_LANDING -> earthDescent(s, st, clock);
+            case MARS_LEO_WAIT -> marsLeoWait(s, st, clock);
+            case MARS_TMI -> marsInjection(s, st, clock);
+            case MARS_COAST -> marsCoast(s, st, clock);
+            case MARS_CAPTURE_COAST -> marsCaptureCoast(s, st, clock);
+            case MARS_CAPTURE -> marsCapture(s, st, clock);
+            case MARS_ORBIT -> marsOrbit(s, st, clock);
+            case MARS_BRAKE -> marsBrake(s, st, clock);
+            case MARS_DESCENT -> marsDescent(s, st, clock);
             default -> Out.IDLE;
         };
         return keepSas(s, out);
@@ -226,6 +269,12 @@ final class MissionPilot {
                 return new Out(0.0, 0.0, 1.0, false, false);
             }
             case EARTH_LANDING, EARTH_ENTRY -> {
+                next(Phase.DONE, s, null);
+                return Out.IDLE;
+            }
+            case MARS_DESCENT -> {
+                // pousou em Marte: o fim da missão
+                next(Phase.MARS_LANDED, s, null);
                 next(Phase.DONE, s, null);
                 return Out.IDLE;
             }
@@ -280,7 +329,7 @@ final class MissionPilot {
         BodyPhysics bp = BodyPhysics.of(st.body());
         Orbit o = Orbit.of(st, clock);
         double apoapsisAlt = o.bound() ? o.apoapsis() - bp.radius() : Double.POSITIVE_INFINITY;
-        double target = earth ? LEO_APOAPSIS : LLO_ALTITUDE + 60.0;
+        double target = earth ? LEO_APOAPSIS : this.marsLaunch ? MARS_LAUNCH_APOAPSIS : LLO_ALTITUDE + 60.0;
         if (apoapsisAlt >= target && st.altitude() > 80.0) {
             next(after, s, st);
             return Out.IDLE;
@@ -439,6 +488,11 @@ final class MissionPilot {
 
     /** Começa uma manobra de correção: gira o nariz para o Δv e, alinhado, resolve a correção de novo (o estado andou) e queima o módulo dele. */
     private void startManeuver(Snapshot s, V3 dv, String name, boolean toMoon) {
+        startManeuver(s, dv, name, toMoon, false);
+    }
+
+    private void startManeuver(Snapshot s, V3 dv, String name, boolean toMoon, boolean toMars) {
+        this.maneuverToMars = toMars;
         this.maneuver = dv;
         this.maneuverDv = dv.length();
         this.maneuverFuel = s.fuelMb();
@@ -460,7 +514,8 @@ final class MissionPilot {
                 return new Out(c[0], c[1], 0.0, false, false);
             }
             // alinhado: o estado andou desde que a correção foi calculada, então resolve de novo para o instante da queima
-            V3 again = this.maneuverToMoon ? resolveMoonCorrection(st, clock, m) : earthPeriapsisCorrection(st, clock, ENTRY_PERIAPSIS_ALTITUDE);
+            V3 again = this.maneuverToMars ? resolveMarsCorrection(st, clock)
+                    : this.maneuverToMoon ? resolveMoonCorrection(st, clock, m) : earthPeriapsisCorrection(st, clock, this.maneuverPeriapsis);
             this.maneuverResolved = true;
             if (again == null || again.length() < 0.004) {
                 this.log.accept(this.maneuverName + ": nada a corrigir depois do alinhamento");
@@ -802,6 +857,206 @@ final class MissionPilot {
         }
         if (this.phaseTicks > 30_000) {
             fail(s, "a descida da Terra não terminou");
+        }
+        return new Out(c[0], c[1], throttle, chute, false);
+    }
+
+    // ------------------------------------------------------------------ viagem a Marte
+
+    private Out marsLeoWait(Snapshot s, FlightState st, double clock) {
+        double[] c = steer(s, st.v().unit());
+        if (this.phaseTicks == 1) {
+            this.marsPlan = null;
+        }
+        if (this.marsPlan == null || this.ticks - this.planTick >= 20) {
+            this.marsPlan = MarsPlanner.plan(st, clock, 1.0);
+            this.planTick = this.ticks;
+            if (!this.marsPlan.usable()) {
+                fail(s, "o planejador de Marte não vale: " + this.marsPlan.status());
+                return Out.IDLE;
+            }
+            if (this.phaseTicks <= 2) {
+                this.log.accept(String.format(Locale.ROOT, "PLANEJADOR de Marte: fase atual=%.1f ideal aqui=%.1f, Δv=%.2f b/t, voo=%.0f ticks, próxima queima em %.0f ticks",
+                        this.marsPlan.currentPhaseDeg(), this.marsPlan.idealPhaseDeg(), this.marsPlan.injectionDeltaV(), this.marsPlan.transferTicks(),
+                        this.marsPlan.timeToWindowTicks()));
+            }
+        }
+        if (this.marsPlan.burnNow()) {
+            BodyPhysics bp = BodyPhysics.of(st.body());
+            double burn = this.stats.burnTime(s.fuelMb(), this.marsPlan.injectionDeltaV());
+            Kepler.State mid = Kepler.propagate(bp.mu(), st.r(), st.v(), 0.5 * burn);
+            double dv = MarsPlanner.injectionDeltaV(st.withRV(mid.r(), mid.v()), clock + 0.5 * burn, MARS_ORBIT_ALTITUDE, true);
+            if (!Double.isNaN(dv)) {
+                this.plannedDv = dv;
+                this.burnFuel = s.fuelMb();
+                next(Phase.MARS_TMI, s, st);
+                this.log.accept(String.format(Locale.ROOT, "INJEÇÃO: queima prógrada de %.3f b/t (%.0f ticks), fase %.1f", dv, burn, this.marsPlan.currentPhaseDeg()));
+            }
+        }
+        return new Out(c[0], c[1], 0.0, false, false);
+    }
+
+    private Out marsInjection(Snapshot s, FlightState st, double clock) {
+        double remaining = this.plannedDv - dv(this.burnFuel, s.fuelMb());
+        double[] c = steer(s, st.v().unit());
+        double aTick = this.stats.acceleration(s.fuelMb(), 1.0);
+        if (remaining <= 0.005 || s.fuelMb() < 50.0) {
+            next(Phase.MARS_COAST, s, st);
+            return new Out(c[0], c[1], 0.0, false, false);
+        }
+        return new Out(c[0], c[1], Math.max(0.04, Math.min(1.0, remaining / aTick)), false, false);
+    }
+
+    private Out marsCoast(Snapshot s, FlightState st, double clock) {
+        if (st.body() == SolarSystem.MARS) {
+            next(Phase.MARS_CAPTURE_COAST, s, st);
+            return Out.IDLE;
+        }
+        Out burn = runManeuver(s, st, clock);
+        if (burn != null) {
+            return burn;
+        }
+        int[] schedule = {400, 15_000, 35_000, 55_000};
+        if (this.nextCorrection < schedule.length && this.phaseTicks >= schedule[this.nextCorrection]) {
+            this.nextCorrection++;
+            MarsPlanner.Arrival now = MarsPlanner.arrival(st, clock, MarsPlanner.DEFAULT_HORIZON);
+            MarsPlanner.Correction corr = MarsPlanner.correction(st, clock, MARS_ORBIT_ALTITUDE, true, 6.0, MarsPlanner.DEFAULT_HORIZON);
+            this.log.accept(String.format(Locale.ROOT, "CORREÇÃO %d de meio de curso (Marte): chegada prevista %s | solução %s", this.nextCorrection,
+                    now == null ? "fora da esfera de Marte" : String.format(Locale.ROOT, "em %.0f ticks, periastro=%.0f, v relativa=%.2f, %s", now.ticksToEntry(),
+                            now.periapsisAltitude(), now.relativeSpeed(), now.prograde() ? "prógrada" : "retrógrada"),
+                    corr == null ? "nenhuma" : String.format(Locale.ROOT, "Δv=%.3f b/t -> periastro %.0f", corr.deltaV().length(), corr.arrival().periapsisAltitude())));
+            if (corr != null && corr.deltaV().length() > 0.01) {
+                startManeuver(s, corr.deltaV(), "MCC" + this.nextCorrection, false, true);
+            }
+        }
+        if (this.phaseTicks > 320_000) {
+            fail(s, "a viagem a Marte não chegou à esfera dele");
+        }
+        double[] c = steer(s, st.v().unit());
+        return new Out(c[0], c[1], 0.0, false, false);
+    }
+
+    private @Nullable V3 resolveMarsCorrection(FlightState st, double clock) {
+        MarsPlanner.Correction corr = MarsPlanner.correction(st, clock, MARS_ORBIT_ALTITUDE, true, 6.0, MarsPlanner.DEFAULT_HORIZON);
+        return corr == null ? null : corr.deltaV();
+    }
+
+    private Out marsCaptureCoast(Snapshot s, FlightState st, double clock) {
+        BodyPhysics bp = BodyPhysics.of(st.body());
+        Orbit o = Orbit.of(st, clock);
+        double[] c = steer(s, st.v().unit().negate());
+        if (this.phaseTicks == 1) {
+            this.log.accept(String.format(Locale.ROOT, "CHEGADA A MARTE: %s | inclinação=%.1f graus", orbitText(st, clock), Math.toDegrees(o.inclination())));
+        }
+        Out burnOut = runManeuver(s, st, clock);
+        if (burnOut != null) {
+            return burnOut;
+        }
+        int[] schedule = {200, 4_000};
+        if (this.nextCorrection < schedule.length && this.phaseTicks >= schedule[this.nextCorrection]) {
+            this.nextCorrection++;
+            V3 dvCorr = earthPeriapsisCorrection(st, clock, MARS_ORBIT_ALTITUDE);
+            this.log.accept(String.format(Locale.ROOT, "CORREÇÃO %d da chegada: periastro %.0f (alvo %.0f), Δv=%s", this.nextCorrection, o.periapsis() - bp.radius(),
+                    MARS_ORBIT_ALTITUDE, dvCorr == null ? "nenhum" : String.format(Locale.ROOT, "%.3f b/t", dvCorr.length())));
+            if (dvCorr != null && dvCorr.length() > 0.004) {
+                this.maneuverPeriapsis = MARS_ORBIT_ALTITUDE;
+                startManeuver(s, dvCorr, "MCC-Marte" + this.nextCorrection, false, false);
+            }
+        }
+        double vPeri = o.speedAt(o.periapsis());
+        double dvCapture = Math.max(0.0, vPeri - bp.circularSpeed(o.periapsis()));
+        double burn = this.stats.burnTime(s.fuelMb(), dvCapture);
+        double toPeri = o.timeTo(0.0);
+        if (Double.isNaN(toPeri) || toPeri < 0.0) {
+            fail(s, "passou do periastro de Marte sem capturar");
+            return Out.IDLE;
+        }
+        if (toPeri < 0.5 * burn + 2.0 && this.maneuver == null) {
+            this.burnFuel = s.fuelMb();
+            this.plannedDv = dvCapture;
+            next(Phase.MARS_CAPTURE, s, st);
+            this.log.accept(String.format(Locale.ROOT, "CAPTURA em Marte: queima retrógrada de %.2f b/t em %.0f ticks no periastro (%.0f de altitude)", dvCapture, burn,
+                    o.periapsis() - bp.radius()));
+        }
+        return new Out(c[0], c[1], 0.0, false, false);
+    }
+
+    private Out marsCapture(Snapshot s, FlightState st, double clock) {
+        BodyPhysics bp = BodyPhysics.of(st.body());
+        double remaining = st.v().length() - bp.circularSpeed(st.r().length());
+        double[] c = steer(s, st.v().unit().negate());
+        double aTick = this.stats.acceleration(s.fuelMb(), 1.0);
+        if (remaining <= 0.02 && Orbit.of(st, clock).bound() || s.fuelMb() < 50.0) {
+            next(Phase.MARS_ORBIT, s, st);
+            return new Out(c[0], c[1], 0.0, false, false);
+        }
+        if (this.phaseTicks > 3_000) {
+            fail(s, "a captura em Marte não fechou");
+        }
+        return new Out(c[0], c[1], Math.max(0.05, Math.min(1.0, remaining / aTick)), false, false);
+    }
+
+    private Out marsOrbit(Snapshot s, FlightState st, double clock) {
+        double[] c = steer(s, st.v().unit().negate());
+        if (this.phaseTicks == 1) {
+            this.log.accept("ÓRBITA DE MARTE: " + orbitText(st, clock));
+        }
+        if (this.phaseTicks > this.orbitWait) {
+            next(Phase.MARS_BRAKE, s, st);
+        }
+        return new Out(c[0], c[1], 0.0, false, false);
+    }
+
+    /** Freia contra a velocidade em relação ao chão de Marte (ele gira) até quase parar. */
+    private Out marsBrake(Snapshot s, FlightState st, double clock) {
+        V3 ground = st.v().minus(FrameBridge.rotationVelocity(st.body(), clock, 1.0, st.r()));
+        double speed = ground.length();
+        double[] c = steer(s, ground.unit().negate());
+        double aTick = this.stats.acceleration(s.fuelMb(), 1.0);
+        if (speed < 1.2 || s.fuelMb() < 20.0) {
+            next(Phase.MARS_DESCENT, s, st);
+            return new Out(c[0], c[1], 0.0, false, false);
+        }
+        double angle = AttitudeMath.noseDirection(s.attitude()).angleTo(ground.unit().negate());
+        if (angle > 0.15) {
+            return new Out(c[0], c[1], 0.0, false, false);
+        }
+        return new Out(c[0], c[1], Math.max(0.05, Math.min(1.0, (speed - 1.0) / aTick)), false, false);
+    }
+
+    /**
+     * Descida em Marte: cai da órbita de espera (a atmosfera fina quase não freia), freia no motor contra a velocidade ao chão até menos de
+     * {@value #MARS_CHUTE_SPEED} b/t perto do chão, pede o paraquedas (a densidade de Marte decide o quanto ele freia) e corta o motor: o toque
+     * é a velocidade terminal do paraquedas em Marte.
+     */
+    private static final double MARS_CHUTE_SPEED = 6.0;
+
+    private Out marsDescent(Snapshot s, FlightState st, double clock) {
+        SolarSystem.Body body = st.body();
+        Local loc = FrameBridge.toDimension(body, clock, this.clockRate, st.r(), st.v());
+        double surface = this.terrain.surfaceY(body, loc.x(), loc.z());
+        double clearance = Double.isNaN(surface) ? loc.y() - body.planet().seaLevel() - 120.0 : loc.y() - this.boxHalfHeight - surface;
+        this.landingClearance = clearance;
+        V3 ground = st.v().minus(FrameBridge.rotationVelocity(body, clock, this.clockRate, st.r()));
+        double speed = ground.length();
+        V3 retro = ground.unit().negate();
+        double[] c = steer(s, retro);
+        double aMax = this.stats.acceleration(s.fuelMb(), 1.0);
+        double throttle = 0.0;
+        boolean chute = clearance < 1_000.0;
+        boolean opened = s.mode() == FlightMode.PARACHUTE;
+        double angle = AttitudeMath.noseDirection(s.attitude()).angleTo(retro);
+        // perfil de frenagem: nunca acima de MARS_CHUTE_SPEED perto do chão; o motor só acende com o nariz no retrógrado
+        double limit = clearance > 1_200.0 ? 1.0e9 : MARS_CHUTE_SPEED;
+        if (!opened && speed > limit && clearance < 1_200.0 && angle < 0.3) {
+            throttle = Math.min(1.0, 0.2 + (speed - limit) * 0.1 / Math.max(aMax, 1.0e-6));
+        }
+        if (this.phaseTicks % 100 == 0) {
+            this.log.accept(String.format(Locale.ROOT, "DESCIDA MARTE t=%d: altura=%.0f v ao chão=%.2f vv=%.2f vh=%.2f acelerador=%.2f paraquedas=%s combustível=%.0f zona=%s", this.phaseTicks,
+                    clearance, speed, loc.vy(), Math.hypot(loc.vx(), loc.vz()), throttle, s.mode(), s.fuelMb(), s.zoneBody() == null ? "espaço" : "marte"));
+        }
+        if (this.phaseTicks > 20_000) {
+            fail(s, "a descida de Marte não terminou");
         }
         return new Out(c[0], c[1], throttle, chute, false);
     }

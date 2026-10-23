@@ -91,6 +91,22 @@ final class MissionSim {
         this.pilot.forcePhase(MissionPilot.Phase.MOON_LANDED);
     }
 
+    /** Começa pousado em Marte (a plataforma no ponto (0, 0)) com {@code fuelMb}, como o piloto da decolagem de Marte ({@code orbitTicks} em órbita). */
+    void startOnMars(double fuelMb, double clock0, int orbitTicks) {
+        this.clock = clock0;
+        this.landedFuel = fuelMb;
+        this.snap = Snapshot.landed(SolarSystem.MARS, fuelMb);
+        double top = surface(SolarSystem.MARS, 0.0, 0.0);
+        this.landedLocal = new Local(0.0, top + this.box.hy(), 0.0, 0.0, 0.0, 0.0);
+        this.pilot.marsLaunch(orbitTicks);
+    }
+
+    /** Faz da missão a de Marte (ver {@link MissionPilot#toMars}). */
+    MissionSim mars() {
+        this.pilot.toMars();
+        return this;
+    }
+
     /** Roda até o fim da missão (ou {@code maxTicks}). */
     void run(int maxTicks) {
         while (this.tick < maxTicks && !this.pilot.finished() && !this.crashed) {

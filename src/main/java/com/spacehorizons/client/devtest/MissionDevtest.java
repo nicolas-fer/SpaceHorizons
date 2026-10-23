@@ -58,6 +58,23 @@ final class MissionDevtest {
      * na atmosfera. O foguete (ou a nave) já está no ar ou no chão e o jogador sentado.
      */
     static void goFrom(Minecraft mc, MissionPilot.@Nullable Phase from) {
+        goFrom(mc, from, false);
+    }
+
+    /** O piloto da viagem a Marte (cenário {@code marstrip}): depois da órbita baixa segue as fases {@code MARS_*}. */
+    static void goMars(Minecraft mc) {
+        goFrom(mc, null, true);
+    }
+
+    /** O piloto da decolagem de Marte, órbita e descida de volta (cenário {@code marsorbit}); fica {@code orbitTicks} ticks em órbita. */
+    static void goMarsLaunch(Minecraft mc, int orbitTicks) {
+        marsLaunchTicks = orbitTicks;
+        goFrom(mc, null, false);
+    }
+
+    private static int marsLaunchTicks = -1;
+
+    private static void goFrom(Minecraft mc, MissionPilot.@Nullable Phase from, boolean mars) {
         MinecraftServer server = mc.getSingleplayerServer();
         if (server == null) {
             SpaceHorizons.LOGGER.warn("{}sem servidor integrado", TAG);
@@ -72,6 +89,13 @@ final class MissionDevtest {
             }
             double hy = rocket.portrait().sizeY / 2.0;
             pilot = new MissionPilot(rocket.stats(), hy, MissionDevtest::surfaceY, line -> SpaceHorizons.LOGGER.info(TAG + line));
+            if (mars) {
+                pilot.toMars();
+            }
+            if (marsLaunchTicks >= 0) {
+                pilot.marsLaunch(marsLaunchTicks);
+                marsLaunchTicks = -1;
+            }
             if (from != null) {
                 pilot.forcePhase(from);
             }

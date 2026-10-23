@@ -240,6 +240,14 @@ public final class AutoTest {
             storyScenario();
             return;
         }
+        if ("marstrip".equals(ONLY)) {
+            marsTripScenario();
+            return;
+        }
+        if ("marsorbit".equals(ONLY)) {
+            marsOrbitScenario();
+            return;
+        }
         if ("ship".equals(ONLY)) {
             shipScenario();
             return;
@@ -6010,4 +6018,199 @@ public final class AutoTest {
 
     private BlockPos storyChest;
     private int storyBlueprints;
+
+    // ---------------------------------------------------------------- viagem a Marte (sistema solar centrado no sol)
+
+    /**
+     * Relógio (ticks do Overworld) do lançamento da viagem a Marte: a janela (Marte entre ~32 e ~69 graus à frente da Terra) abre ~8.500 ticks
+     * depois do zero e fecha ~61.000; a órbita baixa sai ~900 ticks depois do lançamento, com Marte a ~60 graus, e o piloto espera o ponto
+     * certo da órbita (docs/PLANO_TIERS.md, seção 11).
+     */
+    private static final int MARS_CLOCK = 20_000;
+    /** Ticks por segundo da viagem a Marte (o voo interplanetário leva ~70.000 ticks entre a injeção e a esfera de Marte). */
+    private static final int MARS_RATE = 300;
+
+    /**
+     * A VIAGEM A MARTE com o foguete de verdade (ver {@link MissionDevtest#goMars}): Terra, órbita baixa, janela e injeção, voo interplanetário
+     * com correções, entrada na esfera de Marte, captura, descida pela atmosfera fina com paraquedas e pouso suave. O piloto roda no servidor a
+     * {@value #MARS_RATE} ticks/s; em cada marco o ritmo volta a 20 ticks/s por um momento, para o cliente desenhar o quadro do print. Em cada
+     * marco o log traz também o céu visto do foguete: distância, tamanho e fase de Marte, da Terra e da Lua.
+     */
+    private void marsTripScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(5, "time set " + MARS_CLOCK);
+        cmd(5, "gamerule advance_time true");
+        fly(10);
+        step(10, mc -> FlightDevtest.build(mc, 'M'));
+        tickerStep(10, waitFor("built_m", 300));
+        thirdPerson();
+        step(5, mc -> FlightDevtest.clientCheck(mc, "M na plataforma"));
+        shot(40, "mt_01_pad");
+        step(0, MissionDevtest::goMars);
+        marsShot("phase_ASCENT", "mt_02_liftoff", 400);
+        marsShot("phase_MARS_LEO_WAIT", "mt_03_leo", 3_000);
+        marsShot("phase_MARS_TMI", "mt_04_injection_burn", 40_000);
+        marsShot("phase_MARS_COAST", "mt_05_coast_start", 1_000);
+        marsShot("phase_MARS_CAPTURE_COAST", "mt_06_mars_soi", 120_000);
+        marsShot("phase_MARS_CAPTURE", "mt_07_capture_burn", 30_000);
+        marsShot("phase_MARS_ORBIT", "mt_08_mars_orbit", 2_000);
+        marsShot("phase_MARS_DESCENT", "mt_09_descent_start", 4_000);
+        marsShot("phase_DONE", "mt_10_mars_landed", 20_000);
+        tickerStep(0, waitFor("end", 6_000));
+        step(20, mc -> FlightDevtest.clientCheck(mc, "M pousado em Marte"));
+        step(0, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
+        shot(20, "mt_11_mars_landed_first_person");
+        cmd(2, "tick rate 20");
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** O marco da viagem a Marte: como {@link #missionShot}, no ritmo da viagem e com o céu no log. */
+    private void marsShot(String marker, String name, int maxTicks) {
+        int[] waited = {0};
+        tickerStep(0, mc -> {
+            if (FlightDevtest.reached(marker) || FlightDevtest.reached("failed")) {
+                return true;
+            }
+            if (++waited[0] > maxTicks * 20) {
+                SpaceHorizons.LOGGER.error(TAG + "tempo esgotado esperando o marco '{}'", marker);
+                return true;
+            }
+            return false;
+        });
+        cmd(1, "tick rate 20");
+        step(50, mc -> {
+            FlightDevtest.clientCheck(mc, name);
+            skyBodiesLog(mc, name);
+        });
+        shot(5, name);
+        cmd(1, "tick rate " + MARS_RATE);
+    }
+
+    /** Log do céu visto do observador agora: para cada corpo do sistema, distância ao centro, diâmetro aparente (graus) e fração iluminada. */
+    private static void skyBodiesLog(Minecraft mc, String label) {
+        if (mc.level == null || mc.player == null) {
+            return;
+        }
+        double clock = SpaceSun.clock(mc.level);
+        java.util.Optional<SkyObserver> observer = SkyObserver.of(mc.level, mc.player.getX(), mc.player.getY(), mc.player.getZ(), clock);
+        if (observer.isEmpty()) {
+            return;
+        }
+        for (SolarSystem.Body body : SolarSystem.BODIES) {
+            BodySky.Apparent a = observer.get().apparent(body);
+            double[] sunFrom = new double[3];
+            observer.get().sunFor(body, sunFrom);
+            double lit = 0.5 * (1.0 - (sunFrom[0] * a.x() + sunFrom[1] * a.y() + sunFrom[2] * a.z()));
+            SpaceHorizons.LOGGER.info("{}CÉU {}: {} a {} blocos, diâmetro aparente {} graus, fração iluminada {}", TAG, label, body.planet().id().getPath(),
+                    String.format(java.util.Locale.ROOT, "%.0f", a.distance()), String.format(java.util.Locale.ROOT, "%.2f", Math.toDegrees(2.0 * a.angularRadius())),
+                    String.format(java.util.Locale.ROOT, "%.2f", lit));
+        }
+    }
+
+    /** Ticks que o foguete fica em órbita de Marte no cenário {@code marsorbit} (a amostra do pisca do planeta). */
+    private static final int MARS_ORBIT_WAIT = 3_000;
+
+    /**
+     * DECOLAR DE MARTE, subir ao espaço, ficar em órbita de Marte e descer de volta (sistema solar centrado no sol), no ritmo normal de 20 ticks/s
+     * (o do jogador; sem {@code /tick rate}) nas fases em que se olha o céu. Pega os quatro sintomas do relatório de um voo a partir de Marte:
+     * (1) a esfera de Marte some e volta de um quadro para o outro (contador de mudanças de quadro do {@code BodyRenderer}, por fase); (2) o
+     * acelerador "100% (real 0%)" com combustível sobrando (log do acelerador comandado e do aplicado a cada marco, e o piloto só passa de fase se
+     * o foguete sobe); (3) a física com combustível 0 (a descida termina com combustível sobrando; o log traz TWR e velocidade); (4) a câmera
+     * dentro de uma geometria cinza (prints em sequência na órbita, de fora e de dentro do foguete).
+     */
+    private void marsOrbitScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(5, "time set 6000");
+        cmd(5, "gamerule advance_time true");
+        cmd(20, "spacehorizons goto mars");
+        cmd(200, "time set 6000");
+        fly(10);
+        step(10, mc -> FlightDevtest.build(mc, 'M'));
+        tickerStep(10, waitFor("built_m", 300));
+        thirdPerson();
+        step(5, mc -> FlightDevtest.clientCheck(mc, "M na plataforma em Marte"));
+        shot(40, "mo_01_pad");
+        step(0, mc -> MissionDevtest.goMarsLaunch(mc, MARS_ORBIT_WAIT));
+        step(0, AutoTest::flipsReset);
+        orbitShot("phase_ASCENT", "mo_02_liftoff", 600);
+        orbitShot("phase_COAST_TO_APOAPSIS", "mo_03_ascent_cutoff", 2_000);
+        orbitShot("phase_CIRCULARIZE", "mo_04_circularize", 2_000);
+        orbitShot("phase_MARS_ORBIT", "mo_05_orbit", 2_000);
+        // a órbita estável: uma sequência de prints a cada ~1,5 s (o pisca dura de um quadro a mais de 1 s), de fora e depois de dentro
+        for (int i = 0; i < 8; i++) {
+            final int n = i;
+            shot(25, "mo_06_orbit_seq" + i);
+            step(0, mc -> {
+                FlightDevtest.clientCheck(mc, "mo_06_orbit_seq" + n);
+                skyBodiesLog(mc, "mo_06_orbit_seq" + n);
+                flipsLog(mc, "mo_06_orbit_seq" + n);
+            });
+        }
+        step(0, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
+        for (int i = 0; i < 4; i++) {
+            final int n = i;
+            shot(40, "mo_07_orbit_first_person" + i);
+            step(0, mc -> {
+                skyBodiesLog(mc, "mo_07_orbit_first_person" + n);
+                flipsLog(mc, "mo_07_orbit_first_person" + n);
+            });
+        }
+        step(0, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK));
+        orbitShot("phase_MARS_BRAKE", "mo_08_brake", 6_000);
+        orbitShot("phase_MARS_DESCENT", "mo_09_descent", 2_000);
+        orbitShot("phase_DONE", "mo_10_landed", 6_000);
+        tickerStep(0, waitFor("end", 6_000));
+        step(20, mc -> {
+            FlightDevtest.clientCheck(mc, "M pousado em Marte (volta)");
+            flipsLog(mc, "fim");
+        });
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    private static long flipsBase;
+    private static long framesBase;
+
+    private static void flipsReset(Minecraft mc) {
+        flipsBase = com.spacehorizons.client.space.BodyClient.diagFlips();
+        framesBase = com.spacehorizons.client.space.BodyClient.diagFrames();
+    }
+
+    /** Quadros, mudanças de quadro (o pisca) e a máscara de corpos desenhados desde o último {@link #flipsReset}. */
+    private static void flipsLog(Minecraft mc, String label) {
+        SpaceHorizons.LOGGER.info("{}PISCA {}: quadros={} mudancas-do-conjunto-de-corpos={} mascara-atual={}", TAG, label,
+                com.spacehorizons.client.space.BodyClient.diagFrames() - framesBase, com.spacehorizons.client.space.BodyClient.diagFlips() - flipsBase,
+                Integer.toBinaryString(com.spacehorizons.client.space.BodyClient.diagMask()));
+        flipsReset(mc);
+    }
+
+    /** Marco do cenário {@code marsorbit}: ritmo normal (sem {@code /tick rate}), e no marco o céu, o pisca e o acelerador no log. */
+    private void orbitShot(String marker, String name, int maxTicks) {
+        int[] waited = {0};
+        tickerStep(0, mc -> {
+            if (FlightDevtest.reached(marker) || FlightDevtest.reached("failed")) {
+                return true;
+            }
+            if (++waited[0] > maxTicks * 20) {
+                SpaceHorizons.LOGGER.error(TAG + "tempo esgotado esperando o marco '{}'", marker);
+                return true;
+            }
+            return false;
+        });
+        step(5, mc -> {
+            FlightDevtest.clientCheck(mc, name);
+            skyBodiesLog(mc, name);
+            flipsLog(mc, name);
+        });
+        shot(5, name);
+    }
 }

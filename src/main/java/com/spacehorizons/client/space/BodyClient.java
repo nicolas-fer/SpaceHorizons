@@ -19,6 +19,21 @@ public final class BodyClient {
     private BodyClient() {
     }
 
+    /** Diagnóstico do autoteste: quadros dos corpos no céu desenhados até agora. */
+    public static long diagFrames() {
+        return BodyRenderer.diagFrames;
+    }
+
+    /** Diagnóstico do autoteste: quantas vezes o conjunto de corpos desenhados mudou de um quadro para o seguinte (o "pisca"). */
+    public static long diagFlips() {
+        return BodyRenderer.diagFlips;
+    }
+
+    /** Diagnóstico do autoteste: máscara dos corpos desenhados no último quadro (um bit por corpo de {@code SolarSystem.BODIES}). */
+    public static int diagMask() {
+        return BodyRenderer.diagMask;
+    }
+
     public static void init(IEventBus modEventBus) {
         modEventBus.addListener(BodyPipelines::register);
         // prioridade alta: os corpos vão ao fundo, ANTES do limbo e da malha orbital do planeta atual, que cobrem o que está atrás

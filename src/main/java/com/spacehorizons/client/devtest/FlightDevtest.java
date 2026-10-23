@@ -297,7 +297,7 @@ final class FlightDevtest {
             // no espaço o foguete fica estacionado (SpaceParking); a posição real vai no estado de voo e no dado do céu
             Vec3 center = new Vec3(local.x(), local.y(), local.z());
             Vec3 park = com.spacehorizons.rocket.SpaceParking.pointFor(rocket.getUUID());
-            rocket.setVirtualSpacePosition(center);
+            rocket.setVirtualSpacePosition(center, clock);
             Vec3 seat = rocket.passengerPositionAt(park, rocket.attitude(), player);
             net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(player,
                     new com.spacehorizons.space.travel.TravelTransferPayload(seat.x, seat.y, seat.z, player.getYRot(), player.getXRot()));

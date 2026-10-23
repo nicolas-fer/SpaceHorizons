@@ -76,7 +76,8 @@ public final class RocketPanel {
 
         drawHeatGlow(graphics, rocket.heat());
         int leftBottom = drawFlightColumn(graphics, font, rocket, t);
-        drawPlanner(graphics, font, t, MARGIN, leftBottom + 4, tick);
+        int plannerBottom = drawPlanner(graphics, font, t, MARGIN, leftBottom + 4, tick);
+        drawMarsPlanner(graphics, font, t, MARGIN, plannerBottom + 4, tick);
         drawEngineColumn(graphics, font, rocket, t);
         drawWarnings(graphics, font, rocket, t, tick);
     }
@@ -111,10 +112,10 @@ public final class RocketPanel {
     }
 
     /** O planejador da Lua; não desenha nada se não há o que mostrar. */
-    private static void drawPlanner(GuiGraphicsExtractor g, Font font, @Nullable RocketTelemetryPayload t, int x, int y, long tick) {
+    private static int drawPlanner(GuiGraphicsExtractor g, Font font, @Nullable RocketTelemetryPayload t, int x, int y, long tick) {
         List<RocketPanelModel.Row> rows = RocketPanelModel.plannerRows(t);
         if (rows.isEmpty()) {
-            return;
+            return y - 4;
         }
         boolean burn = t != null && t.burnNow();
         int height = 16 + rows.size() * ROW + 4;
@@ -131,6 +132,31 @@ public final class RocketPanel {
             }
             ry += ROW;
         }
+        return y + height;
+    }
+
+    /** O planejador de Marte (mesma caixa do da Lua); não desenha nada se não há o que mostrar. Devolve o fundo da caixa. */
+    private static int drawMarsPlanner(GuiGraphicsExtractor g, Font font, @Nullable RocketTelemetryPayload t, int x, int y, long tick) {
+        List<RocketPanelModel.Row> rows = RocketPanelModel.marsPlannerRows(t);
+        if (rows.isEmpty()) {
+            return y - 4;
+        }
+        boolean burn = t != null && t.marsBurnNow();
+        int height = 16 + rows.size() * ROW + 4;
+        int width = leftWidth(font, t);
+        box(g, x, y, width, height);
+        g.text(font, Component.translatable("hud.spacehorizons.rocket.mars.title"), x + 5, y + 4, burn && blink(tick) ? COLOR_GOOD : COLOR_TITLE);
+        int ry = y + 16;
+        for (RocketPanelModel.Row row : rows) {
+            Component label = Component.translatable(row.labelKey());
+            if (row.value().isEmpty()) {
+                g.text(font, label, x + 5, ry, toneColor(row.tone()));
+            } else {
+                row(g, font, x, ry, width, label, row.value(), toneColor(row.tone()));
+            }
+            ry += ROW;
+        }
+        return y + height;
     }
 
     /** Largura da coluna da esquerda (dados de voo e planejador): a da linha mais larga, para nada se sobrepor em nenhum idioma. */
@@ -140,6 +166,9 @@ public final class RocketPanel {
             width = Math.max(width, needed(font, Component.translatable(row.labelKey()), row.value()));
         }
         for (RocketPanelModel.Row row : RocketPanelModel.plannerRows(t)) {
+            width = Math.max(width, needed(font, Component.translatable(row.labelKey()), row.value()));
+        }
+        for (RocketPanelModel.Row row : RocketPanelModel.marsPlannerRows(t)) {
             width = Math.max(width, needed(font, Component.translatable(row.labelKey()), row.value()));
         }
         width = Math.max(width, font.width(Component.translatable("hud.spacehorizons.rocket.title_flight", bodyName(t))) + 12);

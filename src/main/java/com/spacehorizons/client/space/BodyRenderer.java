@@ -85,6 +85,29 @@ final class BodyRenderer {
     private final Matrix4f mvp = new Matrix4f();
     private final double[] meshBasis = new double[9];
 
+    /**
+     * Diagnóstico do autoteste (pisca de corpos): quadros desenhados, mudanças do conjunto de corpos desenhados de um quadro para o seguinte e a
+     * máscara do último quadro (um bit por corpo de {@code SolarSystem.BODIES}).
+     */
+    public static volatile long diagFrames;
+    public static volatile long diagFlips;
+    public static volatile int diagMask;
+    private static boolean diagHasPrevious;
+
+    private static void diagRecord(int mask, double camY, SolarSystem.@Nullable Body home) {
+        diagFrames++;
+        if (diagHasPrevious && mask != diagMask) {
+            diagFlips++;
+            if (diagFlips <= 60) {
+                SpaceHorizons.LOGGER.info("[AUTOTEST] PISCA quadro {}: corpos desenhados {} -> {} (camera y={}, planeta do observador={})", diagFrames,
+                        Integer.toBinaryString(diagMask), Integer.toBinaryString(mask), String.format(java.util.Locale.ROOT, "%.1f", camY),
+                        home == null ? "espaco" : home.planet().id().getPath());
+            }
+        }
+        diagHasPrevious = true;
+        diagMask = mask;
+    }
+
     private @Nullable TextureTarget depthTarget;
     private boolean disabled;
     private boolean warnedPipeline;
@@ -94,6 +117,7 @@ final class BodyRenderer {
 
     /** Sai do mundo: libera tudo (o cache de esferas e o alvo de profundidade). */
     void reset() {
+        ShipView.reset();
         cache.reset();
         lastSegments.clear();
         if (depthTarget != null) {
@@ -173,6 +197,7 @@ final class BodyRenderer {
             visible.add(new Candidate(body, apparent, body == home));
         }
         if (visible.isEmpty()) {
+            diagRecord(0, camY, home);
             return;
         }
         // de longe para perto: o mais próximo fica por cima
@@ -192,12 +217,10 @@ final class BodyRenderer {
         boolean zZeroToOne = RenderSystem.getDevice().getDeviceInfo().isZZeroToOne();
         projection.setPerspective(fovY, m11 / m00, FAR_PLANE, NEAR_PLANE, zZeroToOne);
 
-        // sol único (SunModel) no ponto da câmera, nos eixos do mundo: a mesma direção do disco, do céu e da luz do chão
+        // o sol do ponto da câmera, nos eixos do mundo: a mesma direção do disco, do céu e da luz do chão (a que apaga os corpos de dia)
         double[] sun = new double[3];
         observer.sun(sun);
-        float sunX = (float) sun[0];
         float sunY = (float) sun[1];
-        float sunZ = (float) sun[2];
         // o céu claro de dia apaga os corpos vistos de dentro de uma atmosfera; no espaço aberto não há céu a apagar
         double fade = 1.0;
         if (home != null) {
@@ -207,14 +230,21 @@ final class BodyRenderer {
         TextureTarget depth = ensureDepthTarget(main.width, main.height);
 
         int slot = 0;
+        int drawn = 0;
         for (Candidate candidate : visible) {
             if (slot >= MAX_BODIES) {
                 break;
             }
-            if (draw(candidate, slot, pipeline, main, depth, camera, invView, sunX, sunY, sunZ, (float) fade, pixelAngle, observer)) {
+            // cada esfera é iluminada pelo sol a partir do centro dela (a direção verdadeira em Marte; a de sempre na Terra e na Lua)
+            double[] lit = new double[3];
+            observer.sunFor(candidate.body(), lit);
+            if (draw(candidate, slot, pipeline, main, depth, camera, invView, (float) lit[0], (float) lit[1], (float) lit[2], (float) fade, pixelAngle,
+                    observer)) {
                 slot++;
+                drawn |= 1 << SolarSystem.BODIES.indexOf(candidate.body());
             }
         }
+        diagRecord(drawn, camY, home);
     }
 
     /**

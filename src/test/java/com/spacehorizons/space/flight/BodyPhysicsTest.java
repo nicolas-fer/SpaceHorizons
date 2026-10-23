@@ -26,7 +26,10 @@ class BodyPhysicsTest {
     @Test
     void laplaceSphereOfInfluenceOfTheMoon() {
         assertEquals(96_271.3, MOON.soiRadius(), 1.0);
-        assertEquals(Double.POSITIVE_INFINITY, EARTH.soiRadius());
+        // a Terra deixou de ser o corpo central: tem esfera finita (Laplace contra o sol) e a da Lua cabe inteira dentro dela
+        assertEquals(com.spacehorizons.space.Heliocentric.EARTH_ORBIT_RADIUS
+                * Math.pow(EARTH.mu() / com.spacehorizons.space.Heliocentric.MU_SUN, 0.4), EARTH.soiRadius(), 1e-6);
+        assertTrue(EARTH.soiEnterRadius() > com.spacehorizons.space.SolarSystem.EARTH_MOON_DISTANCE + MOON.soiExitRadius());
         assertEquals(96_271.3 * 0.95, MOON.soiEnterRadius(), 1.0);
         assertEquals(96_271.3 * 1.05, MOON.soiExitRadius(), 1.0);
         assertTrue(MOON.soiEnterRadius() < MOON.soiRadius() && MOON.soiRadius() < MOON.soiExitRadius());

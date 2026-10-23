@@ -52,7 +52,7 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 // Trechos do AutoTest da regressão paralela (tarefa regression). -PshSuites=ship,multiblock troca a lista; nome que o
 // AutoTest não conhece rodaria o roteiro inteiro (~26 min), então ele é recusado aqui.
-def regressionSuites = (findProperty('shSuites') ?: 'ship,shipflight,shipconvert,shipground,shipascent,shipdescent,multiblock,blueprint,tier2,mars,shipanchor,shipanchor2,shipsee,moonbase,story').toString()
+def regressionSuites = (findProperty('shSuites') ?: 'ship,shipflight,shipconvert,shipground,shipascent,shipdescent,multiblock,blueprint,tier2,mars,shipanchor,shipanchor2,shipsee,moonbase,story,marsorbit').toString()
         .split(',')*.trim().findAll { it }
 def autoTestSource = file('src/main/java/com/spacehorizons/client/devtest/AutoTest.java').getText('UTF-8')
 regressionSuites.each { String suite ->

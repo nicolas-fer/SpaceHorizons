@@ -12,7 +12,8 @@ import com.spacehorizons.planet.atmosphere.AtmosphereModel;
  *   <li><b>Gravidade</b> do corpo por velocity-Verlet (kick-drift-kick): erro de fase de ~1 bloco em dezenas de
  *       órbitas e energia conservada a 1e-13.</li>
  *   <li><b>Arrasto</b> implícito e separado do passo: {@code v ← v/(1 + k0·ρ·|v|)}, com {@code ρ} de
- *       {@link AtmosphereModel#density}. É estável e nunca troca o sinal da velocidade, mesmo com o paraquedas aberto.</li>
+ *       {@link BodyPhysics#dragDensity} (a curva do modelo da atmosfera vezes a densidade de superfície do corpo: a de Marte é
+ *       uma fração da da Terra). É estável e nunca troca o sinal da velocidade, mesmo com o paraquedas aberto.</li>
  *   <li><b>Paraquedas</b>: o pedido só começa a abrir com atmosfera e abaixo de
  *       {@link FlightConstants#PARACHUTE_OPEN_MAX_SPEED}; depois a rampa de 80 ticks termina sozinha.</li>
  *   <li><b>Aquecimento</b> como índice visual: {@code Q = √ρ·(|v|/28,9)³}, {@code H += A·Q − B·H}.</li>
@@ -80,7 +81,7 @@ public final class FlightIntegrator {
 
         // 3. atmosfera: arrasto, paraquedas e calor
         AtmosphereModel atmosphere = bp.atmosphere();
-        double rho = atmosphere.density(bp.altitude(r.length()));
+        double rho = bp.dragDensity(bp.altitude(r.length()));
         double heat = s.heat();
         double chute = s.chute();
         if (rho > 0.0) {

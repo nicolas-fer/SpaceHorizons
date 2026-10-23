@@ -5,6 +5,7 @@ import com.spacehorizons.space.flight.AttitudeMath.SasMode;
 import com.spacehorizons.space.flight.BodyPhysics;
 import com.spacehorizons.space.flight.FlightState;
 import com.spacehorizons.space.flight.FrameBridge;
+import com.spacehorizons.space.flight.MarsPlanner;
 import com.spacehorizons.space.flight.Orbit;
 import com.spacehorizons.space.flight.RocketStats;
 import com.spacehorizons.space.flight.TransferPlanner;
@@ -58,6 +59,23 @@ public final class RocketTelemetryBuilder {
                 burnNow = plan.burnNow();
             }
         }
+        byte marsStatus = -1;
+        float marsPhaseNow = 0.0F;
+        float marsPhaseIdeal = Float.NaN;
+        float marsDeltaV = 0.0F;
+        boolean marsBurnNow = false;
+        float marsTimeToBurn = Float.NaN;
+        if (s.body() == SolarSystem.EARTH) {
+            MarsPlanner.Plan mars = MarsPlanner.plan(s, clock, clockRate);
+            marsStatus = (byte) mars.status().ordinal();
+            if (mars.usable()) {
+                marsPhaseNow = (float) mars.currentPhaseDeg();
+                marsPhaseIdeal = (float) mars.idealPhaseDeg();
+                marsDeltaV = (float) mars.injectionDeltaV();
+                marsBurnNow = mars.burnNow();
+                marsTimeToBurn = (float) mars.timeToWindowTicks();
+            }
+        }
         // o foguete químico (Tier 1) com a conta de sempre; com motores do Tier 2, a carga por combustível (o painel mostra o total com massa)
         boolean chemical = stats.chemicalOnly() && s.fuel().onlyChemical();
         double fuelMb = chemical ? s.fuelMb() : s.fuel().propellantMb();
@@ -67,6 +85,6 @@ public final class RocketTelemetryBuilder {
                 s.v().length(), apoapsis, periapsis, Math.toDegrees(orbit.inclination()), timeToApoapsis, fuelMb,
                 stats.fuelCapacityMb(), deltaV, twr, (float) throttle,
                 (byte) sas.ordinal(), (byte) mode.ordinal(), (float) s.heat(), (float) s.chute(), plannerStatus, phaseNow, phaseIdeal,
-                tliDeltaV, burnNow, held, landingState, landingPercent);
+                tliDeltaV, burnNow, held, landingState, landingPercent, marsStatus, marsPhaseNow, marsPhaseIdeal, marsDeltaV, marsBurnNow, marsTimeToBurn);
     }
 }

@@ -14,7 +14,9 @@ interplanetária sem trocar de representação de repente (nada de skybox em PNG
 - Sobrevivência e foguete
 - Polimento: cockpit, sol, Terra de perto e piloto automático
 - Naves (fase 1 do `docs/PLANO_NAVES.md`)
+- Base lunar (etapa 4 da sobrevivência)
 - Gerador de planetas por parâmetros e Marte (etapa 2 dos tiers)
+- Sistema solar centrado no sol e a viagem a Marte (etapa 3 dos tiers)
 - Referenciais: inercial (I) e preso à Terra (E)
 - Escala: Terra 10x maior (limitações)
 - Como rodar
@@ -340,9 +342,21 @@ idêntico ao de antes (soma de controle no teste); a Terra continua vanilla.
 **Marte** (`spacehorizons:mars`, só em mundos novos com o tipo "Space Horizons"): R ≈ 55.412 (0,53 da Terra do mod, a razão real),
 gravidade 0,38, dia de 24.660 ticks, céu caramelo e atmosfera fina sem oxigênio (o traje trata como vácuo), poeira no ar, crateras, vulcões
 em escudo, calotas de gelo e veios de titânio. Os blocos `mars_regolith` e `mars_titanium_ore` do Tier 2 entram sozinhos quando existirem;
-até lá valem `red_sand`, terracota e `iron_ore`. Marte ainda não está na física orbital: chega-se por `/spacehorizons goto mars [x z]`, e o
-céu tem o sol e as estrelas (sem Terra nem Lua). Autoteste: `./gradlew runClientTest -PshOnly=mars` (10 verificações; prints `autotest_mars_*`:
+até lá valem `red_sand`, terracota e `iron_ore`. Marte está na física orbital desde a etapa 3 (seção seguinte); chega-se também por `/spacehorizons goto mars [x z]`. Autoteste: `./gradlew runClientTest -PshOnly=mars` (10 verificações; prints `autotest_mars_*`:
 chão, céu de dia, pôr do sol e noite, cratera, veio de minério, 1.000 e 5.000 de altitude, vulcão).
+
+## Sistema solar centrado no sol e a viagem a Marte (etapa 3 dos tiers)
+
+O sol é o corpo central de um referencial heliocêntrico (`space/Heliocentric`): a Terra orbita a 4.000.000 blocos (ano de 240.000 ticks, 10 dias do jogo) e Marte a 6.096.000
+(451.532 ticks), com esferas de influência encadeadas Sol ⊃ Terra (833.852) ⊃ Lua e Sol ⊃ Marte (520.268) no `SoiTracker`. O céu do dia na Terra e a Lua são os de antes; Marte
+deixou de ser corpo destacado: tem posição e fase reais, zona de espaço (saída a 2.656 de altitude), pouso de foguete (atmosfera de densidade 0,15: o paraquedas pousa a ~0,75 b/t) e
+o céu mostra a Terra e a Lua a partir dele. O painel do foguete ganhou o **planejador de Marte** (fase de Marte à frente da Terra atual contra a ideal, Δv da injeção, tempo até a
+próxima queima). A injeção custa ~30,5 b/t a partir de 5.600 de altitude, o voo até a esfera de Marte leva ~67.000 ticks (56 min a 20 ticks/s; com `/tick rate 300`, 4 min) e uma
+janela de lançamento se repete a cada 512.299 ticks. A missão inteira (subida, injeção, correções, captura, descida com paraquedas e pouso) gasta ~167 b/t do foguete de 292,6.
+Detalhes e números em `docs/PLANO_TIERS.md` (seção 11) e `docs/DESIGN_FOGUETE.md`.
+
+Autotestes: `./gradlew runClientTest -PshOnly=marstrip` (viagem completa, ~6 min a 300 ticks/s; prints `mt_01` a `mt_11` e o céu no log) e `-PshOnly=marsorbit` (decolar de Marte,
+órbita e descida de volta, no ritmo normal; prints em sequência e o contador do pisca dos planetas). Sem o jogo: `MarsSimTest` e `MarsLaunchSimTest`.
 
 ## Referenciais: inercial (I) e preso à Terra (E)
 

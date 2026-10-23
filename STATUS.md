@@ -14,7 +14,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | **Base lunar**: salas seladas com ar (gerador de oxigênio, até 1.000 blocos), energia por adjacência (painel solar, bateria, cabo), eletrolisador, refinaria lunar, extrator de hélio-3 e gelo lunar em crateras polares. Autoteste `moonbase` 24/0, `tier2` 37/0. Arte provisória. | `docs/PLANO_SOBREVIVENCIA.md` (etapa 4) |
 | ✅ | **História (sinal lunar)**: 9 registros (diários e terminais), Observatório Aurora na Terra, Base Selene-1 e sonda Vigia-3 na Lua, 6 conquistas, planta lunar destravada pelo terminal da base, gancho para Marte. Autoteste `story` 45/0. Arte do terminal e do diário provisória. | `docs/PLANO_SOBREVIVENCIA.md` (etapa 5) |
 | ✅ | **Naves 2f: âncora completa**: bloco `antigravity_generator` (carga gasta ao ancorar, recarga de 20 s com o bloco no mundo), tecla H e estado no painel, recusa com destaque; limites do S6 corrigidos (exceto o congelamento de fluido só nos blocos da nave). Autoteste `shipanchor2` 24/0; regressão ship* sem falhas. | `docs/PLANO_NAVE_ATMOSFERA.md` |
-| 🟡 | **Sistema solar centrado no sol** (Marte na física orbital, viagem e pouso em Marte de foguete). | `docs/PLANO_TIERS.md` |
+| ✅ | **Sistema solar centrado no sol**: Sol e Marte na física (SOIs encadeadas, zona de espaço, pouso com paraquedas, planejador no painel). Autotestes `marstrip` (viagem completa, 166,8 b/t, pouso −0,72 b/t) e `marsorbit` (decolar de Marte, órbita e descida, sem pisca de planeta). Saves: a posição virtual no NBT passou de E para I (foguete estacionado em save antigo pode reaparecer deslocado). | `docs/PLANO_TIERS.md` (seção 11) |
 | ✅ | **Naves 2d**: outras naves e foguetes vistos de dentro da nave, do foguete e por um jogador livre no espaço, na posição relativa (estado a 5 Hz, casco esparso sob demanda). Autoteste `shipsee` 24/0. | `docs/PLANO_NAVES.md` |
 | ✅ | **Documentação limpa**: README sem seções repetidas (com índice), `MISSAO_LUA.md` com os números atuais e as plantas embutidas. Arte da planta: o usuário manteve a atual. | `README.md`, `docs/MISSAO_LUA.md` |
 | ✅ | **Spike S6: âncora no ar aprovado**: a nave parada vira blocos reais no ar e volta pela ponte; romaneio 0 perdas, conversão 281–312 ms (4.003 blocos) e 450 ms (7.997), jogador a 0,0000 bloco da posição no convés; areia, água e mobs contidos. Autoteste `shipanchor` 38/0; regressão ship* verde. | `docs/PLANO_NAVE_ATMOSFERA.md` |
@@ -31,7 +31,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 1. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): fases 2e (convés na nave real, 2 clientes) e 2g (trocas sem costura).
 2. Naves 2c (EVA perto do casco).
 3. Desorbitação real no autoteste da descida (queima retrógrada saindo de órbita fechada) e corte proporcional na circularização.
-4. Tiers: sistema solar centrado no sol (viagem a Marte: órbita, zona de espaço e pouso em Marte).
+4. Tiers: planetas distantes do sistema solar (etapa 4).
 
 ## Mapa geral
 
@@ -51,7 +51,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | SAS horizontal (circularizar) no foguete e na nave | 21/10/2026 |
 | ✅ | Plantas holográficas de montagem | Autoteste `blueprint` 34/0 (22/10/2026); arte do item provisória |
 | ✅ | Gerador de planetas por parâmetros e Marte | Autoteste `mars` 10/10 (22/10/2026); Marte fora da órbita até a etapa 3 |
-| 🟡 | Sistema solar centrado no sol (viagem a Marte) | Tiers, etapa 3 (em andamento) |
+| ✅ | Sistema solar centrado no sol (viagem a Marte) | Autotestes `marstrip` e `marsorbit` (22/10/2026) |
 | ✅ | Base lunar (salas seladas, energia, recursos lunares, combustível na Lua) | Autoteste `moonbase` 24/0 (22/10/2026); arte provisória |
 | ✅ | História (estruturas abandonadas, diários, sinal lunar) | Autoteste `story` 45/0 (22/10/2026); arte provisória |
 | ⬜ | Separação de estágios | Sobrevivência, etapa 6 |
@@ -111,14 +111,14 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
   giro de 1 a 3 quartos, 2 clientes, reabrir o mundo com nave ancorada e jogador andando na troca não testados.
 - **Naves 2d**: casco de cor chapada (sem textura); sem paralaxe da câmera (até ~2° a 300 blocos); tremor em órbita real, naves grandes e
   impostor além de 5 km não medidos; o piloto automático não recebe os outros veículos.
-- **Voo a partir de Marte (vídeo do usuário, 22/10)**: Marte some e volta no céu, acelerador "real 0%", física explode com combustível 0 e câmera
-  em geometria gigante — Marte ainda fora da física orbital; repassado ao agente do sistema solar como critério.
+- **Voo a partir de Marte (vídeo do usuário, 22/10)**: o pisca de Marte e o acelerador "real 0%" foram corrigidos (`marsorbit`); a física que
+  explode com combustível 0 e a câmera em geometria gigante NÃO foram reproduzidas nos autotestes (causa desconhecida).
 - **Base lunar**: menus das máquinas, JEI e a conquista `sealed_room` não vistos em jogo; salas de laje/vidraça vazam por regra; energia some ao quebrar máquina.
 - **História**: o Observatório só nasce com "gerar estruturas" ligado; mundos antigos não ganham os lugares; reabrir o mundo com progresso e 2 jogadores não testados.
 - **Arte provisória a fazer pela skill**: blocos da base lunar, terminal e diário da história, gerador antigravidade.
 - **Regressão instável sob carga**: com 3 clientes em paralelo, `ship` (tremor no giro) e `tier2` (galão de hidrogênio na coluna) falharam
   uma vez cada e passaram ao rodar de novo ou sozinhos; não investigado.
-- **Marte (visual)**: vão escuro entre os chunks e a malha orbital enquanto o DH gera; sem física orbital, foguete ou pouso em Marte (etapa 3).
+- **Marte (visual)**: vão escuro entre os chunks e a malha orbital enquanto o DH gera.
 - **Não testado**: servidor dedicado, dois jogadores reais, reabrir o mundo com nave em voo.
 
 ## Decisões em aberto
