@@ -118,7 +118,7 @@ final class RocketFlightController {
             f.ahead.reset();
             f.below.reset();
             f.spacePos = null;
-            rocket.setVirtualSpacePosition(null);
+            rocket.clearVirtualSpacePosition();
         }
         if (snap.flying()) {
             if (f.arrivalPending && f.arrivalTicks == 0) {
@@ -259,10 +259,10 @@ final class RocketFlightController {
                 rocket.setPos(park);
             }
             rocket.setDeltaMovement(Vec3.ZERO);
-            rocket.setVirtualSpacePosition(center);
+            rocket.setVirtualSpacePosition(center, clock + rate);
         } else if (moving) {
             f.spacePos = null;
-            rocket.setVirtualSpacePosition(null);
+            rocket.clearVirtualSpacePosition();
             if (seam) {
                 rocket.teleport(new TeleportTransition(level, center, velocity, rocket.getYRot(), rocket.getXRot(), TeleportTransition.DO_NOTHING));
             } else {
@@ -381,7 +381,11 @@ final class RocketFlightController {
         }
         // indo ao espaço, a posição real acompanha o foguete (o dado sincronizado e o NBT da recriação); vindo dele, o foguete volta a andar
         f.spacePos = realInSpace;
-        rocket.setVirtualSpacePosition(realInSpace);
+        if (realInSpace == null) {
+            rocket.clearVirtualSpacePosition();
+        } else {
+            rocket.setVirtualSpacePosition(realInSpace, clock + rate);
+        }
         if (pilot != null) {
             Vec3 seat = rocket.passengerPositionAt(center, localAttitude, pilot);
             PacketDistributor.sendToPlayer(pilot, new TravelTransferPayload(seat.x, seat.y, seat.z, pilot.getYRot(), pilot.getXRot()));

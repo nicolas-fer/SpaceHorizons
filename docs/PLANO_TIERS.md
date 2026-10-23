@@ -82,7 +82,7 @@ A montagem continua a mesma (blocos livres sobre a plataforma, clique no cockpit
 |---|---|---|
 | 1 | Multiblocos de tanque e motor e guias de montagem (painel primeiro, depois plantas) | 1 (multiblocos, painel e plantas holográficas feitos: seções 7 e 8) |
 | 2 | Gerador de planetas por parâmetros e Marte | 1 (gerador e Marte feitos, Marte fora da órbita: seção 10) |
-| 3 | Sistema solar centrado no sol (viagem a Marte) | 1 |
+| 3 | Sistema solar centrado no sol (viagem a Marte) | 1 (feito: seção 11) |
 | 4 | Motores e planetas do Tier 2 | 2 (motores, combustíveis e materiais de Marte: seção 9; planetas pendentes) |
 | 5 | Naves andáveis com voo assistido (`PLANO_NAVES.md`) | 3 |
 | 6 | Spike de dimensão em tempo real; se passar, dobra e sistemas procedurais | 4 |
@@ -273,3 +273,131 @@ dia, do céu (meio-dia, pôr do sol, noite), da cratera vista da borda, do veio,
 ~3 ms, geração de terreno ~6 ms por chunk. `to_d` (Terra: chão, costura, latitudes, Lua no céu, malha orbital a 5.000 e 15.000) e
 `moonback` sem erros. A 1.000 de altitude, logo depois do teleporte, aparece o vão entre os chunks e a malha orbital enquanto o DH gera os
 LODs (o mesmo comportamento conhecido da Terra, `docs/PLANO_LOD_PLANETA.md`).
+
+
+## 11. Etapa 3 (sistema solar centrado no sol): design e o que foi feito
+
+Design de 22/10/2026. Código em `space/Heliocentric`, `space/SolarSystem`, `space/flight/{SoiTracker,BodyPhysics,FrameBridge,MarsPlanner}`,
+`rocket/FlightMachine`; contratos técnicos em `docs/DESIGN_FOGUETE.md` ("Sistema solar centrado no sol").
+
+### 11.1 A escala (escolha documentada)
+
+Distâncias reais são impossíveis (a Terra a 23.500 raios do sol) e o ano real não cabe no jogo. A escala é comprimida, e o que a decide é a
+**Lua**: ela já existe (600.000 blocos da Terra, esfera de 96.270) e a esfera de influência da Terra, de Laplace contra o sol, tem de contê-la,
+o que obriga um ano longo e uma órbita grande (a esfera de Laplace cresce com o período e quase não depende do raio da órbita).
+
+| Grandeza | Valor | Por quê |
+|---|---|---|
+| Ano da Terra | 240.000 ticks (10 dias do jogo) | O menor que ainda deixa a esfera da Terra (~834.000) conter a Lua (600.000 + 96.270 × 1,05) |
+| Raio da órbita da Terra | 4.000.000 blocos | 38 raios da Terra do mod |
+| Raio da órbita de Marte | 6.096.000 (1,524 ×) | A razão real; período 451.532 ticks (1,881 ano, a razão real) |
+| μ do sol | 4,3865e10 | Kepler: dá o ano acima no raio acima |
+| Velocidade orbital | Terra 104,7 b/t; Marte 84,8 b/t | |
+| Esfera de influência (Laplace) | Terra 833.852; Marte 520.268; Lua 96.271 | Não se tocam nem na oposição (distância mínima 2.096.000 contra 1,42 milhão das duas com histerese) |
+| Período sinódico (de uma janela à próxima) | 512.299 ticks (21,3 dias do jogo) | |
+| Raio físico do sol | 400.000 | Quem passa abaixo dele é queimado (batida no ponto de estacionamento) |
+
+**Tempo de jogo.** Hohmann clássico entre as duas órbitas levaria 170.126 ticks (2 h 21 min a 20 ticks/s). Como a esfera da Terra é finita e grande
+(21% do raio da órbita), a saída é uma troca de origem e não uma assíntota, e a transferência que a própria física dá é bem mais curta: **a
+nave sai da esfera da Terra e chega à de Marte em ~67.000 ticks (56 min a 20 ticks/s)**, mais ~1.000 de subida e a espera da janela. A viagem
+inteira (decolagem à captura e pouso) levou ~92.000 ticks no simulador. Isso cabe em "dezenas de minutos" só com **aceleração do tempo**: o
+vanilla `/tick rate` (autoteste a 300 ticks/s, 15 vezes) leva a transferência a ~4 minutos. Não criei um comando próprio de aceleração: a
+física é a mesma por tick, então `/tick rate N` já é a aceleração (ligue só com o foguete em cruzeiro, sem empuxo nem atmosfera; o cliente do
+piloto precisa acompanhar os ticks).
+A espera pela janela é o custo real: uma a cada 512.299 ticks (7,1 h a 20 ticks/s, 28 min a 300), e a janela dura ~52.000 ticks. A primeira
+abre ~8.500 ticks depois do relógio 0 (`MARS_PHASE0`), então um mundo novo já nasce com a primeira janela aberta no primeiro dia.
+
+### 11.2 Referenciais e esferas encadeadas
+
+- **I** (sistema Terra-Lua, o de `InertialFrame`) NÃO muda: o sol fica fixo em −X, a Lua e as dimensões ficam como eram, e **o céu do dia na
+  Terra e as fases da Lua são idênticos aos de antes** (a Terra e a Lua mantêm a direção do sol no infinito). **H** (heliocêntrico) é novo: origem
+  no sol, eixos que não giram, onde o sol e Marte têm o estado de voo. I = `Ry(θ_T)·H`, com θ_T o ângulo da Terra na órbita: I é preso à linha
+  Terra-sol e gira com ela, uma volta por ano. Dentro da esfera da Terra esse giro é desprezado (I vale como inercial, como valia com o sol
+  parado); na troca de esfera os vetores só giram por `Ry(±θ_T)`, sem o termo ω×r.
+- **SoiTracker**: Sol ⊃ Terra ⊃ Lua e Sol ⊃ Marte, entrada a 95% e saída a 105% da esfera, troca exata (posição e velocidade absolutas se
+  conservam; a atitude gira junto entre I e H). O estado é relativo ao corpo dominante, como sempre; o sol é o dominante do espaço
+  interplanetário.
+- **Marte** deixa de ser corpo destacado: pose real (posição na órbita e rotação que mantém o dia de 24.660 ticks e a curva do sol do vanilla),
+  fase real (a direção do sol é a verdadeira do centro de Marte) e céu com a Terra (de 0,8 a 7,6 graus de diâmetro) e a Lua.
+
+### 11.3 Física, zonas e pouso
+
+- **Zonas**: a dimensão de Marte vai do chão a 2.656 de altitude (a da Terra escalada pelo raio), a entrada acontece por raio como a da Lua
+  (`Zones`, `ZoneSwitch`, com as alturas escaladas); o foguete interplanetário fica estacionado na dimensão de espaço (`SpaceParking`) e a
+  posição real heliocêntrica vive no estado de voo, de onde o céu a lê (em E, a Terra no centro, até 10 milhões de blocos: `float` basta).
+- **Atmosfera fina**: `surface_density` do planeta (Marte 0,15, Terra 1) multiplica a curva de densidade só no arrasto, no calor e no
+  paraquedas (`BodyPhysics.dragDensity`). A velocidade terminal com o paraquedas em Marte é `0,5·sqrt(g_Marte/(G0·0,15)) = 0,8 b/t`, abaixo do
+  limite de pouso suave (1,0); o corpo do foguete sem paraquedas chega a ~25 b/t, então o motor freia até <6 b/t e o paraquedas faz o resto.
+- **Painel**: o planejador de Marte (caixa abaixo do da Lua) mostra a fase atual de Marte à frente da Terra contra a ideal do ponto da órbita, o
+  Δv da injeção e o tempo até a próxima queima possível; "queime agora" acende o aviso.
+
+### 11.4 O planejador (`MarsPlanner`) e o que a esfera grande muda
+
+- A previsão usa as esferas da física e Kepler (nunca integra passo a passo): saída da esfera da Terra, varredura heliocêntrica até a esfera de
+  Marte, hipérbole de chegada (periastro, parâmetro de impacto com sinal: positivo = órbita prógrada), correção de meio de curso (menor Δv que
+  leva o periastro ao alvo) e o Δv da injeção por bissecção sobre a própria previsão.
+- Com a esfera da Terra a 21% do raio da órbita, o Δv mínimo da injeção é o de uma elipse cujo apoastro é o raio de saída: **29,6 b/t a partir
+  de 5.600 de altitude** (o painel sugere +1: 30,6). A nave sai com ~11 b/t relativos à Terra e segue uma elipse que cruza a órbita de Marte
+  em 65.000 a 90.000 ticks. Qualquer ponto da órbita baixa entre ~165° e ~300° (do lado do sol, passada a metade da órbita) serve, cada um com
+  a sua fase ideal (Marte de 34° a 66° à frente da Terra, a tabela é gerada pela física). A janela é larga (a fase anda 0,7° por 1.000 ticks).
+- A Lua pode estar no caminho da saída: a previsão varre a perna da Terra e rejeita a janela se a trajetória entra na esfera da Lua (o piloto
+  de teste, que a simulação sem o jogo pegou numa colisão, espera a próxima passagem).
+- O planejador não vale com o relógio pausado; os planetas andam com o relógio.
+
+### 11.5 Missão provada (22/10/2026)
+
+**Simulador sem o jogo** (`MarsSimTest`, mesma `FlightMachine`, foguete M de 292,6 b/t): Terra → órbita baixa → espera da janela → injeção → quatro correções → esfera de
+Marte → captura → descida → pouso; eventos `LIFTOFF (earth)`, `LEAVE_ZONE`, `ENTER_ZONE (mars)`, `SOFT_LANDING (mars)`. `MarsLaunchSimTest`: decolar de Marte, órbita e pouso de volta.
+
+**Em jogo, autoteste `./gradlew runClientTest -PshOnly=marstrip`** (relógio de lançamento 20.000, 300 ticks/s, 91.506 ticks, 342 s):
+
+| Fase | Resultado | Δv (b/t) |
+|---|---|---|
+| Subida e circularização | órbita de 6.035 x 5.702, tick 902 | 78,6 |
+| Espera da janela | Marte 60,3° à frente da Terra; queima no tick 13.043 (a nave espera o ponto da órbita e a Lua fora do caminho) | |
+| **Injeção** | 30,53 b/t em 102 ticks, apoastro 920.486 | 30,5 |
+| Correções de meio de curso (4) | 0,003 + 0,019 + 0,003 + 0,009 b/t: periastro de Marte de 1.622 a 3.404 de altitude, prógrado | 0,03 |
+| Voo | entra na esfera de Marte no tick 80.035 (66.888 ticks depois da injeção), v relativa 45 b/t | |
+| Correção da chegada | 0,05 b/t (periastro 3.352 → 3.403) | 0,05 |
+| **Captura** (retrógrada no periastro, 78 ticks) | órbita 3.529 x 3.267, v 39,8 | 29,6 |
+| Freio contra o chão | 22,7 b/t, até 1,2 b/t | 22,7 |
+| Descida | cai até 1.200 sobre o terreno, freia a <6 b/t, abre o paraquedas a 878 sobre o terreno (a 6 b/t), entra na dimensão de Marte a 781 de altitude | 5,3 |
+| **Pouso** | vertical −0,72 b/t, horizontal 0,01, inclinação 0,31°, 37.587 mB sobrando | |
+| **Total** | **166,8 de 292,6 b/t** | |
+
+O céu no log (`CÉU`, a cada marco): da órbita baixa a Terra tem 142° de diâmetro aparente e Marte 1,2° (5,3 milhões de blocos, 88% iluminado); da esfera de
+Marte a Terra tem 7,2° (fração iluminada 0,01: nova, vista de Marte) e a Lua 1,9°; Marte tem 13° na entrada da esfera e 144° em órbita. Prints `mt_01` a `mt_11`.
+
+`mission`, `flight` (A a D), `moonback` e `mars` (10/10) rodados depois da mudança, sem falhas: a missão lunar fecha com 52.823 ticks e 9.307 mB sobrando (a de antes
+terminava com o mesmo roteiro); a Terra e a Lua não mudaram.
+
+### 11.6 Voar a partir de Marte (cenário `marsorbit`)
+
+Decolar de Marte, subir ao espaço, ficar em órbita (3.000 ticks, com 8 prints de fora e 4 de dentro do foguete a cada ~1,3 s) e descer de volta, no ritmo normal de 20
+ticks/s, com um contador de quadros do `BodyRenderer` (`BodyClient.diagFlips`) que registra cada vez que o conjunto de corpos desenhados muda de um quadro para o seguinte.
+Resultado: decolagem no tick 9 com o acelerador aplicado (o painel mostra "100%" sem "(real 0%)"), subida a Ap 3.637 em 193 ticks (31,3 b/t), circularização em 41 ticks (7,5 b/t;
+a subida de Marte custa 38,8 b/t contra 78,8 da Terra), 3.000 ticks em órbita a 3.637 de altitude e **0 mudanças de quadro nos milhares de quadros da órbita** (a esfera de Marte, desenhada o
+tempo todo, vista de fora e de dentro), freio (23,7 b/t), descida com paraquedas e pouso (v vertical −0,74 b/t, 99.747 mB sobrando; 67,6 b/t no total).
+
+Os quatro sintomas do voo a partir de Marte no `main` anterior (Marte "corpo destacado") e as causas:
+
+1. **A esfera de Marte some e volta, em rajadas, às vezes por mais de 1 s.** Dois defeitos reais, achados e medidos neste cenário (o contador de mudanças), os dois no céu do foguete
+   no espaço, onde a posição do observador vem do dado sincronizado do foguete: (a) o dado era a posição em E (preso à Terra), que perto de Marte anda ~1.400 blocos por tick (a Terra
+   gira); o cliente interpola entre pacotes, então um pacote atrasado de um tick (o servidor engasga gerando o terreno da descida) deslocava o observador milhares de blocos, a
+   distância de Marte caía abaixo do raio ("câmera dentro do corpo": o corpo é pulado) e o planeta piscava; medido antes da correção: 11 mudanças de quadro em ~760 quadros na descida. (b) Na
+   chegada à dimensão de espaço a entidade é recriada e leva alguns quadros para ter posição virtual: sem ela o céu saía das coordenadas do ponto de estacionamento (milhões de
+   blocos fora do sistema). Correção: o dado sincronizado passou a ser a posição em I (inercial, anda ~40 b/t), que o cliente leva a E com o relógio do próprio quadro
+   (`RocketEntity.setVirtualSpacePosition(pos, clock)`, `ShipView`), e `ShipView` segura a última posição conhecida até a nova chegar. Depois: 0 mudanças na órbita e na descida
+   no espaço; sobram as transições legítimas (a esfera aparece a 1.650 de altitude vindo da subida, some ao entrar na dimensão de Marte a ~790, 2 quadros de vão na chegada ao espaço).
+   No `main` anterior Marte nem tinha zona de espaço (o foguete ficava na dimensão de Marte, 2 a 16 mil de altitude): lá o planeta só vinha da malha orbital, que depende da cobertura de
+   chunks; não rodei o `main` anterior, então a participação dela no pisca que o usuário viu é inferência.
+2. **Acelerador "100% (real 0%)" com combustível sobrando.** `RocketFlightController.tick` volta no início quando o nível não tem corpo no `SolarSystem` (`levelBody == null`: "um mundo sem
+   planeta: o foguete só fica pousado"). Marte não estava em `BODIES`, então a dimensão de Marte nunca passava pelo passo do voo e o comando do piloto não chegava ao motor. Com Marte em
+   `BODIES` o foguete decola (`MarsLaunchSimTest.withFuelTheEngineLiftsTheRocketOffMarsAtOnce`; em jogo, `marsorbit`).
+3. **Com combustível 0 a física explode (TWR 274, subida de 2.989 b/s).** Não reproduzi nem identifiquei a causa no `main` anterior. O que está garantido agora: sem combustível o foguete
+   pousado não decola e nada se move (`MarsLaunchSimTest.withoutFuelNothingLiftsAndNothingBlowsUp`), e em voo só a gravidade de Marte age (energia conservada a 5 unidades em 5.000 ticks,
+   velocidade limitada). O "TWR" com tanque vazio é empuxo sobre a massa seca (alto por definição, e Marte tem 38% da gravidade da Terra); a subida de 2.989 b/s (149 b/t) não sai de nenhum
+   cálculo desta branch.
+4. **A câmera vai parar dentro de uma geometria cinza quadriculada gigante.** Não reproduzi como geometria externa. A única geometria cinza quadriculada nos prints (órbita, de dentro,
+   `mo_07_orbit_first_person*`) é o interior da cabine do próprio foguete em primeira pessoa (também na Terra: `mt_03_leo`). Se o usuário viu algo maior, é compatível com a câmera
+   dentro da malha do foguete ou da malha orbital quando a posição do observador saltava (causa 1), mas isso é hipótese.

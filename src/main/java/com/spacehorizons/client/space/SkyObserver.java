@@ -107,7 +107,7 @@ public record SkyObserver(SolarSystem.@Nullable Body home, double clock, double[
         }
         if (SpaceDimension.is(level)) {
             // câmera num foguete estacionado: o observador é a posição REAL do voo, com a atitude identidade (o céu não gira com o foguete)
-            double[] ship = ShipView.positionInSpace();
+            double[] ship = ShipView.positionInSpace(clock);
             // modo de teste do céu (comando skytest): a nave virtual gira; sem ele, a orientação fixa da dimensão
             Quaterniondc attitude = SkyAttitude.current();
             if (ship != null || attitude != null) {

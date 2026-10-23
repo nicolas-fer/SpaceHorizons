@@ -364,3 +364,64 @@ Os nomes estão em `docs/TIER2_IDS.md`. Arquivos provisórios (gerados por `tool
   centro), `<motor>_part.json` (vazio). Os provisórios são os modelos do motor químico com as texturas `<motor>.png`, `<motor>_top.png`,
   `<motor>_bottom.png` e `<motor>_2x2_{nozzle,exit,plate,pump}.png`, `<motor>_3x3_{...}.png` recoloridas; a arte final pode trocar modelos e
   texturas à vontade, desde que os quatro ids de modelo existam (o blockstate os usa).
+
+
+## Sistema solar centrado no sol (etapa 3 do `docs/PLANO_TIERS.md`, seção 11)
+
+Números, escala e o porquê no plano; aqui ficam os contratos.
+
+### Corpos e referenciais (`space/Heliocentric`, `space/SolarSystem`)
+
+- `SolarSystem.Frame`: `EARTH_SYSTEM` (I, o de sempre: Terra e Lua) e `HELIOCENTRIC` (H: sol e Marte). `Body.frame()` diz em qual vive o estado de voo
+  (posição e velocidade relativas ao corpo dominante, atitude) e a pose inercial do corpo. `SolarSystem.SUN` é o centro de H (sem dimensão, zona nem
+  céu: fora de `BODIES`); `BODIES` agora é Terra, Lua e Marte.
+- `Heliocentric`: órbitas circulares da Terra (raio 4.000.000, ano 240.000) e de Marte (1,524 ×, 451.532 ticks) em H, ângulos de +X para +Z (o sentido da rotação
+  da Terra), `MU_SUN`, `toEarthSystem`/`fromEarthSystem` (`Ry(±θ_T)`, I = `Ry(θ_T)·H`, a Terra em +X de I a qualquer relógio), `marsInEarthSystem`,
+  `marsPhaseAhead`, `synodicPeriod`, `SUN_RADIUS`. `MARS_PHASE0` (75°) escolhe o relógio da primeira janela.
+- `Body.inertialPoseAt/PositionAt/VelocityAt` valem no referencial de estado do corpo (Marte e sol em H); `poseAt/positionAt` (E, preso à Terra, a Terra
+  na origem) valem para todos, inclusive Marte e o sol (o céu e as zonas leem E). Marte: rotação `Ry(π − θ_M − β(t))`, com β o ângulo do sol local do ponto (0, 0)
+  (`localSunAngle`, dia de 24.660 e curva do vanilla), então o sol local de Marte é exatamente o do corpo destacado de antes, só que na direção verdadeira (teste:
+  `DetachedSkyBodyTest`). `Body.heliocentricPositionAt/VelocityAt` e `SolarSystem.sunDirectionFrom(body, clock, out)`: Terra e Lua usam a direção do `SunModel`
+  (o sol no infinito, como sempre); Marte, a verdadeira do centro dele ao sol. `SunModel.localDirection` e `SkyObserver.sunFor` a usam; o observador no espaço
+  mistura da direção de sempre (dentro da esfera da Terra, para o céu não saltar na troca de dimensão) à verdadeira (a duas esferas).
+
+### Física de voo
+
+- `BodyPhysics`: μ e SOI de Laplace contra o corpo-pai (Terra 833.852 e Marte 520.268 contra o sol; Lua como antes; a do sol, infinita; a da Terra deixou de ser
+  infinita). `surfaceDensity()` e `dragDensity(altitude)` = curva do `AtmosphereModel` × `surface_density` do planeta, usada por `FlightIntegrator` no arrasto, no calor
+  e na abertura do paraquedas (`AtmosphereSpec.Air.surfaceDensity`, campo opcional `surface_density`, 1 por padrão; Marte 0,15).
+- `SoiTracker`: ver a tabela de trocas em `docs/PLANO_TIERS.md` e o javadoc da classe; `dominantAt` devolve também o sol e Marte (ponto de I longe da Terra).
+- `FrameBridge`: `absoluteInEarthSystem`, `absoluteVelocityInEarthSystem` e `stateRelativeTo` levam um estado de qualquer corpo ao absoluto em I e de volta
+  (para o sol e Marte passam por H→I, sem o termo ω×r); `absoluteInEarthFixed`, `toSpaceDimension` e `fromSpaceDimension` usam essas funções, então o
+  foguete interplanetário tem posição em E (a que o céu e as zonas leem) como qualquer outro. Terra e Lua: as mesmas contas de antes, bit a bit.
+- `AttitudeMath.changeFrame` (Ry(±θ_T)), `stateToSpaceLocal` e `spaceLocalToState`: a atitude do estado vive no referencial do corpo dominante e gira junto na troca
+  entre a Terra e o sol; no espaço aberto a atitude local da dimensão sai de `stateToSpaceLocal`.
+- `FlightMachine`: gira a atitude na troca de referencial, `rebase` entre I e H passa pelo absoluto em I, e quem desce abaixo de `SUN_RADIUS` do sol é queimado (evento
+  `CRASH` no espaço: o controlador desfaz o foguete no ponto de estacionamento). Zona de Marte: `Zones`/`ZoneSwitch`/`SpaceParking` sem mudança (altitude de saída
+  2.656, entrada a 0,8 disso, lenta a 797 sobre o terreno e forçada a 319).
+- `RocketFlightController`: o foguete numa dimensão de Marte voa (antes um mundo sem corpo no `SolarSystem` só o deixava pousado); a nave não é afetada.
+
+### O planejador (`MarsPlanner`) e a telemetria
+
+- `arrival`, `signedMiss`, `correction`, `injectionDeltaV`, `plan` (ver o plano, seção 11.4); testes em `MarsPlannerTest`. A telemetria
+  (`RocketTelemetryPayload`) ganhou `marsStatus`, `marsPhaseNow`, `marsPhaseIdeal`, `marsDeltaV`, `marsBurnNow` e `marsTimeToBurn` (o construtor de 27 campos continua e põe
+  `marsStatus` −1); o painel desenha a caixa "Planejador de Marte" (`RocketPanelModel.marsPlannerRows`) e acende "queime agora" também por ela.
+- Piloto de teste (`MissionPilot.toMars`, fases `MARS_*`) e simulação sem o jogo (`MarsSimTest`, mesma `FlightMachine`): espera a janela, queima a injeção calculada pela
+  previsão no meio da queima, corrige o meio de curso (`MarsPlanner.correction`), captura no periastro de 3.400 de altitude, freia contra o chão, cai, abre o
+  paraquedas abaixo de 1.000 sobre o terreno e pousa.
+
+### Limites desta etapa
+
+- A órbita da Terra e a de Marte são circulares e coplanares (sem excentricidade nem inclinação); só Terra e Marte (os planetas distantes do Tier 2 ainda não existem).
+- Dentro da esfera da Terra o referencial I vale como inercial (giro de uma volta por ano desprezado); a esfera é 21% do raio da órbita, então a "assíntota" de saída
+  não existe e o Δv e a janela vêm da busca numérica, não de Hohmann.
+- Zona de Marte com o foguete interplanetário já testada; o piloto automático criativo (`space/travel`) e a nave (`ship/*`) só conhecem o sistema Terra-Lua (os corpos
+  de `BODIES` entram nas contas dele, mas não há alvo de Marte no piloto automático).
+
+### Posição virtual do foguete no espaço (atualizado na etapa 3)
+
+O dado sincronizado `VIRTUAL_POS` agora é a posição real em **I** (inercial, a Terra na origem), não em E: `RocketEntity.setVirtualSpacePosition(posNaDimensão, relógio)` a converte no
+servidor com o relógio do passo, e o cliente (`ShipView.positionInSpace(clock)`) a leva a E com o relógio do quadro, o mesmo que posiciona os corpos. Em E um ponto perto de Marte anda
+~1.400 blocos por tick; interpolar lá fazia o planeta piscar quando um pacote atrasava (ver `docs/PLANO_TIERS.md`, seção 11.6). `ShipView` guarda a última posição e a usa enquanto a
+câmera está no ponto de estacionamento (ou até 3 s depois) e a nova ainda não chegou, na chegada à dimensão de espaço. Saves antigos (NBT `VirtualX/Y/Z` em E) leem uma vez a posição errada até
+o primeiro passo do voo.

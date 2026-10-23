@@ -18,8 +18,9 @@ recompilar. A pasta `data/spacehorizons/planet/` não é registro do jogo: o Min
    biomas `spacehorizons:planet` mapeando cada papel da paleta ao mesmo `biome` do JSON do planeta (o teste confere). Mundos já
    criados não ganham dimensões novas: só mundos novos.
 4. Os biomas novos em `worldgen/biome/` (o atributo `minecraft:visual/sky_color` do bioma vence o do tipo de dimensão).
-5. Enquanto o planeta não estiver em `space/SolarSystem.BODIES` (física orbital), o céu dele vem de um corpo destacado
-   (`SolarSystem.skyBodyOf`) que só gira com `day_length_ticks`; o acesso é por comando (`/spacehorizons goto mars [x z]`).
+5. Para entrar na física orbital o planeta precisa de um `SolarSystem.Body` em `space/SolarSystem` (órbita em `space/Heliocentric`, SOI em `BodyPhysics`) e de ficar em
+   `BODIES`; Marte já está (`docs/PLANO_TIERS.md`, seção 11). Um planeta com parâmetros mas sem órbita ainda tem o céu de um corpo destacado (`SolarSystem.skyBodyOf`), que
+   só gira com `day_length_ticks`; o acesso a ele é por comando (`/spacehorizons goto <id> [x z]`).
 
 ## Campos
 
@@ -40,7 +41,7 @@ relevo serve a planetas de tamanhos diferentes (as alturas não escalam com o ra
 | `surface.subsurface` | Rocha abaixo do enchimento |
 | `surface.types.<papel>` | `top` (bloco do topo), `filler` (3 camadas abaixo), `biome`, `color` opcional (cor de longe na malha orbital e na esfera vista do espaço; sem ela, a cor de mapa do bloco de topo) |
 | `water` | `ocean` (por enquanto `true` só no estilo `earth`), `shallow_color` e `deep_color` (água de longe) |
-| `atmosphere` | `{"present": false}` ou: `thickness` e `base_altitude` da curva de densidade, `breathable` (o traje precisa de oxigênio se `false`), `scatter` (espalhamento do limbo por canal r, g, b), `optical_depth` (1 = Terra), `sky_color`, `fog_color`, `clouds` |
+| `atmosphere` | `{"present": false}` ou: `thickness` e `base_altitude` da curva de densidade, `breathable` (o traje precisa de oxigênio se `false`), `scatter` (espalhamento do limbo por canal r, g, b), `optical_depth` (1 = Terra), `sky_color`, `fog_color`, `clouds` e, opcional (padrão 1), `surface_density`: a densidade do ar na superfície relativa à da Terra, só para o arrasto, o calor e o paraquedas do voo (`BodyPhysics.dragDensity`); Marte usa 0,15 |
 | `ores` | Lista de veios (só `parametric`): `block`, `min_y`, `max_y`, `scale` (blocos), `thickness`, `gate_scale`, `gate_threshold`, `salt` |
 
 **Blocos com reserva**: qualquer bloco aceita um id ou uma lista; vale o primeiro que existir no registro quando o mundo carrega
@@ -88,5 +89,7 @@ limitada a `[sea_level + min_above_sea, max_height]` (`max_height` ≤ 315).
 | Atmosfera | presente, sem oxigênio, espessura 1.100, base 90, limbo (1,0; 0,60; 0,34) com profundidade 0,45, céu `#c89a6c` (caramelo), neblina `#d8ad82`, sem nuvens; poeira (`crimson_spore`) no bioma | Fina e avermelhada; o traje trata como vácuo |
 | Minério | veio de `mars_titanium_ore` → `iron_ore`, y −50..110, tubos de ~2 blocos (0,66% dos blocos da faixa) | Base do motor do Tier 2 |
 
-Marte ainda NÃO está na física orbital (etapa 3: sistema centrado no sol): sem zona de espaço, sem travessia, sem pouso de foguete; o céu
-tem o sol (corpo destacado) e as estrelas, sem Terra nem Lua.
+Marte está na física orbital desde a etapa 3 (sistema centrado no sol, `docs/PLANO_TIERS.md`, seção 11): corpo dominante com esfera de influência própria, zona de espaço
+por raio como a Lua (saída a 2.656 de altitude), pouso de foguete e céu com a Terra, a Lua e o sol verdadeiro. O ar dele tem `surface_density` 0,15: o arrasto vale 15% do da
+Terra e o paraquedas, que na Terra pousa a 0,5 b/t, pousa em Marte a ~0,75 b/t (abaixo do limite de 1,0 do pouso suave); o corpo do foguete sem paraquedas chega a ~25 b/t, então o
+motor freia antes.

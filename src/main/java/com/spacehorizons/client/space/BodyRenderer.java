@@ -117,6 +117,7 @@ final class BodyRenderer {
 
     /** Sai do mundo: libera tudo (o cache de esferas e o alvo de profundidade). */
     void reset() {
+        ShipView.reset();
         cache.reset();
         lastSegments.clear();
         if (depthTarget != null) {
