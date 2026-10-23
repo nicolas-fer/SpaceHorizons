@@ -289,7 +289,7 @@ Esforço relativo: P pequeno, M médio, G grande, GG muito grande.
 | 2a | Montagem no chão e subida: `ShipAssembler`, entidade com retrato, reuso do voo do foguete, entrada no espaço (entidade → estaleiro, `ShipYardEnter`) | GG | Autoteste: monta, decola, cruza 5.000 blocos, chega ao estaleiro com inventários e tanques idênticos |
 | 2b | Descida e pouso (`ShipYardLeave`, desmontagem no chão), trem de pouso, batida simplificada | G | Autoteste de missão: órbita → descida → pouso suave e desmontagem sem perder blocos |
 | 2c | EVA próxima ao casco (plataforma) e jogador livre no `space` com volta | G | Sair pela eclusa, flutuar 40 blocos e voltar; fora do raio, o jogador vira entidade livre na dimensão `space` |
-| 2d | Outras naves/foguetes como modelo no céu (LOD) | M | Print: foguete a 300 blocos aparece pela janela, na posição relativa certa |
+| 2d | Outras naves/foguetes como modelo no céu (LOD) (feito: ver "Resultado da fase 2d") | M | Print: foguete a 300 blocos aparece pela janela, na posição relativa certa |
 | 3 | Dobra, escudos, hangar para atracar o foguete, luz do sol por orientação, volume de ar selado | GG | Por funcionalidade, cada uma com seu cenário |
 
 Autotestes (estilo `AutoTest`, cenários com `-PshOnly=`): `ship` (fase 1: cria nave, entra, olha o céu, gira a atitude, tira prints), `shipflight` (piloto de teste no servidor, estilo `FlightDevtest`, órbita e SAS), `shipconvert` (entidade ↔ blocos com inventários), `shipmission` (missão completa). Testes unitários puros: alocador, `ShipSpecs`, mapeamento local↔estaleiro, composição da atitude do céu (`SkyObserver.forShip` com `localToSpace` ortonormal, coincide com `forSpace` com atitude identidade).
@@ -489,3 +489,36 @@ shipascent 23/0, shipdescent 40/0, multiblock 169/0.
 - Na desmontagem girada, colunas de tanques vizinhas podem se reagrupar de outro jeito (duas 2x2x4 viram uma 2x3x4 e uma 2x1x4): os
   blocos e o combustível total são os mesmos, mas a divisão das estruturas muda.
 - O pouso no jogo de verdade (jogador pilotando, tecla de desmontar) não foi testado; os passageiros extras continuam fora.
+
+## Resultado da fase 2d (22/10/2026): outras naves e foguetes vistos de dentro e do espaço
+
+**Feito** (lógica pura em `space/vessel`, servidor em `ship/Vessel*`, cliente em `client/space/Vessel*`; testes `Vessel*Test`):
+
+- **Rede.** `VesselSync` (servidor) manda a cada 4 ticks (5 Hz) a quem está na dimensão de espaço, num foguete estacionado nela ou numa nave do estaleiro o estado dos OUTROS veículos (`VesselStatePayload`): id, tipo, versão do casco, raio, posição absoluta em E (double), atitude local, velocidade e giro. Escolha por distância (`VesselSelector`): os 8 mais próximos dentro de 20 km (a ponta do casco decide), sem o veículo do próprio observador. Veículos: naves com voo vivo (`ShipFlightTicker`) e foguetes `isVirtual` na dimensão de espaço. Quem olha de onde: dentro da nave, a posição virtual dela; no foguete, `RocketFlight.spacePosition`; livre, a posição do jogador.
+- **Casco sob demanda.** Dentro de 5 km o cliente pede o casco (`VesselHullRequestPayload`); o servidor só responde sobre veículos que mandou àquele jogador, um por tick, e envia em partes (`VesselHullPartPayload`, `PortraitParts.split` e `Receiver`). O casco é ESPARSO (`VesselHull`/`VesselHullBuilder`): só as células que tocam o ar exterior (enchente a partir da borda; interior fechado some), cor por célula pela cor de mapa do bloco, deflate; passa de 60.000 células, a grade engrossa (células de 2, 4 ou 8). Casco da nave: lido dos blocos do estaleiro (só com a caixa carregada), refeito se tiver mais de 5 min quando pedido; do foguete: do retrato.
+- **Desenho.** `VesselRenderer`, depois dos corpos (`AfterSky`), com pipeline e shader próprios (`space/vessel`): cor chapada por bloco, luz do sol único (normal da face por derivadas), profundidade própria. Posição relativa em double: `VesselPose.relative` leva `r_outro - r_meu` para os eixos locais do observador (`M_Oᵀ·Δ`) e a rotação do modelo é `M_Oᵀ·M_V` (atitude composta; `M = LOCAL_TO_SPACE·R(ql)` vale para o observador de nave e para o veículo). Entre pacotes: ajuste quadrático das três últimas posições e giro constante. Sem casco ou longe, impostor (caixa do tamanho do veículo, nunca menor que 2 pixels).
+- **Testes unitários** (`space/vessel`, 30 casos): transformação relativa e atitude composta (coincide com `SkyObserver.forShip`), extrapolação, seleção por distância e raio, casco (enchente, furo, grade grossa, codec, recusa de entrada ruim e de pacote que se expande), malha, pacotes.
+
+**Autoteste `-PshOnly=shipsee`** (`ShipSeeDevtest`, `AutoTest.shipSeeScenario`): nave de teste em órbita; foguete de 4.003 blocos (26x28x26) estacionado perto dela na mesma órbita (`/spacehorizons vessel rocketboard 1 0 60 -300`, comandos de dev `vessel freeze|yaw|list`; o `freeze` zera a velocidade dos veículos a cada tick para a geometria não andar entre os dois quadros). Cada visada: um quadro sem os veículos e um com eles; a caixa do que mudou, em pixels, contra a caixa calculada projetando todos os vértices do casco do alvo com a MESMA câmera do quadro e o estado do servidor. **24 verificações, 0 falhas.** Números (largura x altura em px, 2560x1369, FOV 90):
+
+| visada | ângulo ao centro do olhar esperado / medido | caixa esperada | caixa medida | erro do centro |
+|---|---|---|---|---|
+| B1 do foguete, vê a nave (3ª pessoa) | 36,37 / 36,42 graus | 172,5 x 138,1 | 172 x 137 | (1,4; 2,4) |
+| B2 idem, outro lado | 40,81 / 40,88 | 198,8 x 149,8 | 198 x 149 | (-2,4; 2,5) |
+| C1 livre, vê a nave (192 blocos) | 0,53 / 0,59 | 96,0 x 200,9 | 95 x 200 | (0,4; -1,3) |
+| C2 livre, vê o foguete (199) | 0,08 / 0,07 | 118,8 x 135,1 | 118 x 134 | (-0,4; 1,4) |
+| C3 livre, foguete fora do centro | 14,70 / 14,41 | 125,2 x 134,7 | 124 x 134 | (-3,3; 1,2) |
+| A1 da nave, foguete pela janela da proa (228) | 0,18 / 0,45 | 85,1 x 103,4 | 84 x 103 | (-0,7; -3,2) |
+| A2 idem, olhar 6,5 graus ao lado | 6,52 / 6,42 | 87,5 x 105,5 | 86 x 105 | (0,0; -3,1) |
+| A3 nave girada 90 graus: foguete no leste (janela lateral) | 0,18 / 0,42 | 85,1 x 103,4 | 84 x 103 | (-0,4; -2,8) |
+| A4 girada mais -50: nordeste | 0,18 / 0,45 | 85,1 x 103,4 | 84 x 103 | (-0,4; -3,2) |
+
+Também verificados: cada observador recebe só os OUTROS (o piloto do foguete só a nave, a nave só o foguete, o livre os dois); casco da nave (6.680 células, caixa 32x20x56) com 189 bytes, varredura de 27 ms; 27 pacotes de estado em 111 ticks (5 Hz). A posição relativa vem dos eixos da nave: com o foguete posto a (0, 60, -300) no estaleiro e a nave girada de 90 graus, ele aparece no lado leste e a caixa na tela bate. `ship` 30/0, `shipflight` 30/0, `shipconvert` 151/0.
+
+**Decisões e limites**
+
+- O casco é de cor chapada por bloco (cor de mapa), não o `PortraitMesh` com textura do atlas: o `PortraitMesh` precisa do pipeline de entidades do vanilla (`submitCustomGeometry`), que não roda no estágio do céu, e longe a textura não se distingue. Foguetes e naves usam o mesmo casco esparso; o `RocketMeshCache` não é usado para os outros veículos.
+- Sem paralaxe da câmera: o céu todo é visto do ponto virtual do veículo (o pivô: centro da caixa), como já era o dos corpos. Um observador a 10 blocos do pivô vê um veículo a 300 blocos deslocado até ~2 graus em relação à posição física.
+- O foguete só é desenhado para os outros enquanto `isVirtual`; o piloto automático do jogador (`fly`) não recebe os outros veículos. Os veículos aparecem por cima dos corpos sem teste de profundidade contra eles (a 20 km da Terra nunca fica atrás dela).
+- Não verificado: servidor dedicado e vários jogadores; naves de 128x256x128 (varredura do casco no thread do servidor, medida só para 32x20x56); tremor entre pacotes com o veículo em órbita real (o autoteste congela os veículos para medir a geometria; o ajuste quadrático só tem teste da conta, não medida de quadro a quadro); impostor além de 5 km e a inclusão do estado a 20 km só por leitura de código.
+- No autoteste a distância entre nave e foguete, pedida a 306 blocos, saiu 228: a nave anda 60 blocos por tick até o `freeze` pegar e o foguete fica retido na chegada. A conta usa as posições reais do servidor.

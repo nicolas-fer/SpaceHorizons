@@ -227,6 +227,10 @@ public final class AutoTest {
             shipAnchor2Scenario();
             return;
         }
+        if ("shipsee".equals(ONLY)) {
+            shipSeeScenario();
+            return;
+        }
         if ("ship".equals(ONLY)) {
             shipScenario();
             return;
@@ -5591,6 +5595,137 @@ public final class AutoTest {
         step(20, mc -> {
             ShipAnchor2Devtest.restoreRecharge();
             ShipAnchor2Devtest.summary();
+            mc.stop();
+        });
+    }
+
+    // ===================================================================================================================
+    // OUTRAS NAVES E FOGUETES NO CÉU (docs/PLANO_NAVES.md, 4.3, fase 2d): -PshOnly=shipsee. Uma nave em órbita (ship create flight) e um foguete estacionado no espaço a
+    // 300 blocos dela, na mesma órbita. De dentro do foguete, de um jogador livre na dimensão de espaço e de dentro da nave, o outro aparece na direção, no tamanho e na atitude
+    // certos (caixa na tela medida em pixels contra a calculada da mesma câmera); a nave gira e o foguete se move no céu. Bloco separado; as medidas ficam em ShipSeeDevtest.
+    // ===================================================================================================================
+    private ShipSeeDevtest.Setup seeSetup;
+    private ShipSeeDevtest.Frame seeBase;
+    private java.util.UUID seeRocketId;
+    private long seePacketsStart;
+    private long seeTicksStart;
+
+    /** Uma visada: aponta a câmera para o alvo (mais um desvio), tira o quadro sem os veículos e com eles e compara a caixa que mudou com a esperada. */
+    private void seeView(String name, java.util.function.Function<Minecraft, ShipSeeDevtest.Setup> setup, double yawOffset, double pitchOffset, boolean fullyVisible) {
+        step(5, mc -> {
+            seeSetup = setup.apply(mc);
+            ShipSeeDevtest.aim(mc, ShipSeeDevtest.centerVector(seeSetup), yawOffset, pitchOffset);
+        });
+        step(2, mc -> com.spacehorizons.client.space.VesselRenderer.setEnabled(false));
+        step(8, ShipSeeDevtest::capture);
+        tickerStep(0, mc -> ShipSeeDevtest.captured());
+        step(1, mc -> {
+            seeBase = ShipSeeDevtest.take();
+            com.spacehorizons.client.space.VesselRenderer.setEnabled(true);
+        });
+        step(8, mc -> {
+            seeSetup = setup.apply(mc);
+            ShipSeeDevtest.capture(mc);
+            grab(mc, "shipsee_" + name);
+        });
+        tickerStep(0, mc -> ShipSeeDevtest.captured());
+        step(1, mc -> ShipSeeDevtest.evaluate(mc, name, seeSetup, seeBase, ShipSeeDevtest.take(), fullyVisible));
+    }
+
+    private void shipSeeScenario() {
+        String c = "SEE: ";
+        java.util.UUID shipId = com.spacehorizons.space.vessel.VesselEntry.shipUuid(1);
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        step(5, mc -> {
+            mc.options.fov().set(90);
+            mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+        });
+        cmd(10, "spacehorizons ship create flight");
+        step(60, mc -> ShipDevtest.check(c + "a nave de voo foi registrada", ShipDevtest.shipCount(mc) == 1, "naves=" + ShipDevtest.shipCount(mc)));
+
+        // B. DE DENTRO DO FOGUETE: o foguete estaciona no espaço a 300 blocos à frente da nave (e 60 acima), o piloto vê a nave
+        cmd(10, "spacehorizons vessel rocketboard 1 0 60 -300");
+        cmd(1, "spacehorizons vessel freeze on");
+        tickerStep(0, waitUntil(c + "no foguete estacionado no espaço, com a nave e o casco dela no cliente", 900, mc -> ShipSeeDevtest.spaceAndRiding(mc)
+                && com.spacehorizons.client.space.VesselClient.count() == 1 && com.spacehorizons.client.space.VesselClient.hullReady(shipId)));
+        step(10, mc -> {
+            seeRocketId = ((com.spacehorizons.rocket.RocketEntity) mc.player.getVehicle()).getUUID();
+            SpaceHorizons.LOGGER.info(TAG + "SEE B no foguete {}: {}", seeRocketId, ShipSeeDevtest.clientSummary());
+            ShipDevtest.check(c + "B o piloto do foguete recebe só a nave (o foguete dele não vai), com o casco", com.spacehorizons.client.space.VesselClient.count() == 1
+                    && com.spacehorizons.client.space.VesselClient.hullReady(shipId), ShipSeeDevtest.clientSummary());
+            seePacketsStart = com.spacehorizons.client.space.VesselClient.packetCount();
+            seeTicksStart = mc.level.getGameTime();
+            double[] hull = ShipDevtest.onServer(mc, server -> new double[] {com.spacehorizons.ship.VesselDev.lastShipHullMs(), com.spacehorizons.ship.VesselDev.lastShipHullCells(),
+                    com.spacehorizons.ship.VesselDev.lastShipHullBytes()});
+            SpaceHorizons.LOGGER.info(TAG + "SEE casco da nave: {} células, {} bytes, varredura de {} ms", f(hull[1]), f(hull[2]), f(hull[0]));
+            ShipDevtest.check(c + "B o casco da nave cabe num pacote simples (menos de 256 KiB) e foi lido em menos de 250 ms", hull[2] > 0 && hull[2] < 256 * 1024 && hull[0] < 250.0,
+                    "bytes=" + f(hull[2]) + " ms=" + f(hull[0]));
+        });
+        step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK));
+        step(100, mc -> {
+            long packets = com.spacehorizons.client.space.VesselClient.packetCount() - seePacketsStart;
+            long ticks = mc.level.getGameTime() - seeTicksStart;
+            SpaceHorizons.LOGGER.info(TAG + "SEE taxa: {} pacotes de estado em {} ticks", packets, ticks);
+            ShipDevtest.check(c + "o estado dos veículos vai a 5 Hz (a cada 4 ticks): " + packets + " pacotes em " + ticks + " ticks", ticks > 60 && Math.abs(packets - ticks / 4.0) <= 3.0,
+                    "pacotes=" + packets + " ticks=" + ticks);
+        });
+        seeView("B1_foguete_olha_a_nave_centro", mc -> ShipSeeDevtest.fromRocket(mc, "B1", seeRocketId, shipId), -35.0, 10.0, true);
+        seeView("B2_foguete_olha_a_nave_desvio", mc -> ShipSeeDevtest.fromRocket(mc, "B2", seeRocketId, shipId), 38.0, 15.0, true);
+        step(5, mc -> mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON));
+
+        // C. JOGADOR LIVRE NA DIMENSÃO DE ESPAÇO: a 150 blocos da nave, vê a nave e o foguete
+        step(5, mc -> {
+            double[] at = ShipDevtest.onServer(mc, server -> {
+                double[] off = com.spacehorizons.ship.VesselDev.yardToSpace(server, 1, 150.0, -20.0, -120.0);
+                return com.spacehorizons.ship.VesselDev.spaceDimensionAt(server, shipId, off[0], off[1], off[2]);
+            });
+            SpaceHorizons.LOGGER.info(TAG + "SEE C jogador livre na dimensão de espaço em ({}, {}, {})", f(at[0]), f(at[1]), f(at[2]));
+            mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "spacehorizons goto space %.4f %.4f %.4f", at[0], at[1], at[2]));
+        });
+        tickerStep(0, waitUntil(c + "C livre no espaço, vendo a nave e o foguete, com os cascos", 600, mc -> SpaceDimension.is(mc.level) && mc.player.getVehicle() == null
+                && com.spacehorizons.client.space.VesselClient.count() == 2 && com.spacehorizons.client.space.VesselClient.hullReady(shipId)
+                && com.spacehorizons.client.space.VesselClient.hullReady(seeRocketId)));
+        step(20, mc -> {
+            mc.player.getAbilities().flying = true;
+            mc.player.onUpdateAbilities();
+            SpaceHorizons.LOGGER.info(TAG + "SEE C: {}", ShipSeeDevtest.clientSummary());
+            ShipDevtest.check(c + "C o jogador livre vê os dois veículos (a nave e o foguete)", com.spacehorizons.client.space.VesselClient.count() == 2, ShipSeeDevtest.clientSummary());
+        });
+        seeView("C1_livre_olha_a_nave", mc -> ShipSeeDevtest.fromFree(mc, "C1", shipId), 0.0, 0.0, true);
+        seeView("C2_livre_olha_o_foguete", mc -> ShipSeeDevtest.fromFree(mc, "C2", seeRocketId), 0.0, 0.0, true);
+        seeView("C3_livre_olha_o_foguete_desvio", mc -> ShipSeeDevtest.fromFree(mc, "C3", seeRocketId), -16.0, 9.0, true);
+
+        // A. DE DENTRO DA NAVE: o foguete aparece pela janela da proa, na posição relativa certa; a nave gira e ele se move no céu
+        cmd(10, "spacehorizons ship goto 1");
+        tickerStep(0, waitInYard(1, 700));
+        tickerStep(0, waitUntil(c + "A na nave, vendo o foguete e o casco dele", 600, mc -> com.spacehorizons.client.space.VesselClient.count() == 1
+                && com.spacehorizons.client.space.VesselClient.hullReady(seeRocketId)));
+        step(30, mc -> {
+            mc.player.getAbilities().flying = false;
+            mc.player.onUpdateAbilities();
+            SpaceHorizons.LOGGER.info(TAG + "SEE A na nave: {}", ShipSeeDevtest.clientSummary());
+            ShipDevtest.check(c + "A quem está dentro da nave vê só o foguete (a nave dele não vai)", com.spacehorizons.client.space.VesselClient.count() == 1, ShipSeeDevtest.clientSummary());
+        });
+        seeView("A1_nave_olha_o_foguete_pela_janela", mc -> ShipSeeDevtest.fromShip(mc, "A1", 1, seeRocketId), 0.0, 0.0, false);
+        seeView("A2_nave_olha_o_foguete_desvio", mc -> ShipSeeDevtest.fromShip(mc, "A2", 1, seeRocketId), 6.0, -3.0, false);
+        // a nave gira 90 graus em torno do cima dela: o foguete, parado na órbita, passa da proa para o leste (a janela do lado)
+        cmd(5, "spacehorizons vessel yaw 1 90");
+        step(30, mc -> {
+        });
+        seeView("A3_nave_girada_90_o_foguete_no_leste", mc -> ShipSeeDevtest.fromShip(mc, "A3", 1, seeRocketId), 0.0, 0.0, false);
+        cmd(5, "spacehorizons vessel yaw 1 -50");
+        step(30, mc -> {
+        });
+        seeView("A4_nave_girada_40_o_foguete_a_nordeste", mc -> ShipSeeDevtest.fromShip(mc, "A4", 1, seeRocketId), 0.0, 0.0, false);
+
+        cmd(5, "gamerule send_command_feedback true");
+        cmd(5, "gamerule show_advancement_messages true");
+        step(20, mc -> {
+            ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });
     }
