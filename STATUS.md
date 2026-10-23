@@ -11,8 +11,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | | O quê | Onde |
 |---|---|---|
-| 🟡 | **Base lunar** (salas seladas com ar, energia, recursos lunares, combustível na Lua). | `docs/PLANO_SOBREVIVENCIA.md` (etapa 4) |
-| 🟡 | **História e estruturas** (estruturas abandonadas, diários, terminais; planta lunar pela história). | `docs/PLANO_SOBREVIVENCIA.md` (etapa 5) |
+| ✅ | **Base lunar**: salas seladas com ar (gerador de oxigênio, até 1.000 blocos), energia por adjacência (painel solar, bateria, cabo), eletrolisador, refinaria lunar, extrator de hélio-3 e gelo lunar em crateras polares. Autoteste `moonbase` 24/0, `tier2` 37/0. Arte provisória. | `docs/PLANO_SOBREVIVENCIA.md` (etapa 4) |
+| ✅ | **História (sinal lunar)**: 9 registros (diários e terminais), Observatório Aurora na Terra, Base Selene-1 e sonda Vigia-3 na Lua, 6 conquistas, planta lunar destravada pelo terminal da base, gancho para Marte. Autoteste `story` 45/0. Arte do terminal e do diário provisória. | `docs/PLANO_SOBREVIVENCIA.md` (etapa 5) |
 | ✅ | **Naves 2f: âncora completa**: bloco `antigravity_generator` (carga gasta ao ancorar, recarga de 20 s com o bloco no mundo), tecla H e estado no painel, recusa com destaque; limites do S6 corrigidos (exceto o congelamento de fluido só nos blocos da nave). Autoteste `shipanchor2` 24/0; regressão ship* sem falhas. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | 🟡 | **Sistema solar centrado no sol** (Marte na física orbital, viagem e pouso em Marte de foguete). | `docs/PLANO_TIERS.md` |
 | ✅ | **Naves 2d**: outras naves e foguetes vistos de dentro da nave, do foguete e por um jogador livre no espaço, na posição relativa (estado a 5 Hz, casco esparso sob demanda). Autoteste `shipsee` 24/0. | `docs/PLANO_NAVES.md` |
@@ -52,8 +52,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | Plantas holográficas de montagem | Autoteste `blueprint` 34/0 (22/10/2026); arte do item provisória |
 | ✅ | Gerador de planetas por parâmetros e Marte | Autoteste `mars` 10/10 (22/10/2026); Marte fora da órbita até a etapa 3 |
 | 🟡 | Sistema solar centrado no sol (viagem a Marte) | Tiers, etapa 3 (em andamento) |
-| 🟡 | Base lunar (salas seladas, energia, recursos lunares, combustível na Lua) | Sobrevivência, etapa 4 (em andamento) |
-| 🟡 | História (estruturas abandonadas, diários, sinal lunar) | Sobrevivência, etapa 5 (em andamento) |
+| ✅ | Base lunar (salas seladas, energia, recursos lunares, combustível na Lua) | Autoteste `moonbase` 24/0 (22/10/2026); arte provisória |
+| ✅ | História (estruturas abandonadas, diários, sinal lunar) | Autoteste `story` 45/0 (22/10/2026); arte provisória |
 | ⬜ | Separação de estágios | Sobrevivência, etapa 6 |
 | ⬜ | LODs do planeta inteiro com gerador próprio | `docs/PLANO_LOD_PLANETA.md` (polimento) |
 
@@ -113,6 +113,9 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
   impostor além de 5 km não medidos; o piloto automático não recebe os outros veículos.
 - **Voo a partir de Marte (vídeo do usuário, 22/10)**: Marte some e volta no céu, acelerador "real 0%", física explode com combustível 0 e câmera
   em geometria gigante — Marte ainda fora da física orbital; repassado ao agente do sistema solar como critério.
+- **Base lunar**: menus das máquinas, JEI e a conquista `sealed_room` não vistos em jogo; salas de laje/vidraça vazam por regra; energia some ao quebrar máquina.
+- **História**: o Observatório só nasce com "gerar estruturas" ligado; mundos antigos não ganham os lugares; reabrir o mundo com progresso e 2 jogadores não testados.
+- **Arte provisória a fazer pela skill**: blocos da base lunar, terminal e diário da história, gerador antigravidade.
 - **Regressão instável sob carga**: com 3 clientes em paralelo, `ship` (tremor no giro) e `tier2` (galão de hidrogênio na coluna) falharam
   uma vez cada e passaram ao rodar de novo ou sozinhos; não investigado.
 - **Marte (visual)**: vão escuro entre os chunks e a malha orbital enquanto o DH gera; sem física orbital, foguete ou pouso em Marte (etapa 3).
