@@ -1,0 +1,8 @@
+{
+  "type": "spacehorizons:story_site",
+  "site": "earth_station",
+  "biomes": "#spacehorizons:has_story_station",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

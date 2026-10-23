@@ -99,20 +99,26 @@ public final class ContentIds {
     public static final String ION_ENGINE = "ion_engine";
     public static final String FUSION_ENGINE = "fusion_engine";
 
+    // --- História (etapa 5 da sobrevivência, docs/PLANO_SOBREVIVENCIA.md, "Etapa 5: a trama") ---
+    /** Diário da trama: um livro por registro, com o id do registro no componente {@code journal_entry}; clicar abre a leitura. */
+    public static final String JOURNAL_ENTRY = "journal_entry";
+    /** Terminal de dados: clicar abre o registro do terminal e entrega a recompensa uma vez por jogador (o registro é o estado {@code record}). */
+    public static final String DATA_TERMINAL = "data_terminal";
+
     /** Itens que não são BlockItems. */
     public static final List<String> ITEMS = List.of(
             STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER,
             OXYGEN_TANK_SMALL, OXYGEN_TANK_LARGE,
             SPACE_HELMET, SPACE_CHESTPLATE, SPACE_LEGGINGS, SPACE_BOOTS, ROCKET_BLUEPRINT,
             RAW_TITANIUM, TITANIUM_INGOT, TITANIUM_PLATE, RARE_EARTH_DUST, HELIUM3_CANISTER, HYDROGEN_CANISTER, XENON_CANISTER,
-            NUCLEAR_FUEL_ROD, SUPERCONDUCTOR_COIL);
+            NUCLEAR_FUEL_ROD, SUPERCONDUCTOR_COIL, JOURNAL_ENTRY);
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
     public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR,
             LAUNCH_PAD, ROCKET_COCKPIT, ROCKET_ENGINE, ROCKET_FUEL_TANK, ROCKET_PARACHUTE, ROCKET_LANDING_LEG, ROCKET_HULL,
             SHIP_BRIDGE, SHIP_IMPULSE_ENGINE, SHIP_WINDOW, SHIP_SEAT, SHIP_AIRLOCK,
             MARS_REGOLITH, MARS_TITANIUM_ORE, TITANIUM_BLOCK, HYDROGEN_TANK, XENON_TANK, RTG_GENERATOR, NUCLEAR_ENGINE, ION_ENGINE,
-            FUSION_ENGINE);
+            FUSION_ENGINE, DATA_TERMINAL);
 
     private ContentIds() {
     }

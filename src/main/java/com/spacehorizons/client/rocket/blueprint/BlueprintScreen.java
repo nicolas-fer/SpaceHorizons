@@ -4,6 +4,7 @@ import com.spacehorizons.rocket.blueprint.Blueprint;
 import com.spacehorizons.rocket.blueprint.BlueprintChoicePayload;
 import com.spacehorizons.rocket.blueprint.Blueprints;
 import com.spacehorizons.rocket.blueprint.RocketBlueprintItem;
+import com.spacehorizons.story.StoryLogic;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -39,7 +40,7 @@ public class BlueprintScreen extends Screen {
         int x = (this.width - BUTTON_W) / 2;
         int y = 52;
         for (Blueprints.Entry entry : Blueprints.ALL) {
-            boolean locked = entry.locked() && !creative;
+            boolean locked = entry.locked() && !creative && !(this.minecraft.player != null && StoryLogic.unlocksBlueprint(this.minecraft.player, entry.id()));
             Component name = RocketBlueprintItem.displayName(entry.blueprint());
             Component label = locked ? Component.translatable("screen.spacehorizons.blueprint.locked_entry", name)
                     : Component.translatable("screen.spacehorizons.blueprint.entry", name, Component.translatable(RocketBlueprintItem.destinationKey(entry.blueprint())));

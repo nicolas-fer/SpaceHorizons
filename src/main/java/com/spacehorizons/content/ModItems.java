@@ -4,6 +4,7 @@ import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketFuelTankItem;
 import com.spacehorizons.rocket.blueprint.RocketBlueprintItem;
 import com.spacehorizons.space.flight.Propellant;
+import com.spacehorizons.story.JournalEntryItem;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 import com.spacehorizons.survival.oxygen.OxygenAmounts;
 import com.spacehorizons.survival.oxygen.OxygenTankItem;
@@ -92,6 +93,10 @@ public final class ModItems {
             props -> new RocketFuelTankItem(ModBlocks.HYDROGEN_TANK.get(), props), () -> new Item.Properties().useBlockDescriptionPrefix());
     public static final DeferredItem<RocketFuelTankItem> XENON_TANK = ITEMS.registerItem(ContentIds.XENON_TANK,
             props -> new RocketFuelTankItem(ModBlocks.XENON_TANK.get(), props), () -> new Item.Properties().useBlockDescriptionPrefix());
+
+    /** Diário da trama (um por registro, no componente {@code journal_entry}); não empilha: cada um é um registro. */
+    public static final DeferredItem<JournalEntryItem> JOURNAL_ENTRY = ITEMS.registerItem(ContentIds.JOURNAL_ENTRY, JournalEntryItem::new,
+            props -> props.stacksTo(1));
 
     private ModItems() {
     }

@@ -1,0 +1,28 @@
+{
+  "parent": "spacehorizons:root",
+  "criteria": {
+    "read": {
+      "trigger": "spacehorizons:story_entry",
+      "conditions": {
+        "entry": "voss_01"
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:journal_entry"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.story_observatory.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.story_observatory.description"
+    },
+    "frame": "task"
+  },
+  "requirements": [
+    [
+      "read"
+    ]
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "parent": "spacehorizons:story_lunar_plans",
+  "criteria": {
+    "read": {
+      "trigger": "spacehorizons:story_entry",
+      "conditions": {
+        "entry": "vigia_terminal"
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:rtg_generator"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.story_probe.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.story_probe.description"
+    },
+    "frame": "task"
+  },
+  "requirements": [
+    [
+      "read"
+    ]
+  ]
+}

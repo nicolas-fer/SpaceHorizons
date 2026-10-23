@@ -1,0 +1,49 @@
+{
+  "variants": {
+    "facing=north,record=aurora": {
+      "model": "spacehorizons:block/data_terminal"
+    },
+    "facing=north,record=selene": {
+      "model": "spacehorizons:block/data_terminal"
+    },
+    "facing=north,record=vigia": {
+      "model": "spacehorizons:block/data_terminal"
+    },
+    "facing=east,record=aurora": {
+      "model": "spacehorizons:block/data_terminal",
+      "y": 90
+    },
+    "facing=east,record=selene": {
+      "model": "spacehorizons:block/data_terminal",
+      "y": 90
+    },
+    "facing=east,record=vigia": {
+      "model": "spacehorizons:block/data_terminal",
+      "y": 90
+    },
+    "facing=south,record=aurora": {
+      "model": "spacehorizons:block/data_terminal",
+      "y": 180
+    },
+    "facing=south,record=selene": {
+      "model": "spacehorizons:block/data_terminal",
+      "y": 180
+    },
+    "facing=south,record=vigia": {
+      "model": "spacehorizons:block/data_terminal",
+      "y": 180
+    },
+    "facing=west,record=aurora": {
+      "model": "spacehorizons:block/data_terminal",
+      "y": 270
+    },
+    "facing=west,record=selene": {
+      "model": "spacehorizons:block/data_terminal",
+      "y": 270
+    },
+    "facing=west,record=vigia": {
+      "model": "spacehorizons:block/data_terminal",
+      "y": 270
+    }
+  }
+}

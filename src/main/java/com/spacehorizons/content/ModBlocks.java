@@ -16,6 +16,7 @@ import com.spacehorizons.ship.block.ShipImpulseEngineBlock;
 import com.spacehorizons.ship.block.ShipSeatBlock;
 import com.spacehorizons.ship.block.ShipWindowBlock;
 import com.spacehorizons.space.flight.Propellant;
+import com.spacehorizons.story.DataTerminalBlock;
 import com.spacehorizons.survival.compressor.OxygenCompressorBlock;
 import com.spacehorizons.survival.fuel.RefineryBlock;
 
@@ -143,6 +144,13 @@ public final class ModBlocks {
     public static final DeferredBlock<ChargedEngineBlock> FUSION_ENGINE = registerBlockWithItem(ContentIds.FUSION_ENGINE,
             props -> new ChargedEngineBlock(props, EngineType.FUSION), props -> props.mapColor(MapColor.METAL).strength(5.0F, 8.0F)
                     .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion().lightLevel(state -> 8));
+
+    // --- História (docs/PLANO_SOBREVIVENCIA.md, "Etapa 5: a trama") ---
+
+    /** Terminal de dados da trama: entrega a recompensa uma vez por jogador; picareta e a dureza das máquinas, e o registro volta no item (copy_state). */
+    public static final DeferredBlock<DataTerminalBlock> DATA_TERMINAL = registerBlockWithItem(ContentIds.DATA_TERMINAL, DataTerminalBlock::new,
+            props -> props.mapColor(MapColor.METAL).strength(3.5F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()
+                    .lightLevel(state -> 5));
 
     private ModBlocks() {
     }

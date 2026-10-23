@@ -2,6 +2,7 @@ package com.spacehorizons.rocket.blueprint;
 
 import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.content.ModDataComponents;
+import com.spacehorizons.story.StoryLogic;
 
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.chat.Component;
@@ -56,7 +57,7 @@ public record BlueprintChoicePayload(String id, boolean mainHand) implements Cus
         if (entry == null) {
             return false;
         }
-        if (entry.locked() && !player.hasInfiniteMaterials()) {
+        if (entry.locked() && !player.hasInfiniteMaterials() && !StoryLogic.unlocksBlueprint(player, entry.id())) {
             player.sendOverlayMessage(Component.translatable("message.spacehorizons.blueprint.locked"));
             return false;
         }

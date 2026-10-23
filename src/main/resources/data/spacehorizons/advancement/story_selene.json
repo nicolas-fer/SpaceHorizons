@@ -1,0 +1,28 @@
+{
+  "parent": "spacehorizons:story_coordinates",
+  "criteria": {
+    "read": {
+      "trigger": "spacehorizons:story_entry",
+      "conditions": {
+        "entry": "reyes_01"
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:data_terminal"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.story_selene.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.story_selene.description"
+    },
+    "frame": "task"
+  },
+  "requirements": [
+    [
+      "read"
+    ]
+  ]
+}

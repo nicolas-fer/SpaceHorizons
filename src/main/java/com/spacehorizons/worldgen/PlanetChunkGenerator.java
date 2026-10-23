@@ -24,6 +24,7 @@ import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
@@ -151,6 +152,16 @@ public final class PlanetChunkGenerator extends ChunkGenerator {
 
     private static void setLocal(ChunkAccess chunk, int lx, int y, int lz, BlockState state) {
         chunk.getSection(chunk.getSectionIndex(y)).setBlockState(lx, y & 15, lz, state, false);
+    }
+
+    /**
+     * Depois da decoração do vanilla, desenha os lugares da trama que tocam o chunk (a base lunar e os destroços da sonda: posições fixas, ver
+     * {@code story/StoryWorldgen}); em qualquer outro planeta não faz nada.
+     */
+    @Override
+    public void applyBiomeDecoration(WorldGenLevel level, ChunkAccess chunk, StructureManager structureManager) {
+        super.applyBiomeDecoration(level, chunk, structureManager);
+        com.spacehorizons.story.StoryWorldgen.stampMoon(planet, level, chunk);
     }
 
     @Override

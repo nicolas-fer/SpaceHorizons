@@ -79,6 +79,12 @@ public final class ModDataComponents {
                     .persistent(Codec.intRange(0, Integer.MAX_VALUE))
                     .networkSynchronized(ByteBufCodecs.VAR_INT));
 
+    /** O id do registro da trama que um diário guarda ({@code journal_entry}); o texto vem do lang pelo id (docs/PLANO_SOBREVIVENCIA.md, "Etapa 5"). */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> JOURNAL_ENTRY =
+            COMPONENTS.registerComponentType("journal_entry", builder -> builder
+                    .persistent(Codec.STRING)
+                    .networkSynchronized(ByteBufCodecs.STRING_UTF8));
+
     private ModDataComponents() {
     }
 }
