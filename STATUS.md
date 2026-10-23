@@ -15,7 +15,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | 🟡 | **História e estruturas** (estruturas abandonadas, diários, terminais; planta lunar pela história). | `docs/PLANO_SOBREVIVENCIA.md` (etapa 5) |
 | ✅ | **Naves 2f: âncora completa**: bloco `antigravity_generator` (carga gasta ao ancorar, recarga de 20 s com o bloco no mundo), tecla H e estado no painel, recusa com destaque; limites do S6 corrigidos (exceto o congelamento de fluido só nos blocos da nave). Autoteste `shipanchor2` 24/0; regressão ship* sem falhas. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | 🟡 | **Sistema solar centrado no sol** (Marte na física orbital, viagem e pouso em Marte de foguete). | `docs/PLANO_TIERS.md` |
-| 🟡 | **Naves 2d**: outras naves e foguetes vistos de dentro e do espaço na posição relativa. | `docs/PLANO_NAVES.md` |
+| ✅ | **Naves 2d**: outras naves e foguetes vistos de dentro da nave, do foguete e por um jogador livre no espaço, na posição relativa (estado a 5 Hz, casco esparso sob demanda). Autoteste `shipsee` 24/0. | `docs/PLANO_NAVES.md` |
 | ✅ | **Documentação limpa**: README sem seções repetidas (com índice), `MISSAO_LUA.md` com os números atuais e as plantas embutidas. Arte da planta: o usuário manteve a atual. | `README.md`, `docs/MISSAO_LUA.md` |
 | ✅ | **Spike S6: âncora no ar aprovado**: a nave parada vira blocos reais no ar e volta pela ponte; romaneio 0 perdas, conversão 281–312 ms (4.003 blocos) e 450 ms (7.997), jogador a 0,0000 bloco da posição no convés; areia, água e mobs contidos. Autoteste `shipanchor` 38/0; regressão ship* verde. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Spike S5: convés andável aprovado**: o jogador anda no convés da entidade a 1, 10, 50 e 100 b/t, com e sem 100 ms de latência: 0 quedas, pé a 0,0000 do piso, 0 correções; a velocidade não importa (A4 sem efeito). Autoteste `shipdeck` (fora da regressão padrão, ~15 min). | `docs/PLANO_NAVE_ATMOSFERA.md` |
@@ -29,7 +29,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 ## Próximos passos (em ordem)
 
 1. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): fases 2e (convés na nave real, 2 clientes) e 2g (trocas sem costura).
-2. Naves 2c (EVA perto do casco) e 2d (outras naves e foguetes vistos de dentro).
+2. Naves 2c (EVA perto do casco).
 3. Desorbitação real no autoteste da descida (queima retrógrada saindo de órbita fechada) e corte proporcional na circularização.
 4. Tiers: sistema solar centrado no sol (viagem a Marte: órbita, zona de espaço e pouso em Marte).
 
@@ -75,7 +75,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | 2a-ii | Subir até 5.000 e virar blocos no estaleiro; acelerador 0 na troca; circularizar com SAS horizontal |
 | ✅ | 2b | Descida (critério de entrada do foguete), pouso no motor e desmontagem no chão sem perder blocos, NBT nem combustível |
 | ⬜ | 2c | EVA perto do casco e jogador livre no espaço |
-| 🟡 | 2d | Outras naves e foguetes vistos de dentro (em andamento) |
+| ✅ | 2d | Outras naves e foguetes vistos de dentro (22/10/2026) |
 | ✅ | S5 | Spike do convés andável aprovado (22/10/2026) |
 | ✅ | S6 | Spike da âncora aprovado (22/10/2026) |
 | ✅ | 2f | Âncora completa (22/10/2026) |
@@ -109,6 +109,10 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
   tela de congelamento (gelo nas bordas) a bordo no print; tremor medido sensível a carga da máquina.
 - **Âncora (S6/2f)**: o gerador não recarrega em voo (falta RTG); textura do gerador provisória; o congelamento de fluidos vale para a caixa inteira (inclusive água do jogador); a âncora fica registrada se a nave for quebrada;
   giro de 1 a 3 quartos, 2 clientes, reabrir o mundo com nave ancorada e jogador andando na troca não testados.
+- **Naves 2d**: casco de cor chapada (sem textura); sem paralaxe da câmera (até ~2° a 300 blocos); tremor em órbita real, naves grandes e
+  impostor além de 5 km não medidos; o piloto automático não recebe os outros veículos.
+- **Voo a partir de Marte (vídeo do usuário, 22/10)**: Marte some e volta no céu, acelerador "real 0%", física explode com combustível 0 e câmera
+  em geometria gigante — Marte ainda fora da física orbital; repassado ao agente do sistema solar como critério.
 - **Regressão instável sob carga**: com 3 clientes em paralelo, `ship` (tremor no giro) e `tier2` (galão de hidrogênio na coluna) falharam
   uma vez cada e passaram ao rodar de novo ou sozinhos; não investigado.
 - **Marte (visual)**: vão escuro entre os chunks e a malha orbital enquanto o DH gera; sem física orbital, foguete ou pouso em Marte (etapa 3).
