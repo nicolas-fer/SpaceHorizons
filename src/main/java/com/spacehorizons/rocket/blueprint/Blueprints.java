@@ -14,9 +14,9 @@ import com.spacehorizons.rocket.RocketBlockKind;
  *   <li>{@link #SUBORBITAL}: motor 1x1, coluna 1x1x8, cockpit e paraquedas (salto suborbital: TWR 1,1).</li>
  *   <li>{@link #ORBITAL}: motor 2x2x2, coluna 1x1x4, cockpit e paraquedas (chega à órbita).</li>
  *   <li>{@link #LUNAR}: camada 3x3 de motores, coluna 3x3x5, cockpit, paraquedas e 8 cascos (Lua, pouso e volta). <b>Gancho de história</b>
- *   ({@code docs/PLANO_SOBREVIVENCIA.md}, etapa 5): esta planta deve ser ACHADA num terminal de uma base abandonada na Lua. Até a história
- *   existir ela é {@link Entry#locked() trancada} em sobrevivência (o menu a mostra trancada) e livre no criativo (aba e menu); quando a base
- *   existir, o terminal entrega o item com esta planta ({@code RocketBlueprintItem.stackOf(Blueprints.LUNAR)}).</li>
+ *   ({@code docs/PLANO_SOBREVIVENCIA.md}, etapa 5): esta planta deve ser ACHADA num terminal de uma base abandonada na Lua. Ela é
+ *   {@link Entry#locked() trancada} em sobrevivência (o menu a mostra trancada) e livre no criativo (aba e menu); o terminal da Base Selene-1
+ *   entrega o item com esta planta ({@code RocketBlueprintItem.stackOf(Blueprints.LUNAR)}) e a destrava no menu (ver {@code story.StoryProgress}).</li>
  * </ul>
  *
  * Cada planta inclui a base de plataformas (a pegada do foguete mais uma borda de 1), com a plataforma-âncora em 0, 0, 0.

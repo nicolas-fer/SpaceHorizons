@@ -67,6 +67,10 @@ limitada a `[sea_level + min_above_sea, max_height]` (`max_height` ≤ 315).
 | `mountains` (opcional) | Ridged (1−\|ruído\|)² de `frequency`, sob a máscara smoothstep(`mask_edge0`, `mask_edge1`) de fBm de `mask_frequency`; `strength`·amplitude; acima de `highland_above`·amplitude vira `highland` |
 | `volcanoes` (opcional) | Grade de `frequency`, chance `probability` por célula, raio `[radius_min, radius_min + radius_span]` células (≤ 0,5), `height` blocos, caldeira de `caldera_radius` do raio e `caldera_depth` da altura; até `type_radius` do raio é `volcanic` |
 
+## Estruturas da história
+
+O gerador paramétrico (`PlanetChunkGenerator`) não tem estruturas do vanilla. Os lugares da trama da Lua (base e sonda) são desenhados por ele mesmo, em posições fixas, depois da decoração de cada chunk (`StoryWorldgen.stampMoon`); só a Lua tem lugares hoje. A Terra usa a estrutura do vanilla `spacehorizons:story_site`. Detalhes em `docs/PLANO_SOBREVIVENCIA.md`, "Etapa 5: a trama".
+
 ## A Lua e a Terra
 
 - **Lua** (`moon.json`): os números são as constantes do antigo `MoonTerrain`; o `ParametricTerrain` com eles dá exatamente o mesmo relevo

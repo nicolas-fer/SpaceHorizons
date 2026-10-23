@@ -123,8 +123,8 @@ Implementado em código e no autoteste `-PshOnly=blueprint`; detalhes técnicos 
   variantes pelo componente.
 - **Plantas embutidas** (`Blueprints`): salto suborbital, foguete orbital e foguete lunar, exatamente os projetos que o simulador da missão já voou
   (`MissionBudgetTest`): o destino prometido é o voado. **Gancho de história**: a lunar deve vir de um terminal numa base abandonada na Lua
-  (`PLANO_SOBREVIVENCIA.md`, etapa 5); até lá fica trancada no menu em sobrevivência e livre no criativo; o terminal só precisará entregar
-  `RocketBlueprintItem.stackOf(Blueprints.LUNAR)`.
+  (`PLANO_SOBREVIVENCIA.md`, etapa 5); fica trancada no menu em sobrevivência e livre no criativo até o jogador levar o anexo do terminal da Base
+  Selene-1, que entrega `RocketBlueprintItem.stackOf(Blueprints.LUNAR)` e a destrava (feito: "Etapa 5: a trama" em `PLANO_SOBREVIVENCIA.md`).
 - **Holograma**: fantasmas translúcidos onde falta bloco, vermelho onde o bloco está errado, nada onde está certo; é só sugestão (não trava a montagem).
   Renderer do block entity da plataforma, malha por planta assada uma vez, por quadro só os intervalos dos blocos que faltam ou estão errados (até 4.096
   blocos por planta, até 96 blocos de distância), comparação planta × mundo a cada 10 ticks.

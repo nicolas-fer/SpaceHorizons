@@ -114,7 +114,7 @@ final class StoryCommands {
             source.sendSuccess(() -> Component.literal("earth_station: perto de (" + found.getX() + ", " + found.getZ() + ")"), false);
         }
         if (teleport) {
-            player.teleportTo(level, x + 0.5, y, z + 0.5, Set.<Relative>of(), 0.0F, 0.0F, false);
+            player.teleportTo(level, x + 0.5, y, z + 0.5, Set.<Relative>of(), 180.0F, 0.0F, false);
             int fx = x;
             int fy = y;
             int fz = z;
