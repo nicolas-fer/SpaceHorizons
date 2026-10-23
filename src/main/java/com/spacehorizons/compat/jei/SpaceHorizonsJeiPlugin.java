@@ -91,6 +91,7 @@ public class SpaceHorizonsJeiPlugin implements IModPlugin {
         registration.addIngredientInfo(ModBlocks.SHIP_WINDOW.get(), Component.translatable("jei.spacehorizons.info.ship_window"));
         registration.addIngredientInfo(ModBlocks.SHIP_SEAT.get(), Component.translatable("jei.spacehorizons.info.ship_seat"));
         registration.addIngredientInfo(ModBlocks.SHIP_AIRLOCK.get(), Component.translatable("jei.spacehorizons.info.ship_airlock"));
+        registration.addIngredientInfo(ModBlocks.ANTIGRAVITY_GENERATOR.get(), Component.translatable("jei.spacehorizons.info.antigravity_generator"));
 
         // Tier 2: de onde vêm os combustíveis, o que cada motor queima e como se carregam (docs/PLANO_TIERS.md, "Tier 2: conteúdo")
         for (Item item : List.of(ModBlocks.NUCLEAR_ENGINE.get().asItem(), ModBlocks.ION_ENGINE.get().asItem(), ModBlocks.FUSION_ENGINE.get().asItem(),

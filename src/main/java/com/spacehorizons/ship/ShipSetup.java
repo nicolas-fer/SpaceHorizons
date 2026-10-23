@@ -38,6 +38,13 @@ public final class ShipSetup {
         });
         // o handler do cliente fica em client/ship (RegisterClientPayloadHandlersEvent)
         event.registrar("1").playToClient(ShipStatePayload.TYPE, ShipStatePayload.CODEC);
+        // a âncora no ar: a tecla do piloto (cliente para servidor) e o estado para o painel (o handler do cliente fica em client/ship: AnchorClient)
+        event.registrar("1").playToServer(AnchorRequestPayload.TYPE, AnchorRequestPayload.CODEC, (payload, context) -> {
+            if (context.player() instanceof ServerPlayer player) {
+                ShipAnchors.onPilotRequest(player);
+            }
+        });
+        event.registrar("1").playToClient(AnchorStatusPayload.TYPE, AnchorStatusPayload.CODEC);
     }
 
     @SubscribeEvent

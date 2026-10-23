@@ -516,6 +516,7 @@ final class RocketFlightController {
         if (pilot == null || now % TELEMETRY_INTERVAL != 0) {
             return;
         }
+        com.spacehorizons.ship.ShipAnchors.tickPilot(rocket, pilot, now);
         FlightState state = s.state();
         if (state == null) {
             if (s.zoneBody() == null) {

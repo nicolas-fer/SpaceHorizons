@@ -18,6 +18,7 @@
     "spacehorizons:rtg_generator",
     "spacehorizons:nuclear_engine",
     "spacehorizons:ion_engine",
-    "spacehorizons:fusion_engine"
+    "spacehorizons:fusion_engine",
+    "spacehorizons:antigravity_generator"
   ]
 }

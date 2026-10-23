@@ -4,6 +4,7 @@ import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.FlightMode;
 import com.spacehorizons.rocket.RocketControlPayload;
 import com.spacehorizons.rocket.RocketEntity;
+import com.spacehorizons.ship.AnchorRequestPayload;
 
 import net.minecraft.client.CameraType;
 import net.minecraft.client.KeyMapping;
@@ -138,6 +139,10 @@ public final class RocketPilot {
         boolean screenOpen = mc.gui.screen() != null;
         if (!screenOpen && consumeClick(RocketKeys.CAMERA)) {
             toggleCamera(mc, player);
+        }
+        if (!screenOpen && consumeClick(RocketKeys.ANCHOR)) {
+            // o servidor confere tudo (gerador, parada, espaço livre) e responde com o estado e os blocos que impedem
+            ClientPacketDistributor.sendToServer(new AnchorRequestPayload());
         }
         RocketControlLink.Keys keys = screenOpen ? RocketControlLink.Keys.NONE : sampleKeys(mc, rocket);
         RocketControlPayload payload = LINK.tick(keys);

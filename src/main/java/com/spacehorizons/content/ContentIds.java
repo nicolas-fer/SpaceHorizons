@@ -68,6 +68,8 @@ public final class ContentIds {
     public static final String SHIP_SEAT = "ship_seat";
     /** Eclusa: porta de uma célula que abre e fecha com o botão direito. */
     public static final String SHIP_AIRLOCK = "ship_airlock";
+    /** Gerador de antigravidade: a nave precisa de um carregado para ancorar no ar (a carga se gasta ao ancorar e se recupera com o bloco no mundo). */
+    public static final String ANTIGRAVITY_GENERATOR = "antigravity_generator";
 
     // --- Tier 2 (docs/TIER2_IDS.md, o contrato com a arte; números e receitas em docs/PLANO_TIERS.md, "Tier 2: conteúdo") ---
     /** Regolito marciano: solo de Marte; sem toque de seda dá às vezes pó de terras raras (como o cascalho dá sílex). */
@@ -110,7 +112,7 @@ public final class ContentIds {
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
     public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR,
             LAUNCH_PAD, ROCKET_COCKPIT, ROCKET_ENGINE, ROCKET_FUEL_TANK, ROCKET_PARACHUTE, ROCKET_LANDING_LEG, ROCKET_HULL,
-            SHIP_BRIDGE, SHIP_IMPULSE_ENGINE, SHIP_WINDOW, SHIP_SEAT, SHIP_AIRLOCK,
+            SHIP_BRIDGE, SHIP_IMPULSE_ENGINE, SHIP_WINDOW, SHIP_SEAT, SHIP_AIRLOCK, ANTIGRAVITY_GENERATOR,
             MARS_REGOLITH, MARS_TITANIUM_ORE, TITANIUM_BLOCK, HYDROGEN_TANK, XENON_TANK, RTG_GENERATOR, NUCLEAR_ENGINE, ION_ENGINE,
             FUSION_ENGINE);
 

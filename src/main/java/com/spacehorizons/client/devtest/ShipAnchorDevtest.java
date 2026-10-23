@@ -141,7 +141,7 @@ final class ShipAnchorDevtest {
     }
 
     /** O retrato do convés com a PONTE da nave no lugar do cockpit do foguete (a montagem pela ponte precisa dela) e a fornalha apagada e vazia. */
-    private static RocketPortrait airShip(HolderLookup.Provider registries, RocketPortrait base) {
+    static RocketPortrait airShip(HolderLookup.Provider registries, RocketPortrait base) {
         List<BlockState> palette = new ArrayList<>(base.palette());
         BlockPos cockpit = base.cockpit();
         int cockpitIndex = base.grid().get(cockpit.getX(), cockpit.getY(), cockpit.getZ());

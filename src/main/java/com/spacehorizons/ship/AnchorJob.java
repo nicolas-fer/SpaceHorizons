@@ -12,6 +12,8 @@ import com.spacehorizons.rocket.RocketException;
 import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
 import com.spacehorizons.rocket.RocketLanding;
 import com.spacehorizons.rocket.RocketPortrait;
+import com.spacehorizons.content.ModBlocks;
+import com.spacehorizons.ship.block.AntigravityGeneratorBlock;
 import com.spacehorizons.ship.deck.DeckCrew;
 
 import net.minecraft.core.BlockPos;
@@ -26,6 +28,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
  * Âncora no ar (spike S6): a nave parada vira blocos reais no lugar onde a entidade está, pelo caminho do pouso ({@link RocketLanding#plan}: o
@@ -92,6 +95,11 @@ final class AnchorJob extends ConversionJob {
         List<Item> attached = new ArrayList<>();
         for (RocketLanding.Placement p : plan) {
             CompoundTag nbt = p.nbt();
+            BlockState placedState = p.state();
+            if (placedState.is(ModBlocks.ANTIGRAVITY_GENERATOR.get()) && placedState.getValue(AntigravityGeneratorBlock.CHARGED)) {
+                // ancorar gasta a carga de todos os geradores da nave (decisão A3: energia, não combustível); eles se recarregam com o bloco no mundo
+                placedState = placedState.setValue(AntigravityGeneratorBlock.CHARGED, false);
+            }
             if (p.tank()) {
                 nbt = nbt == null ? new CompoundTag() : nbt.copy();
                 nbt.putInt(RocketFuelTankBlockEntity.FUEL_KEY, p.fuelMb());
@@ -100,9 +108,9 @@ final class AnchorJob extends ConversionJob {
                 nbt.putInt(EngineChargeBlockEntity.CHARGE_KEY, p.fuelMb());
             }
             long local = BlockPos.asLong(p.pos().getX() - origin.getX(), p.pos().getY() - origin.getY(), p.pos().getZ() - origin.getZ());
-            Item item = new Item(p.pos(), local, p.state(), nbt);
-            (RocketBlockOrder.isAttached(p.state()) ? attached : this.items).add(item);
-            ShipBlockKeys.addBlock(expectedBuilder, local, p.state());
+            Item item = new Item(p.pos(), local, placedState, nbt);
+            (RocketBlockOrder.isAttached(placedState) ? attached : this.items).add(item);
+            ShipBlockKeys.addBlock(expectedBuilder, local, placedState);
             if (nbt != null) {
                 expectedBuilder.blockEntity(local, nbt);
             }
@@ -260,6 +268,7 @@ final class AnchorJob extends ConversionJob {
             passenger.teleportTo(this.level, at.x, at.y, at.z, java.util.Set.of(), passenger.getYRot(), passenger.getXRot(), true);
             if (passenger instanceof ServerPlayer player) {
                 player.sendSystemMessage(Component.literal("Nave ancorada no ar: " + this.expected.blocks() + " blocos."));
+                PacketDistributor.sendToPlayer(player, new AnchorStatusPayload(AnchorStatus.ANCHORED, List.of(), false));
             }
             this.notes.add("passageiro " + passenger.getName().getString() + " em pé em " + at);
         }

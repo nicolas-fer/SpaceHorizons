@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "charged=true": {
+      "model": "spacehorizons:block/antigravity_generator"
+    },
+    "charged=false": {
+      "model": "spacehorizons:block/antigravity_generator_off"
+    }
+  }
+}

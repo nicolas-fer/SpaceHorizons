@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "C": "spacehorizons:basic_circuit",
+    "E": "minecraft:ender_pearl"
+  },
+  "pattern": [
+    "PCP",
+    "CEC",
+    "PCP"
+  ],
+  "result": {
+    "id": "spacehorizons:antigravity_generator"
+  }
+}

@@ -64,6 +64,8 @@ public final class RocketLanding {
         FuelLoad fuel = rocket.fuel().floor();
 
         List<Placement> plan = plan(level, rotated, origin, fuel);
+        // uma nave pousada no ar (sem chão sob a base) vira uma nave ancorada: registra a âncora para a ponte poder desancorar e a caixa ser protegida
+        boolean anchorInAir = rocket.isShip() && com.spacehorizons.ship.ShipAnchors.isHovering(level, rotated, origin);
 
         // o piloto sai ANTES de os blocos voltarem (o assento fica dentro do volume): em pé no chão ao lado da caixa
         AABB destination = new AABB(origin.getX(), origin.getY(), origin.getZ(), origin.getX() + rotated.sizeX,
@@ -77,6 +79,9 @@ public final class RocketLanding {
 
         EngineForming.suspended(() -> commit(level, plan));
         rocket.discard();
+        if (anchorInAir) {
+            com.spacehorizons.ship.ShipAnchors.registerAfterAirLanding(level, rotated, origin, turns);
+        }
         SpaceHorizons.LOGGER.info("Foguete pousou em {}: {} blocos, giro de {} quarto(s) de volta, {} mB de combustível devolvidos",
                 origin.toShortString(), rotated.blockCount(), turns, fuel);
     }

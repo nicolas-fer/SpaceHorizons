@@ -223,6 +223,10 @@ public final class AutoTest {
             shipAnchorScenario();
             return;
         }
+        if ("shipanchor2".equals(ONLY)) {
+            shipAnchor2Scenario();
+            return;
+        }
         if ("ship".equals(ONLY)) {
             shipScenario();
             return;
@@ -5509,6 +5513,84 @@ public final class AutoTest {
             ShipAnchorDevtest.summary();
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    // ===================================================================================================================
+    // ÂNCORA COMPLETA (docs/PLANO_NAVE_ATMOSFERA.md, fase 2f): -PshOnly=shipanchor2. O jogador pilota uma nave parada no ar e aperta a tecla de ancorar do painel:
+    // sem gerador (recusa), com pedra encostada (recusa e destaque), rápido demais (recusa), pronta e ancorada pela tecla (gasta a carga do gerador), sem carga
+    // depois de desancorar; o pouso antigo no ar registra a âncora e quebrar a ponte desfaz o registro. Cada estado do painel é conferido e fotografado.
+    // Bloco separado; as medidas ficam em ShipAnchor2Devtest.
+    // ===================================================================================================================
+    private void shipAnchor2Scenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "difficulty peaceful");
+        cmd(5, "gamemode survival");
+        step(5, mc -> mc.options.fov().set(90));
+        step(5, mc -> ShipAnchor2Devtest.shortRecharge());
+        // (1) sem gerador: o painel avisa e a tecla recusa
+        step(10, mc -> ShipAnchor2Devtest.spawn(mc, false, "sem gerador"));
+        tickerStep(0, waitUntil("ANCHOR2: o cliente pilota a nave", 400, ShipAnchor2Devtest::piloting));
+        tickerStep(0, waitUntil("ANCHOR2: o painel mostra \"falta gerador\"", 200, mc -> ShipAnchor2Devtest.statusIs(com.spacehorizons.ship.AnchorStatus.NO_GENERATOR)));
+        step(5, mc -> ShipAnchor2Devtest.checkPanel("sem gerador", com.spacehorizons.ship.AnchorStatus.NO_GENERATOR));
+        shot(10, "shipanchor2_01_sem_gerador");
+        step(5, ShipAnchor2Devtest::pressAnchorKey);
+        tickerStep(0, waitUntil("ANCHOR2: a recusa chegou (sem gerador)", 100, ShipAnchor2Devtest::refused));
+        step(3, mc -> ShipAnchor2Devtest.checkRefusal(mc, "sem gerador", com.spacehorizons.ship.AnchorStatus.NO_GENERATOR, false));
+        // (2) com gerador e uma pedra encostada: sem espaço livre, recusa com os blocos destacados
+        step(10, mc -> ShipAnchor2Devtest.spawn(mc, true, "com gerador e pedra encostada"));
+        tickerStep(0, waitUntil("ANCHOR2: o cliente pilota a nave", 400, ShipAnchor2Devtest::piloting));
+        step(5, ShipAnchor2Devtest::placeStone);
+        tickerStep(0, waitUntil("ANCHOR2: o painel mostra \"sem espaço livre\"", 200, mc -> ShipAnchor2Devtest.statusIs(com.spacehorizons.ship.AnchorStatus.NO_ROOM)));
+        step(5, mc -> ShipAnchor2Devtest.checkPanel("sem espaço", com.spacehorizons.ship.AnchorStatus.NO_ROOM));
+        step(5, ShipAnchor2Devtest::pressAnchorKey);
+        tickerStep(0, waitUntil("ANCHOR2: a recusa chegou (pedra encostada)", 100, ShipAnchor2Devtest::refused));
+        step(3, mc -> ShipAnchor2Devtest.checkRefusal(mc, "pedra encostada", com.spacehorizons.ship.AnchorStatus.NO_ROOM, true));
+        step(2, ShipAnchor2Devtest::checkBlockersAreTheStone);
+        step(5, mc -> lookAtPoint(mc, ShipAnchor2Devtest.stoneCenter()));
+        shot(20, "shipanchor2_02_sem_espaco");
+        // (3) a pedra sai: pronta para ancorar; a tecla ancora e gasta a carga do gerador
+        step(5, ShipAnchor2Devtest::removeStone);
+        tickerStep(0, waitUntil("ANCHOR2: o painel mostra \"pode ancorar\"", 200, mc -> ShipAnchor2Devtest.statusIs(com.spacehorizons.ship.AnchorStatus.READY)));
+        step(5, mc -> ShipAnchor2Devtest.checkPanel("pronta", com.spacehorizons.ship.AnchorStatus.READY));
+        shot(10, "shipanchor2_03_pode_ancorar");
+        step(5, ShipAnchor2Devtest::pressAnchorKey);
+        tickerStep(0, waitUntil("ANCHOR2: ancorou pela tecla", 600, ShipAnchor2Devtest::anchored));
+        step(2, ShipAnchor2Devtest::checkAnchoredByKey);
+        tickerStep(0, waitUntil("ANCHOR2: o painel mostra \"nave ancorada\"", 100, mc -> ShipAnchor2Devtest.statusIs(com.spacehorizons.ship.AnchorStatus.ANCHORED)));
+        step(3, mc -> ShipAnchor2Devtest.checkPanel("ancorada", com.spacehorizons.ship.AnchorStatus.ANCHORED));
+        shot(5, "shipanchor2_04_ancorada");
+        // (4) desancora (o piloto senta) com o gerador sem carga: o painel diz que falta carga e a tecla recusa
+        step(5, ShipAnchor2Devtest::unanchorWithPilot);
+        tickerStep(0, waitUntil("ANCHOR2: o cliente pilota a nave de novo", 400, ShipAnchor2Devtest::piloting));
+        tickerStep(0, waitUntil("ANCHOR2: o painel mostra \"gerador sem carga\"", 200, mc -> ShipAnchor2Devtest.statusIs(com.spacehorizons.ship.AnchorStatus.NO_ENERGY)));
+        step(5, mc -> ShipAnchor2Devtest.checkPanel("sem carga", com.spacehorizons.ship.AnchorStatus.NO_ENERGY));
+        shot(10, "shipanchor2_05_sem_carga");
+        step(5, ShipAnchor2Devtest::pressAnchorKey);
+        tickerStep(0, waitUntil("ANCHOR2: a recusa chegou (sem carga)", 100, ShipAnchor2Devtest::refused));
+        step(3, mc -> ShipAnchor2Devtest.checkRefusal(mc, "sem carga", com.spacehorizons.ship.AnchorStatus.NO_ENERGY, false));
+        // (5) limites do S6: o pouso antigo no ar registra a âncora (e recarrega o gerador com o bloco no mundo); quebrar a ponte desfaz o registro
+        step(5, ShipAnchor2Devtest::landInAir);
+        tickerStep(0, waitUntil("ANCHOR2: o gerador recarregou com a nave em blocos", 600, ShipAnchor2Devtest::generatorRecharged));
+        step(5, ShipAnchor2Devtest::breakBridge);
+        tickerStep(0, waitUntil("ANCHOR2: quebrar a ponte tirou a âncora do registro", 200, ShipAnchor2Devtest::anchorsGone));
+        // (6) rápido demais: a nave vai e volta a 2,5 b/t
+        step(10, mc -> ShipAnchor2Devtest.spawn(mc, true, "rápido demais"));
+        tickerStep(0, waitUntil("ANCHOR2: o cliente pilota a nave", 400, ShipAnchor2Devtest::piloting));
+        step(5, mc -> ShipAnchor2Devtest.moveEast(mc, 2.5));
+        tickerStep(0, waitUntil("ANCHOR2: o painel mostra \"rápido demais\"", 200, mc -> ShipAnchor2Devtest.statusIs(com.spacehorizons.ship.AnchorStatus.TOO_FAST)));
+        step(3, mc -> ShipAnchor2Devtest.checkPanel("rápido demais", com.spacehorizons.ship.AnchorStatus.TOO_FAST));
+        step(2, ShipAnchor2Devtest::pressAnchorKey);
+        tickerStep(0, waitUntil("ANCHOR2: a recusa chegou (rápido demais)", 100, ShipAnchor2Devtest::refused));
+        step(2, mc -> ShipAnchor2Devtest.checkRefusal(mc, "rápido demais", com.spacehorizons.ship.AnchorStatus.TOO_FAST, false));
+        shot(2, "shipanchor2_06_rapido_demais");
+        step(20, mc -> {
+            ShipAnchor2Devtest.restoreRecharge();
+            ShipAnchor2Devtest.summary();
             mc.stop();
         });
     }

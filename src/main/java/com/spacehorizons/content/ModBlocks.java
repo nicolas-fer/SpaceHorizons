@@ -10,6 +10,7 @@ import com.spacehorizons.rocket.LaunchPadBlock;
 import com.spacehorizons.rocket.RocketCockpitBlock;
 import com.spacehorizons.rocket.RocketEngineBlock;
 import com.spacehorizons.rocket.RocketFuelTankBlock;
+import com.spacehorizons.ship.block.AntigravityGeneratorBlock;
 import com.spacehorizons.ship.block.ShipAirlockBlock;
 import com.spacehorizons.ship.block.ShipBridgeBlock;
 import com.spacehorizons.ship.block.ShipImpulseEngineBlock;
@@ -106,6 +107,11 @@ public final class ModBlocks {
     /** Eclusa: fechada é parede, aberta deixa passar. */
     public static final DeferredBlock<ShipAirlockBlock> SHIP_AIRLOCK = registerBlockWithItem(ContentIds.SHIP_AIRLOCK, ShipAirlockBlock::new,
             props -> props.mapColor(MapColor.METAL).strength(3.5F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion());
+
+    /** Gerador de antigravidade: cubo cheio com a carga no estado ({@code charged}); acende (luz 7) carregado. */
+    public static final DeferredBlock<AntigravityGeneratorBlock> ANTIGRAVITY_GENERATOR = registerBlockWithItem(ContentIds.ANTIGRAVITY_GENERATOR,
+            AntigravityGeneratorBlock::new, props -> props.mapColor(MapColor.COLOR_PURPLE).strength(4.0F, 6.0F).sound(SoundType.METAL)
+                    .requiresCorrectToolForDrops().lightLevel(state -> state.getValue(AntigravityGeneratorBlock.CHARGED) ? 7 : 0));
 
     // --- Tier 2 (docs/TIER2_IDS.md; números em docs/PLANO_TIERS.md, "Tier 2: conteúdo"). Materiais de Marte sem worldgen (o planeta vem depois) ---
 

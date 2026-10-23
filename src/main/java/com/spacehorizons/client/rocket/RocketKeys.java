@@ -49,10 +49,12 @@ public final class RocketKeys {
     public static final KeyMapping PARACHUTE = key("parachute", InputConstants.KEY_P);
     public static final KeyMapping DISASSEMBLE = key("disassemble", InputConstants.KEY_G);
     public static final KeyMapping CAMERA = key("camera", InputConstants.KEY_V);
+    /** Ancorar a nave no ar (só naves; a nave precisa de um gerador de antigravidade carregado, parada e com espaço livre). */
+    public static final KeyMapping ANCHOR = key("anchor", InputConstants.KEY_H);
 
     /** Todas, na ordem em que aparecem na tela de controles. */
     public static final List<KeyMapping> ALL =
-            List.of(ROLL_LEFT, ROLL_RIGHT, FULL_THROTTLE, CUT_THROTTLE, NEXT_SAS, PARACHUTE, DISASSEMBLE, CAMERA);
+            List.of(ROLL_LEFT, ROLL_RIGHT, FULL_THROTTLE, CUT_THROTTLE, NEXT_SAS, PARACHUTE, DISASSEMBLE, CAMERA, ANCHOR);
 
     private RocketKeys() {
     }
