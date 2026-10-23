@@ -13,7 +13,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 |---|---|---|
 | 🟡 | **Base lunar** (salas seladas com ar, energia, recursos lunares, combustível na Lua). | `docs/PLANO_SOBREVIVENCIA.md` (etapa 4) |
 | 🟡 | **História e estruturas** (estruturas abandonadas, diários, terminais; planta lunar pela história). | `docs/PLANO_SOBREVIVENCIA.md` (etapa 5) |
-| 🟡 | **Naves 2f: âncora completa** (tecla, painel, gerador antigravidade). | `docs/PLANO_NAVE_ATMOSFERA.md` |
+| ✅ | **Naves 2f: âncora completa**: bloco `antigravity_generator` (carga gasta ao ancorar, recarga de 20 s com o bloco no mundo), tecla H e estado no painel, recusa com destaque; limites do S6 corrigidos (exceto o congelamento de fluido só nos blocos da nave). Autoteste `shipanchor2` 24/0; regressão ship* sem falhas. | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | 🟡 | **Sistema solar centrado no sol** (Marte na física orbital, viagem e pouso em Marte de foguete). | `docs/PLANO_TIERS.md` |
 | 🟡 | **Naves 2d**: outras naves e foguetes vistos de dentro e do espaço na posição relativa. | `docs/PLANO_NAVES.md` |
 | ✅ | **Documentação limpa**: README sem seções repetidas (com índice), `MISSAO_LUA.md` com os números atuais e as plantas embutidas. Arte da planta: o usuário manteve a atual. | `README.md`, `docs/MISSAO_LUA.md` |
@@ -28,7 +28,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 ## Próximos passos (em ordem)
 
-1. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): fases 2e (convés na nave real, 2 clientes), 2f (âncora com tecla/painel e gerador) e 2g (trocas sem costura).
+1. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): fases 2e (convés na nave real, 2 clientes) e 2g (trocas sem costura).
 2. Naves 2c (EVA perto do casco) e 2d (outras naves e foguetes vistos de dentro).
 3. Desorbitação real no autoteste da descida (queima retrógrada saindo de órbita fechada) e corte proporcional na circularização.
 4. Tiers: sistema solar centrado no sol (viagem a Marte: órbita, zona de espaço e pouso em Marte).
@@ -78,7 +78,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | 🟡 | 2d | Outras naves e foguetes vistos de dentro (em andamento) |
 | ✅ | S5 | Spike do convés andável aprovado (22/10/2026) |
 | ✅ | S6 | Spike da âncora aprovado (22/10/2026) |
-| 🟡 | 2f | Âncora completa (em andamento) |
+| ✅ | 2f | Âncora completa (22/10/2026) |
 | ⬜ | 2e, 2g | Andar na nave dentro do planeta: âncora no ar, convés na nave real, trocas sem costura |
 | ⬜ | 3 | Dobra, escudos, hangar, luz do sol, ar selado; voo assistido estilo No Man's Sky |
 
@@ -107,7 +107,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 - **Convés (S5)**: observadores (2º cliente) veriam o tripulante atrás do casco (falta mandar o estado local a eles); embarque só por comando;
   portas, baús e assentos em movimento não funcionam; atrito e efeitos de bloco vêm do mundo sob a posição; câmera em 3ª pessoa atravessa o casco;
   tela de congelamento (gelo nas bordas) a bordo no print; tremor medido sensível a carga da máquina.
-- **Âncora (S6)**: o congelamento de fluidos vale para a caixa inteira (inclusive água do jogador); a âncora fica registrada se a nave for quebrada;
+- **Âncora (S6/2f)**: o gerador não recarrega em voo (falta RTG); textura do gerador provisória; o congelamento de fluidos vale para a caixa inteira (inclusive água do jogador); a âncora fica registrada se a nave for quebrada;
   giro de 1 a 3 quartos, 2 clientes, reabrir o mundo com nave ancorada e jogador andando na troca não testados.
 - **Regressão instável sob carga**: com 3 clientes em paralelo, `ship` (tremor no giro) e `tier2` (galão de hidrogênio na coluna) falharam
   uma vez cada e passaram ao rodar de novo ou sozinhos; não investigado.
