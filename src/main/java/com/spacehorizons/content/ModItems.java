@@ -4,6 +4,7 @@ import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketFuelTankItem;
 import com.spacehorizons.rocket.blueprint.RocketBlueprintItem;
 import com.spacehorizons.space.flight.Propellant;
+import com.spacehorizons.story.JournalEntryItem;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 import com.spacehorizons.survival.oxygen.OxygenAmounts;
 import com.spacehorizons.survival.oxygen.OxygenTankItem;
@@ -95,6 +96,10 @@ public final class ModItems {
 
     /** Gelo lunar (dos veios das crateras polares): alimenta o eletrolisador, a refinaria lunar e o gerador de oxigênio. */
     public static final DeferredItem<Item> LUNAR_ICE = ITEMS.registerSimpleItem(ContentIds.LUNAR_ICE);
+
+    /** Diário da trama (um por registro, no componente {@code journal_entry}); não empilha: cada um é um registro. */
+    public static final DeferredItem<JournalEntryItem> JOURNAL_ENTRY = ITEMS.registerItem(ContentIds.JOURNAL_ENTRY, JournalEntryItem::new,
+            props -> props.stacksTo(1));
 
     private ModItems() {
     }

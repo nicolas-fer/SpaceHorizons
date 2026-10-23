@@ -1,0 +1,28 @@
+{
+  "parent": "spacehorizons:story_selene",
+  "criteria": {
+    "read": {
+      "trigger": "spacehorizons:story_entry",
+      "conditions": {
+        "entry": "selene_terminal"
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:rocket_blueprint"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.story_lunar_plans.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.story_lunar_plans.description"
+    },
+    "frame": "goal"
+  },
+  "requirements": [
+    [
+      "read"
+    ]
+  ]
+}

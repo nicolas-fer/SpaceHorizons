@@ -1,0 +1,28 @@
+{
+  "parent": "spacehorizons:story_observatory",
+  "criteria": {
+    "read": {
+      "trigger": "spacehorizons:story_entry",
+      "conditions": {
+        "entry": "aurora_terminal"
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "minecraft:compass"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.story_coordinates.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.story_coordinates.description"
+    },
+    "frame": "task"
+  },
+  "requirements": [
+    [
+      "read"
+    ]
+  ]
+}

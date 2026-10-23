@@ -1,0 +1,39 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "spacehorizons:journal_entry",
+          "modifier": [
+            {
+              "type": "minecraft:set_components",
+              "components": {
+                "spacehorizons:journal_entry": "voss_03"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "spacehorizons:journal_entry",
+          "modifier": [
+            {
+              "type": "minecraft:set_components",
+              "components": {
+                "spacehorizons:journal_entry": "mars_hook"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

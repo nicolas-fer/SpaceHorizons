@@ -1,5 +1,6 @@
 package com.spacehorizons.client.devtest;
 
+import com.spacehorizons.story.StoryLogic;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -233,6 +234,10 @@ public final class AutoTest {
         }
         if ("moonbase".equals(ONLY)) {
             moonbaseScenario();
+            return;
+        }
+        if ("story".equals(ONLY)) {
+            storyScenario();
             return;
         }
         if ("ship".equals(ONLY)) {
@@ -3479,7 +3484,7 @@ public final class AutoTest {
         LevelSettings settings = new LevelSettings(FRESH_WORLD, GameType.CREATIVE,
                 new LevelSettings.DifficultySettings(Difficulty.PEACEFUL, false, false), true,
                 WorldDataConfiguration.DEFAULT);
-        mc.createWorldOpenFlows().createFreshLevel(FRESH_WORLD, settings, new WorldOptions(0x5EAC0FFEEL, false, false),
+        mc.createWorldOpenFlows().createFreshLevel(FRESH_WORLD, settings, new WorldOptions(0x5EAC0FFEEL, "story".equals(ONLY), false),
                 registries -> registries.lookupOrThrow(Registries.WORLD_PRESET).getOrThrow(preset).value()
                         .createWorldDimensions(),
                 mc.gui.screen());
@@ -5814,4 +5819,195 @@ public final class AutoTest {
             mc.stop();
         });
     }
+
+    // ===================================================================================================================
+    // HISTÓRIA (etapa 5, docs/PLANO_SOBREVIVENCIA.md, "Etapa 5: a trama"): -PshOnly=story, em SOBREVIVÊNCIA e com "gerar estruturas" ligado (só neste trecho).
+    // Acha a estação da Terra (estrutura do vanilla), abre o baú, lê um diário e usa o terminal; vai à base lunar (desenho fixo), confere que a planta lunar
+    // está trancada, usa o terminal e a destrava; vai aos destroços da sonda e lê o gancho de Marte. Confere itens, bússolas e as seis conquistas.
+    // Bloco separado; as buscas e conferências ficam em StoryDevtest.
+    // ===================================================================================================================
+    private BlockPos storyTerminal;
+
+    /** Espera o terminal {@code record} aparecer perto do jogador (o chunk gerado e chegado ao cliente) e guarda a posição. */
+    private Ticker storyWaitTerminal(String record, int maxTicks) {
+        return waitUntil("STORY terminal " + record + " apareceu", maxTicks, mc -> (storyTerminal = StoryDevtest.findTerminal(mc, record)) != null);
+    }
+
+    /** Põe o jogador a 2 blocos à frente do terminal (a tela olha para o sul) e olhando para ele. */
+    private void storyStandAtTerminal(int wait) {
+        step(wait, mc -> {
+            BlockPos t = storyTerminal;
+            mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.1f %d %.1f facing %.1f %.1f %.1f", t.getX() + 0.5, t.getY(),
+                    t.getZ() + 2.5, t.getX() + 0.5, t.getY() + 0.5, t.getZ() + 0.5));
+        });
+    }
+
+    /** Usa o terminal (clique direito pelo lado sul), espera a tela de leitura e confere o registro. */
+    private void storyUseTerminal(String entryId, String shot) {
+        step(20, mc -> rightClick(mc, storyTerminal, Direction.SOUTH, "terminal " + entryId));
+        step(25, mc -> {
+            boolean open = mc.gui.screen() instanceof com.spacehorizons.client.story.StoryScreen s && s.entryId().equals(entryId);
+            StoryDevtest.check("terminal " + entryId + ": a tela de leitura abre", open, "tela=" + (mc.gui.screen() == null ? "nenhuma" : mc.gui.screen().getClass().getSimpleName()));
+        });
+        shot(5, shot);
+        step(5, mc -> mc.gui.setScreen(null));
+    }
+
+    private void storyReadDiary(String entryId, String shot) {
+        cmd(10, "spacehorizons story give " + entryId);
+        step(15, mc -> {
+            boolean held = StoryDevtest.holdFirst(mc, s -> StoryDevtest.isJournal(s, entryId));
+            StoryDevtest.check("diário " + entryId + " está no inventário", held, "");
+            var result = mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
+            SpaceHorizons.LOGGER.info(TAG + "STORY usou o diário {}: {}", entryId, result);
+        });
+        step(25, mc -> {
+            boolean open = mc.gui.screen() instanceof com.spacehorizons.client.story.StoryScreen s && s.entryId().equals(entryId);
+            StoryDevtest.check("diário " + entryId + ": a tela de leitura abre", open, "tela=" + (mc.gui.screen() == null ? "nenhuma" : mc.gui.screen().getClass().getSimpleName()));
+        });
+        shot(5, shot);
+        step(5, mc -> {
+            mc.gui.setScreen(null);
+            StoryDevtest.check("diário " + entryId + " marcado como lido", StoryLogic.progress(mc.player).hasRead(entryId), StoryDevtest.progress(mc));
+        });
+    }
+
+    private void storyScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "gamerule spacehorizons:vacuum_damage false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "difficulty peaceful");
+        step(5, mc -> mc.options.fov().set(90));
+        // (1) a estação da Terra: achada pela busca de estruturas do vanilla, e o terminal e a antena existem
+        cmd(10, "spacehorizons story where earth_station");
+        cmd(10, "spacehorizons story goto earth_station");
+        tickerStep(0, storyWaitTerminal("aurora", 2400));
+        step(20, mc -> {
+            StoryDevtest.check("estação da Terra: terminal aurora no mundo", storyTerminal != null, String.valueOf(storyTerminal));
+            StoryDevtest.check("estação da Terra: a antena de cobre oxidado existe", StoryDevtest.findBlockOf(mc, com.spacehorizons.story.StoryStamper.state("minecraft:oxidized_copper").getBlock()) != null, "");
+            mc.player.connection.sendCommand("gamemode survival");
+        });
+        step(20, mc -> {
+            mc.player.setXRot(-8f);
+            logPos(mc, "porta da estação da Terra");
+        });
+        shot(40, "story_01_estacao_fora");
+        // (2) dentro: o baú dos diários (confere o conteúdo pela tela do baú) e o terminal
+        storyStandAtTerminal(10);
+        step(30, mc -> {
+            mc.player.setXRot(10f);
+        });
+        shot(20, "story_02_estacao_dentro");
+        step(10, mc -> {
+            BlockPos chest = StoryDevtest.findBlockOf(mc, net.minecraft.world.level.block.Blocks.CHEST);
+            StoryDevtest.check("estação da Terra: o baú existe", chest != null, String.valueOf(chest));
+            if (chest != null) {
+                mc.player.connection.sendCommand(String.format(java.util.Locale.ROOT, "tp @s %.1f %d %.1f facing %.1f %.1f %.1f", chest.getX() + 0.5, chest.getY(),
+                        chest.getZ() + 2.5, chest.getX() + 0.5, chest.getY() + 0.5, chest.getZ() + 0.5));
+                storyChest = chest;
+            }
+        });
+        step(15, mc -> {
+            if (storyChest != null) {
+                rightClick(mc, storyChest, Direction.SOUTH, "baú da estação");
+            }
+        });
+        step(25, mc -> {
+            var menu = mc.player.containerMenu;
+            boolean a = false;
+            boolean b = false;
+            for (var slot : menu.slots) {
+                a |= StoryDevtest.isJournal(slot.getItem(), "voss_01");
+                b |= StoryDevtest.isJournal(slot.getItem(), "voss_02");
+            }
+            StoryDevtest.check("estação da Terra: o baú tem os dois diários de Helena Voss", a && b, "voss_01=" + a + " voss_02=" + b);
+        });
+        shot(5, "story_03_bau");
+        step(5, mc -> mc.player.closeContainer());
+        // (3) ler um diário: tela, lido, conquista
+        storyReadDiary("voss_01", "story_04_diario");
+        step(10, mc -> StoryDevtest.check("conquista story_observatory ao ler o diário", StoryDevtest.advancementDone(mc, "story_observatory"), ""));
+        // (4) o terminal da Terra: planta orbital e bússola da base, uma vez só
+        storyStandAtTerminal(10);
+        storyUseTerminal("aurora_terminal", "story_05_terminal_terra");
+        step(15, mc -> {
+            StoryDevtest.check("terminal da Terra: planta orbital recebida", StoryDevtest.hasBlueprint(mc, "orbital"), "");
+            StoryDevtest.check("terminal da Terra: bússola da base lunar recebida (dimensão moon)", StoryDevtest.hasCompassFor(mc, "moon"), "");
+            StoryDevtest.check("terminal da Terra: anexo marcado como levado", StoryLogic.progress(mc.player).hasClaimed("aurora_terminal"), StoryDevtest.progress(mc));
+            StoryDevtest.check("conquista story_coordinates", StoryDevtest.advancementDone(mc, "story_coordinates"), "");
+            storyBlueprints = StoryDevtest.count(mc, ModItems.ROCKET_BLUEPRINT.get());
+        });
+        step(10, mc -> rightClick(mc, storyTerminal, Direction.SOUTH, "terminal de novo"));
+        step(25, mc -> {
+            mc.gui.setScreen(null);
+            StoryDevtest.check("terminal da Terra: usar de novo não entrega outra planta", StoryDevtest.count(mc, ModItems.ROCKET_BLUEPRINT.get()) == storyBlueprints,
+                    "plantas=" + StoryDevtest.count(mc, ModItems.ROCKET_BLUEPRINT.get()) + " antes=" + storyBlueprints);
+            StoryDevtest.check("planta lunar ainda trancada (menu, servidor, sobrevivência)", !StoryDevtest.serverAcceptsBlueprint(mc, "lunar"), "");
+            StoryDevtest.check("planta orbital livre no menu", StoryDevtest.serverAcceptsBlueprint(mc, "orbital"), "");
+        });
+        // (5) a base lunar: posição fixa, desenhada pelo gerador da Lua
+        cmd(10, "spacehorizons goto moon");
+        cmd(100, "spacehorizons story where moon_base");
+        cmd(10, "spacehorizons story goto moon_base");
+        tickerStep(0, storyWaitTerminal("selene", 2400));
+        step(30, mc -> {
+            StoryDevtest.check("base lunar: terminal selene no mundo", storyTerminal != null, String.valueOf(storyTerminal));
+            StoryDevtest.check("base lunar: a plataforma de lançamento da expedição existe", StoryDevtest.findBlockOf(mc, ModBlocks.LAUNCH_PAD.get()) != null, "");
+            StoryDevtest.check("planta lunar trancada antes do terminal (servidor)", !StoryDevtest.serverAcceptsBlueprint(mc, "lunar"), "");
+            StoryDevtest.check("planta lunar trancada antes do terminal (cliente)", !StoryLogic.unlocksBlueprint(mc.player, "lunar"), "");
+            mc.player.setXRot(-6f);
+            logPos(mc, "porta da base lunar");
+        });
+        shot(60, "story_06_base_lunar_fora");
+        storyStandAtTerminal(10);
+        step(30, mc -> mc.player.setXRot(8f));
+        shot(20, "story_07_base_lunar_dentro");
+        storyReadDiary("reyes_01", "story_08_diario_lua");
+        step(10, mc -> StoryDevtest.check("conquista story_selene", StoryDevtest.advancementDone(mc, "story_selene"), ""));
+        storyStandAtTerminal(10);
+        storyUseTerminal("selene_terminal", "story_09_terminal_base");
+        step(15, mc -> {
+            StoryDevtest.check("terminal da base: planta lunar recebida", StoryDevtest.hasBlueprint(mc, "lunar"), "");
+            StoryDevtest.check("terminal da base: bússola da sonda recebida (dimensão moon)", StoryDevtest.hasCompassFor(mc, "moon"), "");
+            StoryDevtest.check("planta lunar destravada no cliente", StoryLogic.unlocksBlueprint(mc.player, "lunar"), StoryDevtest.progress(mc));
+            StoryDevtest.check("planta lunar destravada no servidor (menu, sobrevivência)", StoryDevtest.serverAcceptsBlueprint(mc, "lunar"), "");
+            StoryDevtest.check("conquista story_lunar_plans", StoryDevtest.advancementDone(mc, "story_lunar_plans"), "");
+        });
+        // (6) os destroços da sonda e o gancho de Marte
+        cmd(10, "spacehorizons story where moon_probe");
+        cmd(10, "spacehorizons story goto moon_probe");
+        tickerStep(0, storyWaitTerminal("vigia", 2400));
+        step(30, mc -> {
+            StoryDevtest.check("sonda: terminal vigia no mundo", storyTerminal != null, String.valueOf(storyTerminal));
+            StoryDevtest.check("sonda: o RTG existe", StoryDevtest.findBlockOf(mc, ModBlocks.RTG_GENERATOR.get()) != null, "");
+            mc.player.setXRot(-6f);
+        });
+        shot(60, "story_10_sonda_fora");
+        storyStandAtTerminal(10);
+        step(30, mc -> mc.player.setXRot(8f));
+        shot(20, "story_11_sonda_dentro");
+        storyUseTerminal("vigia_terminal", "story_12_terminal_sonda");
+        step(15, mc -> {
+            StoryDevtest.check("terminal da sonda: bússola de Marte recebida (dimensão mars)", StoryDevtest.hasCompassFor(mc, "mars"), "");
+            StoryDevtest.check("conquista story_probe", StoryDevtest.advancementDone(mc, "story_probe"), "");
+        });
+        storyReadDiary("mars_hook", "story_13_gancho_de_marte");
+        step(10, mc -> {
+            for (String name : new String[] {"story_observatory", "story_coordinates", "story_selene", "story_lunar_plans", "story_probe", "story_mars"}) {
+                StoryDevtest.check("conquista " + name, StoryDevtest.advancementDone(mc, name), "");
+            }
+            StoryDevtest.check("progresso completo", StoryLogic.progress(mc.player).claimed().size() == 3 && StoryLogic.progress(mc.player).read().size() >= 6,
+                    StoryDevtest.progress(mc));
+        });
+        step(20, mc -> {
+            StoryDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    private BlockPos storyChest;
+    private int storyBlueprints;
 }

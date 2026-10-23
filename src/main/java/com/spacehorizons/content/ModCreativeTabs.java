@@ -6,10 +6,16 @@ import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketFuelTankItem;
 import com.spacehorizons.rocket.blueprint.Blueprints;
 import com.spacehorizons.rocket.blueprint.RocketBlueprintItem;
+import com.spacehorizons.story.DataTerminalBlock;
+import com.spacehorizons.story.JournalEntryItem;
+import com.spacehorizons.story.StoryEntries;
+import com.spacehorizons.story.StoryEntry;
 import com.spacehorizons.survival.fuel.FuelCanisterItem;
 import com.spacehorizons.survival.oxygen.OxygenTankItem;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.world.item.component.BlockItemStateProperties;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
@@ -47,6 +53,17 @@ public final class ModCreativeTabs {
                 output.accept(FuelCanisterItem.fullStack(ModItems.HELIUM3_CANISTER.get()));
                 output.accept(RocketFuelTankItem.fullStack(ModItems.HYDROGEN_TANK.get()));
                 output.accept(RocketFuelTankItem.fullStack(ModItems.XENON_TANK.get()));
+                // história: o diário vazio vem da lista acima; aqui um por registro e um terminal por registro
+                for (StoryEntry entry : StoryEntries.ALL) {
+                    if (!entry.isTerminal()) {
+                        output.accept(JournalEntryItem.stackOf(entry.id()));
+                    }
+                }
+                for (DataTerminalBlock.TerminalRecord record : DataTerminalBlock.TerminalRecord.values()) {
+                    ItemStack terminal = new ItemStack(ModBlocks.DATA_TERMINAL.get());
+                    terminal.set(DataComponents.BLOCK_STATE, BlockItemStateProperties.EMPTY.with(DataTerminalBlock.RECORD, record));
+                    output.accept(terminal);
+                }
             })
             .build());
 

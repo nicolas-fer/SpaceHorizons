@@ -98,6 +98,51 @@ Referência lida: Create, branch `mc1.21.1/dev` (commit `7ff2760`). Não existe 
 
 Cada protótipo com cenário próprio no autoteste (`-PshOnly=`) e prints.
 
+## Etapa 5: a trama do sinal lunar (feita)
+
+Código em `com.spacehorizons.story` (cliente: `client/story`), teste `StoryTest`, autoteste `-PshOnly=story` (`StoryDevtest`). História média: nove registros, contados por diários (item) e terminais (bloco) e acompanhados por seis conquistas.
+
+### A história
+
+Há anos o **Observatório Aurora** capta um pulso na faixa do hidrogênio (1.420 MHz) que vem da face da Lua voltada para a Terra, a cada 7 min 12 s. A astrônoma **Helena Voss** e o engenheiro **Tomás Reyes** descobrem que o pulso carrega um mapa de cinco pontos, não conseguem verba e constroem eles mesmos um foguete. Na Lua montam a **Base Selene-1**; o ar acaba antes do combustível (Reyes errou a conta), Voss segue a pé para o primeiro ponto do mapa e acha a **sonda Vigia-3**, caída, que não origina o sinal: só o retransmite. A telemetria dela diz que o feixe vem de **Marte**; Voss deixa um recado final e parte para lá. O jogador percorre o caminho ao contrário: Terra, base, sonda, e fica com o gancho do Tier 2.
+
+| # | Registro | Onde | Tipo | O que diz / entrega |
+|---|---|---|---|---|
+| 1 | `voss_01` "Dia 1: o pulso" | Observatório (Terra) | diário | O pulso, a cadência, a direção: a Lua |
+| 2 | `voss_02` "Dia 9: o mapa" | Observatório | diário | O mapa de cinco pontos; sem verba, vão eles |
+| 3 | `aurora_terminal` | Observatório | terminal | **Planta orbital** + **bússola da base lunar** |
+| 4 | `reyes_01` "Dia 14: Selene-1" | Base Selene-1 (Lua) | diário | Chegada, a base em onze dias |
+| 5 | `reyes_02` "Dia 31: o ar" | Base | diário | O ar acabou; o sinal NÃO vem da base, parece destroço |
+| 6 | `selene_terminal` | Base | terminal | **Planta lunar** (destrava no menu) + **bússola da sonda** |
+| 7 | `voss_03` "Dia 44: o eco" | Sonda Vigia-3 (Lua) | diário | A sonda só repete um eco |
+| 8 | `vigia_terminal` | Sonda | terminal | O feixe vem de Marte (x 3000, z -1500) + **bússola de Marte** |
+| 9 | `mars_hook` "Para quem vier depois" | Sonda | diário | Gancho do Tier 2: motores, combustíveis e materiais de outro mundo |
+
+Conquistas (corrente sob `root`, gatilho próprio `spacehorizons:story_entry` com o id do registro): `story_observatory` (ler `voss_01`) → `story_coordinates` (terminal da Terra) → `story_selene` (ler `reyes_01`) → `story_lunar_plans` (terminal da base) → `story_probe` (terminal da sonda) → `story_mars` (ler `mars_hook`).
+
+### Peças
+
+- **Item `journal_entry`**: um livro por registro; componente `spacehorizons:journal_entry` (string, o id do registro). Clique direito abre `StoryScreen` (texto do lang, `story.spacehorizons.<id>.title|author|body`, pt-BR e en_us); no servidor marca como lido e dispara a conquista.
+- **Bloco `data_terminal`**: o estado `record` (`aurora`, `selene`, `vigia`) diz o registro (sem block entity: o gerador o desenha direto e o loot table copia o estado). Clique abre a tela com o texto e a lista de anexos; a PRIMEIRA vez de cada jogador entrega a recompensa (`StoryProgress.claim`, regra pura testada), as seguintes só mostram o registro.
+- **Progresso**: Data Attachment `spacehorizons:story_progress` (lidos e levados), salvo, copiado na morte e sincronizado com o próprio cliente.
+- **Planta lunar**: o terminal da base entrega o item `rocket_blueprint` com `Blueprints.LUNAR` e, ao levar o anexo, o menu das plantas (`BlueprintScreen` e `BlueprintChoicePayload`, servidor) deixa de trancá-la em sobrevivência (`StoryProgress.unlocksBlueprint`). No criativo continua livre.
+- **Bússolas**: bússolas do vanilla com `lodestone_tracker` sem ímã (apontam para uma posição de OUTRA dimensão: só funcionam nela). Terra → Lua: base; base → sonda; sonda → Marte (3000, -1500).
+- **Comandos de dev** (`/spacehorizons story`): `where|goto earth_station|moon_base|moon_probe`, `give <diário>`, `progress`, `reset`.
+
+### Lugares e colocação (blocos do vanilla e do mod, sem NBT)
+
+Desenhos em `SiteLayouts` como dado puro (`SiteLayout`): caixas, "desgaste" sorteado por posição (determinístico, então um chunk não precisa dos vizinhos), baús com tabelas de saque `story/<lugar>` (os diários) e o terminal. `StoryStamper` desenha só dentro do chunk em geração; abaixo da laje preenche fundação (até 24 blocos) e acima limpa árvores e rocha.
+
+- **Observatório Aurora** (Terra, 17 x 15): salão de tijolos rachados com teto furado, vidros quebrados, estantes, teias, terminal no fundo, baú com `voss_01` e `voss_02`; antena parabólica de cobre oxidado e mastro. **Estrutura do vanilla**: tipo `spacehorizons:story_site` (`StoryStructure` + `StoryPiece`), `structure_set` de espalhamento aleatório (espaçamento 32 chunks, separação 12: cerca de uma por 512 x 512 blocos), biomas de terra firme (`tags/worldgen/biome/has_story_station`). A estrutura só nasce onde o relevo sob a pegada varia até 10 blocos e acima do mar; a laje fica na média. O gerador da Terra já suprime estruturas a 640 blocos da costura em X. **Só com "gerar estruturas" ligado** no mundo (o vanilla pula estruturas se estiver desligado).
+- **Base Selene-1** (Lua, 23 x 17): módulo de controle de casco de foguete (terminal, baú com `reyes_01` e `reyes_02`, fornalha, estante), corredor, módulo de laboratório rompido e a plataforma de lançamento onde a expedição pousou, com restos do foguete.
+- **Destroços da sonda Vigia-3** (Lua, 17 x 17): pátio chamuscado, fragmento de casco (terminal, baú com `voss_03` e `mars_hook`, RTG) e o prato da antena caído.
+- **Placement próprio na Lua**: o gerador paramétrico da Lua não usa estruturas do vanilla, e os terminais entregam coordenadas e bússolas, então a base e a sonda têm posição FIXA, igual em todo mundo e **independente de "gerar estruturas"**. `StorySites` parte de um ponto nominal perto do ponto da Lua voltado para a Terra (x -81.919, z 0,5, sobre a costura; a base fica ao leste, a ~560 blocos, fora do alcance dos chunks espelhados; a sonda ~590 blocos adiante) e escolhe, entre os chunks vizinhos (±6), o de relevo mais plano sob a pegada (função analítica de relevo da Lua, a mesma dos chunks); a laje fica na média das alturas. `PlanetChunkGenerator.applyBiomeDecoration` chama `StoryWorldgen.stampMoon` depois da decoração e desenha o pedaço de cada lugar que cai no chunk. Vale para chunks gerados DEPOIS desta versão (mundos antigos não ganham lugares nos chunks já gerados).
+- **Marte**: o gancho é só texto e a bússola; nada é gerado em Marte (etapa do sistema solar).
+
+### Limites
+
+Estrutura da Terra depende de "gerar estruturas" e de achar terra firme plana (comando `story where earth_station` mostra onde; a conquista dá a pista "antena parabólica enferrujada"); os registros 1 a 9 não têm som, voz nem animação; arte provisória (terminal: tela da ponte recolorida; diário: livro recolorido, `tools/derive_story_art.py`); pouso de foguete sobre a plataforma da base não testado.
+
 ## Verificação
 
 - Testes unitários para a lógica pura: órbita (apoastro e periastro), massa e empuxo vindos dos blocos, volume selado, montagem e rotação do retrato.

@@ -1,0 +1,28 @@
+{
+  "parent": "spacehorizons:story_probe",
+  "criteria": {
+    "read": {
+      "trigger": "spacehorizons:story_entry",
+      "conditions": {
+        "entry": "mars_hook"
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:nuclear_engine"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.story_mars.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.story_mars.description"
+    },
+    "frame": "challenge"
+  },
+  "requirements": [
+    [
+      "read"
+    ]
+  ]
+}

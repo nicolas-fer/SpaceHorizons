@@ -19,6 +19,7 @@ import com.spacehorizons.ship.block.ShipImpulseEngineBlock;
 import com.spacehorizons.ship.block.ShipSeatBlock;
 import com.spacehorizons.ship.block.ShipWindowBlock;
 import com.spacehorizons.space.flight.Propellant;
+import com.spacehorizons.story.DataTerminalBlock;
 import com.spacehorizons.survival.compressor.OxygenCompressorBlock;
 import com.spacehorizons.survival.fuel.RefineryBlock;
 
@@ -179,6 +180,13 @@ public final class ModBlocks {
     public static final DeferredBlock<MoonBlock> LUNAR_REFINERY = registerBlockWithItem(ContentIds.LUNAR_REFINERY,
             props -> new MoonBlock(props, MachineKind.LUNAR_REFINERY), props -> props.mapColor(MapColor.METAL).strength(3.5F)
                     .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion().lightLevel(state -> state.getValue(MoonBlock.LIT) ? 13 : 0));
+
+    // --- História (docs/PLANO_SOBREVIVENCIA.md, "Etapa 5: a trama") ---
+
+    /** Terminal de dados da trama: entrega a recompensa uma vez por jogador; picareta e a dureza das máquinas, e o registro volta no item (copy_state). */
+    public static final DeferredBlock<DataTerminalBlock> DATA_TERMINAL = registerBlockWithItem(ContentIds.DATA_TERMINAL, DataTerminalBlock::new,
+            props -> props.mapColor(MapColor.METAL).strength(3.5F, 6.0F).sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion()
+                    .lightLevel(state -> 5));
 
     private ModBlocks() {
     }

@@ -121,13 +121,19 @@ public final class ContentIds {
     /** Refinaria lunar: gelo vira combustível químico do Tier 1 (galão). */
     public static final String LUNAR_REFINERY = "lunar_refinery";
 
+    // --- História (etapa 5 da sobrevivência, docs/PLANO_SOBREVIVENCIA.md, "Etapa 5: a trama") ---
+    /** Diário da trama: um livro por registro, com o id do registro no componente {@code journal_entry}; clicar abre a leitura. */
+    public static final String JOURNAL_ENTRY = "journal_entry";
+    /** Terminal de dados: clicar abre o registro do terminal e entrega a recompensa uma vez por jogador (o registro é o estado {@code record}). */
+    public static final String DATA_TERMINAL = "data_terminal";
+
     /** Itens que não são BlockItems. */
     public static final List<String> ITEMS = List.of(
             STEEL_BLEND, STEEL_INGOT, STEEL_NUGGET, FORGE_HAMMER, STEEL_PLATE, BASIC_CIRCUIT, FUEL_CANISTER,
             OXYGEN_TANK_SMALL, OXYGEN_TANK_LARGE,
             SPACE_HELMET, SPACE_CHESTPLATE, SPACE_LEGGINGS, SPACE_BOOTS, ROCKET_BLUEPRINT,
             RAW_TITANIUM, TITANIUM_INGOT, TITANIUM_PLATE, RARE_EARTH_DUST, HELIUM3_CANISTER, HYDROGEN_CANISTER, XENON_CANISTER,
-            NUCLEAR_FUEL_ROD, SUPERCONDUCTOR_COIL, LUNAR_ICE);
+            NUCLEAR_FUEL_ROD, SUPERCONDUCTOR_COIL, LUNAR_ICE, JOURNAL_ENTRY);
 
     /** Blocos (cada um tem também um BlockItem de mesmo id). */
     public static final List<String> BLOCKS = List.of(STEEL_BLOCK, REFINERY, OXYGEN_COMPRESSOR,
@@ -135,7 +141,7 @@ public final class ContentIds {
             SHIP_BRIDGE, SHIP_IMPULSE_ENGINE, SHIP_WINDOW, SHIP_SEAT, SHIP_AIRLOCK, ANTIGRAVITY_GENERATOR,
             MARS_REGOLITH, MARS_TITANIUM_ORE, TITANIUM_BLOCK, HYDROGEN_TANK, XENON_TANK, RTG_GENERATOR, NUCLEAR_ENGINE, ION_ENGINE,
             FUSION_ENGINE, LUNAR_ICE_ORE, SOLAR_PANEL, BATTERY, POWER_CABLE, OXYGEN_GENERATOR, HELIUM3_EXTRACTOR, ELECTROLYZER,
-            LUNAR_REFINERY);
+            LUNAR_REFINERY, DATA_TERMINAL);
 
     private ContentIds() {
     }

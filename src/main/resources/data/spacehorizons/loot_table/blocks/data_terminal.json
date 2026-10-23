@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "condition": {
+        "type": "minecraft:survives_explosion"
+      },
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "spacehorizons:data_terminal",
+          "modifier": [
+            {
+              "type": "minecraft:copy_state",
+              "block": "spacehorizons:data_terminal",
+              "properties": [
+                "record"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "random_sequence": "spacehorizons:blocks/data_terminal"
+}
