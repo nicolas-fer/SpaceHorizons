@@ -91,6 +91,12 @@ final class MissionSim {
         this.pilot.forcePhase(MissionPilot.Phase.MOON_LANDED);
     }
 
+    /** Faz da missão a de Marte (ver {@link MissionPilot#toMars}). */
+    MissionSim mars() {
+        this.pilot.toMars();
+        return this;
+    }
+
     /** Roda até o fim da missão (ou {@code maxTicks}). */
     void run(int maxTicks) {
         while (this.tick < maxTicks && !this.pilot.finished() && !this.crashed) {

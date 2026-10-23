@@ -57,7 +57,7 @@ public final class Heliocentric {
     public static final double EARTH_PHASE0 = 0.0;
 
     /** Ângulo de Marte em H no relógio 0 (rad): fixa o relógio em que a janela de lançamento abre (docs/PLANO_TIERS.md, seção 11). */
-    public static final double MARS_PHASE0 = Math.toRadians(150.0);
+    public static final double MARS_PHASE0 = Math.toRadians(75.0);
 
     private Heliocentric() {
     }

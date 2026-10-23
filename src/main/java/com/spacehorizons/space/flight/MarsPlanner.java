@@ -99,6 +99,23 @@ public final class MarsPlanner {
     }
 
     private static @Nullable SunState toSun(FlightState s, double clock, double horizon) {
+        return toSun(s, clock, horizon, true);
+    }
+
+    /** A nave bate na esfera da Lua antes de sair da da Terra? Varre a perna da Terra por Kepler (a Lua anda em círculo, em I). */
+    private static boolean crossesMoon(FlightState s, double clock, double exit) {
+        BodyPhysics moon = BodyPhysics.of(SolarSystem.MOON);
+        double enter = moon.soiEnterRadius();
+        for (double t = 0.0; t <= exit; t += 250.0) {
+            Kepler.State k = Kepler.propagate(EARTH.mu(), s.r(), s.v(), t);
+            if (k.r().minus(SoiTracker.position(SolarSystem.MOON, clock + t)).length() < enter) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static @Nullable SunState toSun(FlightState s, double clock, double horizon, boolean checkMoon) {
         if (s.body() == SolarSystem.SUN) {
             return new SunState(s, 0.0);
         }
@@ -109,10 +126,13 @@ public final class MarsPlanner {
         if (Double.isNaN(exit) || exit < 0.0 || exit > horizon) {
             return null;
         }
+        if (checkMoon && crossesMoon(s, clock, exit)) {
+            return null; // a Lua está no caminho: esta janela não vale
+        }
         Kepler.State k = Kepler.propagate(EARTH.mu(), s.r(), s.v(), exit + 0.01);
         FlightState sun = SoiTracker.update(s.withRV(k.r(), k.v()), clock + exit + 0.01, 1.0);
         if (sun.body() != SolarSystem.SUN) {
-            return null; // a Lua, por exemplo, ficou no caminho: não é o foco do planejador
+            return null;
         }
         return new SunState(sun, exit + 0.01);
     }
@@ -418,7 +438,8 @@ public final class MarsPlanner {
         double phase = Heliocentric.marsPhaseAhead(clock);
         double ideal = table.needed(psi);
         double error = Double.isNaN(ideal) ? Double.NaN : wrapPi(phase - ideal);
-        boolean burnNow = !Double.isNaN(error) && Math.abs(Math.toDegrees(error)) <= WINDOW_HALF_ANGLE_DEG;
+        boolean burnNow = !Double.isNaN(error) && Math.abs(Math.toDegrees(error)) <= WINDOW_HALF_ANGLE_DEG
+                && toSun(s.withRV(s.r(), s.v().plus(s.v().unit().times(dv))), clock, 400_000.0) != null;
         // a próxima queima: varre o tempo (a nave anda na órbita, a fase de Marte diminui) até a fase bater com a ideal do ponto onde a nave estiver
         double wait = burnNow ? 0.0 : Double.NaN;
         double burnAngle = burnNow ? psi : Double.NaN;
@@ -515,7 +536,7 @@ public final class MarsPlanner {
         V3 vel = tangent.times(EARTH.circularSpeed(r) + dv);
         FlightState s = new FlightState(SolarSystem.EARTH, pos, vel, 0.0, 0.0);
         double clock = 0.0; // θ_T = 0
-        SunState ss = toSun(s, clock, 400_000.0);
+        SunState ss = toSun(s, clock, 400_000.0, false);
         if (ss == null) {
             return null;
         }
