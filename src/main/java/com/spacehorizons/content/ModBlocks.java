@@ -9,6 +9,8 @@ import com.spacehorizons.rocket.EngineType;
 import com.spacehorizons.rocket.LaunchPadBlock;
 import com.spacehorizons.rocket.RocketCockpitBlock;
 import com.spacehorizons.rocket.RocketEngineBlock;
+import com.spacehorizons.moonbase.machine.MachineKind;
+import com.spacehorizons.moonbase.machine.MoonBlock;
 import com.spacehorizons.rocket.RocketFuelTankBlock;
 import com.spacehorizons.ship.block.ShipAirlockBlock;
 import com.spacehorizons.ship.block.ShipBridgeBlock;
@@ -143,6 +145,34 @@ public final class ModBlocks {
     public static final DeferredBlock<ChargedEngineBlock> FUSION_ENGINE = registerBlockWithItem(ContentIds.FUSION_ENGINE,
             props -> new ChargedEngineBlock(props, EngineType.FUSION), props -> props.mapColor(MapColor.METAL).strength(5.0F, 8.0F)
                     .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion().lightLevel(state -> 8));
+
+    // --- Base lunar (etapa 4 da sobrevivência; docs/PLANO_SOBREVIVENCIA.md, "Etapa 4: o que foi feito/decidido") ---
+
+    /** Minério de gelo lunar: picareta de pedra ou melhor; sem toque de seda dá gelo lunar (item). */
+    public static final DeferredBlock<Block> LUNAR_ICE_ORE = registerWithItem(ContentIds.LUNAR_ICE_ORE,
+            props -> props.mapColor(MapColor.ICE).strength(3.0F, 3.0F).sound(SoundType.GLASS).requiresCorrectToolForDrops());
+
+    public static final DeferredBlock<MoonBlock> SOLAR_PANEL = registerBlockWithItem(ContentIds.SOLAR_PANEL,
+            props -> new MoonBlock(props, MachineKind.SOLAR_PANEL), props -> props.mapColor(MapColor.COLOR_BLUE).strength(2.5F, 3.0F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion());
+    public static final DeferredBlock<MoonBlock> BATTERY = registerBlockWithItem(ContentIds.BATTERY,
+            props -> new MoonBlock(props, MachineKind.BATTERY), props -> props.mapColor(MapColor.METAL).strength(3.0F, 4.0F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion());
+    public static final DeferredBlock<MoonBlock> POWER_CABLE = registerBlockWithItem(ContentIds.POWER_CABLE,
+            props -> new MoonBlock(props, MachineKind.POWER_CABLE), props -> props.mapColor(MapColor.COLOR_ORANGE).strength(1.5F, 3.0F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion());
+    public static final DeferredBlock<MoonBlock> OXYGEN_GENERATOR = registerBlockWithItem(ContentIds.OXYGEN_GENERATOR,
+            props -> new MoonBlock(props, MachineKind.OXYGEN_GENERATOR), props -> props.mapColor(MapColor.METAL).strength(3.5F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion().lightLevel(state -> state.getValue(MoonBlock.LIT) ? 8 : 0));
+    public static final DeferredBlock<MoonBlock> HELIUM3_EXTRACTOR = registerBlockWithItem(ContentIds.HELIUM3_EXTRACTOR,
+            props -> new MoonBlock(props, MachineKind.HELIUM3_EXTRACTOR), props -> props.mapColor(MapColor.METAL).strength(3.5F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion().lightLevel(state -> state.getValue(MoonBlock.LIT) ? 10 : 0));
+    public static final DeferredBlock<MoonBlock> ELECTROLYZER = registerBlockWithItem(ContentIds.ELECTROLYZER,
+            props -> new MoonBlock(props, MachineKind.ELECTROLYZER), props -> props.mapColor(MapColor.METAL).strength(3.5F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion().lightLevel(state -> state.getValue(MoonBlock.LIT) ? 10 : 0));
+    public static final DeferredBlock<MoonBlock> LUNAR_REFINERY = registerBlockWithItem(ContentIds.LUNAR_REFINERY,
+            props -> new MoonBlock(props, MachineKind.LUNAR_REFINERY), props -> props.mapColor(MapColor.METAL).strength(3.5F)
+                    .sound(SoundType.METAL).requiresCorrectToolForDrops().noOcclusion().lightLevel(state -> state.getValue(MoonBlock.LIT) ? 13 : 0));
 
     private ModBlocks() {
     }

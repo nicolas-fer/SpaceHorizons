@@ -1,0 +1,25 @@
+{
+  "parent": "spacehorizons:solar_power",
+  "criteria": {
+    "breathed": {
+      "trigger": "spacehorizons:sealed_room"
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:oxygen_generator"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.sealed_room.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.sealed_room.description"
+    },
+    "frame": "goal"
+  },
+  "requirements": [
+    [
+      "breathed"
+    ]
+  ]
+}

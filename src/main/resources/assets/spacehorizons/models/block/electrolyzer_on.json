@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "side": "spacehorizons:block/electrolyzer_side_on",
+    "top": "spacehorizons:block/electrolyzer_top",
+    "bottom": "spacehorizons:block/electrolyzer_top",
+    "particle": "spacehorizons:block/electrolyzer_side_on"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "P": "spacehorizons:steel_plate",
+    "B": "spacehorizons:basic_circuit",
+    "C": "minecraft:copper_ingot",
+    "H": "minecraft:hopper"
+  },
+  "pattern": [
+    "PBP",
+    "CHC",
+    "PPP"
+  ],
+  "result": {
+    "id": "spacehorizons:helium3_extractor"
+  }
+}

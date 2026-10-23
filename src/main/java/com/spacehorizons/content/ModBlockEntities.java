@@ -3,6 +3,7 @@ package com.spacehorizons.content;
 import java.util.Set;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.moonbase.machine.MoonBlockEntity;
 import com.spacehorizons.rocket.EngineChargeBlockEntity;
 import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
 import com.spacehorizons.rocket.blueprint.LaunchPadBlockEntity;
@@ -39,6 +40,12 @@ public final class ModBlockEntities {
     /** A planta de montagem ativa na plataforma de lançamento (o holograma). */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<LaunchPadBlockEntity>> LAUNCH_PAD =
             TYPES.register(ContentIds.LAUNCH_PAD, () -> new BlockEntityType<>(LaunchPadBlockEntity::new, Set.of(ModBlocks.LAUNCH_PAD.get())));
+
+    /** Blocos de energia e máquinas da base lunar (um tipo só; o {@code MachineKind} vem do bloco). */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MoonBlockEntity>> MOON =
+            TYPES.register("moon", () -> new BlockEntityType<>(MoonBlockEntity::new, Set.of(ModBlocks.SOLAR_PANEL.get(), ModBlocks.BATTERY.get(),
+                    ModBlocks.POWER_CABLE.get(), ModBlocks.OXYGEN_GENERATOR.get(), ModBlocks.HELIUM3_EXTRACTOR.get(), ModBlocks.ELECTROLYZER.get(),
+                    ModBlocks.LUNAR_REFINERY.get())));
 
     private ModBlockEntities() {
     }

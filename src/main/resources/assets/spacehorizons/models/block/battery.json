@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "side": "spacehorizons:block/battery_side",
+    "top": "spacehorizons:block/battery_top",
+    "bottom": "spacehorizons:block/battery_top",
+    "particle": "spacehorizons:block/battery_side"
+  }
+}

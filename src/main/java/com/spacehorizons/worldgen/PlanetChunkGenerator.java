@@ -120,7 +120,7 @@ public final class PlanetChunkGenerator extends ChunkGenerator {
                     } else if (y >= top - 3) {
                         state = palette.filler(type);
                     } else {
-                        int vein = oreBlocks.length == 0 ? -1 : ores.veinAt(wx, y, wz);
+                        int vein = oreBlocks.length == 0 ? -1 : ores.veinAt(wx, y, wz, type);
                         state = vein >= 0 ? oreBlocks[vein] : rock;
                     }
                     setLocal(chunk, lx, y, lz, state);

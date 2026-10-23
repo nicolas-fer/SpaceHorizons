@@ -1,0 +1,31 @@
+{
+  "parent": "spacehorizons:lunar_ice",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:electrolyzer"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:electrolyzer"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.moon_electrolysis.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.moon_electrolysis.description"
+    }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

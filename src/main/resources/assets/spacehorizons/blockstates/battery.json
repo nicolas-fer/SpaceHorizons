@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "spacehorizons:block/battery"
+    },
+    "lit=true": {
+      "model": "spacehorizons:block/battery"
+    }
+  }
+}

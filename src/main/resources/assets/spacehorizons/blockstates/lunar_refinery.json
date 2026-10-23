@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "lit=false": {
+      "model": "spacehorizons:block/lunar_refinery"
+    },
+    "lit=true": {
+      "model": "spacehorizons:block/lunar_refinery_on"
+    }
+  }
+}

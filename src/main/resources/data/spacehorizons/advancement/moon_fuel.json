@@ -1,0 +1,32 @@
+{
+  "parent": "spacehorizons:moon_electrolysis",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:lunar_refinery"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:lunar_refinery"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.moon_fuel.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.moon_fuel.description"
+    },
+    "frame": "goal"
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

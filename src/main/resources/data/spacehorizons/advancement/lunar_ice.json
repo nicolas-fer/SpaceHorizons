@@ -1,0 +1,31 @@
+{
+  "parent": "spacehorizons:solar_power",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:lunar_ice"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:lunar_ice"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.lunar_ice.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.lunar_ice.description"
+    }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

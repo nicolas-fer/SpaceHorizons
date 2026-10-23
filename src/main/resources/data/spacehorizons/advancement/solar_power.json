@@ -1,0 +1,31 @@
+{
+  "parent": "spacehorizons:oxygen_compressor",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "spacehorizons:solar_panel"
+          }
+        ]
+      }
+    }
+  },
+  "display": {
+    "icon": {
+      "id": "spacehorizons:solar_panel"
+    },
+    "title": {
+      "translate": "advancements.spacehorizons.solar_power.title"
+    },
+    "description": {
+      "translate": "advancements.spacehorizons.solar_power.description"
+    }
+  },
+  "requirements": [
+    [
+      "has_item"
+    ]
+  ]
+}

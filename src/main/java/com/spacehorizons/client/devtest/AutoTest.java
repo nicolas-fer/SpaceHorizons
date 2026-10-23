@@ -243,6 +243,10 @@ public final class AutoTest {
             marsScenario();
             return;
         }
+        if ("moonbase".equals(ONLY)) {
+            moonbaseScenario();
+            return;
+        }
         if (ONLY != null && ONLY.startsWith("flight")) {
             // flight = voos A, B, C e D; flightb, flightc, flightbc... = só os voos citados (depuração)
             flightScenario(ONLY.length() == 6 ? "abcd" : ONLY.substring(6));
@@ -5508,6 +5512,87 @@ public final class AutoTest {
         step(20, mc -> {
             ShipAnchorDevtest.summary();
             ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    // ===================================================================================================================
+    // BASE LUNAR (docs/PLANO_SOBREVIVENCIA.md, etapa 4): -PshOnly=moonbase. Na Lua, uma sala selada de 5x3x5 com porta de ferro, gerador de oxigênio,
+    // bateria, cabos e painéis no teto, e uma fábrica ao lado (eletrolisador, refinaria lunar e extrator de hélio-3 ligados a painéis e bateria). Em
+    // sobrevivência com o traje: tira o capacete dentro da sala e respira sem gastar o tanque; abre a porta e a sala despressuriza; fecha e volta.
+    // Confere a produção das máquinas, o painel de noite e o veio de gelo de uma cratera polar. Bloco separado; as conferências ficam em MoonbaseDevtest.
+    // ===================================================================================================================
+    private void moonbaseScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(20, "weather clear 1000000");
+        cmd(10, "gamemode creative");
+        cmd(5, "gamerule advance_time false");
+        cmd(20, "spacehorizons goto moon");
+        cmd(300, "time set 6000");
+        step(20, MoonbaseDevtest::build);
+        step(5, mc -> mc.player.connection.sendCommand("time set " + MoonbaseDevtest.noonClock));
+        step(10, mc -> mc.player.connection.sendCommand("tp @s " + MoonbaseDevtest.viewOutside()));
+        fly(10);
+        look(10, SOUTH, 20f);
+        shot(300, "moonbase_a_overview");
+
+        // dentro da sala, em sobrevivência com o traje completo
+        cmd(5, "gamemode survival");
+        step(5, mc -> mc.player.connection.sendCommand("tp @s " + MoonbaseDevtest.roomCenter()));
+        step(5, MoonbaseDevtest::dressUp);
+        step(20, MoonbaseDevtest::checkPressurized);
+        look(5, -135f, 20f);
+        shot(20, "moonbase_b_inside_suit");
+        step(5, MoonbaseDevtest::removeHelmet);
+        step(200, MoonbaseDevtest::checkBreathingWithoutHelmet);
+        shot(10, "moonbase_c_inside_no_helmet");
+        step(5, MoonbaseDevtest::checkGeneratorFeeds);
+        step(40, MoonbaseDevtest::checkGeneratorIce);
+
+        // porta aberta: a sala vaza
+        look(5, 180f, 5f);
+        step(5, mc -> MoonbaseDevtest.setDoor(mc, true));
+        step(100, MoonbaseDevtest::checkLeak);
+        shot(10, "moonbase_d_door_open");
+        step(200, MoonbaseDevtest::checkSuffering);
+        shot(10, "moonbase_e_vacuum_no_helmet");
+        step(5, mc -> MoonbaseDevtest.setDoor(mc, false));
+        step(150, MoonbaseDevtest::checkRepressurized);
+
+        // fábrica: eletrolisador, refinaria lunar e extrator
+        cmd(5, "gamemode creative");
+        step(5, mc -> mc.player.connection.sendCommand("tp @s " + MoonbaseDevtest.viewFactory()));
+        fly(10);
+        look(10, 180f, 25f);
+        step(300, MoonbaseDevtest::checkFactory);
+        shot(10, "moonbase_f_factory");
+
+        // noite: o painel não gera
+        step(5, mc -> mc.player.connection.sendCommand("time set " + MoonbaseDevtest.nightClock));
+        step(60, MoonbaseDevtest::checkNight);
+
+        // gelo de uma cratera polar
+        step(10, mc -> {
+            int[] found = MoonbaseDevtest.findIce();
+            MoonbaseDevtest.check("gelo_polar_achado", found != null, found == null ? "nenhum veio denso em 100.000 blocos" : "ok");
+            if (found != null) {
+                mc.player.connection.sendCommand("tp @s " + MoonbaseDevtest.iceSurfaceSpot());
+            }
+        });
+        fly(10);
+        cmd(5, "effect give @s minecraft:night_vision 999 0 true");
+        step(400, mc -> {
+            if (MoonbaseDevtest.iceFound()) {
+                MoonbaseDevtest.carveIce(mc);
+                mc.player.connection.sendCommand("tp @s " + MoonbaseDevtest.iceViewpoint());
+            }
+        });
+        look(30, 90f, 5f);
+        shot(60, "moonbase_g_lunar_ice");
+        step(40, mc -> {
+            MoonbaseDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
         });

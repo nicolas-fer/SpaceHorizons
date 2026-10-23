@@ -22,7 +22,7 @@ class OreVeinsTest {
         OreVeinSpec titanium = SPECS.get(0);
         assertEquals("spacehorizons:mars_titanium_ore", titanium.block().get(0).toString());
         assertTrue(titanium.block().size() >= 2, "precisa de um bloco vanilla de reserva enquanto o minério não existe");
-        assertTrue(Planets.spec(Planets.MOON).ores().isEmpty(), "a Lua continua sem veios");
+        assertEquals(1, Planets.spec(Planets.MOON).ores().size(), "a Lua tem só o veio de gelo (MoonIceVeinsTest)");
     }
 
     @Test

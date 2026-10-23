@@ -19,5 +19,6 @@ public final class Content {
         ModRecipes.SERIALIZERS.register(modEventBus);
         ModRecipes.CATEGORIES.register(modEventBus);
         ModCreativeTabs.TABS.register(modEventBus);
+        com.spacehorizons.moonbase.MoonTriggers.TRIGGERS.register(modEventBus);
     }
 }

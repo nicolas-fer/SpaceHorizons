@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "G": "minecraft:glass",
+    "R": "minecraft:redstone",
+    "C": "spacehorizons:basic_circuit",
+    "P": "spacehorizons:steel_plate"
+  },
+  "pattern": [
+    "GGG",
+    "RCR",
+    "PPP"
+  ],
+  "result": {
+    "id": "spacehorizons:solar_panel"
+  }
+}

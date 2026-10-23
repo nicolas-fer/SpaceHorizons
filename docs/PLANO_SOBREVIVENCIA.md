@@ -111,3 +111,45 @@ Cada protótipo com cenário próprio no autoteste (`-PshOnly=`) e prints.
 - Sensação de controle em multiplayer por latência; primeira versão para um jogador.
 - Desenhar Terra e Lua de dentro da dimensão de espaço (o renderizador de corpos hoje assume que você está num planeta).
 - Pendências antigas: servidor dedicado, Sodium e Iris, arte final.
+
+## Etapa 4: o que foi feito/decidido (base lunar e retorno)
+
+Código em `moonbase/*` (lógica pura em `energy/EnergyMath`, `room/RoomScan`, `room/RoomPressure`, `machine/MoonMachineMath`); arte provisória
+por `tools/gen_moonbase_placeholders.py` (recolor); autoteste `-PshOnly=moonbase`.
+
+### Salas seladas
+- O **gerador de oxigênio** varre a sala a cada 10 ticks por preenchimento (flood fill) a partir da primeira face livre dele, com **teto de 1.000
+  células de ar**. Resultados: selada, vazamento (chegou a chunk não carregado ou fora do mundo), grande demais (passou do teto: o espaço aberto
+  da Lua sempre cai aqui) ou bloqueado.
+- Parede = bloco de colisão em cubo cheio (pedra, aço, vidro, eclusa da nave fechada) ou porta/alçapão **fechados**. Laje, escada, vidraça, grade e
+  portas abertas vazam. Abrir a porta ou quebrar um bloco é visto na varredura seguinte (até 0,5 s).
+- Pressão 0 a 1.000: sobe 100 por varredura (5 s até 50%, que já é respirável), cai 200 por varredura com vazamento (fora do ar respirável em
+  1,5 s) e 10 por varredura se faltar energia ou oxigênio (50 s). Manter a sala custa 1 de oxigênio por 20 células por varredura (75 células =
+  6/s: um tanque pequeno dura 6,7 min, um gelo 3,3 min) e 4 UE/t.
+- Dentro de uma sala respirável o jogador **não está no vácuo** (`OxygenSetup.isInVacuum`): não gasta tanque, não precisa de capacete e não
+  congela. As salas ativas ficam em `PressurizedRooms` (não salvas; refeitas na primeira varredura).
+- O gerador se alimenta de tanques de oxigênio (slot, 24/tick) e de gelo (1 gelo = 1.200 de oxigênio), reservatório de 4.800.
+
+### Energia simples
+Sem rede global: cada bloco guarda um número de UE e **empurra aos vizinhos por face** a cada tick (`EnergyMath.flow`); o cabo só estende. Papéis:
+painel (produz, nunca recebe), bateria e cabo (guardam e passam; entre si equalizam a fração), máquina (só consome). 200 UE/tick por face.
+- Painel solar: até 8 UE/t com o sol a pino (altura do sol do `SunModel` no lugar, reavaliada a cada segundo) e céu livre; zero à noite. O dia
+  lunar dura 8 dias do jogo, então a noite lunar é longa: bateria (200.000 UE) e vários painéis.
+- Máquinas: buffer de 4.000 UE. Eletrolisador 20 UE/t, refinaria lunar 30 UE/t, extrator 10 UE/t.
+- Clicar em painel, bateria e cabo mostra a energia na barra de ação.
+
+### Recursos lunares e combustível
+| De | Para | Máquina | Tempo / energia |
+|---|---|---|---|
+| gelo lunar (1) | 500 mB de hidrogênio (galão) + 1.200 de oxigênio (tanque) | eletrolisador | 100 ticks, 20 UE/t |
+| gelo lunar (1) | 400 mB de combustível químico do Tier 1 (galão) | refinaria lunar | 120 ticks, 30 UE/t |
+| regolito (1 bloco) | 250 mB de hélio-3 (galão) | extrator de hélio-3 (só na Lua) | 40 ticks, 10 UE/t |
+- Dez gelos enchem um tanque de foguete (4.000 mB). O clique do galão no solo (125 mB) continua valendo.
+- **Gelo lunar**: veio `lunar_ice_ore` em `moon.json` com dois filtros novos do `OreVeinSpec`: `min_latitude` 55 graus e `surface_types`
+  `["crater_floor"]`: só sob o fundo plano das crateras perto dos polos. Relevo da Lua inalterado. Vira o item `lunar_ice` (1 a 3, fortuna).
+- **Titânio: não há na Lua.** O titânio segue sendo de Marte, para o Tier 2 não ficar obsoleto nem o Tier 1 virar atalho.
+- Para voltar: gelo, refinaria lunar, galão de combustível, tanque do foguete.
+
+### Limites conhecidos
+Reservatórios internos e energia se perdem ao quebrar a máquina; o gelo de outras fontes (`ice`, `packed_ice`) também alimenta as máquinas;
+paredes de laje ou vidraça vazam; mobs não são afetados pela pressão.
