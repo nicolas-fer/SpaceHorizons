@@ -13,7 +13,7 @@ import com.spacehorizons.space.flight.FrameBridge.Local;
 import com.spacehorizons.space.flight.V3;
 import com.spacehorizons.space.flight.Zones;
 
-/** A descida da nave (fase 2b, parte 1): a decisão de um tick, a recusa com tripulante em pé e o estado virtual -> dimensão do corpo (sem o jogo). */
+/** A descida da nave (fase 2b, parte 1): a decisão de um tick e o estado virtual -> dimensão do corpo (sem o jogo). */
 class ShipDescentTest {
     private static final double EPS = 1e-6;
     private static final double CLOCK = 1000.0;
@@ -28,25 +28,15 @@ class ShipDescentTest {
     private static final V3 UP = new V3(0.0, 1.0, 0.0);
 
     @Test
-    void decisaoSoDesceUmaVezEFloraSoSemPodeDescer() {
+    void decisaoSoDesceUmaVez() {
         // já começou: não começa outra (vale uma vez só), e a nave segue voando
-        assertEquals(ShipDescent.Step.FLY, ShipDescent.decide(true, true, true, true));
+        assertEquals(ShipDescent.Step.FLY, ShipDescent.decide(true, true, true));
         // acima da altitude de entrada: voa no espaço, mesmo cruzando o critério
-        assertEquals(ShipDescent.Step.FLY, ShipDescent.decide(false, false, true, true));
-        // abaixo, mas com tripulante em pé: segurada na altitude de entrada (D4)
-        assertEquals(ShipDescent.Step.FLOOR, ShipDescent.decide(false, true, true, false));
-        assertEquals(ShipDescent.Step.FLOOR, ShipDescent.decide(false, true, false, false));
-        // abaixo, todos sentados, mas a dimensão do corpo ainda não pode receber: voa (freando no ar)
-        assertEquals(ShipDescent.Step.FLY, ShipDescent.decide(false, true, false, true));
-        // abaixo, todos sentados e a dimensão pode receber: começa a descida
-        assertEquals(ShipDescent.Step.START, ShipDescent.decide(false, true, true, true));
-    }
-
-    @Test
-    void recusaQuandoHaAlguemEmPe() {
-        assertTrue(ShipDescent.mayDescend(0));
-        assertFalse(ShipDescent.mayDescend(1));
-        assertFalse(ShipDescent.mayDescend(3));
+        assertEquals(ShipDescent.Step.FLY, ShipDescent.decide(false, false, true));
+        // abaixo, mas a dimensão do corpo ainda não pode receber: voa (freando no ar)
+        assertEquals(ShipDescent.Step.FLY, ShipDescent.decide(false, true, false));
+        // abaixo e a dimensão pode receber: começa a descida (com ou sem gente em pé: a recusa da D4 caiu)
+        assertEquals(ShipDescent.Step.START, ShipDescent.decide(false, true, true));
     }
 
     @Test

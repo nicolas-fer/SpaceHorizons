@@ -361,27 +361,23 @@ public final class ShipFlightTicker {
 
     /**
      * A descida neste tick: devolve o estado a gravar, ou null para segurar a nave (a dimensão do corpo ainda não tem os chunks do ponto de
-     * chegada). Abaixo da altitude de entrada, com todos de bordo sentados, desce quando a dimensão do corpo pode recebê-la
-     * ({@link ShipDescent#crossed}), uma vez só; com alguém em pé, a nave é segurada na altitude de entrada e os de bordo são avisados (D4).
+     * chegada). Abaixo da altitude de entrada, desce quando a dimensão do corpo pode recebê-la ({@link ShipDescent#crossed}), uma vez só; quem
+     * está em pé a bordo desce junto, em pé, na mesma posição relativa (a recusa da D4 caiu: fase 2e, frente 2).
      */
     private static ShipFlight.@Nullable State descent(MinecraftServer server, ShipRecord ship, Live live, ShipFlight.State next, double clockEnd) {
         FlightState o = next.orbit();
         PlanetDefinition planet = o.body().planet();
-        boolean may = ShipDescent.mayDescend(standingInside(server, ship));
         boolean below = ShipDescent.below(o);
         Local l = null;
         boolean crossed = false;
-        if (below && may && !live.descentStarted) {
+        if (below && !live.descentStarted) {
             l = ShipDescent.local(o, clockEnd, live.rate);
             crossed = ShipDescent.crossed(o, ShipDescent.heightAboveTerrain(l, planet), ZoneSwitch.horizontalSpeed(l));
         }
-        if (may) {
+        if (!below) {
             live.descentWarned = false;
-        } else if (below && !live.descentStarted) {
-            warnPlayers(server, ship, live, "message.spacehorizons.ship.descent_refused");
         }
-        return switch (ShipDescent.decide(live.descentStarted, below, crossed, may)) {
-            case FLOOR -> next.withOrbit(ShipFlight.floor(o));
+        return switch (ShipDescent.decide(live.descentStarted, below, crossed)) {
             case START -> start(server, ship, live, next, l, planet);
             case FLY -> next;
         };
@@ -411,7 +407,7 @@ public final class ShipFlightTicker {
         return next;
     }
 
-    /** Avisa quem está dentro da nave, uma vez por recusa ({@link Live#descentWarned}). */
+    /** Avisa quem está dentro da nave, uma vez por aviso ({@link Live#descentWarned}, de novo depois que a nave sobe da altitude de entrada). */
     private static void warnPlayers(MinecraftServer server, ShipRecord ship, Live live, String key) {
         if (live.descentWarned) {
             return;
@@ -420,17 +416,6 @@ public final class ShipFlightTicker {
         for (ServerPlayer player : playersInside(server, ship)) {
             player.sendSystemMessage(Component.translatable(key));
         }
-    }
-
-    /** Quantos jogadores estão dentro da nave e NÃO sentados num assento dela (a descida espera por eles). */
-    static int standingInside(MinecraftServer server, ShipRecord ship) {
-        int standing = 0;
-        for (ServerPlayer player : playersInside(server, ship)) {
-            if (!(player.getVehicle() instanceof ShipSeatEntity)) {
-                standing++;
-            }
-        }
-        return standing;
     }
 
     /** A conversão de descida falhou antes de tirar a nave do estaleiro: ela volta a poder descer (na próxima tentativa). */

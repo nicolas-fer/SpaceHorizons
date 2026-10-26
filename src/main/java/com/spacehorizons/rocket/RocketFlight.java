@@ -34,6 +34,8 @@ public final class RocketFlight {
     private long controlTick = Long.MIN_VALUE / 2;
     private int controlPackets;
     private int noPilotTicks;
+    /** Autoteste: conta como piloto presente (uma nave só com tripulantes a pé, sem ninguém sentado, segue obedecendo ao comando do teste). */
+    private boolean devtestPilot;
     /** Bits de ação que subiram (estavam apagados no pacote anterior) desde o último tick. */
     private int edges;
 
@@ -155,11 +157,15 @@ public final class RocketFlight {
      * poucos ticks sem passageiro da troca de dimensão.
      */
     void trackPilot(boolean present) {
-        if (present) {
+        if (present || this.devtestPilot) {
             this.noPilotTicks = 0;
         } else if (++this.noPilotTicks > PILOT_GRACE_TICKS) {
             this.control = RocketControlPayload.NEUTRAL;
         }
+    }
+
+    void setDevtestPilot(boolean on) {
+        this.devtestPilot = on;
     }
 
     /** Os bits de ação que subiram desde a última chamada (e os zera). */

@@ -177,6 +177,11 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         return this.stats;
     }
 
+    /** Autoteste: a nave obedece ao comando do teste mesmo sem ninguém sentado (a tripulação fica em pé no convés). */
+    public void setDevtestPilot(boolean on) {
+        this.flight.setDevtestPilot(on);
+    }
+
     /** Guarda o último comando do piloto (o voo o lê a cada tick do servidor). */
     public void applyControl(RocketControlPayload payload) {
         this.flight.applyControl(payload, this.level().getGameTime());
@@ -577,6 +582,18 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         Vec3 seat = center.add(local.x(), local.y() - 0.2, local.z());
         Vec3 offset = passenger.getVehicleAttachmentPoint(this);
         return new Vec3(seat.x - offset.x, seat.y - offset.y, seat.z - offset.z);
+    }
+
+    /**
+     * Levantar do assento de uma nave em voo: o jogador fica em pé no convés (embarque automático no próximo tick, fase 2e, frente 2). Pousado, o
+     * desembarque é o do vanilla (em pé no chão ao lado).
+     */
+    @Override
+    protected void removePassenger(Entity passenger) {
+        super.removePassenger(passenger);
+        if (!this.level().isClientSide() && passenger instanceof net.minecraft.server.level.ServerPlayer player && !this.isRemoved()) {
+            com.spacehorizons.ship.deck.DeckCrew.requestBoardAfterSeat(player, this);
+        }
     }
 
     /** Pousado: em pé no chão ao lado do foguete. Em voo (inclusive na troca de dimensão), onde o passageiro já está. */

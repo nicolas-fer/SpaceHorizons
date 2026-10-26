@@ -11,13 +11,16 @@ import org.joml.Vector3d;
 import org.jspecify.annotations.Nullable;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.rocket.FlightMode;
 import com.spacehorizons.rocket.RocketEntity;
 import com.spacehorizons.rocket.RocketPortrait;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -30,12 +33,20 @@ import net.neoforged.neoforge.network.PacketDistributor;
  *
  * <p>Embarcar e desembarcar são decisões do servidor ({@link #board}, {@link #leave}); o cliente é avisado por pacote. Quem senta numa nave
  * (passageiro), muda de dimensão ou sai da caixa do retrato deixa o convés.
+ *
+ * <p>Embarque automático (fase 2e, frente 2): o jogador entra no convés de uma nave que voa quando a caixa dele fica apoiada num bloco do retrato
+ * ({@link DeckBoarding}), ao levantar do assento da nave em voo ({@link #requestBoardAfterSeat}) e ao montar a nave pela ponte
+ * ({@link #boardStandingInside}); sai ao deixar a caixa com folga, ao pousar e desmontar ({@link #detachAll}) ou ao subir ao estaleiro.
  */
 public final class DeckCrew {
     /** Quanto o tripulante pode passar da caixa do retrato (blocos) antes de deixar o convés. */
     public static final double LEAVE_MARGIN = 3.0;
 
     private static final Map<UUID, Member> MEMBERS = new ConcurrentHashMap<>();
+    /** Quem levantou do assento de uma nave em voo e deve embarcar no próximo tick dela: jogador -> pedido (id da nave e ticks de espera que restam). */
+    private static final Map<UUID, SeatRequest> SEAT_REQUESTS = new ConcurrentHashMap<>();
+    /** Ticks que o pedido de embarque do assento espera pelo tick da nave antes de ser descartado. */
+    private static final int SEAT_REQUEST_TICKS = 10;
 
     /** Contagens para o autoteste e o diagnóstico: estados aceitos, recusados (correções enviadas) e saídas pelo limite da caixa. */
     public static final AtomicLong ACCEPTED = new AtomicLong();
@@ -43,6 +54,9 @@ public final class DeckCrew {
     public static final AtomicLong LEFT_BOX = new AtomicLong();
     /** Correções de posição que o servidor mandou a jogadores (o pacote de teletransporte do vanilla, que é o "moved wrongly" visto de fora). */
     public static final AtomicLong TELEPORTS = new AtomicLong();
+    /** Embarques automáticos (pisar no convés, levantar do assento, montagem) e danos de queda aplicados dentro do convés. */
+    public static final AtomicLong AUTO_BOARDED = new AtomicLong();
+    public static final AtomicLong FALL_DAMAGES = new AtomicLong();
 
     private DeckCrew() {
     }
@@ -55,6 +69,8 @@ public final class DeckCrew {
         final DeckState good = new DeckState();
         @Nullable DeckState pending;
         long lastAcceptTick;
+        /** A distância de queda acumulada em coordenadas locais ({@link DeckFall}). */
+        double fall;
 
         Member(UUID player, UUID rocket, int rocketId) {
             this.player = player;
@@ -70,6 +86,19 @@ public final class DeckCrew {
         public UUID rocketUuid() {
             return this.rocket;
         }
+    }
+
+    private static final class SeatRequest {
+        final int rocketId;
+        int ticksLeft = SEAT_REQUEST_TICKS;
+
+        SeatRequest(int rocketId) {
+            this.rocketId = rocketId;
+        }
+    }
+
+    /** Um tripulante que saiu do convés sem teletransporte: o jogador e o último estado local aceito. */
+    public record Crewed(ServerPlayer player, DeckState state) {
     }
 
     public static boolean isCrew(Entity entity) {
@@ -150,6 +179,29 @@ public final class DeckCrew {
         SpaceHorizons.LOGGER.info("[deck] {} deixou o convés ({})", player.getPlainTextName(), reason);
     }
 
+    /**
+     * Tira a tripulação da nave do convés SEM teletransportar: avisa os clientes e devolve cada tripulante com o último estado local aceito, para
+     * quem chamou levá-lo a outro lugar (a subida ao estaleiro e o pouso levam pela posição relativa à nave).
+     */
+    public static List<Crewed> detachAll(RocketEntity rocket) {
+        List<Crewed> out = new ArrayList<>();
+        if (MEMBERS.isEmpty() || !(rocket.level() instanceof ServerLevel level)) {
+            return out;
+        }
+        for (Member m : new ArrayList<>(MEMBERS.values())) {
+            if (!m.rocket.equals(rocket.getUUID())) {
+                continue;
+            }
+            MEMBERS.remove(m.player);
+            ServerPlayer player = level.getServer().getPlayerList().getPlayer(m.player);
+            if (player != null && !player.isRemoved()) {
+                PacketDistributor.sendToPlayer(player, new DeckLeavePayload());
+                out.add(new Crewed(player, m.state()));
+            }
+        }
+        return out;
+    }
+
     private static @Nullable RocketEntity rocketOf(ServerPlayer player, Member m) {
         return player.level() instanceof ServerLevel level && level.getEntity(m.rocket) instanceof RocketEntity r && !r.isRemoved() ? r : null;
     }
@@ -169,6 +221,9 @@ public final class DeckCrew {
      * que a nave tem agora. A conferência e a derivação ficam juntas porque a posição do mundo só vale para esta pose.
      */
     public static void afterRocketTick(RocketEntity rocket) {
+        if (rocket.level() instanceof ServerLevel here && !rocket.isRemoved()) {
+            autoBoard(here, rocket);
+        }
         if (MEMBERS.isEmpty()) {
             return;
         }
@@ -209,6 +264,106 @@ public final class DeckCrew {
         }
     }
 
+    // ---------------------------------------------------------------- embarque automático (fase 2e, frente 2)
+
+    /** O jogador levantou do assento de uma nave em voo: embarca no próximo tick dela, ao lado ou em cima do ponto onde o assento o deixou. */
+    public static void requestBoardAfterSeat(ServerPlayer player, RocketEntity rocket) {
+        if (rocket.flight().mode() != FlightMode.LANDED) {
+            SEAT_REQUESTS.put(player.getUUID(), new SeatRequest(rocket.getId()));
+        }
+    }
+
+    private static boolean canBoard(ServerPlayer player) {
+        return !player.isPassenger() && !player.isSpectator() && player.isAlive() && !MEMBERS.containsKey(player.getUUID());
+    }
+
+    /** O raio (blocos) em volta da nave dentro do qual um jogador pode estar no convés: a meia diagonal da caixa mais uma folga. */
+    private static double reach(RocketPortrait p) {
+        return 0.5 * Math.sqrt((double) p.sizeX * p.sizeX + (double) p.sizeY * p.sizeY + (double) p.sizeZ * p.sizeZ) + 2.0;
+    }
+
+    /** O estado de embarque de um jogador no ponto local {@code feet}, com o olhar na direção em que ele olha. */
+    private static DeckState startState(ServerPlayer player, DeckFrame frame, Vector3d feet) {
+        float[] view = frame.viewToLocal(player.getYRot(), player.getXRot());
+        DeckState s = new DeckState();
+        s.pos.set(feet);
+        s.yaw = view[0];
+        s.pitch = view[1];
+        s.onGround = true;
+        return s;
+    }
+
+    /** Antes da conferência do tick: quem pisou no convés de uma nave em voo e quem levantou do assento dela embarca. */
+    private static void autoBoard(ServerLevel level, RocketEntity rocket) {
+        RocketPortrait portrait = rocket.portrait();
+        if (portrait.isEmpty()) {
+            return;
+        }
+        List<ServerPlayer> players = level.players();
+        if (players.isEmpty()) {
+            return;
+        }
+        boolean flying = rocket.flight().mode() != FlightMode.LANDED;
+        boolean auto = flying && DeckBoarding.slowEnough(rocket.getDeltaMovement().length());
+        if (!auto && SEAT_REQUESTS.isEmpty()) {
+            return;
+        }
+        double radiusSqr = reach(portrait) * reach(portrait);
+        DeckFrame frame = null;
+        for (ServerPlayer player : players) {
+            SeatRequest request = SEAT_REQUESTS.get(player.getUUID());
+            boolean seatRequest = request != null && request.rocketId == rocket.getId();
+            if (!canBoard(player) || !(seatRequest || auto) || player.distanceToSqr(rocket) > radiusSqr) {
+                continue;
+            }
+            if (frame == null) {
+                frame = frameOf(rocket);
+            }
+            EntityDimensions dims = player.getDimensions(player.getPose());
+            Vector3d local = frame.toLocal(player.getX(), player.getY(), player.getZ());
+            Vector3d feet = seatRequest
+                    ? DeckBoarding.settleNear(local, dims.width(), dims.height(), portrait.deckColliders(), DeckBoarding.SEAT_REACH, DeckBoarding.SEAT_ABOVE, 2)
+                    : DeckBoarding.settle(local, dims.width(), dims.height(), portrait.deckColliders(), DeckBoarding.REACH, DeckBoarding.ABOVE);
+            if (feet != null && board(player, rocket, startState(player, frame, feet))) {
+                AUTO_BOARDED.incrementAndGet();
+                SEAT_REQUESTS.remove(player.getUUID());
+            }
+        }
+        // os pedidos do assento que não acharam lugar em alguns ticks são descartados (o jogador fica no mundo)
+        for (var e : SEAT_REQUESTS.entrySet()) {
+            if (e.getValue().rocketId == rocket.getId() && --e.getValue().ticksLeft <= 0) {
+                SEAT_REQUESTS.remove(e.getKey());
+            }
+        }
+    }
+
+    /**
+     * Montou a nave: quem está em pé na caixa dela, fora {@code except} (que vai sentar), entra no convés na mesma posição relativa. Devolve quantos.
+     * Quem não está apoiado num bloco do retrato (no ar, ao lado) fica no mundo.
+     */
+    public static int boardStandingInside(ServerLevel level, RocketEntity rocket, @Nullable ServerPlayer except) {
+        RocketPortrait portrait = rocket.portrait();
+        if (portrait.isEmpty()) {
+            return 0;
+        }
+        DeckFrame frame = frameOf(rocket);
+        int boarded = 0;
+        double radiusSqr = reach(portrait) * reach(portrait);
+        for (ServerPlayer player : level.players()) {
+            if (player == except || !canBoard(player) || player.distanceToSqr(rocket) > radiusSqr) {
+                continue;
+            }
+            EntityDimensions dims = player.getDimensions(player.getPose());
+            Vector3d local = frame.toLocal(player.getX(), player.getY(), player.getZ());
+            Vector3d feet = DeckBoarding.settle(local, dims.width(), dims.height(), portrait.deckColliders(), DeckBoarding.REACH, DeckBoarding.ABOVE);
+            if (feet != null && board(player, rocket, startState(player, frame, feet))) {
+                AUTO_BOARDED.incrementAndGet();
+                boarded++;
+            }
+        }
+        return boarded;
+    }
+
     private static void processPending(ServerPlayer player, RocketEntity rocket, Member m, long now) {
         DeckState incoming = m.pending;
         if (incoming == null) {
@@ -219,6 +374,11 @@ public final class DeckCrew {
         DeckMoveCheck.Verdict verdict = DeckMoveCheck.check(m.good.pos, incoming, (int) (now - m.lastAcceptTick), dims.width(), dims.height(),
                 rocket.portrait().deckColliders());
         if (verdict == DeckMoveCheck.Verdict.OK) {
+            DeckFall.Step fall = DeckFall.next(m.fall, incoming.pos.y - m.good.pos.y, incoming.onGround);
+            m.fall = fall.fall();
+            if (fall.landed() > 0.0) {
+                landed(player, rocket, incoming, fall.landed());
+            }
             m.good.set(incoming);
             m.lastAcceptTick = now;
             ACCEPTED.incrementAndGet();
@@ -230,6 +390,26 @@ public final class DeckCrew {
         DeckState back = new DeckState().set(m.good);
         back.vel.zero();
         PacketDistributor.sendToPlayer(player, new DeckCorrectionPayload(rocket.getId(), DeckMovePayload.of(rocket.getId(), back)));
+    }
+
+    /**
+     * Tocou o piso do convés depois de uma queda: o dano segue o vanilla ({@code causeFallDamage}: distância segura, efeitos, armadura), com o
+     * multiplicador do bloco do RETRATO sob os pés (slime, feno, mel, cama), não o do ar do mundo.
+     */
+    private static void landed(ServerPlayer player, RocketEntity rocket, DeckState at, double distance) {
+        RocketPortrait p = rocket.portrait();
+        int x = (int) Math.floor(at.pos.x);
+        int y = (int) Math.floor(at.pos.y - 0.2);
+        int z = (int) Math.floor(at.pos.z);
+        float multiplier = 1.0F;
+        if (x >= 0 && y >= 0 && z >= 0 && x < p.sizeX && y < p.sizeY && z < p.sizeZ) {
+            BlockState below = p.get(x, y, z);
+            multiplier = DeckFall.multiplier(BuiltInRegistries.BLOCK.getKey(below.getBlock()).getPath());
+        }
+        if (multiplier > 0.0F && player.causeFallDamage(distance, multiplier, player.damageSources().fall())) {
+            FALL_DAMAGES.incrementAndGet();
+            SpaceHorizons.LOGGER.info("[deck] {} caiu {} blocos no convés: dano de queda (x{})", player.getPlainTextName(), round(distance), multiplier);
+        }
     }
 
     /** Se o ponto (pés) passou da caixa do retrato mais a margem. */
@@ -257,6 +437,7 @@ public final class DeckCrew {
 
     /** A nave saiu do mundo: toda a tripulação dela deixa o convés. */
     public static void onRocketRemoved(RocketEntity rocket) {
+        SEAT_REQUESTS.entrySet().removeIf(e -> e.getValue().rocketId == rocket.getId());
         if (MEMBERS.isEmpty() || !(rocket.level() instanceof ServerLevel level)) {
             return;
         }
@@ -275,11 +456,15 @@ public final class DeckCrew {
     /** O jogador saiu do servidor. */
     public static void onLogout(ServerPlayer player) {
         MEMBERS.remove(player.getUUID());
+        SEAT_REQUESTS.remove(player.getUUID());
     }
 
     /** O servidor parou: esquece tudo. */
     public static void reset() {
         MEMBERS.clear();
+        SEAT_REQUESTS.clear();
+        AUTO_BOARDED.set(0);
+        FALL_DAMAGES.set(0);
         ACCEPTED.set(0);
         REJECTED.set(0);
         LEFT_BOX.set(0);

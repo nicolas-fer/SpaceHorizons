@@ -11,6 +11,8 @@ import com.spacehorizons.rocket.RocketFuel;
 import com.spacehorizons.rocket.RocketFuelTankBlockEntity;
 import com.spacehorizons.rocket.RocketPortrait;
 import com.spacehorizons.rocket.RocketSpecs;
+import com.spacehorizons.ship.deck.DeckCrew;
+import com.spacehorizons.ship.deck.DeckYardMap;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -292,6 +294,12 @@ final class RocketToYardJob extends ConversionJob {
         if (this.flight != null) {
             // a subida (fase 2a-ii): a nave voa daquele estado, o da entidade no instante em que cruzou a altitude de saída
             ShipFlightTicker.startWith(this.server, ready, this.flight, ShipCensusService.scanNow(this.server, ready));
+        }
+        // a tripulação a pé no convés sobe ao estaleiro em pé, na MESMA posição relativa à nave (o retrato entra sem rotação no canto da caixa)
+        for (DeckCrew.Crewed crew : DeckCrew.detachAll(this.rocket)) {
+            Vector3d at = DeckYardMap.toYard(crew.state().pos, this.box.minX(), this.box.minY(), this.box.minZ());
+            ShipTransit.enterAt(crew.player(), ready, new Vec3(at.x, at.y, at.z), crew.state().yaw, crew.state().pitch);
+            this.notes.add("tripulante " + crew.player().getName().getString() + " levado em pé para o estaleiro em " + at);
         }
         Entity pilot = this.rocket.getControllingPassenger();
         Quaternionf attitude = new Quaternionf(this.rocket.attitude());
