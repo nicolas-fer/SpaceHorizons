@@ -3,7 +3,7 @@
 Painel único do projeto: o que está pronto, o que está em andamento e o que vem depois. Os detalhes técnicos continuam nos
 planos de `docs/`; aqui fica só o estado. **Atualize este arquivo a cada etapa concluída ou começada.**
 
-Última atualização: 22/10/2026.
+Última atualização: 26/10/2026.
 
 Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planejado · 🧪 pronto em código, falta verificar em jogo · ⛔ bloqueado
 
@@ -11,6 +11,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | | O quê | Onde |
 |---|---|---|
+| 🟡 | **Naves 2e: convés andável na nave real**, em três frentes paralelas: (1) rede e autoteste de 2 clientes (observadores veem o tripulante no convés); (2) embarque e desembarque automáticos, subida e descida com tripulante em pé (a recusa da D4 cai), atrito do retrato; (3) porta, baú e assento em movimento (A2). | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Base lunar**: salas seladas com ar (gerador de oxigênio, até 1.000 blocos), energia por adjacência (painel solar, bateria, cabo), eletrolisador, refinaria lunar, extrator de hélio-3 e gelo lunar em crateras polares. Autoteste `moonbase` 24/0, `tier2` 37/0. Arte provisória. | `docs/PLANO_SOBREVIVENCIA.md` (etapa 4) |
 | ✅ | **História (sinal lunar)**: 9 registros (diários e terminais), Observatório Aurora na Terra, Base Selene-1 e sonda Vigia-3 na Lua, 6 conquistas, planta lunar destravada pelo terminal da base, gancho para Marte. Autoteste `story` 45/0. Arte do terminal e do diário provisória. | `docs/PLANO_SOBREVIVENCIA.md` (etapa 5) |
 | ✅ | **Naves 2f: âncora completa**: bloco `antigravity_generator` (carga gasta ao ancorar, recarga de 20 s com o bloco no mundo), tecla H e estado no painel, recusa com destaque; limites do S6 corrigidos (exceto o congelamento de fluido só nos blocos da nave). Autoteste `shipanchor2` 24/0; regressão ship* sem falhas. | `docs/PLANO_NAVE_ATMOSFERA.md` |
@@ -79,7 +80,8 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | S5 | Spike do convés andável aprovado (22/10/2026) |
 | ✅ | S6 | Spike da âncora aprovado (22/10/2026) |
 | ✅ | 2f | Âncora completa (22/10/2026) |
-| ⬜ | 2e, 2g | Andar na nave dentro do planeta: âncora no ar, convés na nave real, trocas sem costura |
+| 🟡 | 2e | Convés andável na nave real: rede e 2 clientes, embarque automático, subida e descida em pé, porta, baú e assento em movimento |
+| ⬜ | 2g | Trocas sem costura (convés, âncora, pouso e decolagem sem salto) |
 | ⬜ | 3 | Dobra, escudos, hangar, luz do sol, ar selado; voo assistido estilo No Man's Sky |
 
 ### Tier 4: dobra e sistemas procedurais
