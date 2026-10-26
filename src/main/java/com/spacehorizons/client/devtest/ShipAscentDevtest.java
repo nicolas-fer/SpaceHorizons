@@ -72,6 +72,23 @@ final class ShipAscentDevtest {
     private static boolean haveLocal;
     private static double minFootRel = 0.0;
     private static double minHealth = 20.0;
+    /** Algum dano de queda ao tripulante (a vida pode cair por outras causas em sobrevivência, como o frio do espaço: só a queda importa aqui). */
+    static boolean fallHurt;
+    static String lastDamage = "nenhum";
+
+    /** Olha o último dano do jogador: registra a causa e se foi queda. */
+    static void watchDamage(ServerPlayer p) {
+        var src = p.getLastDamageSource();
+        if (src != null) {
+            if (src.is(net.minecraft.world.damagesource.DamageTypes.FALL)) {
+                fallHurt = true;
+            }
+            if (!src.getMsgId().equals(lastDamage)) {
+                lastDamage = src.getMsgId();
+                SpaceHorizons.LOGGER.info("{}DANO ao jogador: {} (vida {})", TAG, lastDamage, p.getHealth());
+            }
+        }
+    }
     private static long fallDamages0;
 
     private static int passed;
@@ -246,6 +263,7 @@ final class ShipAscentDevtest {
             minFootRel = Math.min(minFootRel, lastLocal.y - startLocal.y);
         }
         minHealth = Math.min(minHealth, player.getHealth());
+        watchDamage(player);
         if (tradeDone) {
             // depois da troca: a conferência de estabilidade roda SETTLE_TICKS ticks depois (ver settle); então o voo virtual circulariza
             if (!settled) {
@@ -364,8 +382,8 @@ final class ShipAscentDevtest {
             double err = p == null || want == null ? Double.NaN : Math.sqrt(p.distanceToSqr(want.x, want.y, want.z));
             check("tripulante ainda em pé no estaleiro " + SETTLE_TICKS + " ticks depois da troca, no mesmo lugar (< " + RELATIVE_TOLERANCE + ")",
                     p != null && p.getVehicle() == null && ShipYard.is(p.level()) && err < RELATIVE_TOLERANCE, "diferença " + f(err) + " blocos");
-            check("tripulante sem dano de queda até aqui (vida mínima " + f(minHealth) + ")", minHealth >= 20.0 && DeckCrew.FALL_DAMAGES.get() == fallDamages0,
-                    "vida mínima " + f(minHealth) + ", danos de queda " + (DeckCrew.FALL_DAMAGES.get() - fallDamages0));
+            check("tripulante sem dano de queda até aqui (vida mínima " + f(minHealth) + ", último dano " + lastDamage + ")", !fallHurt && DeckCrew.FALL_DAMAGES.get() == fallDamages0,
+                    "vida mínima " + f(minHealth) + ", último dano " + lastDamage + ", danos de queda " + (DeckCrew.FALL_DAMAGES.get() - fallDamages0));
             return;
         }
         boolean seated = !players.isEmpty() && players.get(0).getVehicle() instanceof ShipSeatEntity;
@@ -445,7 +463,8 @@ final class ShipAscentDevtest {
                             + f(player.getY() - box.minY()) + ", " + f(player.getZ() - box.minZ()) + "), diferença " + f(err));
             check("o tripulante nunca atravessou o piso na subida (pé sobre o piso local, mínimo " + f(minFootRel) + ")", minFootRel >= -0.001,
                     "mínimo " + f(minFootRel));
-            check("nenhum dano de queda na subida", minHealth >= 20.0 && DeckCrew.FALL_DAMAGES.get() == fallDamages0, "vida mínima " + f(minHealth));
+            check("nenhum dano de queda na subida", !fallHurt && DeckCrew.FALL_DAMAGES.get() == fallDamages0,
+                    "vida mínima " + f(minHealth) + ", último dano " + lastDamage);
         }
         ShipFlightTicker.Live live = ShipFlightTicker.live(rec.id());
         check("voo virtual ativo", live != null, live == null ? "sem voo" : "ligado");

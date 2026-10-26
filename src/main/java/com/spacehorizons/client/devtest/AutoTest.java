@@ -4551,10 +4551,12 @@ public final class AutoTest {
         cmd(5, "gamerule show_advancement_messages false");
         cmd(5, "weather clear 1000000");
         cmd(5, "time set 6000");
-        cmd(5, "gamemode creative");
+        cmd(5, ShipAscentDevtest.STANDING ? "gamemode survival" : "gamemode creative");
+        cmd(5, "difficulty peaceful");
         cmd(5, "clear @s");
         step(10, ShipAscentDevtest::build);
-        cmd(20, "tp @s " + (bx + 9.0) + " " + (by + 2.5) + " " + (bz + 7.0));
+        // em pé sobre o piso da nave (o bloco de casco ao lado da ponte): a montagem põe o jogador no convés; sentado, ao lado dela
+        cmd(20, ShipAscentDevtest.STANDING ? "tp @s " + (bx + 1.0) + " " + (by + 2.0) + " " + bz : "tp @s " + (bx + 9.0) + " " + (by + 2.5) + " " + (bz + 7.0));
         look(20, 140f, 12f);
         shot(40, "sa_1_chao");
         step(10, ShipAscentDevtest::assemble);
@@ -4592,10 +4594,11 @@ public final class AutoTest {
         cmd(5, "gamerule show_advancement_messages false");
         cmd(5, "weather clear 1000000");
         cmd(5, "time set 6000");
-        cmd(5, "gamemode creative");
+        cmd(5, ShipAscentDevtest.STANDING ? "gamemode survival" : "gamemode creative");
+        cmd(5, "difficulty peaceful");
         cmd(5, "clear @s");
         step(10, ShipAscentDevtest::build);
-        cmd(20, "tp @s " + (bx + 9.0) + " " + (by + 2.5) + " " + (bz + 7.0));
+        cmd(20, ShipAscentDevtest.STANDING ? "tp @s " + (bx + 1.0) + " " + (by + 2.0) + " " + bz : "tp @s " + (bx + 9.0) + " " + (by + 2.5) + " " + (bz + 7.0));
         look(20, 140f, 12f);
         shot(40, "sd_1_chao");
         step(10, ShipAscentDevtest::assemble);
@@ -4611,6 +4614,11 @@ public final class AutoTest {
         tickerStep(5, waitFor("sa_done", 1_200));
         step(20, ShipDescentDevtest::start);
         tickerStep(5, waitFor("sd_done", 4_000));
+        if (ShipAscentDevtest.STANDING) {
+            // quem está em pé desce junto: entra no convés da entidade, na mesma posição relativa à nave
+            tickerStep(0, waitUntil("SHIPDESCENT: tripulante no convés da entidade", 300, ShipDescentDevtest::crewOnEntity));
+            step(5, ShipDescentDevtest::checkCrewOnEntity);
+        }
         // a nave cai: o piloto da missão assume já, na fase da descida da Terra (freia no retrógrado até o contato)
         step(0, mc -> MissionDevtest.goFrom(mc, MissionPilot.Phase.EARTH_LANDING));
         thirdPerson();

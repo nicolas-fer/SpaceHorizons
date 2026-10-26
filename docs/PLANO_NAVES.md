@@ -309,6 +309,7 @@ Autotestes (estilo `AutoTest`, cenários com `-PshOnly=`): `ship` (fase 1: cria 
 - **D2**: tamanho máximo da nave (proposta 128×128×256 blocos e até 8.192 blocos).
 - **D3**: a nave começa já no estaleiro por criativo (fase 1) ou obrigamos montar no chão antes?
 - **D4**: tripulação sem assento na descida: forçar assento, recusar a descida, ou presa no lugar?
+  - **Decidido na fase 2e, frente 2 (26/10/2026)**: nem forçar assento nem recusar: quem está em pé desce JUNTO, em pé, na mesma posição relativa à nave (o convés andável, `ship/deck/`). A recusa (`ShipDescent.mayDescend`, `descent_refused`, a nave segurada em `ShipFlight.floor`) foi removida; ver `docs/PLANO_NAVE_ATMOSFERA.md`, "Resultado da fase 2e, frente 2".
 - **D5**: naves grandes decolam como entidade (exige retrato esparso) ou só se constroem no estaleiro e só descem?
 - **D6**: pouso de barriga permitido?
 - **D7**: batida de nave grande: o que acontece com os blocos?
@@ -412,14 +413,14 @@ descartados, desvio máximo 0,3%. Antes, um quadro atrasado bastava para dar 30,
 - **Gatilho da descida** (`ShipDescent.decide`, `ShipFlightTicker.descent`). A nave do voo virtual, abaixo da altitude de entrada (`Zones.enterAltitude`, 4.000 na Terra) e descendo, vira entidade na dimensão do corpo quando a dimensão consegue receber: o MESMO critério do foguete, `ZoneSwitch.canEnter` (até 1.200 blocos sobre o terreno com horizontal até 25 b/t, ou à força abaixo de 600). Vale uma vez só (`Live.descentStarted`).
 - **Conversão do estado** (`ShipDescent.plan`): posição e velocidade de coordenadas pelo `FrameBridge.toDimension` e `coordinateVelocity`, o voo (`FlightMachine.Snapshot`, com a atitude de estilo foguete, o giro, o SAS, o acelerador e o combustível do instante) entra na entidade por `RocketFlight.setSnapshot`. A entidade nasce com `isShip()` e `nozzlesDown` do NBT do estaleiro.
 - **Estaleiro**: `YardToRocketJob(…, descending = true)` lê a caixa, monta o retrato, confere o romaneio e só então cria a entidade, como na volta normal; depois leva os jogadores, remove os blocos em lotes e destrói o registro (libera a célula). `startDescent` entra na fila de `ShipConversions`.
-- **Tripulação** (D4, versão simples): com alguém em pé dentro da célula (não sentado num `ShipSeatEntity`), a nave NÃO desce: é segurada na altitude de entrada (`ShipFlight.floor`) e os de bordo recebem o aviso (`message.spacehorizons.ship.descent_refused`, uma vez por recusa). Sem dimensão do corpo no mundo: aviso `descent_no_body` e segura.
+- **Tripulação** (D4): ~~com alguém em pé dentro da célula a nave NÃO desce~~ (REMOVIDO na fase 2e, frente 2: quem está em pé desce junto, em pé, e entra no convés da entidade na mesma posição relativa; `YardToRocketJob.movePeople`, `pendingDeck`). Sem dimensão do corpo no mundo: aviso `descent_no_body` e segura.
 - **Física**: `ShipFlight.advance` é o passo sem o chão; `step` continua com o chão (os testes da fase 1 não mudaram). O voo do servidor usa `advance` e segura a nave só nos casos acima.
 - **Testes** (`ShipDescentTest`, 4 casos): decisão do tick (uma vez só, recusa com tripulante, espera de dimensão, START), `mayDescend`, o critério de descer (abaixo da entrada, descendo, `canEnter`), e a ida e volta virtual → dimensão → virtual sem perda.
 
 **Decisões**
 
 - O gatilho é o critério de entrada do foguete (`canEnter`), e não só a altitude de 4.000 do enunciado: a 4.000 com 70 b/t de horizontal a dimensão do corpo não carrega o terreno (a regra que o foguete já segue). A nave voa no espaço freando até cumprir o critério, e a descida começa ao cruzá-lo.
-- A nave só é segurada quando há tripulante em pé. Sem tripulante ela nunca é segurada no chão da fase 1, senão nunca desceria.
+- *(Obsoleto desde a fase 2e, frente 2: a recusa por tripulante em pé caiu.)* A nave só é segurada quando há tripulante em pé. Sem tripulante ela nunca é segurada no chão da fase 1, senão nunca desceria.
 - Enquanto a caixa é lida (estado `EMPTYING`), a nave continua voando: o estado da entidade é o do instante da escrita, e não o do disparo (senão o atraso de leitura, alguns ticks a 70 b/t, deslocaria a nave centenas de blocos).
 - A nova entidade NÃO é congelada na fase de remoção dos blocos: o voo dela segue (o mesmo tempo de leitura e remoção não pode atrasar a queda).
 - Se a conversão falha antes de tirar a nave do estaleiro, `descentCancelled` solta a descida e a nave tenta de novo (ticks seguintes).
@@ -438,7 +439,7 @@ descartados, desvio máximo 0,3%. Antes, um quadro atrasado bastava para dar 30,
 - Forçar a descida: `ShipFlightTicker.devtestSetState(shipId, state)` pode pôr uma órbita baixa e descendente (altitude abaixo de 4.000, `v` apontando para o centro, horizontal até 25 b/t, ou abaixo de 600 de altura); com `ShipFlightTicker.applyControl` o piloto pode frear.
 - Saber que virou entidade: `ShipRegistry.byId(id) == null` (a nave saiu do registro e a célula foi liberada) e uma `RocketEntity` com `isShip()` na dimensão do corpo (`ShipDescent.plan` tem o destino); o `YardToRocketJob` loga `[ship-conv] … foguete recriado em …`.
 - Pouso e desmontagem: `RocketEntity.flight().mode() == LANDED` depois de `SOFT_LANDING` (log `Foguete pousou suave em …`); desmontar com `RocketLanding.land(level, rocket)` ou o comando `rocket disassemble`.
-- Tripulante em pé: um jogador dentro da célula sem `getVehicle() instanceof ShipSeatEntity` recusa a descida (chat `descent_refused`), e o voo da nave fica acima de 4.000.
+- *(Obsoleto desde a fase 2e, frente 2: a recusa por tripulante em pé caiu.)* Tripulante em pé: um jogador dentro da célula sem `getVehicle() instanceof ShipSeatEntity` recusa a descida (chat `descent_refused`), e o voo da nave fica acima de 4.000.
 
 **Verificado**: `./gradlew build` passa (compilação, testes unitários e demais tarefas). O jogo não foi aberto nesta parte.
 
