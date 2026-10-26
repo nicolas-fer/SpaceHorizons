@@ -220,6 +220,10 @@ public final class AutoTest {
             shipDeckScenario();
             return;
         }
+        if ("shipdeckreal".equals(ONLY)) {
+            shipDeckRealScenario();
+            return;
+        }
         if ("shipanchor".equals(ONLY)) {
             shipAnchorScenario();
             return;
@@ -5183,6 +5187,58 @@ public final class AutoTest {
     // 100 ms de latência por sentido. Bloco separado; as medidas ficam em ShipDeckDevtest. SH_DECK_CONFIGS (ambiente, só para depurar) troca a
     // matriz: "10:0,100:100:s" (velocidade:latência[:s com prints]).
     // ===================================================================================================================
+    private void shipDeckRealScenario() {
+        BlockPos b = ShipGroundDevtest.BASE;
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "difficulty peaceful");
+        cmd(5, "gamemode survival");
+        step(10, ShipDeckRealDevtest::build);
+        // 1. montar com o jogador em pé sobre o piso: ele entra no convés
+        cmd(20, "tp @s " + (b.getX() + 1.5) + " " + (b.getY() + 2.0) + " " + (b.getZ() + 0.5));
+        step(20, ShipDeckRealDevtest::assembleStanding);
+        tickerStep(0, waitUntil("DECKREAL: o cliente entrou no convés ao montar", 200, ShipDeckRealDevtest::aboardClient));
+        step(60, mc -> ShipDeckRealDevtest.checkAssembled(mc));
+        shot(5, "sdr_1_montada");
+        // 2. nave pairando baixo e devagar: pula do chão e passa a estar no convés
+        step(5, ShipDeckRealDevtest::spawnHover);
+        step(40, ShipDeckRealDevtest::jump);
+        tickerStep(0, waitUntil("DECKREAL: pulou do chão e embarcou", 80, ShipDeckRealDevtest::boardedByStepping));
+        step(20, ShipDeckRealDevtest::checkStepped);
+        shot(5, "sdr_2_embarcou");
+        step(5, ShipDeckRealDevtest::startMoving);
+        step(40, ShipDeckRealDevtest::checkMoving);
+        // 3. atrito: ferro e gelo do retrato
+        step(5, mc -> ShipDeckRealDevtest.startSlide(mc, 3.5, 1.5));
+        tickerStep(0, waitUntil("DECKREAL: deslize no ferro medido", 600, ShipDeckRealDevtest::slideDone));
+        step(2, ShipDeckRealDevtest::recordIron);
+        step(5, mc -> ShipDeckRealDevtest.startSlide(mc, 3.5, 6.5));
+        tickerStep(0, waitUntil("DECKREAL: deslize no gelo medido", 600, ShipDeckRealDevtest::slideDone));
+        step(2, ShipDeckRealDevtest::checkIce);
+        // 4. queda dentro do convés: ferro machuca, slime não
+        step(5, mc -> ShipDeckRealDevtest.drop(mc, 10.5, 2.5));
+        tickerStep(0, waitUntil("DECKREAL: caiu no ferro", 200, ShipDeckRealDevtest::landedAfterDrop));
+        step(10, mc -> ShipDeckRealDevtest.checkDrop(mc, true, "ferro"));
+        step(5, mc -> ShipDeckRealDevtest.drop(mc, 15.5, 2.5));
+        tickerStep(0, waitUntil("DECKREAL: caiu no slime", 200, ShipDeckRealDevtest::landedAfterDrop));
+        step(10, mc -> ShipDeckRealDevtest.checkDrop(mc, false, "slime"));
+        // 5. levantar do assento da nave em voo
+        step(5, ShipDeckRealDevtest::sit);
+        tickerStep(0, waitUntil("DECKREAL: sentado, fora do convés", 100, ShipDeckRealDevtest::sentClient));
+        step(10, ShipDeckRealDevtest::standUp);
+        tickerStep(0, waitUntil("DECKREAL: em pé no convés ao levantar", 100, ShipDeckRealDevtest::standingAgain));
+        step(20, ShipDeckRealDevtest::checkStandUp);
+        shot(5, "sdr_3_em_pe");
+        step(5, ShipDeckRealDevtest::cleanup);
+        step(20, mc -> {
+            ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
     private void shipDeckScenario() {
         cmd(5, "gamerule send_command_feedback false");
         cmd(5, "gamerule show_advancement_messages false");

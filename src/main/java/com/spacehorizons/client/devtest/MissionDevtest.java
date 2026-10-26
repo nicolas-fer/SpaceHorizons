@@ -82,10 +82,15 @@ final class MissionDevtest {
         }
         server.execute(() -> {
             ServerPlayer player = server.getPlayerList().getPlayers().get(0);
-            if (!(player.getVehicle() instanceof RocketEntity rocket)) {
+            RocketEntity rocket = rocketOf(player);
+            if (rocket == null) {
                 SpaceHorizons.LOGGER.error("{}o jogador não está no foguete", TAG);
                 FlightDevtest.mark("failed");
                 return;
+            }
+            if (!(player.getVehicle() instanceof RocketEntity)) {
+                // tripulante em pé no convés (fase 2e, frente 2): ninguém sentado, então a nave obedece ao comando do teste mesmo assim
+                rocket.setDevtestPilot(true);
             }
             double hy = rocket.portrait().sizeY / 2.0;
             pilot = new MissionPilot(rocket.stats(), hy, MissionDevtest::surfaceY, line -> SpaceHorizons.LOGGER.info(TAG + line));
@@ -131,7 +136,8 @@ final class MissionDevtest {
         if (!armed || out == null || server.getPlayerList().getPlayers().isEmpty()) {
             return;
         }
-        if (server.getPlayerList().getPlayers().get(0).getVehicle() instanceof RocketEntity rocket) {
+        RocketEntity rocket = rocketOf(server.getPlayerList().getPlayers().get(0));
+        if (rocket != null) {
             int flags = (out.parachute() ? RocketControlPayload.FLAG_PARACHUTE : 0) | (out.nextSas() ? RocketControlPayload.FLAG_NEXT_SAS : 0);
             rocket.applyControl(new RocketControlPayload((float) out.pitch(), (float) out.yaw(), 0.0F, (float) out.throttle(), (byte) flags));
             if (out.nextSas()) {
@@ -139,6 +145,15 @@ final class MissionDevtest {
                 current = new MissionPilot.Out(out.pitch(), out.yaw(), out.throttle(), out.parachute(), false);
             }
         }
+    }
+
+    /** O foguete do jogador: aquele em que está sentado ou, em pé no convés (fase 2e, frente 2), aquele de que é tripulante. */
+    static @Nullable RocketEntity rocketOf(ServerPlayer player) {
+        if (player.getVehicle() instanceof RocketEntity r) {
+            return r;
+        }
+        com.spacehorizons.ship.deck.DeckCrew.Member m = com.spacehorizons.ship.deck.DeckCrew.member(player.getUUID());
+        return m != null && player.level() instanceof ServerLevel level && level.getEntity(m.rocketUuid()) instanceof RocketEntity r ? r : null;
     }
 
     private static void onTick(MinecraftServer server) {
@@ -150,7 +165,8 @@ final class MissionDevtest {
         msptSum += ms;
         msptMax = Math.max(msptMax, ms);
         ServerPlayer player = server.getPlayerList().getPlayers().get(0);
-        if (!(player.getVehicle() instanceof RocketEntity rocket)) {
+        RocketEntity rocket = rocketOf(player);
+        if (rocket == null) {
             if (p.phase() != MissionPilot.Phase.DONE && p.phase() != MissionPilot.Phase.FAILED && ticks > 5) {
                 SpaceHorizons.LOGGER.error("{}o jogador não está mais montado no foguete (fase {}, veículo={}): missão perdida", TAG, p.phase(), player.getVehicle());
                 FlightDevtest.mark("failed");

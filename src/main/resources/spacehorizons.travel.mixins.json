@@ -15,6 +15,7 @@
     "ClientPacketProbeMixin",
     "DeckAnimationMixin",
     "DeckCullingMixin",
+    "DeckFrictionMixin",
     "DeckMoveMixin",
     "DeckSendMixin",
     "RocketPositionMixin"

@@ -264,6 +264,25 @@ public final class DeckCrew {
         }
     }
 
+    /**
+     * Só autoteste: põe o tripulante num ponto local (sem velocidade) e avisa o cliente pelo pacote de correção, que reposiciona a simulação local.
+     * Devolve false se o jogador não está no convés.
+     */
+    public static boolean devtestRelocate(ServerPlayer player, double x, double y, double z, boolean onGround) {
+        Member m = MEMBERS.get(player.getUUID());
+        if (m == null) {
+            return false;
+        }
+        m.good.pos.set(x, y, z);
+        m.good.vel.zero();
+        m.good.onGround = onGround;
+        m.pending = null;
+        m.fall = 0.0;
+        m.lastAcceptTick = player.level().getGameTime();
+        PacketDistributor.sendToPlayer(player, new DeckCorrectionPayload(m.rocketId, DeckMovePayload.of(m.rocketId, m.good)));
+        return true;
+    }
+
     // ---------------------------------------------------------------- embarque automático (fase 2e, frente 2)
 
     /** O jogador levantou do assento de uma nave em voo: embarca no próximo tick dela, ao lado ou em cima do ponto onde o assento o deixou. */

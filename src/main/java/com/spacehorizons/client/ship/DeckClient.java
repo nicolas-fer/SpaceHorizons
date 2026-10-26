@@ -15,7 +15,10 @@ import com.spacehorizons.ship.deck.DeckState;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -288,6 +291,57 @@ public final class DeckClient {
         Vector3d now = frame.toWorld(STATE.pos.x, STATE.pos.y, STATE.pos.z);
         p.setOldPosAndRot(new Vec3(before.x, before.y, before.z), p.yRotO, p.xRotO);
         p.setPos(now.x, now.y, now.z);
+    }
+
+    // ---------------------------------------------------------------- blocos do retrato sob os pés (atrito, velocidade, pulo)
+
+    /** O bloco do retrato na célula local (ar fora do retrato ou sem a nave). */
+    private static BlockState portraitState(int x, int y, int z) {
+        RocketEntity rocket = rocket();
+        if (rocket == null) {
+            return Blocks.AIR.defaultBlockState();
+        }
+        var p = rocket.portrait();
+        if (x < 0 || y < 0 || z < 0 || x >= p.sizeX || y >= p.sizeY || z >= p.sizeZ) {
+            return Blocks.AIR.defaultBlockState();
+        }
+        return p.get(x, y, z);
+    }
+
+    /** O bloco do retrato onde estão os pés (a célula local da posição), para o fator de velocidade e de pulo. */
+    private static BlockState stateHere() {
+        return portraitState((int) Math.floor(STATE.pos.x), (int) Math.floor(STATE.pos.y), (int) Math.floor(STATE.pos.z));
+    }
+
+    /** O bloco do retrato que sustenta os pés, como o vanilla escolhe (meio bloco e um fio abaixo): o que dá o atrito (gelo escorrega). */
+    private static BlockState stateBelow() {
+        return portraitState((int) Math.floor(STATE.pos.x), (int) Math.floor(STATE.pos.y - 0.500001), (int) Math.floor(STATE.pos.z));
+    }
+
+    /**
+     * O bloco sob o pé que a física do vanilla deve ler no lugar do ar do mundo: o do RETRATO, se {@code entity} é o jogador local no convés; senão
+     * {@code vanilla}. Chamado pelo mixin do atrito ({@code LivingEntity.travelInAir}).
+     */
+    public static BlockState groundState(Entity entity, BlockState vanilla) {
+        return isAboard(entity) ? stateBelow() : vanilla;
+    }
+
+    /** O fator de velocidade dos blocos do retrato (alma de areia, mel) para o jogador local no convés, ou null fora dele (vale o vanilla). */
+    public static @Nullable Float speedFactor(Entity entity) {
+        if (!isAboard(entity)) {
+            return null;
+        }
+        float here = stateHere().getBlock().getSpeedFactor();
+        return here == 1.0F ? stateBelow().getBlock().getSpeedFactor() : here;
+    }
+
+    /** O fator de pulo dos blocos do retrato (mel) para o jogador local no convés, ou null fora dele. */
+    public static @Nullable Float jumpFactor(Entity entity) {
+        if (!isAboard(entity)) {
+            return null;
+        }
+        float here = stateHere().getBlock().getJumpFactor();
+        return here == 1.0F ? stateBelow().getBlock().getJumpFactor() : here;
     }
 
     // ---------------------------------------------------------------- física local
