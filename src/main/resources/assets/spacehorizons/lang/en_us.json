@@ -262,6 +262,7 @@
   "hud.spacehorizons.ship.title_engine": "Engines",
   "hud.spacehorizons.ship.hint": "%s: stand up · %s: SAS",
   "message.spacehorizons.ship.seat_taken": "Someone is already sitting here.",
+  "message.spacehorizons.deck.needs_anchor": "The ship must be anchored, landed or in space.",
   "message.spacehorizons.ship.board_hint": "At the controls. %s stands up, %s changes the SAS.",
   "message.spacehorizons.ship.help": "Ship: %s/%s pitch, %s/%s yaw, %s/%s roll, %s raises and %s lowers the throttle (it stays where you leave it), %s full, %s cut, %s SAS, %s stands up. The ship keeps its throttle for 30 s after you stand up.",
   "block.spacehorizons.mars_regolith": "Martian Regolith",

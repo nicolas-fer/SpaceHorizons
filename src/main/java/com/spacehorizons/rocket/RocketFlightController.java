@@ -101,6 +101,12 @@ final class RocketFlightController {
             }
         }
 
+        // levantar da ponte em voo (a tecla de sair): quem sentou pelo retrato volta ao convés em pé (RocketEntity.removePassenger)
+        if ((edges & RocketControlPayload.FLAG_DISASSEMBLE) != 0 && snap.mode() != FlightMode.LANDED && pilot != null && rocket.sittingFromDeck(pilot)) {
+            pilot.stopRiding();
+            return;
+        }
+
         // o cliente já manda o acelerador integrado (0..1); os bits de cheio/corta são só informativos
         double throttle = control.throttle();
         boolean parachute = control.has(RocketControlPayload.FLAG_PARACHUTE) || (edges & RocketControlPayload.FLAG_PARACHUTE) != 0;

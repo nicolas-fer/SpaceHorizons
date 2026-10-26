@@ -1,6 +1,9 @@
 package com.spacehorizons.rocket;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
@@ -12,6 +15,7 @@ import com.spacehorizons.space.flight.FuelLoad;
 import com.spacehorizons.space.flight.Propellant;
 import com.spacehorizons.space.flight.RocketStats;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -76,6 +80,11 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
      * trancos da chegada dos pacotes ({@link com.spacehorizons.ship.deck.DeckPoseTimeline}). Definido DEPOIS da atitude, para chegar depois dela.
      */
     private static final EntityDataAccessor<Integer> POSE_STAMP = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.INT);
+    /**
+     * Os assentos dos passageiros (fase 2e): "uuid=posição local do assento (asLong)" separados por ";". Quem não consta senta na ponte (o cockpit).
+     * O cliente precisa disto para posicionar cada passageiro ({@link #positionRider}).
+     */
+    private static final EntityDataAccessor<String> SEATS = SynchedEntityData.defineId(RocketEntity.class, EntityDataSerializers.STRING);
     /** Salto de posição (blocos) num tick de cliente acima do qual é uma costura do planeta ou um teleporte, não um passo de voo. */
     private static final double JUMP_DISTANCE = 2_000.0;
 
@@ -83,6 +92,13 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     private static final double MAX_TILT_TO_LAND_DEGREES = 15.0;
 
     private RocketPortrait portrait = RocketPortrait.EMPTY;
+    /** Cliente: deltas do retrato que chegaram antes do retrato que eles mudam (o retrato grande chega em partes); aplicados quando ele chega. */
+    private final List<com.spacehorizons.ship.deck.PortraitDeltaPayload> deferredDeltas = new ArrayList<>();
+    /** Quem está em qual assento (posição local, asLong); servidor é a fonte, o cliente lê do dado sincronizado. */
+    private final Map<UUID, Long> seatByRider = new HashMap<>();
+    /** Cliente: avisa que um retrato foi trocado por outro (o cache de malha esquece o antigo). Ligado pelo renderer. */
+    public static java.util.function.BiConsumer<UUID, UUID> portraitReplaced = (oldId, newId) -> {
+    };
     /** Cliente: o retrato é grande e chega em partes ({@link PortraitParts}); este é o id que se espera, ou null. */
     private @Nullable UUID pendingPortraitId;
     private RocketStats stats = RocketSpecs.statsFor(RocketCensus.EMPTY);
@@ -131,6 +147,7 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         builder.define(VIRTUAL, false);
         builder.define(VIRTUAL_POS, new Vector3f());
         builder.define(POSE_STAMP, 0);
+        builder.define(SEATS, "");
     }
 
     @Override
@@ -144,6 +161,10 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
                 this.attitudePrev.set(this.attitudeTarget);
                 this.attitudeCur.set(this.attitudeTarget);
             }
+        }
+        if (SEATS.equals(accessor) && this.level().isClientSide()) {
+            this.seatByRider.clear();
+            this.seatByRider.putAll(parseSeats(this.entityData.get(SEATS)));
         }
         if (POSE_STAMP.equals(accessor) && this.level().isClientSide()) {
             recordPoseStamp(this.entityData.get(POSE_STAMP));
@@ -192,6 +213,51 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         this.portrait = portrait;
         refreshStats();
         this.refreshDimensions();
+        if (!this.deferredDeltas.isEmpty()) {
+            List<com.spacehorizons.ship.deck.PortraitDeltaPayload> waiting = new ArrayList<>(this.deferredDeltas);
+            this.deferredDeltas.clear();
+            for (com.spacehorizons.ship.deck.PortraitDeltaPayload delta : waiting) {
+                this.applyDelta(delta);
+            }
+        }
+    }
+
+    /**
+     * Servidor: aplica mudanças ao retrato (porta que abre, conteúdo de baú que muda) e manda o DELTA a quem vê a nave, não o retrato inteiro.
+     * O retrato novo tem id novo (o desenho refaz a malha); o NBT salvo e a conversão em blocos (estaleiro, âncora, pouso) já leem o retrato novo.
+     */
+    public void changePortrait(List<PortraitChange> changes) {
+        if (this.level().isClientSide() || changes.isEmpty() || this.portrait.isEmpty()) {
+            return;
+        }
+        RocketPortrait old = this.portrait;
+        RocketPortrait next = old.withChanges(UUID.randomUUID(), changes);
+        this.portrait = next;
+        boolean stateChanged = false;
+        for (PortraitChange change : changes) {
+            stateChanged |= change.stateId() >= 0;
+        }
+        if (stateChanged) {
+            refreshStats();
+        }
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayersTrackingEntity(this,
+                new com.spacehorizons.ship.deck.PortraitDeltaPayload(this.getId(), old.id(), next.id(), List.copyOf(changes)));
+    }
+
+    /** Cliente: aplica um delta do servidor; se o retrato dele ainda não chegou (retrato grande em partes), guarda o delta para depois. */
+    public void applyDelta(com.spacehorizons.ship.deck.PortraitDeltaPayload delta) {
+        if (this.portrait.id().equals(delta.newId())) {
+            return;
+        }
+        if (!this.portrait.id().equals(delta.baseId())) {
+            if (this.deferredDeltas.size() < 64) {
+                this.deferredDeltas.add(delta);
+            }
+            return;
+        }
+        RocketPortrait old = this.portrait;
+        this.portrait = old.withChanges(delta.newId(), delta.changes());
+        portraitReplaced.accept(old.id(), delta.newId());
     }
 
     /** É uma nave montada pela ponte (ver o campo {@code ship}). */
@@ -556,12 +622,130 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     /** O piloto é o jogador sentado no cockpit. */
     @Override
     public @Nullable LivingEntity getControllingPassenger() {
-        return this.getFirstPassenger() instanceof Player player ? player : null;
+        for (Entity passenger : this.getPassengers()) {
+            if (passenger instanceof Player player && this.seatOf(player).equals(this.portrait.cockpit())) {
+                return player;
+            }
+        }
+        return null;
     }
 
+    /** O assento (posição local) do passageiro: o que ele escolheu ao sentar, ou a ponte (o cockpit) para quem sentou clicando na nave. */
+    public BlockPos seatOf(Entity passenger) {
+        Long seat = this.seatByRider.get(passenger.getUUID());
+        return seat == null ? this.portrait.cockpit() : BlockPos.of(seat);
+    }
+
+    /** O passageiro sentou clicando num assento do retrato (e não pelo clique de sempre na nave)? */
+    public boolean sittingFromDeck(Entity passenger) {
+        return this.seatByRider.containsKey(passenger.getUUID());
+    }
+
+    /** Alguém está sentado neste assento? */
+    public boolean seatTaken(BlockPos seat) {
+        for (Entity passenger : this.getPassengers()) {
+            if (this.seatOf(passenger).equals(seat)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Cada assento da nave (a ponte e os {@code ship_seat}) tem no máximo um passageiro; sem assento escolhido o passageiro vai à ponte. */
     @Override
     protected boolean canAddPassenger(Entity passenger) {
-        return this.getPassengers().isEmpty();
+        return !this.seatTaken(this.seatOf(passenger));
+    }
+
+    /**
+     * Servidor: senta o jogador no assento {@code seat} do retrato (passageiro da nave, posicionado por {@link #positionRider} na pose dela). Quem
+     * estava no convés deixa o convés sem teletransporte; se a nave recusa, volta ao convés onde estava. Assento ocupado: aviso na barra de ação.
+     */
+    public boolean sitAt(net.minecraft.server.level.ServerPlayer player, BlockPos seat) {
+        if (this.level().isClientSide() || player.isPassenger() || player.level() != this.level()) {
+            return false;
+        }
+        if (this.seatTaken(seat)) {
+            player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.spacehorizons.ship.seat_taken"));
+            return false;
+        }
+        com.spacehorizons.ship.deck.DeckState previous = com.spacehorizons.ship.deck.DeckCrew.release(player);
+        this.seatByRider.put(player.getUUID(), seat.asLong());
+        this.syncSeats();
+        boolean rode = player.startRiding(this);
+        if (!rode) {
+            this.seatByRider.remove(player.getUUID());
+            this.syncSeats();
+            if (previous != null) {
+                com.spacehorizons.ship.deck.DeckCrew.board(player, this, previous);
+            }
+        }
+        SpaceHorizons.LOGGER.info("[deck] {} senta no assento {} da nave {}: {}", player.getPlainTextName(), seat, this.getId(), rode ? "sentou" : "recusado");
+        return rode;
+    }
+
+    /**
+     * Quem sentou pelo retrato e levanta com a nave em voo volta ao convés, em pé ao lado do assento (a nave em movimento não tem chão para pisar
+     * no mundo). Pousada, sai como sempre ({@link #getDismountLocationForPassenger}).
+     */
+    @Override
+    protected void removePassenger(Entity passenger) {
+        super.removePassenger(passenger);
+        if (this.level().isClientSide()) {
+            // o cliente refaz a lista de passageiros inteira a cada pacote (ejeta todos e senta de novo): o mapa de assentos vem só do dado sincronizado
+            return;
+        }
+        Long seat = this.seatByRider.remove(passenger.getUUID());
+        if (seat == null) {
+            // sem assento do retrato (o piloto sentado pelo caminho antigo da ponte): levantar em voo pede o embarque no convés
+            if (passenger instanceof net.minecraft.server.level.ServerPlayer player && !this.isRemoved()) {
+                com.spacehorizons.ship.deck.DeckCrew.requestBoardAfterSeat(player, this);
+            }
+            return;
+        }
+        this.syncSeats();
+        if (passenger instanceof net.minecraft.server.level.ServerPlayer player && !this.isRemoved() && !this.portrait.isEmpty()
+                && this.flight.mode() != FlightMode.LANDED && !player.hasDisconnected() && player.isAlive()) {
+            this.standUp(player, BlockPos.of(seat));
+        }
+    }
+
+    private void standUp(net.minecraft.server.level.ServerPlayer player, BlockPos seat) {
+        Vec3 spot = com.spacehorizons.ship.deck.DeckStand.find(this.portrait.deckColliders(), seat.getX(), seat.getY(), seat.getZ(), player.getBbWidth(),
+                player.getBbHeight());
+        com.spacehorizons.ship.deck.DeckState state = new com.spacehorizons.ship.deck.DeckState();
+        state.pos.set(spot.x, spot.y, spot.z);
+        float[] view = this.deckFrame().viewToLocal(player.getYRot(), player.getXRot());
+        state.yaw = view[0];
+        state.pitch = view[1];
+        state.onGround = true;
+        com.spacehorizons.ship.deck.DeckCrew.board(player, this, state);
+    }
+
+    private void syncSeats() {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<UUID, Long> e : this.seatByRider.entrySet()) {
+            if (sb.length() > 0) {
+                sb.append(';');
+            }
+            sb.append(e.getKey()).append('=').append(e.getValue());
+        }
+        this.entityData.set(SEATS, sb.toString());
+    }
+
+    private static Map<UUID, Long> parseSeats(String text) {
+        Map<UUID, Long> seats = new HashMap<>();
+        for (String entry : text.split(";")) {
+            int eq = entry.indexOf('=');
+            if (eq > 0) {
+                try {
+                    seats.put(UUID.fromString(entry.substring(0, eq)), Long.parseLong(entry.substring(eq + 1)));
+                } catch (IllegalArgumentException ignored) {
+                    // entrada ilegível: o passageiro cai na ponte
+                }
+            }
+        }
+        return seats;
     }
 
     /** O piloto fica no cockpit (girado pela atitude); o ponto de assento é o do bloco do cockpit menos a altura do quadril. */
@@ -576,24 +760,12 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
 
     /** Onde o passageiro fica (posição da entidade dele) com o foguete em {@code center} e a atitude local {@code attitude}. */
     public Vec3 passengerPositionAt(Vec3 center, Quaternionfc attitude, Entity passenger) {
-        Vector3f local = new Vector3f(this.portrait.cockpit().getX() + 0.5F, this.portrait.cockpit().getY() + 0.5F,
-                this.portrait.cockpit().getZ() + 0.5F).sub(this.pivotLocal());
+        BlockPos seatPos = this.seatOf(passenger);
+        Vector3f local = new Vector3f(seatPos.getX() + 0.5F, seatPos.getY() + 0.5F, seatPos.getZ() + 0.5F).sub(this.pivotLocal());
         attitude.transform(local);
         Vec3 seat = center.add(local.x(), local.y() - 0.2, local.z());
         Vec3 offset = passenger.getVehicleAttachmentPoint(this);
         return new Vec3(seat.x - offset.x, seat.y - offset.y, seat.z - offset.z);
-    }
-
-    /**
-     * Levantar do assento de uma nave em voo: o jogador fica em pé no convés (embarque automático no próximo tick, fase 2e, frente 2). Pousado, o
-     * desembarque é o do vanilla (em pé no chão ao lado).
-     */
-    @Override
-    protected void removePassenger(Entity passenger) {
-        super.removePassenger(passenger);
-        if (!this.level().isClientSide() && passenger instanceof net.minecraft.server.level.ServerPlayer player && !this.isRemoved()) {
-            com.spacehorizons.ship.deck.DeckCrew.requestBoardAfterSeat(player, this);
-        }
     }
 
     /** Pousado: em pé no chão ao lado do foguete. Em voo (inclusive na troca de dimensão), onde o passageiro já está. */

@@ -69,6 +69,18 @@ public final class PortraitGrid {
         this.cells[this.index(x, y, z)] = (char) paletteIndex;
     }
 
+    /** Cópia da grade (o retrato é imutável: uma mudança gera outro retrato). */
+    public PortraitGrid copy() {
+        return new PortraitGrid(this.sizeX, this.sizeY, this.sizeZ, this.cells.clone());
+    }
+
+    /** Cópia da grade com uma célula trocada. */
+    public PortraitGrid with(int x, int y, int z, int paletteIndex) {
+        PortraitGrid copy = this.copy();
+        copy.set(x, y, z, paletteIndex);
+        return copy;
+    }
+
     /** Quantas células não estão vazias. */
     public int nonEmptyCount() {
         int n = 0;

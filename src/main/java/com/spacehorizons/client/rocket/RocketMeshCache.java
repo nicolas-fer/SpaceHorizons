@@ -21,6 +21,8 @@ import org.jspecify.annotations.Nullable;
  */
 final class RocketMeshCache {
     private final Map<UUID, CompletableFuture<PortraitMesh>> meshes = new HashMap<>();
+    /** A malha do retrato anterior, mostrada enquanto a do retrato novo (chave) ainda assa. */
+    private final Map<UUID, PortraitMesh> stopgap = new HashMap<>();
 
     /** null enquanto a malha ainda assa (o foguete simplesmente não aparece nesses frames). */
     @Nullable PortraitMesh get(RocketPortrait portrait) {
@@ -40,7 +42,11 @@ final class RocketMeshCache {
             });
             this.meshes.put(portrait.id(), future);
         }
-        return future.isDone() && !future.isCompletedExceptionally() ? future.join() : null;
+        if (future.isDone() && !future.isCompletedExceptionally()) {
+            this.stopgap.remove(portrait.id());
+            return future.join();
+        }
+        return this.stopgap.get(portrait.id());
     }
 
     /** Quantas malhas assadas (ou assando); para o autoteste. */
@@ -48,7 +54,21 @@ final class RocketMeshCache {
         return this.meshes.size();
     }
 
+    /**
+     * Um retrato foi trocado por outro (porta aberta, conteúdo de baú): esquece a malha do antigo (sem isto cada clique deixaria uma malha inteira
+     * na memória) mas a mostra no lugar do novo até ele terminar de assar, para a nave não sumir por alguns quadros.
+     */
+    void replaced(UUID oldId, UUID newId) {
+        CompletableFuture<PortraitMesh> old = this.meshes.remove(oldId);
+        if (old != null && old.isDone() && !old.isCompletedExceptionally()) {
+            this.stopgap.put(newId, old.join());
+        } else if (this.stopgap.containsKey(oldId)) {
+            this.stopgap.put(newId, this.stopgap.remove(oldId));
+        }
+    }
+
     void clear() {
+        this.stopgap.clear();
         this.meshes.clear();
     }
 }

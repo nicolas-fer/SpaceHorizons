@@ -38,6 +38,12 @@ public final class DeckSetup {
                 DeckCrew.onMove(player, payload);
             }
         });
+        registrar.playToServer(DeckUsePayload.TYPE, DeckUsePayload.CODEC, (payload, context) -> {
+            if (context.player() instanceof ServerPlayer player) {
+                PortraitUse.onUse(player, payload);
+            }
+        });
+        registrar.playToClient(PortraitDeltaPayload.TYPE, PortraitDeltaPayload.CODEC);
         registrar.playToClient(DeckBoardPayload.TYPE, DeckBoardPayload.CODEC);
         registrar.playToClient(DeckLeavePayload.TYPE, DeckLeavePayload.CODEC);
         registrar.playToClient(DeckCorrectionPayload.TYPE, DeckCorrectionPayload.CODEC);
@@ -58,6 +64,7 @@ public final class DeckSetup {
     @SubscribeEvent
     static void onServerStopped(ServerStoppedEvent event) {
         DeckCrew.reset();
+        PortraitContainers.reset();
     }
 
     // ---------------------------------------------------------------- comandos

@@ -101,6 +101,17 @@ public final class DeckCrew {
     public record Crewed(ServerPlayer player, DeckState state) {
     }
 
+    /** Os últimos estados locais aceitos dos tripulantes a pé da nave (para não fechar uma porta sobre um deles). */
+    public static List<DeckState> statesOn(UUID rocket) {
+        List<DeckState> states = new ArrayList<>();
+        for (Member m : MEMBERS.values()) {
+            if (m.rocket.equals(rocket)) {
+                states.add(m.state());
+            }
+        }
+        return states;
+    }
+
     public static boolean isCrew(Entity entity) {
         return entity instanceof ServerPlayer && MEMBERS.containsKey(entity.getUUID());
     }
@@ -200,6 +211,19 @@ public final class DeckCrew {
             }
         }
         return out;
+    }
+
+    /**
+     * Tira o jogador do convés SEM teletransportá-lo (ele vai sentar num assento da nave: a posição de quem manda agora é a do assento). Avisa o
+     * cliente e devolve o último estado local aceito, ou null se ele não era tripulante.
+     */
+    public static @Nullable DeckState release(ServerPlayer player) {
+        Member m = MEMBERS.remove(player.getUUID());
+        if (m == null) {
+            return null;
+        }
+        PacketDistributor.sendToPlayer(player, new DeckLeavePayload());
+        return m.state();
     }
 
     private static @Nullable RocketEntity rocketOf(ServerPlayer player, Member m) {

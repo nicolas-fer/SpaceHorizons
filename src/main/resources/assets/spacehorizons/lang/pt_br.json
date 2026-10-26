@@ -262,6 +262,7 @@
   "hud.spacehorizons.ship.title_engine": "Motores",
   "hud.spacehorizons.ship.hint": "%s: levantar · %s: SAS",
   "message.spacehorizons.ship.seat_taken": "Já tem alguém sentado aqui.",
+  "message.spacehorizons.deck.needs_anchor": "A nave precisa estar ancorada, pousada ou no espaço.",
   "message.spacehorizons.ship.board_hint": "Nos controles. %s levanta, %s muda o SAS.",
   "message.spacehorizons.ship.help": "Nave: %s/%s arfagem, %s/%s guinada, %s/%s rolagem, %s sobe e %s baixa o acelerador (ele fica onde você deixar), %s cheio, %s corta, %s SAS, %s levanta. A nave mantém o acelerador por 30 s depois que você levanta.",
   "block.spacehorizons.mars_regolith": "Regolito Marciano",

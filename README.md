@@ -475,6 +475,8 @@ sincronizar. Por enquanto o embarque é manual, só para teste: dentro da caixa 
 (`deck leave` tira, `deck info` mostra as contagens). Autoteste (um robô anda em quadrado por 2.000 ticks na nave que sobe, paira e desce a 1, 10,
 50 e 100 b/t girando e inclinada, com e sem 100 ms de latência por sentido): `./gradlew runClientTest -PshOnly=shipdeck`.
 
+Com a nave em movimento (fase 2e) o clique direito vale nos blocos da própria nave: a mira os enxerga (contorno preto no bloco) e o clique abre ou fecha portas, alçapões e portões, abre baús e barris em um menu que guarda o conteúdo no retrato da nave, senta no assento (`ship_seat`) ou na ponte e, nas máquinas (fornalha, bancada, alavanca), avisa que a nave precisa estar ancorada, pousada ou no espaço. Levantar (Shift) do assento devolve ao convés em pé. Autoteste: `./gradlew runClientTest -PshOnly=shipdeckuse`.
+
 ### Âncora no ar (spike S6)
 
 Uma nave parada no ar vira blocos reais no ar (`docs/PLANO_NAVE_ATMOSFERA.md`): `/spacehorizons ship anchor` (a nave que você pilota, a do convés

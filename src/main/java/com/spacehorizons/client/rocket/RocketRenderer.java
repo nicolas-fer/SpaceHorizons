@@ -1,6 +1,7 @@
 package com.spacehorizons.client.rocket;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.spacehorizons.rocket.RocketEntity;
 import com.spacehorizons.rocket.RocketPortrait;
 
@@ -12,6 +13,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.AABB;
@@ -33,6 +35,7 @@ public class RocketRenderer extends EntityRenderer<RocketEntity, RocketRenderSta
 
     public RocketRenderer(EntityRendererProvider.Context context) {
         super(context);
+        RocketEntity.portraitReplaced = MESHES::replaced; // um delta do retrato (porta, baú) troca o retrato: a malha do antigo não serve mais
         MESHES.clear(); // o dispatcher recria os renderers a cada recarga de recursos: UVs do atlas antigo não valem mais
         this.shadowRadius = 0.0F; // sombra circular de entidade não faz sentido num foguete de blocos
     }
@@ -56,6 +59,10 @@ public class RocketRenderer extends EntityRenderer<RocketEntity, RocketRenderSta
             state.y = smooth.cy();
             state.z = smooth.cz();
         }
+
+        com.spacehorizons.client.ship.DeckAim.Target aim = com.spacehorizons.client.ship.DeckAim.targetOf(rocket);
+        state.highlightPos = aim == null ? null : aim.pos();
+        state.highlightBoxes = aim == null ? null : portrait.shapes().at(aim.pos().getX(), aim.pos().getY(), aim.pos().getZ());
 
         state.blockEntities.clear();
         if (rocket.level() instanceof ClientLevel level && state.mesh != null) {
@@ -93,9 +100,49 @@ public class RocketRenderer extends EntityRenderer<RocketEntity, RocketRenderSta
                 dispatcher.submit(draw.state(), poseStack, collector, camera);
                 poseStack.popPose();
             }
+            if (state.highlightPos != null && state.highlightBoxes != null && state.highlightBoxes.length > 0) {
+                // o contorno de seleção do bloco do retrato que a mira acerta (o vanilla só contorna blocos do mundo)
+                poseStack.pushPose();
+                poseStack.translate(state.highlightPos.getX(), state.highlightPos.getY(), state.highlightPos.getZ());
+                AABB[] boxes = state.highlightBoxes;
+                collector.submitCustomGeometry(poseStack, RenderTypes.lines(), (pose, buffer) -> {
+                    for (AABB box : boxes) {
+                        drawBox(pose, buffer, box.inflate(0.002));
+                    }
+                });
+                poseStack.popPose();
+            }
             poseStack.popPose();
         }
         super.submit(state, poseStack, collector, camera); // nome, corda
+    }
+
+    /** As 12 arestas da caixa em linhas pretas (a cor do contorno do vanilla), com a normal de cada aresta para a espessura da linha. */
+    private static void drawBox(PoseStack.Pose pose, VertexConsumer buffer, AABB b) {
+        float x0 = (float) b.minX;
+        float y0 = (float) b.minY;
+        float z0 = (float) b.minZ;
+        float x1 = (float) b.maxX;
+        float y1 = (float) b.maxY;
+        float z1 = (float) b.maxZ;
+        float[][] edges = {
+            {x0, y0, z0, x1, y0, z0}, {x0, y1, z0, x1, y1, z0}, {x0, y0, z1, x1, y0, z1}, {x0, y1, z1, x1, y1, z1},
+            {x0, y0, z0, x0, y1, z0}, {x1, y0, z0, x1, y1, z0}, {x0, y0, z1, x0, y1, z1}, {x1, y0, z1, x1, y1, z1},
+            {x0, y0, z0, x0, y0, z1}, {x1, y0, z0, x1, y0, z1}, {x0, y1, z0, x0, y1, z1}, {x1, y1, z0, x1, y1, z1}};
+        for (float[] e : edges) {
+            float nx = e[3] - e[0];
+            float ny = e[4] - e[1];
+            float nz = e[5] - e[2];
+            float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+            if (len < 1.0E-6F) {
+                continue;
+            }
+            nx /= len;
+            ny /= len;
+            nz /= len;
+            buffer.addVertex(pose, e[0], e[1], e[2]).setColor(0xFF000000).setNormal(pose, nx, ny, nz).setLineWidth(3.0F);
+            buffer.addVertex(pose, e[3], e[4], e[5]).setColor(0xFF000000).setNormal(pose, nx, ny, nz).setLineWidth(3.0F);
+        }
     }
 
     /** A hitbox é alinhada aos eixos e não gira com o foguete: culling por esfera que cobre o retrato em qualquer pose. */

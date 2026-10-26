@@ -224,6 +224,10 @@ public final class AutoTest {
             shipDeckRealScenario();
             return;
         }
+        if ("shipdeckuse".equals(ONLY)) {
+            shipDeckUseScenario();
+            return;
+        }
         if ("shipanchor".equals(ONLY)) {
             shipAnchorScenario();
             return;
@@ -5285,6 +5289,28 @@ public final class AutoTest {
         }
         step(20, mc -> {
             ShipDeckDevtest.summary();
+            ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /**
+     * Porta, baú e assento com a nave em movimento (fase 2e, frente 3): {@code -PshOnly=shipdeckuse}. O roteiro inteiro está em
+     * {@link ShipDeckUseDevtest#tick}; aqui só a preparação do mundo e o fim.
+     */
+    private void shipDeckUseScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "difficulty peaceful");
+        cmd(5, "gamemode survival");
+        step(5, mc -> mc.options.fov().set(90));
+        step(10, ShipDeckUseDevtest::begin);
+        tickerStep(0, waitUntil("DECKUSE: embarcou no convés e a nave chegou ao cliente", 600, ShipDeckUseDevtest::ready));
+        tickerStep(0, ShipDeckUseDevtest::tick);
+        step(20, mc -> {
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
