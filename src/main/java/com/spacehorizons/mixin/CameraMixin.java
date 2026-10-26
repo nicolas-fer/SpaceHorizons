@@ -4,6 +4,7 @@ import com.spacehorizons.client.curvature.CurvatureState;
 
 import com.spacehorizons.client.rocket.RocketCamera;
 import com.spacehorizons.client.ship.DeckClient;
+import com.spacehorizons.client.ship.DeckObserver;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
@@ -66,6 +67,12 @@ abstract class CameraMixin {
                 float distance = player == null ? 4.0F : (float) player.getAttributeValue(Attributes.CAMERA_DISTANCE);
                 this.move(-this.getMaxZoom(distance * (player == null ? 1.0F : player.getScale())), 0.0F, 0.0F);
             }
+            return;
+        }
+        // só no autoteste de dois clientes: o observador parado num ponto fixo do referencial da nave
+        Vec3 observerEye = DeckObserver.observerEye(partialTick);
+        if (observerEye != null) {
+            this.setPosition(observerEye);
         }
     }
 }

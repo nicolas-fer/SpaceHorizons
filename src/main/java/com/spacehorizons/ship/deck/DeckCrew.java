@@ -14,6 +14,7 @@ import com.spacehorizons.SpaceHorizons;
 import com.spacehorizons.rocket.RocketEntity;
 import com.spacehorizons.rocket.RocketPortrait;
 
+import net.minecraft.network.protocol.game.ClientboundEntityPositionSyncPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -147,6 +148,7 @@ public final class DeckCrew {
         }
         PacketDistributor.sendToPlayer(player, new DeckLeavePayload());
         player.connection.teleport(x, y, z, yaw, pitch);
+        releaseObservers(player, m);
         SpaceHorizons.LOGGER.info("[deck] {} deixou o convés ({})", player.getPlainTextName(), reason);
     }
 
@@ -196,6 +198,7 @@ public final class DeckCrew {
                 // sentou (piloto) ou mudou de dimensão: a posição do mundo é a de quem manda agora
                 MEMBERS.remove(m.player);
                 PacketDistributor.sendToPlayer(player, new DeckLeavePayload());
+                releaseObservers(player, m);
                 continue;
             }
             processPending(player, rocket, m, level.getGameTime());
@@ -206,6 +209,20 @@ public final class DeckCrew {
                 continue;
             }
             applyToPlayer(player, rocket, m);
+            // os outros clientes que veem a nave recebem o estado local na mesma pose (o pacote de posição do vanilla do tripulante é suprimido)
+            PacketDistributor.sendToPlayersTrackingEntity(rocket, DeckObservePayload.of(player.getId(), rocket.getId(), (int) level.getGameTime(), m.good));
+        }
+    }
+
+    /**
+     * O tripulante saiu do convés: avisa os observadores (voltam ao pacote de posição do vanilla) e manda a eles a posição exata de agora. A posição
+     * que o servidor lembra ter mandado (a base dos pacotes relativos) vem de antes da saída, então um delta pequeno cairia no lugar errado do
+     * observador; a posição absoluta o acerta.
+     */
+    private static void releaseObservers(ServerPlayer player, Member m) {
+        PacketDistributor.sendToPlayersTrackingEntity(player, DeckObservePayload.left(player.getId(), m.rocketId, (int) player.level().getGameTime()));
+        if (player.level() instanceof ServerLevel level) {
+            level.getChunkSource().sendToTrackingPlayers(player, ClientboundEntityPositionSyncPacket.of(player));
         }
     }
 
