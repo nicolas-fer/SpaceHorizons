@@ -72,6 +72,17 @@ public final class DeckCrew {
         }
     }
 
+    /** Os últimos estados locais aceitos dos tripulantes a pé da nave (para não fechar uma porta sobre um deles). */
+    public static List<DeckState> statesOn(UUID rocket) {
+        List<DeckState> states = new ArrayList<>();
+        for (Member m : MEMBERS.values()) {
+            if (m.rocket.equals(rocket)) {
+                states.add(m.state());
+            }
+        }
+        return states;
+    }
+
     public static boolean isCrew(Entity entity) {
         return entity instanceof ServerPlayer && MEMBERS.containsKey(entity.getUUID());
     }

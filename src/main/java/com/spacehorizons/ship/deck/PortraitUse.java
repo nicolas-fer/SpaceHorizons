@@ -44,6 +44,9 @@ public final class PortraitUse {
     /** Quanto além do alcance do bloco o clique ainda vale (o atraso da rede e o balanço da nave). */
     private static final double REACH_SLACK = 3.0;
 
+    /** Avisos de máquina com a nave em movimento enviados (diagnóstico do autoteste). */
+    public static final java.util.concurrent.atomic.AtomicInteger MACHINE_WARNINGS = new java.util.concurrent.atomic.AtomicInteger();
+
     private PortraitUse() {
     }
 
@@ -93,6 +96,7 @@ public final class PortraitUse {
         }
         if (isMachine(state) && (DeckCrew.isCrew(player) || rocket.isShip())) {
             player.sendOverlayMessage(Component.translatable("message.spacehorizons.deck.needs_anchor"));
+            MACHINE_WARNINGS.incrementAndGet();
             return true;
         }
         if (!DeckCrew.isCrew(player) && !player.isSecondaryUseActive() && !player.isPassenger()) {
@@ -113,6 +117,22 @@ public final class PortraitUse {
                 || state.getBlock() instanceof CraftingTableBlock || state.getBlock() instanceof AnvilBlock;
     }
 
+    /** Algum tripulante a pé ficaria dentro de um sólido com estas mudanças aplicadas ao retrato? */
+    private static boolean crewInTheWay(RocketEntity rocket, List<PortraitChange> changes) {
+        List<DeckState> crew = DeckCrew.statesOn(rocket.getUUID());
+        if (crew.isEmpty()) {
+            return false;
+        }
+        DeckColliders after = rocket.portrait().withChanges(java.util.UUID.randomUUID(), changes).deckColliders();
+        for (DeckState s : crew) {
+            net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(s.pos.x - 0.3, s.pos.y, s.pos.z - 0.3, s.pos.x + 0.3, s.pos.y + 1.8, s.pos.z + 0.3);
+            if (DeckCollision.penetration(box, after) > DeckMoveCheck.MAX_PENETRATION) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Alterna aberto/fechado (porta: as duas metades) e aplica ao retrato. */
     private static boolean toggle(RocketEntity rocket, BlockPos pos, BlockState state) {
         if (!state.hasProperty(BlockStateProperties.OPEN)) {
@@ -128,6 +148,10 @@ public final class PortraitUse {
             if (other.is(state.getBlock()) && other.hasProperty(BlockStateProperties.OPEN)) {
                 changes.add(PortraitChange.state(otherPos, other.setValue(BlockStateProperties.OPEN, open)));
             }
+        }
+        if (!open && crewInTheWay(rocket, changes)) {
+            // fechar a porta sobre um tripulante o deixaria dentro do sólido (o servidor recusaria os estados dele): a porta fica aberta
+            return false;
         }
         rocket.changePortrait(changes);
         SpaceHorizons.LOGGER.info("[deck] {} {} da nave {} em {}", state.getBlock().getName().getString(), open ? "aberta" : "fechada", rocket.getId(), pos);
