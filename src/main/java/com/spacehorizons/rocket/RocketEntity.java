@@ -631,6 +631,11 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         return seat == null ? this.portrait.cockpit() : BlockPos.of(seat);
     }
 
+    /** O passageiro sentou clicando num assento do retrato (e não pelo clique de sempre na nave)? */
+    public boolean sittingFromDeck(Entity passenger) {
+        return this.seatByRider.containsKey(passenger.getUUID());
+    }
+
     /** Alguém está sentado neste assento? */
     public boolean seatTaken(BlockPos seat) {
         for (Entity passenger : this.getPassengers()) {
@@ -681,8 +686,12 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     @Override
     protected void removePassenger(Entity passenger) {
         super.removePassenger(passenger);
+        if (this.level().isClientSide()) {
+            // o cliente refaz a lista de passageiros inteira a cada pacote (ejeta todos e senta de novo): o mapa de assentos vem só do dado sincronizado
+            return;
+        }
         Long seat = this.seatByRider.remove(passenger.getUUID());
-        if (this.level().isClientSide() || seat == null) {
+        if (seat == null) {
             return;
         }
         this.syncSeats();

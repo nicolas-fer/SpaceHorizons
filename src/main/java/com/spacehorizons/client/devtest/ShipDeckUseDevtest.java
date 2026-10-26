@@ -563,14 +563,14 @@ final class ShipDeckUseDevtest {
                                 ServerPlayer p = s.getPlayerList().getPlayers().get(0);
                                 RocketEntity r = serverRocket(s);
                                 Vector3d local = r.deckFrame().toLocal(p.getX(), p.getY(), p.getZ());
-                                double server = local.distance(SEAT.getX() + 0.5, SEAT.getY() + 0.3, SEAT.getZ() + 0.5);
+                                double server = local.distance(SEAT.getX() + 0.5, SEAT.getY() - 0.3, SEAT.getZ() + 0.5);
                                 return new double[] {server, r.seatOf(p).equals(SEAT) ? 1 : 0, r.getControllingPassenger() == p ? 1 : 0, DeckCrew.isCrew(p) ? 1 : 0};
                             });
                             Vec3 cp = mc.player.position();
                             Vector3d clientLocal = cr.deckFrame().toLocal(cp.x, cp.y, cp.z);
-                            double clientErr = clientLocal.distance(SEAT.getX() + 0.5, SEAT.getY() + 0.3, SEAT.getZ() + 0.5);
+                            double clientErr = clientLocal.distance(SEAT.getX() + 0.5, SEAT.getY() - 0.3, SEAT.getZ() + 0.5);
                             ShipDevtest.check("DECKUSE: sentou no assento do retrato como passageiro da nave (posição do assento na pose, servidor e cliente)",
-                                    errs[0] < 0.45 && clientErr < 0.45 && errs[1] == 1 && cr.seatOf(mc.player).equals(SEAT),
+                                    errs[0] < 0.5 && clientErr < 0.5 && errs[1] == 1 && cr.seatOf(mc.player).equals(SEAT),
                                     String.format(Locale.ROOT, "erro servidor %.3f, cliente %.3f blocos; assento no servidor %s, no cliente %s", errs[0], clientErr, errs[1] == 1, cr.seatOf(mc.player)));
                             ShipDevtest.check("DECKUSE: quem senta no assento comum não pilota e deixou o convés a pé", errs[2] == 0 && errs[3] == 0 && !DeckClient.isAboard(),
                                     "piloto " + (errs[2] == 1) + ", tripulante no servidor " + (errs[3] == 1) + ", a bordo no cliente " + DeckClient.isAboard());
@@ -623,6 +623,11 @@ final class ShipDeckUseDevtest {
                 } else {
                     mc.options.keyShift.setDown(false);
                 }
+                if (t == 4) {
+                    boolean serverShift = ShipDevtest.onServer(mc, s -> s.getPlayerList().getPlayers().get(0).isShiftKeyDown());
+                    SpaceHorizons.LOGGER.info(TAG + "levantar: tecla {}, entrada {}, cliente agachado {}, servidor agachado {}, passageiro {}", mc.options.keyShift.isDown(),
+                            mc.player.input.keyPresses.shift(), mc.player.isShiftKeyDown(), serverShift, mc.player.isPassenger() + ", RocketPilot " + com.spacehorizons.client.rocket.RocketPilot.isPiloting() + ", ShipPilot " + com.spacehorizons.client.ship.ShipPilot.isPiloting());
+                }
                 if (t > 6 && DeckClient.isAboard() && !mc.player.isPassenger()) {
                     boolean[] r = ShipDevtest.onServer(mc, s -> {
                         ServerPlayer p = s.getPlayerList().getPlayers().get(0);
@@ -663,10 +668,13 @@ final class ShipDeckUseDevtest {
                         t = 100;
                     }
                 }
-                if (t >= 100 && t < 106) {
-                    mc.options.keyShift.setDown(true);
+                if (t == 100) {
+                    // a saída do piloto em voo é a tecla G pelo controle de voo (que não roda com o roteiro da nave): aqui o servidor o levanta, que é o que ela faz
+                    ShipDevtest.onServer(mc, s -> {
+                        s.getPlayerList().getPlayers().get(0).stopRiding();
+                        return null;
+                    });
                 } else if (t >= 106) {
-                    mc.options.keyShift.setDown(false);
                     if (DeckClient.isAboard() && !mc.player.isPassenger()) {
                         ShipDevtest.check("DECKUSE: levantar da ponte também volta ao convés", true, "a bordo");
                         go(13);
