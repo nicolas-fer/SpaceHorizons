@@ -60,6 +60,7 @@ public final class RocketPortrait {
     private volatile RocketCensus census;
     private volatile List<LoadedBlockEntity> loaded;
     private volatile com.spacehorizons.ship.deck.DeckColliders deckColliders;
+    private volatile com.spacehorizons.ship.deck.PortraitShapes shapes;
     /** O pacote de spawn deste retrato (imutável, então calculado uma vez): um retrato grande é enviado a cada jogador que o vê. */
     private volatile byte[] encoded;
 
@@ -113,6 +114,15 @@ public final class RocketPortrait {
         com.spacehorizons.ship.deck.DeckColliders result = this.deckColliders;
         if (result == null) {
             this.deckColliders = result = new com.spacehorizons.ship.deck.DeckColliders(this);
+        }
+        return result;
+    }
+
+    /** As formas de seleção dos blocos (a mira e o contorno no convés); calculadas uma vez por retrato. */
+    public com.spacehorizons.ship.deck.PortraitShapes shapes() {
+        com.spacehorizons.ship.deck.PortraitShapes result = this.shapes;
+        if (result == null) {
+            this.shapes = result = new com.spacehorizons.ship.deck.PortraitShapes(this);
         }
         return result;
     }
@@ -244,6 +254,49 @@ public final class RocketPortrait {
             }
         }
         return total;
+    }
+
+    // ---------------------------------------------------------------- mudanças (porta que abre, conteúdo de baú)
+
+    /**
+     * Outro retrato com as mudanças aplicadas e o id novo (a chave do cache de malha: o desenho refaz a malha). O retrato original não muda.
+     * Mudança fora da caixa ou com id de estado desconhecido é ignorada; estado ar tira o block entity da posição.
+     */
+    public RocketPortrait withChanges(UUID newId, List<PortraitChange> changes) {
+        List<BlockState> newPalette = new ArrayList<>(this.palette);
+        Map<BlockState, Integer> paletteIndex = new HashMap<>();
+        for (int i = 0; i < newPalette.size(); i++) {
+            paletteIndex.putIfAbsent(newPalette.get(i), i);
+        }
+        PortraitGrid newGrid = this.grid.copy();
+        Long2ObjectMap<CompoundTag> newEntities = new Long2ObjectLinkedOpenHashMap<>(this.blockEntities);
+        for (PortraitChange change : changes) {
+            BlockPos pos = BlockPos.of(change.pos());
+            if (!newGrid.inside(pos.getX(), pos.getY(), pos.getZ())) {
+                continue;
+            }
+            if (change.stateId() >= 0) {
+                BlockState state = Block.BLOCK_STATE_REGISTRY.byId(change.stateId());
+                if (state != null) {
+                    int index = paletteIndex.computeIfAbsent(state, s -> {
+                        newPalette.add(s);
+                        return newPalette.size() - 1;
+                    });
+                    newGrid.set(pos.getX(), pos.getY(), pos.getZ(), index);
+                    if (state.isAir()) {
+                        newEntities.remove(change.pos());
+                    }
+                }
+            }
+            if (change.setNbt()) {
+                if (change.nbt() == null) {
+                    newEntities.remove(change.pos());
+                } else {
+                    newEntities.put(change.pos(), change.nbt());
+                }
+            }
+        }
+        return new RocketPortrait(newId, newGrid, newPalette, newEntities, this.cockpit);
     }
 
     // ---------------------------------------------------------------- giro

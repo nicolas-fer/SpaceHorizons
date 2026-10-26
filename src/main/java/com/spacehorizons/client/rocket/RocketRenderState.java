@@ -19,6 +19,9 @@ public class RocketRenderState extends EntityRenderState {
     public final Quaternionf orientation = new Quaternionf();
     public final Vector3f pivot = new Vector3f();
     public final List<BlockEntityDraw> blockEntities = new ArrayList<>();
+    /** O bloco do retrato que a mira do jogador local acerta (o contorno de seleção, em coordenadas locais) e as caixas dele; null se não é desta nave. */
+    public @Nullable BlockPos highlightPos;
+    public net.minecraft.world.phys.AABB @Nullable [] highlightBoxes;
 
     public record BlockEntityDraw(BlockEntityRenderState state, BlockPos localPos) {
     }

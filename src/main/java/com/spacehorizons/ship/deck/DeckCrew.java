@@ -150,6 +150,19 @@ public final class DeckCrew {
         SpaceHorizons.LOGGER.info("[deck] {} deixou o convés ({})", player.getPlainTextName(), reason);
     }
 
+    /**
+     * Tira o jogador do convés SEM teletransportá-lo (ele vai sentar num assento da nave: a posição de quem manda agora é a do assento). Avisa o
+     * cliente e devolve o último estado local aceito, ou null se ele não era tripulante.
+     */
+    public static @Nullable DeckState release(ServerPlayer player) {
+        Member m = MEMBERS.remove(player.getUUID());
+        if (m == null) {
+            return null;
+        }
+        PacketDistributor.sendToPlayer(player, new DeckLeavePayload());
+        return m.state();
+    }
+
     private static @Nullable RocketEntity rocketOf(ServerPlayer player, Member m) {
         return player.level() instanceof ServerLevel level && level.getEntity(m.rocket) instanceof RocketEntity r && !r.isRemoved() ? r : null;
     }
