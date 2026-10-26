@@ -16,6 +16,9 @@ import com.spacehorizons.rocket.RocketDismount;
 import com.spacehorizons.rocket.RocketEntity;
 import com.spacehorizons.rocket.RocketKinds;
 import com.spacehorizons.rocket.RocketPortrait;
+import com.spacehorizons.ship.deck.DeckCrew;
+import com.spacehorizons.ship.deck.DeckState;
+import com.spacehorizons.ship.deck.DeckYardMap;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -78,6 +81,8 @@ final class YardToRocketJob extends ConversionJob {
     private List<Cell> clearOrder = List.of();
     private boolean entityAdded;
     private final List<Entity> pendingSeat = new ArrayList<>();
+    /** Quem estava em pé na nave e entra no convés da entidade assim que chega à dimensão dela (descida, fase 2e frente 2): jogador e estado local. */
+    private final Map<ServerPlayer, DeckState> pendingDeck = new HashMap<>();
     private RocketEntity rocket;
     private int seatTicks;
     private final boolean descending;
@@ -142,8 +147,8 @@ final class YardToRocketJob extends ConversionJob {
         if (this.error != null) {
             return true;    // recusada ou falhou antes de remover qualquer bloco: a nave continua no estaleiro
         }
-        if (!this.pendingSeat.isEmpty() && this.seatTicks < SEAT_TIMEOUT) {
-            return false;   // espera o passageiro chegar para sentá-lo
+        if ((!this.pendingSeat.isEmpty() || !this.pendingDeck.isEmpty()) && this.seatTicks < SEAT_TIMEOUT) {
+            return false;   // espera o passageiro chegar para sentá-lo (ou pôr no convés)
         }
         finish();
         return true;
@@ -349,7 +354,22 @@ final class YardToRocketJob extends ConversionJob {
         for (Entity person : candidates) {
             float[] view = ShipFrames.viewToWorld(attitude, person.getYRot(), person.getXRot());
             Vec3 target;
-            boolean pilot = !seated && entity.getPassengers().isEmpty();
+            // na descida, quem está em pé (fora de um assento da nave) não é piloto: entra no convés da entidade na mesma posição relativa
+            boolean sitting = person.getVehicle() instanceof ShipSeatEntity;
+            boolean pilot = !seated && entity.getPassengers().isEmpty() && (!this.descending || sitting);
+            if (this.descending && !sitting && person instanceof ServerPlayer player && this.box.contains(player.getX(), player.getY(), player.getZ())) {
+                Vector3d local = DeckYardMap.toLocal(player.getX(), player.getY(), player.getZ(), this.box.minX(), this.box.minY(), this.box.minZ());
+                Vector3d world = ShipFrames.localToWorld(attitude, center.x, center.y, center.z, pivot, local.x, local.y, local.z);
+                DeckState state = new DeckState();
+                state.pos.set(local);
+                state.yaw = player.getYRot();
+                state.pitch = player.getXRot();
+                state.onGround = true;
+                teleportPlayer(player, dest, new Vec3(world.x, world.y, world.z), view);
+                this.pendingDeck.put(player, state);
+                this.notes.add(person.getName().getString() + " em pé no convés do foguete");
+                continue;
+            }
             if (pilot) {
                 target = entity.passengerPositionAt(center, attitude, person);
                 seated = true;
@@ -383,10 +403,23 @@ final class YardToRocketJob extends ConversionJob {
 
     /** Senta quem foi teleportado como piloto assim que ele chega à dimensão do foguete. */
     private void trySeat() {
-        if (this.pendingSeat.isEmpty() || this.rocket == null) {
+        if ((this.pendingSeat.isEmpty() && this.pendingDeck.isEmpty()) || this.rocket == null) {
             return;
         }
         this.seatTicks++;
+        for (var entry : List.copyOf(this.pendingDeck.entrySet())) {
+            ServerPlayer player = entry.getKey();
+            if (player.isRemoved()) {
+                this.pendingDeck.remove(player);
+            } else if (player.level() == this.rocket.level() && DeckCrew.board(player, this.rocket, entry.getValue())) {
+                this.pendingDeck.remove(player);
+                SpaceHorizons.LOGGER.info("[ship-conv] {} em pé no convés do foguete em {} ticks", player.getName().getString(), this.seatTicks);
+            }
+        }
+        if (!this.pendingDeck.isEmpty() && this.seatTicks >= SEAT_TIMEOUT) {
+            this.notes.add("o tripulante não pôde entrar no convés em " + SEAT_TIMEOUT + " ticks");
+            this.pendingDeck.clear();
+        }
         for (Entity e : List.copyOf(this.pendingSeat)) {
             if (e.isRemoved()) {
                 this.pendingSeat.remove(e);
@@ -435,6 +468,7 @@ final class YardToRocketJob extends ConversionJob {
         }
         this.phase = Phase.FINISH;
         this.pendingSeat.clear();
+        this.pendingDeck.clear();
         SpaceHorizons.LOGGER.error("[ship-conv] conversão blocos -> entidade da nave {} cancelada: {}", this.shipId, reason);
     }
 
@@ -446,6 +480,7 @@ final class YardToRocketJob extends ConversionJob {
             this.registry.update(ship.withPhase(ShipRecord.Phase.READY));
         }
         this.pendingSeat.clear();
+        this.pendingDeck.clear();
         this.phase = Phase.FINISH;
     }
 }

@@ -258,3 +258,48 @@ Autoteste `-PshOnly=shipanchor2` (`ShipAnchor2Devtest`, `run-test/`): **24 verif
 - **Limites do S6 corrigidos**: a âncora é esquecida (conferência a cada 1 s) se a ponte registrada for quebrada; o pouso antigo (`RocketLanding.land`) de uma nave sem chão sob a base registra a âncora. **Não feito**: congelar fluido só nos blocos da nave (continua na caixa inteira).
 - Verificado no autoteste: sem gerador (recusa), pedra encostada (recusa, blocos destacados = a pedra), rápido demais (recusa; nave indo e voltando a 2,5 b/t), ancorada pela tecla (romaneio 0 perdas, carga gasta), desancorar com o piloto (gerador sem carga, painel e recusa "sem carga"), recarga com a nave em blocos, pouso antigo registrando âncora, ponte quebrada desfazendo o registro. Prints em `run-test/screenshots/autotest_shipanchor2_*.png`.
 - Não verificado: as partículas de destaque não aparecem no print (a câmera do cockpit olhava o interior; só o estado é conferido), dois clientes, servidor dedicado, giro de 1 a 3 quartos de volta, a tecla em nave sem tripulação no cliente remoto.
+
+## Resultado da fase 2e, frente 2 (26/10/2026): o convés na nave real
+
+O convés andável (S5) deixa de ser só por comando: o jogador entra, sobe, desce e sai da nave real sozinho, em pé.
+
+### O que entrou
+
+- **Embarque automático** (`DeckCrew.autoBoard`, antes da conferência de cada tick da nave; decisão pura em `DeckBoarding`): uma nave que NÃO está pousada e anda a no máximo 2 b/t
+  embarca quem tem a caixa apoiada num sólido do retrato. A nave não colide com entidades, então a decisão aceita os pés até 0,6 abaixo do topo do piso (já atravessou) ou
+  0,25 acima, exige a caixa inteira livre em cima e põe os pés exatamente no topo. Levantar do assento em voo (`RocketEntity.removePassenger` -> `DeckCrew.requestBoardAfterSeat`)
+  embarca no tick seguinte, em cima do cockpit ou ao lado dele (`settleNear`, folga de 1,6 para cima). Montar a nave pela ponte (`ShipAssembler.assemble`) embarca quem está em pé na caixa, fora quem vai sentar.
+- **Sair**: a caixa do retrato mais 3 blocos (já existia), sentar, trocar de dimensão; pousar e desmontar (`RocketLanding.land`) tira a tripulação do convés ANTES da entidade sumir e a devolve
+  em pé, depois de os blocos voltarem, no mesmo lugar relativo já girado pelo retrato (`DeckYardMap.landed`: a regra de `PortraitGrid.rotated` para um ponto contínuo).
+- **Subida** (`RocketToYardJob.finish`): `DeckCrew.detachAll` solta a tripulação sem teletransporte e cada um vai ao estaleiro em pé em `canto da caixa + posição local` (`DeckYardMap`).
+- **Descida** (`YardToRocketJob.movePeople`): quem não está num `ShipSeatEntity` não é piloto; vai para a posição do mundo da mesma posição relativa na entidade e entra no convés assim que chega à dimensão (`pendingDeck`).
+  **A recusa da D4 caiu**: `ShipDescent.mayDescend`, `Step.FLOOR`, `standingInside` e a mensagem `descent_refused` foram removidos (ver `PLANO_NAVES.md`).
+- **Blocos do retrato sob o pé** (cliente): `DeckFrictionMixin` redireciona o `getBlockState` de `LivingEntity.travelInAir` para o bloco do retrato (gelo escorrega); `DeckMoveMixin` dá ao jogador local os fatores de
+  velocidade e de pulo do retrato (alma de areia, mel) e aplica o de velocidade ao fim do movimento local, que o `Entity.move` do vanilla não aplicava mais. A queda é contada no servidor em coordenadas
+  locais (`DeckFall`, `DeckCrew.landed`) e chama o `causeFallDamage` do vanilla com o multiplicador do bloco do retrato (slime 0, feno e mel 0,2, cama 0,5). Não feito: quique do slime.
+- Para o teste: `RocketEntity.setDevtestPilot` (uma nave só com tripulantes a pé segue obedecendo ao comando do teste), `DeckCrew.devtestRelocate`, `MissionDevtest.rocketOf` (o foguete do jogador sentado ou em pé).
+
+### Autotestes
+
+`shipdeckreal` (novo, entrou na `regressionSuites`), 1 jogador em sobrevivência, 24 verificações, 0 falhas:
+
+| Verificação | Número |
+|---|---|
+| Montar com o jogador em pé sobre o piso | embarcou; posição relativa igual (diferença 0,000); pés a y local 1,000; 0 dano de queda |
+| Pular do chão para a nave pairando (piso a 0,9 do chão, 0,3 b/t) | embarcou; y local 1,000; no mundo y = piso (151,900 = 151,900); nave andou 12,0 blocos em 40 ticks e o jogador foi junto, parado no mesmo ponto local |
+| Atrito (empurrão de 0,4 b/t) | ferro: parou em 1,05 bloco (9 ticks); gelo do retrato: 3,73 blocos (43 ticks), razão 3,55 |
+| Queda de 6 blocos | ferro: 20 -> 18 de vida (1 dano de queda aplicado); slime: 20 -> 20 |
+| Levantar do assento em voo | tripulante em pé, y local 2,000 (em cima do cockpit) |
+
+`shipascent` e `shipdescent` agora sobem e descem com o jogador EM PÉ (`SH_SEATED=1` volta ao piloto sentado): `shipdescent`, 49 verificações, 0 falhas:
+
+| Etapa | Número |
+|---|---|
+| Montar no chão em pé | tripulante em (5,50, 1,00, 2,50) locais, sem sentar |
+| Subida até 5.004,6 blocos | pé nunca abaixo do piso (mínimo 0,00); 0 dano de queda |
+| No estaleiro (na troca e 100 ticks depois) | em pé, mesma posição relativa, diferença 0,00 (< 0,1) |
+| Descida sem recusa | a nave virou entidade; tripulante no convés da entidade em 1 tick, diferença 0,000; piso e desvio 0,000 até o pouso |
+| Pouso e desmontagem | em pé no chão em (48.737,5, 73,0, 0,5), igual ao esperado (diferença 0,000), sólido embaixo, fora do convés, sem dano de queda |
+
+Leituras e ressalvas: em sobrevivência o jogador perde 1 de vida por `freeze` (frio do espaço, mecânica que já existia, não queda); os testes olham a causa do dano. A queda de 6 blocos causou 2 de dano (o vanilla daria 3): a
+primeira fração da queda acontece antes de o pedido de realocação do teste chegar ao cliente. Não verificado: tripulante em pé na decolagem de uma nave rápida com mais de um jogador, o quique do slime, vários jogadores na subida e na descida.

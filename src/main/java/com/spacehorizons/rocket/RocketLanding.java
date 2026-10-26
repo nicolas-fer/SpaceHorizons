@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Set;
 
 import com.spacehorizons.SpaceHorizons;
+import com.spacehorizons.ship.deck.DeckCrew;
+import com.spacehorizons.ship.deck.DeckYardMap;
 import com.spacehorizons.space.flight.FuelLoad;
 import com.spacehorizons.space.flight.Propellant;
 
@@ -17,6 +19,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3d;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -77,8 +80,18 @@ public final class RocketLanding {
             passenger.teleportTo(level, target.x, target.y, target.z, Set.of(), passenger.getYRot(), passenger.getXRot(), true);
         }
 
+        // a tripulação a pé no convés sai do referencial da nave ANTES de a entidade sumir e volta em pé, no mesmo lugar relativo da nave já no chão
+        // (a posição gira com o retrato), depois de os blocos voltarem: o piso que ela pisava já está lá
+        List<DeckCrew.Crewed> crew = DeckCrew.detachAll(rocket);
         EngineForming.suspended(() -> commit(level, plan));
         rocket.discard();
+        for (DeckCrew.Crewed c : crew) {
+            Vector3d at = DeckYardMap.landed(c.state().pos, turns, portrait.sizeX, portrait.sizeZ, origin.getX(), origin.getY(), origin.getZ());
+            float yaw = c.state().yaw + 90.0F * turns;
+            c.player().teleportTo(level, at.x, at.y, at.z, Set.of(), yaw, c.state().pitch, true);
+            SpaceHorizons.LOGGER.info("[deck] {} em pé no chão em ({}, {}, {}) depois do pouso", c.player().getPlainTextName(), String.format(java.util.Locale.ROOT, "%.2f", at.x),
+                    String.format(java.util.Locale.ROOT, "%.2f", at.y), String.format(java.util.Locale.ROOT, "%.2f", at.z));
+        }
         if (anchorInAir) {
             com.spacehorizons.ship.ShipAnchors.registerAfterAirLanding(level, rotated, origin, turns);
         }

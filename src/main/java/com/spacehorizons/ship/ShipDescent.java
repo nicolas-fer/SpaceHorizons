@@ -25,14 +25,14 @@ import net.minecraft.world.phys.Vec3;
 /**
  * A descida da nave (fase 2b, parte 1): a nave do voo virtual desce ao corpo e vira entidade na dimensão dele, pelo mesmo critério
  * do foguete ({@link ZoneSwitch#canEnter}: abaixo da altitude de entrada e só quando a dimensão do corpo consegue carregar o terreno
- * por onde ela passa; à força, abaixo de 600 blocos). Tripulante em pé recusa a descida (decisão D4, versão simples): a nave é segurada
- * na altitude de entrada e os de bordo são avisados. A decisão e a conversão para o local são puras; {@link #plan} e os chunks usam o
+ * por onde ela passa; à força, abaixo de 600 blocos). Quem está em pé dentro da nave desce com ela, em pé, na mesma posição relativa (fase 2e,
+ * frente 2: a recusa da decisão D4 caiu; ver {@code YardToRocketJob}). A decisão e a conversão para o local são puras; {@link #plan} e os chunks usam o
  * servidor.
  */
 public final class ShipDescent {
-    /** O que o voo faz neste tick: seguir no espaço, ser segurada na altitude de entrada ou começar a descida. */
+    /** O que o voo faz neste tick: seguir no espaço ou começar a descida. */
     public enum Step {
-        FLY, FLOOR, START
+        FLY, START
     }
 
     /** O que a entidade recebe ao nascer na dimensão do corpo: o destino, a posição e a velocidade de coordenadas, e o voo. */
@@ -44,21 +44,10 @@ public final class ShipDescent {
 
     /**
      * A decisão de um tick. {@code started}: a descida já começou (vale uma vez só); {@code below}: a nave está abaixo da altitude de
-     * entrada; {@code crossed}: descendo e a dimensão do corpo pode recebê-la ({@link #crossed}); {@code mayDescend}: não há tripulante em pé.
+     * entrada; {@code crossed}: descendo e a dimensão do corpo pode recebê-la ({@link #crossed}).
      */
-    public static Step decide(boolean started, boolean below, boolean crossed, boolean mayDescend) {
-        if (started || !below) {
-            return Step.FLY;
-        }
-        if (!mayDescend) {
-            return Step.FLOOR;
-        }
-        return crossed ? Step.START : Step.FLY;
-    }
-
-    /** Tripulante em pé dentro da nave recusa a descida: só quem está sentado pode descer (D4). */
-    public static boolean mayDescend(int standingInside) {
-        return standingInside == 0;
+    public static Step decide(boolean started, boolean below, boolean crossed) {
+        return !started && below && crossed ? Step.START : Step.FLY;
     }
 
     /** A nave está abaixo da altitude de entrada do corpo (a conta de {@link Zones}: altitude sobre a superfície). */

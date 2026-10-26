@@ -16,6 +16,9 @@ import com.spacehorizons.ship.ShipFlightTicker;
 import com.spacehorizons.ship.ShipRecord;
 import com.spacehorizons.ship.ShipRegistry;
 import com.spacehorizons.ship.ShipYard;
+import com.spacehorizons.ship.deck.DeckCrew;
+import com.spacehorizons.ship.deck.DeckState;
+import com.spacehorizons.ship.deck.DeckYardMap;
 import com.spacehorizons.space.SpaceClock;
 import com.spacehorizons.space.flight.FlightState;
 import com.spacehorizons.space.flight.FrameBridge;
@@ -64,6 +67,11 @@ final class ShipDescentDevtest {
     private static double expectedX;
     private static double expectedY;
     private static double expectedZ;
+    /** A posição relativa à nave do tripulante em pé no estaleiro, no começo da descida (a mesma deve valer no convés da entidade). */
+    private static org.joml.Vector3d yardLocal;
+    private static double minFootRel;
+    private static double maxDriftXz;
+    private static boolean watching;
     private static boolean armed;
     private static boolean registered;
     private static boolean started;
@@ -104,6 +112,11 @@ final class ShipDescentDevtest {
                 return;
             }
             yardBox = rec.box();
+            if (ShipAscentDevtest.STANDING) {
+                yardLocal = DeckYardMap.toLocal(player.getX(), player.getY(), player.getZ(), yardBox.minX(), yardBox.minY(), yardBox.minZ());
+                SpaceHorizons.LOGGER.info("[AUTOTEST] SHIPDESCENT tripulante em pé no estaleiro em ({}, {}, {}) relativos à nave; vida {}", yardLocal.x, yardLocal.y, yardLocal.z,
+                        player.getHealth());
+            }
             FlightState o = live.state().orbit();
             descentFuelMb = o.fuelMb();
             V3 up = o.r().unit();
@@ -162,6 +175,55 @@ final class ShipDescentDevtest {
         }
     }
 
+    /** Depois da descida: o tripulante entrou no convés da entidade (servidor e cliente). */
+    static boolean crewOnEntity(Minecraft mc) {
+        MinecraftServer server = mc.getSingleplayerServer();
+        boolean serverSide = server != null && DeckCrew.isCrew(server.getPlayerList().getPlayers().get(0));
+        return serverSide && com.spacehorizons.client.ship.DeckClient.isAboard() && com.spacehorizons.client.ship.DeckClient.rocket() != null;
+    }
+
+    /** O tripulante está na MESMA posição relativa à nave no convés da entidade que tinha no estaleiro; liga o vigia do piso e do desvio até o pouso. */
+    static void checkCrewOnEntity(Minecraft mc) {
+        ShipGroundDevtest.onServer(mc, "tripulante na entidade", (server, level, player) -> {
+            DeckCrew.Member m = DeckCrew.member(player.getUUID());
+            ShipAscentDevtest.check("descida: tripulante em pé no convés da entidade", m != null && yardLocal != null, "tripulante " + (m != null));
+            if (m == null || yardLocal == null) {
+                return;
+            }
+            DeckState s = m.state();
+            double err = s.pos.distance(yardLocal);
+            ShipAscentDevtest.check("descida: mesma posição relativa à nave que no estaleiro (< " + ShipAscentDevtest.RELATIVE_TOLERANCE + " bloco)",
+                    err < ShipAscentDevtest.RELATIVE_TOLERANCE, "estaleiro (" + f(yardLocal.x) + ", " + f(yardLocal.y) + ", " + f(yardLocal.z) + "), convés (" + f(s.pos.x)
+                            + ", " + f(s.pos.y) + ", " + f(s.pos.z) + "), diferença " + f(err));
+            ShipAscentDevtest.check("descida: nenhum dano de queda", !ShipAscentDevtest.fallHurt, "vida " + f(player.getHealth()) + ", último dano " + ShipAscentDevtest.lastDamage);
+            minFootRel = 0.0;
+            maxDriftXz = 0.0;
+            watching = true;
+            NeoForge.EVENT_BUS.addListener(ServerTickEvent.Pre.class, e -> {
+                if (!watching) {
+                    return;
+                }
+                ServerPlayer p = e.getServer().getPlayerList().getPlayers().get(0);
+                ShipAscentDevtest.watchDamage(p);
+                DeckCrew.Member mm = DeckCrew.member(p.getUUID());
+                if (mm != null) {
+                    DeckState st = mm.state();
+                    minFootRel = Math.min(minFootRel, st.pos.y - yardLocal.y);
+                    maxDriftXz = Math.max(maxDriftXz, Math.hypot(st.pos.x - yardLocal.x, st.pos.z - yardLocal.z));
+                }
+            });
+        });
+    }
+
+    private static String f(double v) {
+        return String.format(java.util.Locale.ROOT, "%.3f", v);
+    }
+
+    /** O foguete do jogador: sentado nele ou, em pé, de que é tripulante. */
+    private static RocketEntity shipOf(ServerPlayer player) {
+        return MissionDevtest.rocketOf(player);
+    }
+
     /** A entidade de nave na overworld mais perto do ponto esperado. */
     private static RocketEntity findShip(MinecraftServer server) {
         // todas as entidades carregadas: a caixa gigante do getEntitiesOfClass não achava a nave (a 43 mil blocos do spawn)
@@ -194,7 +256,12 @@ final class ShipDescentDevtest {
         ShipAscentDevtest.check("RocketEntity com isShip() na overworld perto do ponto esperado", horizontal <= POSITION_TOLERANCE,
                 String.format("desvio horizontal %.1f, altura %.1f (esperada %.1f)", horizontal, entity.getY(), expectedY));
         ServerPlayer player = server.getPlayerList().getPlayers().get(0);
-        ShipAscentDevtest.check("piloto sentado na nave na Terra", player.getVehicle() == entity, "veículo=" + player.getVehicle());
+        if (ShipAscentDevtest.STANDING) {
+            // o tripulante entra no convés da entidade um ou dois ticks depois (espera o jogador chegar à dimensão): a conferência é em crewOnEntity
+            ShipAscentDevtest.check("descida sem recusa com o tripulante em pé (a nave virou entidade)", player.getVehicle() == null, "veículo=" + player.getVehicle());
+        } else {
+            ShipAscentDevtest.check("piloto sentado na nave na Terra", player.getVehicle() == entity, "veículo=" + player.getVehicle());
+        }
         ShipAscentDevtest.check("caixa do estaleiro sem blocos", yardEmpty(server), "caixa " + yardBox);
         if (photo != null) {
             RocketPortrait after = entity.portrait();
@@ -218,8 +285,9 @@ final class ShipDescentDevtest {
      */
     static void landAndCheck(Minecraft mc) {
         ShipGroundDevtest.onServer(mc, "pouso", (server, level, player) -> {
-            if (!(player.getVehicle() instanceof RocketEntity ship) || !ship.isShip()) {
-                ShipAscentDevtest.check("nave pousada com o piloto sentado", false, "veículo " + player.getVehicle());
+            RocketEntity ship = shipOf(player);
+            if (ship == null || !ship.isShip()) {
+                ShipAscentDevtest.check("nave pousada com o piloto sentado (ou o tripulante em pé)", false, "veículo " + player.getVehicle());
                 FlightDevtest.mark("sd_landed");
                 return;
             }
@@ -231,6 +299,15 @@ final class ShipDescentDevtest {
             RocketPortrait photoRotated = photo.rotated(turns);
             BlockPos origin = RocketLanding.originFor(ship.position(), rotated.sizeX, rotated.sizeY, rotated.sizeZ);
             int fuel = (int) Math.floor(ship.fuelMb());
+            DeckCrew.Member crewBefore = DeckCrew.member(player.getUUID());
+            DeckState before = crewBefore == null ? null : crewBefore.state();
+            watching = false;
+            ShipAscentDevtest.watchDamage(player);
+            if (before != null) {
+                ShipAscentDevtest.check("pouso: o tripulante não atravessou o piso na descida (pé sobre o piso local, mínimo " + f(minFootRel) + ")", minFootRel >= -0.001,
+                        "mínimo " + f(minFootRel));
+                ShipAscentDevtest.check("pouso: o tripulante ficou parado na nave (desvio máximo " + f(maxDriftXz) + " bloco)", maxDriftXz < 0.1, "desvio " + f(maxDriftXz));
+            }
             try {
                 RocketLanding.land(ground, ship);
             } catch (RocketException e) {
@@ -273,6 +350,20 @@ final class ShipDescentDevtest {
             ShipAscentDevtest.check("chão: nenhum item solto em volta", drops == 0, "itens soltos " + drops);
             int ghosts = ShipRegistry.get(server).all().size();
             ShipAscentDevtest.check("nenhuma nave fantasma no registro", ghosts == 0, "naves " + ghosts);
+            if (before != null) {
+                org.joml.Vector3d want = DeckYardMap.landed(before.pos, turns, photo.sizeX, photo.sizeZ, origin.getX(), origin.getY(), origin.getZ());
+                double err = Math.sqrt(player.distanceToSqr(want.x, want.y, want.z));
+                boolean solidBelow = !ground.getBlockState(BlockPos.containing(player.getX(), player.getY() - 0.2, player.getZ())).getCollisionShape(ground, BlockPos.containing(player.getX(),
+                        player.getY() - 0.2, player.getZ())).isEmpty();
+                boolean inside = ground.getBlockState(BlockPos.containing(player.getX(), player.getY() + 0.1, player.getZ())).getCollisionShape(ground, BlockPos.containing(player.getX(),
+                        player.getY() + 0.1, player.getZ())).isEmpty();
+                ShipAscentDevtest.check("pouso e desmontagem: o jogador fica em pé no chão no lugar relativo certo (< 0,1 bloco)", err < 0.1,
+                        "esperado (" + f(want.x) + ", " + f(want.y) + ", " + f(want.z) + "), está em (" + f(player.getX()) + ", " + f(player.getY()) + ", " + f(player.getZ()) + "), diferença " + f(err));
+                ShipAscentDevtest.check("pouso e desmontagem: sobre um bloco sólido e sem estar dentro de um", solidBelow && inside, "sólido embaixo " + solidBelow + ", livre nos pés " + inside);
+                ShipAscentDevtest.check("pouso e desmontagem: fora do convés, sem dano de queda e sem sentar", !DeckCrew.isCrew(player) && player.getVehicle() == null && !ShipAscentDevtest.fallHurt
+                        && player.fallDistance == 0.0, "tripulante " + DeckCrew.isCrew(player) + ", vida " + f(player.getHealth()) + ", último dano " + ShipAscentDevtest.lastDamage
+                        + ", queda " + player.fallDistance);
+            }
             SpaceHorizons.LOGGER.info("[AUTOTEST] SHIPDESCENT desmontada em {}: {} blocos, giro {}, {} mB", origin.toShortString(), blocks, turns, tankMb);
             FlightDevtest.mark("sd_landed");
         });

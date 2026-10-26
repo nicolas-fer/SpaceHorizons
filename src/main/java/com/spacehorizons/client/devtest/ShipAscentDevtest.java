@@ -18,6 +18,7 @@ import com.spacehorizons.ship.ShipRecord;
 import com.spacehorizons.ship.ShipRegistry;
 import com.spacehorizons.ship.ShipSeatEntity;
 import com.spacehorizons.ship.ShipYard;
+import com.spacehorizons.ship.deck.DeckCrew;
 import com.spacehorizons.space.SpaceClock;
 import com.spacehorizons.space.SolarSystem;
 import com.spacehorizons.space.flight.AttitudeMath;
@@ -57,6 +58,38 @@ final class ShipAscentDevtest {
     static final double TOLERANCE = 0.01;
     /** Tolerância relativa da velocidade: a conferência anda 1 a 2 ticks de empuxo depois da troca (ver ShipAscentDevtest.verify). */
     static final double SPEED_TOLERANCE = 0.02;
+
+    /**
+     * O jogador sobe EM PÉ no convés da nave (fase 2e, frente 2). {@code SH_SEATED=1} (ambiente) volta ao caminho antigo: sentado como piloto, que
+     * a troca deixa sentado na ponte.
+     */
+    static final boolean STANDING = !"1".equals(System.getenv("SH_SEATED"));
+    /** Tolerância (blocos) da posição relativa à nave entre o convés e o estaleiro. */
+    static final double RELATIVE_TOLERANCE = 0.1;
+    /** O último estado local do tripulante visto no servidor antes da troca (a posição relativa à nave) e o do embarque. */
+    private static final org.joml.Vector3d lastLocal = new org.joml.Vector3d();
+    private static final org.joml.Vector3d startLocal = new org.joml.Vector3d();
+    private static boolean haveLocal;
+    private static double minFootRel = 0.0;
+    private static double minHealth = 20.0;
+    /** Algum dano de queda ao tripulante (a vida pode cair por outras causas em sobrevivência, como o frio do espaço: só a queda importa aqui). */
+    static boolean fallHurt;
+    static String lastDamage = "nenhum";
+
+    /** Olha o último dano do jogador: registra a causa e se foi queda. */
+    static void watchDamage(ServerPlayer p) {
+        var src = p.getLastDamageSource();
+        if (src != null) {
+            if (src.is(net.minecraft.world.damagesource.DamageTypes.FALL)) {
+                fallHurt = true;
+            }
+            if (!src.getMsgId().equals(lastDamage)) {
+                lastDamage = src.getMsgId();
+                SpaceHorizons.LOGGER.info("{}DANO ao jogador: {} (vida {})", TAG, lastDamage, p.getHealth());
+            }
+        }
+    }
+    private static long fallDamages0;
 
     private static int passed;
     private static int failed;
@@ -159,8 +192,13 @@ final class ShipAscentDevtest {
     static void assemble(Minecraft mc) {
         ShipGroundDevtest.onServer(mc, "montagem", (server, level, player) -> {
             try {
-                ship = ShipAssembler.assemble(level, BASE.offset(0, 1, 0), player);
-                player.startRiding(ship, true, true);
+                player.setHealth(player.getMaxHealth());
+                fallDamages0 = DeckCrew.FALL_DAMAGES.get();
+                // em pé: o assembler é "null" e quem está sobre o piso entra no convés (embarque automático da montagem)
+                ship = ShipAssembler.assemble(level, BASE.offset(0, 1, 0), STANDING ? null : player);
+                if (!STANDING) {
+                    player.startRiding(ship, true, true);
+                }
             } catch (com.spacehorizons.rocket.RocketException e) {
                 check("montagem aceita", false, e.getMessage());
                 FlightDevtest.mark("sa_done");
@@ -169,7 +207,19 @@ final class ShipAscentDevtest {
             RocketPortrait portrait = ship.portrait();
             check("montagem: " + ShipGroundDevtest.expectedBlocks() + " blocos no retrato", portrait.blockCount() == ShipGroundDevtest.expectedBlocks(),
                     "retrato " + portrait.blockCount());
-            check("piloto sentado na nave no chão", player.getVehicle() == ship, "veículo=" + player.getVehicle());
+            if (STANDING) {
+                DeckCrew.Member m = DeckCrew.member(player.getUUID());
+                check("tripulante em pé no convés da nave no chão (embarque da montagem)", m != null && player.getVehicle() == null,
+                        "tripulante " + (m != null) + ", veículo=" + player.getVehicle());
+                if (m != null) {
+                    startLocal.set(m.state().pos);
+                    lastLocal.set(startLocal);
+                    haveLocal = true;
+                    SpaceHorizons.LOGGER.info("{}EMBARQUE: em pé no convés em ({}, {}, {}) locais", TAG, f(startLocal.x), f(startLocal.y), f(startLocal.z));
+                }
+            } else {
+                check("piloto sentado na nave no chão", player.getVehicle() == ship, "veículo=" + player.getVehicle());
+            }
             SpaceHorizons.LOGGER.info("{}MONTADA: {} blocos, combustível {} mB, altitude de saída {} blocos", TAG, portrait.blockCount(), f(ship.fuelMb()),
                     f(Zones.exitAltitude(SolarSystem.EARTH.planet())));
             FlightDevtest.mark("sa_assembled");
@@ -179,12 +229,15 @@ final class ShipAscentDevtest {
     /** Liga o acelerador do piloto sentado e arma a conferência, que roda em todo tick do servidor. */
     static void climb(Minecraft mc) {
         ShipGroundDevtest.onServer(mc, "partida", (server, level, player) -> {
-            if (ship == null || !(player.getVehicle() instanceof RocketEntity)) {
-                check("subida: piloto sentado antes de decolar", false, "veículo=" + player.getVehicle());
+            if (ship == null || !(player.getVehicle() instanceof RocketEntity || (STANDING && DeckCrew.isCrew(player)))) {
+                check("subida: piloto sentado (ou tripulante em pé) antes de decolar", false, "veículo=" + player.getVehicle());
                 FlightDevtest.mark("sa_done");
                 return;
             }
             armed = true;
+            if (STANDING) {
+                ship.setDevtestPilot(true);
+            }
             pilot = new MissionPilot(ship.stats(), ship.portrait().sizeY / 2.0, (body, x, z) -> Double.NaN,
                     line -> SpaceHorizons.LOGGER.info(TAG + line));
             if (!registered) {
@@ -202,6 +255,15 @@ final class ShipAscentDevtest {
             return;
         }
         ServerPlayer player = server.getPlayerList().getPlayers().get(0);
+        // o tripulante em pé: a posição local (relativa à nave) e a altura do pé sobre o piso, a cada tick, até a troca
+        DeckCrew.Member crew = tradeDone ? null : DeckCrew.member(player.getUUID());
+        if (crew != null) {
+            lastLocal.set(crew.state().pos);
+            haveLocal = true;
+            minFootRel = Math.min(minFootRel, lastLocal.y - startLocal.y);
+        }
+        minHealth = Math.min(minHealth, player.getHealth());
+        watchDamage(player);
         if (tradeDone) {
             // depois da troca: a conferência de estabilidade roda SETTLE_TICKS ticks depois (ver settle); então o voo virtual circulariza
             if (!settled) {
@@ -215,7 +277,7 @@ final class ShipAscentDevtest {
             return;
         }
         if (!ship.isRemoved() && !ShipConversions.isFrozen(ship)) {
-            if (!(player.getVehicle() instanceof RocketEntity r && r == ship)) {
+            if (!(player.getVehicle() instanceof RocketEntity r && r == ship) && !(STANDING && DeckCrew.isCrew(player))) {
                 riddenAll = false;
             }
             climbTicks++;
@@ -314,6 +376,16 @@ final class ShipAscentDevtest {
                 live == null ? "sem voo" : "acelerador " + f(live.state().throttle()));
         // o assento do piloto na ponte não tem bloco de assento embaixo: antes ele sumia em 5 ticks e o piloto ficava em pé (a descida recusava)
         var players = server.getPlayerList().getPlayers();
+        if (STANDING) {
+            ServerPlayer p = players.isEmpty() ? null : players.get(0);
+            org.joml.Vector3d want = haveLocal ? com.spacehorizons.ship.deck.DeckYardMap.toYard(lastLocal, tradeRec.box().minX(), tradeRec.box().minY(), tradeRec.box().minZ()) : null;
+            double err = p == null || want == null ? Double.NaN : Math.sqrt(p.distanceToSqr(want.x, want.y, want.z));
+            check("tripulante ainda em pé no estaleiro " + SETTLE_TICKS + " ticks depois da troca, no mesmo lugar (< " + RELATIVE_TOLERANCE + ")",
+                    p != null && p.getVehicle() == null && ShipYard.is(p.level()) && err < RELATIVE_TOLERANCE, "diferença " + f(err) + " blocos");
+            check("tripulante sem dano de queda até aqui (vida mínima " + f(minHealth) + ", último dano " + lastDamage + ")", !fallHurt && DeckCrew.FALL_DAMAGES.get() == fallDamages0,
+                    "vida mínima " + f(minHealth) + ", último dano " + lastDamage + ", danos de queda " + (DeckCrew.FALL_DAMAGES.get() - fallDamages0));
+            return;
+        }
         boolean seated = !players.isEmpty() && players.get(0).getVehicle() instanceof ShipSeatEntity;
         check("piloto ainda sentado na ponte " + SETTLE_TICKS + " ticks depois da troca", seated,
                 players.isEmpty() ? "sem jogador" : "veículo " + players.get(0).getVehicle());
@@ -379,9 +451,21 @@ final class ShipAscentDevtest {
         int columns = ShipCensusService.scanNow(server, rec).census().tankStructures().size();
         check("coluna de tanques formada (multibloco 2x2x4)", columns == 1 + EXTRA_COLUMNS, "colunas " + columns);
         check("entidade removida", ship.isRemoved(), "removida=" + ship.isRemoved());
-        boolean inYard = ShipYard.is(player.level()) && player.getVehicle() instanceof ShipSeatEntity
+        boolean inYard = ShipYard.is(player.level()) && (STANDING ? player.getVehicle() == null : player.getVehicle() instanceof ShipSeatEntity)
                 && ShipYard.cellContains(rec.cell(), player.getX(), player.getZ());
-        check("piloto no estaleiro e sentado na ponte", inYard, "nível " + player.level().dimension().identifier() + ", veículo " + player.getVehicle());
+        check(STANDING ? "tripulante no estaleiro, em pé" : "piloto no estaleiro e sentado na ponte", inYard,
+                "nível " + player.level().dimension().identifier() + ", veículo " + player.getVehicle());
+        if (STANDING && haveLocal) {
+            org.joml.Vector3d want = com.spacehorizons.ship.deck.DeckYardMap.toYard(lastLocal, box.minX(), box.minY(), box.minZ());
+            double err = Math.sqrt(player.distanceToSqr(want.x, want.y, want.z));
+            check("tripulante na MESMA posição relativa à nave no estaleiro (< " + RELATIVE_TOLERANCE + " bloco)", err < RELATIVE_TOLERANCE,
+                    "local (" + f(lastLocal.x) + ", " + f(lastLocal.y) + ", " + f(lastLocal.z) + "), no estaleiro (" + f(player.getX() - box.minX()) + ", "
+                            + f(player.getY() - box.minY()) + ", " + f(player.getZ() - box.minZ()) + "), diferença " + f(err));
+            check("o tripulante nunca atravessou o piso na subida (pé sobre o piso local, mínimo " + f(minFootRel) + ")", minFootRel >= -0.001,
+                    "mínimo " + f(minFootRel));
+            check("nenhum dano de queda na subida", !fallHurt && DeckCrew.FALL_DAMAGES.get() == fallDamages0,
+                    "vida mínima " + f(minHealth) + ", último dano " + lastDamage);
+        }
         ShipFlightTicker.Live live = ShipFlightTicker.live(rec.id());
         check("voo virtual ativo", live != null, live == null ? "sem voo" : "ligado");
         if (live == null) {

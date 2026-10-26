@@ -10,6 +10,7 @@ import com.spacehorizons.rocket.RocketEntity;
 import com.spacehorizons.rocket.RocketException;
 import com.spacehorizons.rocket.RocketPortrait;
 import com.spacehorizons.ship.block.ShipImpulseEngineBlock;
+import com.spacehorizons.ship.deck.DeckCrew;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -24,7 +25,8 @@ import org.jspecify.annotations.Nullable;
  * Monta uma nave no chão a partir da ponte ({@code ship_bridge}), com o clique agachado de mão vazia fora do estaleiro: a busca
  * ({@link ShipAssembly}) e a validação são as da montagem do foguete ({@link RocketAssembler}), e a remoção e a entidade também. A nave
  * precisa de um motor para decolar ({@link ShipLiftoff}: bocal de impulso para baixo ou motor de foguete); sem ele, a montagem é recusada
- * antes de qualquer bloco sair. A entidade nasce como nave ({@link RocketEntity#isShip}) e o jogador que montou senta nela.
+ * antes de qualquer bloco sair. A entidade nasce como nave ({@link RocketEntity#isShip}) e o jogador que montou senta nela; quem estava em pé
+ * dentro da caixa entra no convés ({@link DeckCrew#boardStandingInside}).
  */
 public final class ShipAssembler {
     private ShipAssembler() {
@@ -58,8 +60,14 @@ public final class ShipAssembler {
      * Monta a nave cuja ponte está em {@code bridge}. Lança {@link RocketException} sem tocar no mundo se algo recusar a montagem
      * (inclusive a falta de motor para decolar).
      */
-    public static RocketEntity assemble(ServerLevel level, BlockPos bridge, ServerPlayer player) throws RocketException {
-        return assemble(level, bridge, player, false);
+    public static RocketEntity assemble(ServerLevel level, BlockPos bridge, @Nullable ServerPlayer player) throws RocketException {
+        RocketEntity ship = assemble(level, bridge, player, false);
+        // quem está em pé na caixa (fora o que montou, que vai sentar) entra no convés da nave, na mesma posição relativa (fase 2e, frente 2)
+        int boarded = DeckCrew.boardStandingInside(level, ship, player);
+        if (boarded > 0) {
+            SpaceHorizons.LOGGER.info("Nave montada em {}: {} jogador(es) em pé entraram no convés", bridge.toShortString(), boarded);
+        }
+        return ship;
     }
 
     /**
