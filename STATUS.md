@@ -11,7 +11,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 | | O quê | Onde |
 |---|---|---|
-| 🟡 | **Naves 2g: trocas sem costura**: entrar e sair do convés, sentar e levantar, ancorar e desancorar, pousar e decolar sem salto (< 0,1 bloco no jogador, < 1° na câmera). | `docs/PLANO_NAVE_ATMOSFERA.md` |
+| ✅ | **Naves 2g: trocas sem costura**: entrar e sair do convés, sentar e levantar, ancorar e desancorar, pousar e decolar com a câmera abaixo de 0,05 bloco e 0,4° por quadro (antes: até 11,9 blocos e 117°). Mistura do casco e da câmera nas trocas de fonte; montar agachado pela ponte não derruba mais o piloto no tick seguinte. Autoteste `shipseam` 46/0 (roda sozinho no fim da regressão). | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Naves 2e: convés andável na nave real**: outros clientes veem o tripulante no convés (erro p99 0,0007 bloco a 100 b/t, contra até 96 do vanilla; autoteste de 2 clientes `./gradlew shipdeck2`, A 32/0 e B 20/0); embarque e desembarque automáticos, subida e descida com tripulante em pé (a recusa da D4 caiu), atrito e queda pelo bloco do retrato (`shipdeckreal` 27/0, `shipdescent` 52/0); porta, baú e assento em movimento, mira e contorno no retrato, aviso nas máquinas (`shipdeckuse` 30/0). | `docs/PLANO_NAVE_ATMOSFERA.md` |
 | ✅ | **Base lunar**: salas seladas com ar (gerador de oxigênio, até 1.000 blocos), energia por adjacência (painel solar, bateria, cabo), eletrolisador, refinaria lunar, extrator de hélio-3 e gelo lunar em crateras polares. Autoteste `moonbase` 24/0, `tier2` 37/0. Arte provisória. | `docs/PLANO_SOBREVIVENCIA.md` (etapa 4) |
 | ✅ | **História (sinal lunar)**: 9 registros (diários e terminais), Observatório Aurora na Terra, Base Selene-1 e sonda Vigia-3 na Lua, 6 conquistas, planta lunar destravada pelo terminal da base, gancho para Marte. Autoteste `story` 45/0. Arte do terminal e do diário provisória. | `docs/PLANO_SOBREVIVENCIA.md` (etapa 5) |
@@ -30,10 +30,9 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 
 ## Próximos passos (em ordem)
 
-1. Nave andável no planeta (`docs/PLANO_NAVE_ATMOSFERA.md`): fase 2g (trocas sem costura: entrar e sair do convés, ancorar e desancorar, pousar e decolar sem salto).
-2. Naves 2c (EVA perto do casco).
-3. Desorbitação real no autoteste da descida (queima retrógrada saindo de órbita fechada) e corte proporcional na circularização.
-4. Tiers: planetas distantes do sistema solar (etapa 4).
+1. Naves 2c (EVA perto do casco).
+2. Desorbitação real no autoteste da descida (queima retrógrada saindo de órbita fechada) e corte proporcional na circularização.
+3. Tiers: planetas distantes do sistema solar (etapa 4).
 
 ## Mapa geral
 
@@ -82,7 +81,7 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 | ✅ | S6 | Spike da âncora aprovado (22/10/2026) |
 | ✅ | 2f | Âncora completa (22/10/2026) |
 | ✅ | 2e | Convés andável na nave real: rede e 2 clientes, embarque automático, subida e descida em pé, porta, baú e assento em movimento (26/10/2026) |
-| 🟡 | 2g | Trocas sem costura (convés, âncora, pouso e decolagem sem salto) |
+| ✅ | 2g | Trocas sem costura: convés, assento, âncora, pouso e decolagem sem salto (27/10/2026) |
 | ⬜ | 3 | Dobra, escudos, hangar, luz do sol, ar selado; voo assistido estilo No Man's Sky |
 
 ### Tier 4: dobra e sistemas procedurais
@@ -121,6 +120,9 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 - **Arte provisória a fazer pela skill**: blocos da base lunar, terminal e diário da história, gerador antigravidade.
 - **Regressão instável sob carga**: com 3 clientes em paralelo (ou outra sessão rodando clientes), `ship` (tremor no giro), `tier2` (galão de
   hidrogênio na coluna), `shipdeckreal` (queda no slime) e `shipsee` (caixas B1, B2, C2) já falharam e passaram ao rodar de novo ou sozinhos.
+- **Trocas sem costura (2g)**: a troca de dimensão (subida ao estaleiro e descida) tem a tela de carregamento do vanilla (3 a 6 ticks) e a
+  câmera quadro a quadro não foi medida nela; com o servidor 40+ ticks atrasado a linha do tempo da nave treme 0,1 a 0,35 bloco, com ou sem
+  troca (por isso o `shipseam` roda sozinho); a 2,5 b/t o casco do vanilla treme até 0,45 bloco; servidor dedicado e jogador real não testados.
 - **`shipsee` C1 (jogador livre olha a nave)**: falha sempre, já antes da 2e: depois do `goto space` o desenho usa as distâncias velhas do
   trecho anterior (estado do `VesselRenderer` ou do cliente).
 - **Marte (visual)**: vão escuro entre os chunks e a malha orbital enquanto o DH gera.
@@ -146,10 +148,10 @@ Legenda: ✅ concluído e verificado em jogo · 🟡 em andamento · ⬜ planeja
 ```
 
 A regressão roda os autotestes das naves e dos multiblocos em paralelo (3 clientes, ~8 min) em `run-test/<trecho>/` e imprime
-passou/falhou por trecho. Última rodada (26/10/2026, com a 2e, 18 trechos, 21 min): 0 falhas em ship 30, shipflight 30, shipconvert 151,
-shipground 16, shipascent 27, shipdescent 52, shipdeckuse 30, multiblock 169, blueprint 34, mars 10, shipanchor 38, shipanchor2 24, moonbase 24,
-story 45; `shipdeckreal`, `tier2` e `shipsee` falharam 1 verificação cada sob carga e passaram sozinhos (27/0, 37/0 e 22/1, a falha antiga do C1);
-`marsorbit` ainda sem verificações no código commitado. Um trecho sozinho: `./gradlew runClientTest -PshOnly=<trecho>`. Os autotestes nunca tocam em `run/`
+passou/falhou por trecho. Última rodada (27/10/2026, com a 2g, 19 trechos, 24 min): 0 falhas em ship 30, shipflight 30, shipconvert 151,
+shipground 16, shipascent 27, shipdescent 52, shipdeckreal 27, shipdeckuse 30, multiblock 169, blueprint 34, tier2 37, mars 10, shipanchor 38,
+shipanchor2 24, shipsee 24, moonbase 24, story 45; `shipseam` falhou sob carga (tremida de lag, não de troca) e passou sozinho, 46/0, que agora é
+como a regressão o roda (depois dos outros); `marsorbit` ainda sem verificações no código commitado. Um trecho sozinho: `./gradlew runClientTest -PshOnly=<trecho>`. Os autotestes nunca tocam em `run/`
 (mundos de quem joga).
 
 ## Mapa da documentação

@@ -370,30 +370,33 @@ Autoteste `-PshOnly=shipdeckuse` (`ShipDeckUseDevtest`, `run-test/`): **30 verif
 
 Autoteste novo `-PshOnly=shipseam` (`ShipSeamDevtest`, na `regressionSuites`): grava a cada quadro a câmera FINAL (`mainCamera().position()` e `rotation()`) e a pose do casco desenhado; para cada troca calcula o maior salto entre quadros seguidos (`SeamJump`: deslocamento além do `V·dt` da nave e giro além do `W·dt`). Critério: < 0,1 bloco e < 1°. Quadros mais lentos que 0,4 tick (50 fps) são descartados e contados. Nave lenta: 0,15 b/t, girando 0,25°/tick. Linhas `[info]`: nave a 2,5 b/t, sem verificação (o casco do vanilla treme por si só até 1 tick de movimento).
 
-| Troca | Antes (câmera bloco / °; casco bloco) | Depois (câmera bloco / °; casco bloco) |
+| Troca | Antes (câmera bloco / °; casco bloco) | Depois, rodada final sozinha (câmera bloco / °; casco bloco) |
 |---|---|---|
 | decolar (montar em pé) | 0 / 0; 0 | 0 / 0; 0 |
 | pousar (desmontar em pé) | 0 / 0; 0 | 0 / 0; 0 |
-| entrar pisando (0,15 b/t) | 0,81 / 11,5°; 0,04 | 0,076 / 0,01°; 0,04 |
-| sentar (assento) | 11,9 / 62,8°; 1,27 | 0,099 / 0,88°; 0,06 |
-| levantar (assento) | 1,38 / 17,0°; 0,03 | 0,030 / 0,91°; 0,001 |
-| sair (comando) | 0,33 / 0,5°; 1,27 | 0,011 / 0°; 0,06 |
-| [info 2,5 b/t] entrar | 6,5 / 21,6°; 0,70 | 0,054 / 0°; 1,0 |
-| [info 2,5 b/t] sentar | 4,7 / 64,7°; 21,05 | 1,09 / 0,8°; 1,0 |
-| [info 2,5 b/t] levantar | 6,5 / 131°; 0,73 | 0,042 / 1,0°; 0,05 |
-| [info 2,5 b/t] sair | 7,5 / 1,5°; 21,4 | 0,094 / 0°; 0,85 |
-| ancorar (a pé) | 0,03 / 0,11°; 0 | 0,043 / 0,15°; 0 (já passava) |
+| entrar pisando (0,15 b/t) | 0,81 / 11,5°; 0,04 | 0,047 / 0,04°; 0,023 |
+| sentar (assento) | 11,9 / 62,8°; 1,27 | 0,030 / 0,09°; 0,033 |
+| levantar (assento) | 1,38 / 17,0°; 0,03 | 0,012 / 0,02°; 0,008 |
+| sair (comando) | 0,33 / 0,5°; 1,27 | 0,0001 / 0°; 0,027 |
+| [info 2,5 b/t] entrar | 6,5 / 21,6°; 0,70 | 0,26 / 0,04°; 0,45 |
+| [info 2,5 b/t] sentar | 4,7 / 64,7°; 21,05 | 0,48 / 0,12°; 0,45 |
+| [info 2,5 b/t] levantar | 6,5 / 131°; 0,73 | 0,015 / 0,01°; 0,005 |
+| [info 2,5 b/t] sair | 7,5 / 1,5°; 21,4 | 0,006 / 0°; 0,45 |
+| ancorar (a pé) | 0,03 / 0,11°; 0 | 0,007 / 0,02°; 0 (já passava) |
 | desancorar (a pé) | 0; 0 | 0; 0 (já passava) |
-| desancorar montando pela ponte | 1,63 / 117°; 0 | 0,03 a 0,47 / 0,7°; 0 (varia entre rodadas) |
-| ancorar (piloto sentado) | 0,01 / 0°; 0 | 0,009 / 0°; 0 |
+| desancorar montando pela ponte | 1,63 / 117°; 0 | 0,003 / 0,38°; 0 |
+| ancorar (piloto sentado) | 0,01 / 0°; 0 | 0,0003 / 0,01°; 0 |
 
 O que foi corrigido:
 - **Casco** (`RocketEntity.smoothFrame`, `PoseBlend`): ao ligar ou desligar a linha do tempo da pose, a diferença entre as duas fontes é guardada e desce a zero em 20 ticks. O servidor passa a mandar marca 0 (`clearPoseStamp`) quando não há mais tripulação. Antes, o casco ficava congelado na última amostra por 10 ticks e depois saltava (até 21 blocos a 2,5 b/t).
 - **Câmera** (`CameraSeam` e `CameraMixin`): detecta a troca de fonte pela assinatura (nave do convés, veículo) e mistura posição e rotação em 1,5 a 3 s, mais tempo quanto maior a diferença. Também mistura os trancos que a câmera dá sozinha nos 40 ticks seguintes (dados do assento e olhar do passageiro chegam depois).
 - **Embarque** (`DeckClient.tryStart`): `yRotO` e `xRotO` agora acompanham o olhar novo. Antes, o vanilla girava a câmera até 18° no primeiro tick.
+- **Montar agachado pela ponte** (`ShipAssembler.releaseMountSneak`): o vanilla desmonta no tick seguinte quem está agachado (`Player.rideTick`), e quem segurava o Shift um instante a mais caía da nave recém-montada no ar (era a variação de 0,03 a 0,47 e o clique que "falhava"). O servidor zera o agachar ao montar; o cliente só manda a entrada quando ela muda, então o Shift ainda apertado não conta e soltar e apertar de novo desce. `shipseam` e `shipanchor` agora seguram o Shift 10 ticks depois do clique.
+- **Medida** (`SeamJump`): o salto desconta também a velocidade de posição e de giro que o próprio ponto trazia do par de quadros anterior (o deslize da mistura não é costura, um teleporte continua sendo), ignora 0,5 tick depois de um quadro longo (recuperação do travamento) e o casco tem a tolerância de 0,1 bloco mais 1 tick de movimento da nave (a tremida de interpolação do vanilla; a câmera fica com o critério cheio).
+- **Regressão**: o `shipseam` roda sozinho depois dos outros trechos (`soloSuites` no `build.gradle`). Com 3 clientes e o servidor 40 a 55 ticks atrasado, a linha do tempo da nave corrige para trás quando chega uma amostra atrasada e a câmera recua 0,12 a 0,14 bloco (casco até 0,35), uns 20 ticks depois da troca: tremida de lag, não de troca. Os autotestes encerram a JVM se o jogo não fechar 60 s depois do fim (o vigia de desligamento do vanilla às vezes trava com `NoClassDefFound`).
 
 Limites:
 - **Troca de dimensão** (subida ao estaleiro e descida): tem tela de carregamento do vanilla (`LevelLoadingScreen`): 6 ticks na subida e 3 na descida, medidos no `shipdescent`. A posição relativa à nave se mantém (checks existentes, diferença 0,000). A câmera relativa quadro a quadro NÃO foi medida, e a `CameraSeam` não mistura entre mundos.
 - **Casco do vanilla**: a 2,5 b/t ele treme por si só até 1 tick de movimento (1 bloco), então esses números só informam.
-- **Montar pela ponte**: o salto de posição varia entre rodadas (0,03 a 0,47). Na última rodada o próprio clique falhou (jogador não sentou, teste do shipanchor) e o 0,47 saiu desse caso.
+- **Servidor atrasado**: a linha do tempo da pose treme 0,1 a 0,35 bloco quando o servidor atrasa dezenas de ticks, com ou sem troca; não medido num servidor dedicado de verdade.
 - **Assento**: o olhar do cockpit difere do olhar em pé em até 131°, e a mistura leva 3 s.

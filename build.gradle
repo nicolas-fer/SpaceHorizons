@@ -244,6 +244,14 @@ regressionSuites.each { String suite ->
         ignoreExitValue = true
     }
 }
+// Trechos que medem quadro a quadro e precisam da máquina só para eles: rodam depois de todos os outros, sozinhos (com o servidor
+// dezenas de ticks atrasado pela carga, a linha do tempo da nave treme 0,1 a 0,35 bloco e o shipseam acusa salto que não é troca).
+def soloSuites = ['shipseam'].findAll { regressionSuites.contains(it) }
+soloSuites.each { String solo ->
+    tasks.matching { it.name == "runClientTest${solo.capitalize()}" }.configureEach {
+        mustRunAfter regressionSuites.findAll { !soloSuites.contains(it) }.collect { "runClientTest${it.capitalize()}" }
+    }
+}
 tasks.register('regression') {
     group = 'verification'
     description = 'Roda os autotestes de regressão em paralelo e resume as verificações de cada um.'
