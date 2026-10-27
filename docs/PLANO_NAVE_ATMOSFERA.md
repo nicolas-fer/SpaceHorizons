@@ -172,6 +172,53 @@ Leituras e ressalvas:
   movimento no desenho (fase 2g). Estalo de quadro maior que 2 ticks (estalo do cliente) também aparece como tranco.
 - Chunks à frente da nave em voo horizontal rápido, dimensões diferentes e a troca planeta/espaço com tripulante a pé são da 2e.
 
+## Resultado da fase 2e, frente 1 (26/10/2026): outros clientes veem o tripulante no convés
+
+**Veredito: aprovado no autoteste de dois clientes.** O observador desenha o tripulante a menos de 0,004 bloco do caminho exato do servidor a 1, 10 e 100 b/t,
+com e sem 100 ms de latência; o desenho do vanilla (interpolação linear do pacote de posição) errava até 96 blocos a 100 b/t.
+
+### O que entrou
+
+- **Rede**: `DeckObservePayload` (servidor para cliente, a cada tick da nave): id do jogador e da nave, tick do servidor da pose (o mesmo carimbo do
+  `RocketEntity.stampPose`), estado local (pés, olhar, no chão) e o aviso de saída (`aboard=false`). Vai a quem rastreia a nave
+  (`DeckCrew.afterRocketTick`). O `ServerEntityMixin` suprime, só para o tripulante, os pacotes de posição, rotação e cabeça do vanilla aos outros clientes
+  (os demais pacotes da entidade seguem). Ao sair do convés (`DeckCrew.releaseObservers`) o servidor avisa os observadores e manda a posição absoluta, porque
+  a base dos pacotes relativos do vanilla ficou velha.
+- **Cliente observador** (`client/ship/DeckObserver`, `ship/deck/DeckObservedHistory`): guarda os estados por carimbo e, a cada tick, põe o jogador remoto pela pose da
+  nave em g e g + 1 e pelo estado local lido nos mesmos tempos do servidor (`RocketEntity.smoothServerTimeAt`), na mesma linha do tempo do casco. No desenho
+  o modelo vai à posição exata do quadro e é girado pela atitude em torno dos pés (como o jogador local); `DeckCullingMixin` não o descarta e
+  `DeckAnimationMixin` anima a caminhada pelo passo local. Sem estado por 10 ticks, ou com o aviso de saída, volta ao vanilla.
+- **Relógio da linha do tempo** (`DeckPoseTimeline`): dois casos que o observador expôs e que o jogador local quase não via. (1) Um cliente ocupado (acabou de
+  entrar no mundo) processa os primeiros pacotes em rajada e o deslocamento nascia 38 ticks alto, descendo 0,002 por pacote (minutos): acima de 3 ticks agora desce
+  direto. (2) O relógio do cliente que recupera ticks atrasados anda à frente dos pacotes e o desenho ficava preso na última pose, subindo 0,0004 por pacote: acima de
+  `DELAY_TICKS` (2) o deslocamento sobe direto, voltando a 2 ticks atrás da pose mais nova. Variação normal de chegada (até ~0,6 tick) não muda. Testados.
+
+### Autoteste de 2 clientes
+
+`./gradlew shipdeck2 --console=plain` (não está na regressão padrão; ~10 min; `SH_DECK_CONFIGS="10:0"` reduz a matriz). O cliente A (`run-test/shipdeck2`,
+`-PshOnly=shipdeck2`) cria o mundo, abre a LAN na porta 25599 (`publishServer`, sem autenticação: só localhost e só no autoteste) e roda o roteiro do `shipdeck` (a nave
+de ~4.000 blocos a 1, 10 e 100 b/t, mais 100 b/t com 100 ms por sentido), com o robô andando. O cliente B (`run-test/shipdeck2b`, `shipdeck2b`, usuário ObsB) entra pela LAN e
+fica num ponto fixo do referencial da nave: a 30 blocos do casco até o tick 1.000 da corrida e depois dentro dele, olhando o convés (o servidor de A teletransporta B a cada tick
+só para ele rastrear a nave; o olho vem de `DeckObserver.eyeOverride`). Os dois conversam por `run-test/shipdeck2-shared` (estado do cenário, verdade, confirmação). A grava a cada tick a
+posição exata de A no mundo; B mede, a cada quadro, onde desenha A (`DeckObserver.modelCorrection` sobre a posição do vanilla) e compara com a verdade interpolada no mesmo
+tempo do servidor. Quadros em que o relógio de B passou da pose mais nova (B sob carga) ficam fora da medida e contam à parte (limite de 5%). Imprime `[AUTOTEST] SHIPDECK2 CHECK ...`.
+
+| Cenário | p99 / máx do erro (blocos) | sem a correção (vanilla): p99 / máx | quadros sem dado novo | A visto a bordo | modelo desenhado | dentro da caixa |
+|---|---|---|---|---|---|---|
+| 1 b/t | 0,00069 / 0,00248 | 0,698 / 1,057 | 46 de 6.341 | 100% | 100% | 100% |
+| 10 b/t | 0,00070 / 0,00162 | 0,643 / 9,957 | 12 de 8.958 | 100% | 100% | 100% |
+| 100 b/t | 0,00070 / 0,00326 | 4,536 / 95,906 | 67 de 9.002 | 100% | 100% | 100% |
+| 100 b/t, 100 ms | 0,00070 / 0,00158 | 3,837 / 88,689 | 47 de 7.844 | 100% | 100% | 100% |
+
+B: 20 verificações, 0 falhas (critério p99 < 0,1 e máximo < 0,3). A: 31 passaram e 1 falhou, a deriva parado do cenário de 10 b/t (0,041 contra 0,02), efeito conhecido de máquina
+ocupada (dois clientes, DH, mais o servidor); `-PshOnly=shipdeck` sozinho com `10:0:s` voltou a 8/0 e deriva 0,00001. Prints do observador em `run-test/shipdeck2b/screenshots/autotest_sdk2_*`
+(de fora a 30 blocos, com o casco girando e inclinado, e de dentro, com o jogador A andando no convés).
+
+### O que continua sem verificação
+
+Servidor dedicado, mais de um observador, reabrir o mundo com tripulante a bordo, tripulante agachado/nadando visto por outros (a pose vem dos dados da entidade, não testada) e o
+observador entrar ou sair do alcance da nave no meio da corrida.
+
 ## Resultado do spike S6 (22/10/2026): aprovado
 
 **Veredito: a âncora no ar funciona.** Autoteste `-PshOnly=shipanchor` (`ShipAnchorDevtest`, `run-test/`): **38 verificações, 0 falhas**. A nave de
