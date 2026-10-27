@@ -68,6 +68,8 @@ final class ShipSeamDevtest {
     private static ScriptedShip scripted;
     private static RocketEntity landed;
     private static final double LONG_FRAME_TICKS = 0.4;
+    /** Até quantos ticks o par de quadros anterior ainda dá a velocidade própria do ponto (deslize da mistura). */
+    private static final double OWN_VELOCITY_MAX_TICKS = 5.0;
     private static int longFrames;
     private static String worstPosition = "";
     private static int worstPositionIndex;
@@ -238,8 +240,22 @@ final class ShipSeamDevtest {
             if (Double.isNaN(pa.x) || Double.isNaN(pb.x)) {
                 continue;
             }
-            double pos = SeamJump.position(pa, pb, swapVelocity, dt);
-            double ang = SeamJump.angle(hull ? a.hullRotation : a.rotation, hull ? b.hullRotation : b.rotation, swapDegreesPerTick, dt);
+            // a velocidade que o ponto trazia do par anterior, para não contar um deslize suave como salto; vale mesmo depois de um quadro longo
+            // (a média dele ainda é o deslize), e um teleporte escondido num quadro longo não se repete no quadro seguinte, então continua salto
+            Vector3d own = new Vector3d();
+            Quaterniond ra = hull ? a.hullRotation : a.rotation;
+            Quaterniond rb = hull ? b.hullRotation : b.rotation;
+            double ang = SeamJump.angle(ra, rb, swapDegreesPerTick, dt);
+            if (i >= 2) {
+                Frame z = FRAMES.get(i - 2);
+                Vector3d pz = hull ? z.hull : z.eye;
+                double dtz = a.clock - z.clock;
+                if (dtz > 0.0 && dtz <= OWN_VELOCITY_MAX_TICKS && !Double.isNaN(pz.x)) {
+                    own.set(pa).sub(pz).div(dtz);
+                    ang = SeamJump.angle(hull ? z.hullRotation : z.rotation, ra, rb, swapDegreesPerTick, dtz, dt);
+                }
+            }
+            double pos = SeamJump.position(pa, pb, swapVelocity, own, dt);
             if (pos > maxPos) {
                 maxPos = pos;
                 atPos = b.clock;

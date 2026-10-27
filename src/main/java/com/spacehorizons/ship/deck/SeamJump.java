@@ -1,5 +1,7 @@
 package com.spacehorizons.ship.deck;
 
+import org.joml.AxisAngle4d;
+import org.joml.Quaterniond;
 import org.joml.Quaterniondc;
 import org.joml.Vector3dc;
 
@@ -28,6 +30,19 @@ public final class SeamJump {
         return Math.min(still, Math.sqrt(ex * ex + ey * ey + ez * ez));
     }
 
+    /**
+     * Como {@link #position(Vector3dc, Vector3dc, Vector3dc, double)}, com um terceiro movimento esperado: seguir a velocidade que o próprio ponto
+     * trazia do par de quadros anterior ({@code ownVelocity}, blocos por tick). Um deslize suave (a mistura da câmera indo do olhar em pé ao do
+     * assento) anda vários blocos, mas sem salto entre quadros; num quadro um pouco mais longo o deslocamento passaria de 0,1 bloco sem ser costura.
+     * Um teleporte continua salto, porque a velocidade de antes não o explica.
+     */
+    public static double position(Vector3dc before, Vector3dc after, Vector3dc expectedVelocity, Vector3dc ownVelocity, double dtTicks) {
+        double ox = after.x() - before.x() - ownVelocity.x() * dtTicks;
+        double oy = after.y() - before.y() - ownVelocity.y() * dtTicks;
+        double oz = after.z() - before.z() - ownVelocity.z() * dtTicks;
+        return Math.min(position(before, after, expectedVelocity, dtTicks), Math.sqrt(ox * ox + oy * oy + oz * oz));
+    }
+
     /** O ângulo, em graus, entre duas rotações (0 a 180). */
     public static double angleDegrees(Quaterniondc a, Quaterniondc b) {
         double dot = Math.abs(a.x() * b.x() + a.y() * b.y() + a.z() * b.z() + a.w() * b.w());
@@ -38,5 +53,21 @@ public final class SeamJump {
     /** O salto de rotação, em graus: o ângulo entre os quadros menos o giro esperado da nave no intervalo ({@code degreesPerTick}), nunca negativo. */
     public static double angle(Quaterniondc before, Quaterniondc after, double degreesPerTick, double dtTicks) {
         return Math.max(0.0, angleDegrees(before, after) - Math.abs(degreesPerTick) * dtTicks);
+    }
+
+    /**
+     * Como {@link #angle(Quaterniondc, Quaterniondc, double, double)}, com o giro que a própria câmera trazia do par anterior ({@code earlier} →
+     * {@code before}, em {@code dtEarlierTicks}) continuado por {@code dtTicks}: a mistura girando a velocidade constante não é salto, só uma
+     * mudança brusca de giro é.
+     */
+    public static double angle(Quaterniondc earlier, Quaterniondc before, Quaterniondc after, double degreesPerTick, double dtEarlierTicks, double dtTicks) {
+        Quaterniond step = new Quaterniond(before).mul(new Quaterniond(earlier).invert());
+        AxisAngle4d turn = new AxisAngle4d(step);
+        if (turn.angle > Math.PI) {
+            turn.angle -= 2.0 * Math.PI;
+        }
+        turn.angle *= dtTicks / dtEarlierTicks;
+        Quaterniond predicted = new Quaterniond(turn).mul(before);
+        return Math.min(angle(before, after, degreesPerTick, dtTicks), angleDegrees(predicted, after));
     }
 }

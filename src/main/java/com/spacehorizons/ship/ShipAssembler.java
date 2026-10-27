@@ -51,9 +51,19 @@ public final class ShipAssembler {
                     String.format(Locale.ROOT, "%.1f", portrait.stats().dryMassT()),
                     String.format(Locale.ROOT, "%.0f", ship.fuelMb())));
             player.startRiding(ship, true, true);
+            releaseMountSneak(player);
         } catch (RocketException e) {
             player.sendSystemMessage(e.component());
         }
+    }
+
+    /**
+     * O clique que monta é agachado, e o vanilla desmonta no tick seguinte quem está agachado ({@code Player.rideTick}). O cliente só manda a
+     * entrada quando ela muda, então zerar o agachar do servidor aqui faz o Shift ainda apertado não contar; soltar e apertar de novo desce.
+     * Sem isso, quem segura o Shift um tick a mais cai da nave recém-montada no ar.
+     */
+    static void releaseMountSneak(ServerPlayer player) {
+        player.setShiftKeyDown(false);
     }
 
     /**

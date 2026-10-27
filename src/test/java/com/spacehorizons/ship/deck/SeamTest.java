@@ -79,6 +79,32 @@ class SeamTest {
     }
 
     @Test
+    void deslizeSuaveNaoESaltoMasTeleporteE() {
+        Vector3d a = new Vector3d(0, 0, 0);
+        Vector3d zero = new Vector3d();
+        // a câmera desliza a 0,34 b/t e o quadro dura 0,4 tick: 0,136 bloco, mas na velocidade que já trazia
+        assertEquals(0.0, SeamJump.position(a, new Vector3d(0.136, 0, 0), zero, new Vector3d(0.34, 0, 0), 0.4), 1e-12);
+        // a mesma distância vindo do repouso é salto
+        assertEquals(0.136, SeamJump.position(a, new Vector3d(0.136, 0, 0), zero, zero, 0.4), 1e-12);
+        // um teleporte de 0,8 bloco não se explica pela velocidade de antes
+        assertEquals(0.8 - 0.068, SeamJump.position(a, new Vector3d(0.8, 0, 0), zero, new Vector3d(0.34, 0, 0), 0.2), 1e-9);
+    }
+
+    @Test
+    void giroSuaveNaoESaltoMasViradaE() {
+        // a câmera gira 2,8 graus por tick em torno de X: 0,56 grau em 0,2 tick, depois 1,008 grau num quadro de 0,36 tick
+        Quaterniond z = new Quaterniond().rotateX(Math.toRadians(33.0));
+        Quaterniond a = new Quaterniond().rotateX(Math.toRadians(33.56));
+        Quaterniond b = new Quaterniond().rotateX(Math.toRadians(34.568));
+        assertEquals(0.0, SeamJump.angle(z, a, b, 0.0, 0.2, 0.36), 1e-6);
+        // a mesma rotação vinda do repouso é salto
+        assertEquals(1.008, SeamJump.angle(a, a, b, 0.0, 0.2, 0.36), 1e-6);
+        // virar 30 graus de uma vez com o giro de antes ainda conta quase tudo
+        Quaterniond flip = new Quaterniond().rotateX(Math.toRadians(33.56 + 30.0));
+        assertTrue(SeamJump.angle(z, a, flip, 0.0, 0.2, 0.2) > 29.0);
+    }
+
+    @Test
     void saltoDeRotacaoEmGraus() {
         Quaterniond a = new Quaterniond().rotateY(Math.toRadians(10.0));
         Quaterniond b = new Quaterniond().rotateY(Math.toRadians(12.0));

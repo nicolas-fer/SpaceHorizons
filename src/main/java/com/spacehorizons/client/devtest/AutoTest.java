@@ -420,7 +420,7 @@ public final class AutoTest {
         if ("to_d".equals(ONLY)) {
             step(40, mc -> {
                 SpaceHorizons.LOGGER.info(TAG + "FIM");
-                mc.stop();
+                stopGame(mc);
             });
             return;
         }
@@ -481,7 +481,7 @@ public final class AutoTest {
 
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -513,7 +513,7 @@ public final class AutoTest {
         cloudProbe("thunder");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -541,7 +541,7 @@ public final class AutoTest {
         step(20, mc -> mc.gui.setScreen(null));
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -656,7 +656,7 @@ public final class AutoTest {
         step(40, mc -> {
             hud(mc, true);
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -731,11 +731,30 @@ public final class AutoTest {
         step(10, mc -> mc.gui.setScreen(null));
         step(20, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
     /** Abre a tela de conquistas na aba "Space Horizons" e arrasta o painel para a raiz aparecer à esquerda. */
+    /**
+     * Fecha o jogo no fim do autoteste. O desligamento do cliente às vezes trava (o vigia de desligamento do vanilla dá NoClassDefFound com o módulo
+     * minecraft já fechado) e a tarefa do Gradle fica presa para sempre: um fio daemon derruba a JVM se ela ainda estiver de pé 60 s depois.
+     */
+    private static void stopGame(Minecraft mc) {
+        Thread halt = new Thread(() -> {
+            try {
+                Thread.sleep(60_000L);
+            } catch (InterruptedException e) {
+                return;
+            }
+            SpaceHorizons.LOGGER.warn(TAG + "o jogo não fechou em 60 s depois do fim: encerrando a JVM");
+            Runtime.getRuntime().halt(0);
+        }, "SpaceHorizons-autotest-halt");
+        halt.setDaemon(true);
+        halt.start();
+        mc.stop();
+    }
+
     private static void openAdvancementsTab(Minecraft mc) {
         net.minecraft.client.gui.screens.advancements.AdvancementsScreen screen =
                 new net.minecraft.client.gui.screens.advancements.AdvancementsScreen(mc.player.connection.getAdvancements());
@@ -865,7 +884,7 @@ public final class AutoTest {
         step(10, mc -> mc.gui.setScreen(null));
         step(20, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -953,7 +972,7 @@ public final class AutoTest {
         step(10, AutoTest::refineryBreakAndBucketCheck);
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -1121,7 +1140,7 @@ public final class AutoTest {
         });
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -1349,7 +1368,7 @@ public final class AutoTest {
         cloudProbe("after_moon");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -1402,7 +1421,7 @@ public final class AutoTest {
         cmd(5, "gamemode creative");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -1642,7 +1661,7 @@ public final class AutoTest {
         cmd(5, "gamerule show_advancement_messages true");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -2033,7 +2052,7 @@ public final class AutoTest {
         cmd(5, "gamerule show_advancement_messages true");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -2150,7 +2169,7 @@ public final class AutoTest {
         cmd(5, "gamerule show_advancement_messages true");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -2621,7 +2640,7 @@ public final class AutoTest {
         rocketView("rk_k_landed_rotated_south", bx, by + 2.5, bz + 9.0, 180f, 6f);
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -2785,7 +2804,7 @@ public final class AutoTest {
         step(0, mc -> CockpitDevtest.unpinTelemetry());
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -2871,7 +2890,7 @@ public final class AutoTest {
             tickerStep(0, waitFor("real1_end", 900));
             step(10, mc -> {
                 SpaceHorizons.LOGGER.info(TAG + "FIM");
-                mc.stop();
+                stopGame(mc);
             });
         }
         if (parts.contains("r")) {
@@ -2978,7 +2997,7 @@ public final class AutoTest {
         }
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -3028,7 +3047,7 @@ public final class AutoTest {
             });
             step(40, mc -> {
                 SpaceHorizons.LOGGER.info(TAG + "FIM");
-                mc.stop();
+                stopGame(mc);
             });
             return;
         }
@@ -3052,7 +3071,7 @@ public final class AutoTest {
         });
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -3096,7 +3115,7 @@ public final class AutoTest {
         shot(100, "ss_moon_sun");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -3148,7 +3167,7 @@ public final class AutoTest {
         cmd(5, "gamerule send_command_feedback true");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -3240,7 +3259,7 @@ public final class AutoTest {
         shot(60, "h_earth_arrival_down");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -3296,7 +3315,7 @@ public final class AutoTest {
         cmd(2, "tick rate 20");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -3397,7 +3416,7 @@ public final class AutoTest {
         step(20, mc -> {
             MultiblockDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -3978,7 +3997,7 @@ public final class AutoTest {
         step(20, mc -> {
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -4149,7 +4168,7 @@ public final class AutoTest {
             ShipDevtest.logStats(mc, "CONV fim (Terra)", true);
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -4559,7 +4578,7 @@ public final class AutoTest {
         step(20, mc -> {
             ShipGroundDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -4602,7 +4621,7 @@ public final class AutoTest {
         step(20, mc -> {
             ShipAscentDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -4659,7 +4678,7 @@ public final class AutoTest {
         step(20, mc -> {
             ShipAscentDevtest.summary();
             SpaceHorizons.LOGGER.info(ShipAscentDevtest.TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -4697,7 +4716,7 @@ public final class AutoTest {
         step(20, mc -> {
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -4974,7 +4993,7 @@ public final class AutoTest {
         step(20, mc -> {
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5112,7 +5131,7 @@ public final class AutoTest {
         step(20, mc -> {
             BlueprintDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5212,7 +5231,7 @@ public final class AutoTest {
         step(40, mc -> {
             Tier2Devtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5270,7 +5289,7 @@ public final class AutoTest {
         step(20, mc -> {
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5377,11 +5396,10 @@ public final class AutoTest {
         step(30, ShipAnchorDevtest::standAtBridge);
         step(20, mc -> mc.options.keyShift.setDown(true));
         step(10, open.apply("desancorar montando pela ponte", still));
-        step(1, mc -> {
-            ShipAnchorDevtest.clickBridge(mc);
-            mc.options.keyShift.setDown(false);
-        });
-        step(60, ShipSeamDevtest::end);
+        // segura o agachar 10 ticks depois do clique, como um jogador: o piloto recém-sentado não pode descer por isso
+        step(1, ShipAnchorDevtest::clickBridge);
+        step(10, mc -> mc.options.keyShift.setDown(false));
+        step(50, ShipSeamDevtest::end);
         step(2, ShipAnchorDevtest::checkBridgeMounted);
         step(20, open.apply("ancorar (piloto sentado)", still));
         step(1, mc -> ShipAnchorDevtest.anchorNow(mc, "ancorar 3 (piloto sentado)"));
@@ -5391,7 +5409,7 @@ public final class AutoTest {
             ShipSeamDevtest.summary();
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5435,7 +5453,7 @@ public final class AutoTest {
             ShipDeckDevtest.summary();
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5457,7 +5475,7 @@ public final class AutoTest {
         step(20, mc -> {
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5511,7 +5529,7 @@ public final class AutoTest {
         });
         step(100, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5521,7 +5539,7 @@ public final class AutoTest {
         tickerStep(0, mc -> ShipDeck2Devtest.observerTick(mc, name -> grab(mc, name)));
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM (observador)");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5717,7 +5735,7 @@ public final class AutoTest {
         step(40, mc -> {
             MarsDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5817,12 +5835,10 @@ public final class AutoTest {
         // (8) monta pela ponte (agachado, mão vazia) e ancora com o jogador sentado
         step(10, ShipAnchorDevtest::standAtBridge);
         step(20, mc -> mc.options.keyShift.setDown(true));
-        // solta o agachar no mesmo tick do clique: segurado, o vanilla desmonta o piloto logo depois de sentar
-        step(10, mc -> {
-            ShipAnchorDevtest.clickBridge(mc);
-            mc.options.keyShift.setDown(false);
-        });
-        step(20, ShipAnchorDevtest::checkBridgeMounted);
+        // segura o agachar 10 ticks depois do clique, como um jogador: o piloto recém-sentado não pode descer por isso
+        step(10, ShipAnchorDevtest::clickBridge);
+        step(10, mc -> mc.options.keyShift.setDown(false));
+        step(10, ShipAnchorDevtest::checkBridgeMounted);
         step(20, mc -> ShipAnchorDevtest.anchorNow(mc, "ancorar 3 (piloto sentado)"));
         tickerStep(0, waitUntil("ANCHOR: ancorou 3", 400, ShipAnchorDevtest::anchored));
         step(2, mc -> ShipAnchorDevtest.checkAnchored(mc, "ancorar 3 (piloto sentado)", true));
@@ -5835,7 +5851,7 @@ public final class AutoTest {
             ShipAnchorDevtest.summary();
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -5913,7 +5929,7 @@ public final class AutoTest {
         step(20, mc -> {
             ShipAnchor2Devtest.restoreRecharge();
             ShipAnchor2Devtest.summary();
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -6044,7 +6060,7 @@ public final class AutoTest {
         step(20, mc -> {
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -6125,7 +6141,7 @@ public final class AutoTest {
         step(40, mc -> {
             MoonbaseDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -6313,7 +6329,7 @@ public final class AutoTest {
         step(20, mc -> {
             StoryDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -6366,7 +6382,7 @@ public final class AutoTest {
         cmd(2, "tick rate 20");
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 
@@ -6474,7 +6490,7 @@ public final class AutoTest {
         });
         step(40, mc -> {
             SpaceHorizons.LOGGER.info(TAG + "FIM");
-            mc.stop();
+            stopGame(mc);
         });
     }
 

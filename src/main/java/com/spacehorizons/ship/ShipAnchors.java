@@ -577,6 +577,7 @@ public final class ShipAnchors extends SavedData {
         }
         if (pilot != null) {
             pilot.startRiding(ship, true, true);
+            ShipAssembler.releaseMountSneak(pilot);
         }
         SpaceHorizons.LOGGER.info("[anchor] âncora {} desfeita: nave {} com {} blocos de volta a entidade em {}, {} no convés, piloto {}", anchor.id(),
                 ship.getUUID(), ship.portrait().blockCount(), ship.position(), boarded, pilot == null ? "nenhum" : pilot.getPlainTextName());
