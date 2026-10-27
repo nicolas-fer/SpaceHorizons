@@ -135,12 +135,14 @@ public final class CameraSeam {
         Quaterniond natural = new Quaterniond(q.x, q.y, q.z, q.w);
         if (haveNaturalRotation) {
             double step = SeamJump.angleDegrees(LAST_NATURAL_ROTATION, natural);
-            if (clock < graceUntil && step > Math.max(SPIKE_DEGREES, 4.0 * lastRotationStep)) {
+            boolean spike = clock < graceUntil && step > Math.max(SPIKE_DEGREES, 4.0 * lastRotationStep);
+            if (spike) {
                 pendingRotation = true;
                 blends++;
                 SpaceHorizons.LOGGER.info("[seam] tranco da câmera de {} graus (passo anterior {}) misturado", step, lastRotationStep);
             }
-            lastRotationStep = step;
+            // um tranco não conta como "passo anterior": dois trancos em quadros seguidos (assento e depois olhar do passageiro) são ambos misturados
+            lastRotationStep = spike || pendingRotation ? 0.0 : step;
         }
         LAST_NATURAL_ROTATION.set(natural);
         haveNaturalRotation = true;
@@ -175,12 +177,13 @@ public final class CameraSeam {
         Vector3d n = new Vector3d(natural.x, natural.y, natural.z);
         if (haveNaturalPosition) {
             double step = LAST_NATURAL_POSITION.distance(n);
-            if (clock < graceUntil && step > Math.max(SPIKE_BLOCKS, 4.0 * lastPositionStep)) {
+            boolean spike = clock < graceUntil && step > Math.max(SPIKE_BLOCKS, 4.0 * lastPositionStep);
+            if (spike) {
                 pendingPosition = true;
                 blends++;
                 SpaceHorizons.LOGGER.info("[seam] tranco da câmera de {} blocos (passo anterior {}) misturado", step, lastPositionStep);
             }
-            lastPositionStep = step;
+            lastPositionStep = spike || pendingPosition ? 0.0 : step;
         }
         LAST_NATURAL_POSITION.set(n);
         haveNaturalPosition = true;

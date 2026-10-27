@@ -4579,6 +4579,7 @@ public final class AutoTest {
         cmd(5, ShipAscentDevtest.STANDING ? "gamemode survival" : "gamemode creative");
         cmd(5, "difficulty peaceful");
         cmd(5, "clear @s");
+        step(1, mc -> ShipSeamDevtest.register());
         step(10, ShipAscentDevtest::build);
         // em pé sobre o piso da nave (o bloco de casco ao lado da ponte): a montagem põe o jogador no convés; sentado, ao lado dela
         cmd(20, ShipAscentDevtest.STANDING ? "tp @s " + (bx + 1.0) + " " + (by + 2.0) + " " + bz : "tp @s " + (bx + 9.0) + " " + (by + 2.5) + " " + (bz + 7.0));
@@ -4622,6 +4623,7 @@ public final class AutoTest {
         cmd(5, ShipAscentDevtest.STANDING ? "gamemode survival" : "gamemode creative");
         cmd(5, "difficulty peaceful");
         cmd(5, "clear @s");
+        step(1, mc -> ShipSeamDevtest.register());
         step(10, ShipAscentDevtest::build);
         cmd(20, ShipAscentDevtest.STANDING ? "tp @s " + (bx + 1.0) + " " + (by + 2.0) + " " + bz : "tp @s " + (bx + 9.0) + " " + (by + 2.5) + " " + (bz + 7.0));
         look(20, 140f, 12f);

@@ -94,8 +94,29 @@ final class ShipSeamDevtest {
             return;
         }
         registered = true;
-        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Pre.class, e -> ticks++);
+        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Pre.class, e -> {
+            ticks++;
+            watch(Minecraft.getInstance());
+        });
         NeoForge.EVENT_BUS.addListener(RenderFrameEvent.Post.class, e -> record(Minecraft.getInstance()));
+    }
+
+    private static String lastScreen = "-";
+    private static Object lastWorld;
+
+    /** Registra as trocas de tela e de mundo (a troca de dimensão do tripulante: tem tela de carregamento?) com o tick e o olho de antes e depois. */
+    private static void watch(Minecraft mc) {
+        String screen = mc.gui.screen() == null ? "-" : mc.gui.screen().getClass().getSimpleName();
+        if (!screen.equals(lastScreen)) {
+            SpaceHorizons.LOGGER.info(TAG + "tela {} -> {} no tick {} (mundo {})", lastScreen, screen, ticks, mc.level == null ? "nenhum" : mc.level.dimension());
+            lastScreen = screen;
+        }
+        Object world = mc.level;
+        if (world != lastWorld) {
+            SpaceHorizons.LOGGER.info(TAG + "mundo {} -> {} no tick {}; câmera {}", lastWorld == null ? "nenhum" : "anterior", mc.level == null ? "nenhum" : mc.level.dimension(), ticks,
+                    mc.level == null ? "-" : mc.gameRenderer.mainCamera().position());
+            lastWorld = world;
+        }
     }
 
     private static void record(Minecraft mc) {
