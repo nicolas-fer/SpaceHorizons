@@ -176,7 +176,7 @@ final class ShipDeckRealDevtest {
         }
     }
 
-    private static RocketPortrait hoverPortrait() {
+    static RocketPortrait hoverPortrait() {
         PortraitGrid grid = PortraitGrid.empty(SX, SY, SZ);
         List<BlockState> palette = List.of(Blocks.AIR.defaultBlockState(), Blocks.IRON_BLOCK.defaultBlockState(), Blocks.PACKED_ICE.defaultBlockState(),
                 Blocks.SLIME_BLOCK.defaultBlockState(), ModBlocks.ROCKET_COCKPIT.get().defaultBlockState());

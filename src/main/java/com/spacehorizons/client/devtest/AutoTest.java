@@ -237,6 +237,10 @@ public final class AutoTest {
             shipDeckUseScenario();
             return;
         }
+        if ("shipseam".equals(ONLY)) {
+            shipSeamScenario();
+            return;
+        }
         if ("shipanchor".equals(ONLY)) {
             shipAnchorScenario();
             return;
@@ -5262,6 +5266,114 @@ public final class AutoTest {
         shot(5, "sdr_3_em_pe");
         step(5, ShipDeckRealDevtest::cleanup);
         step(20, mc -> {
+            ShipDevtest.summary();
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    // ===================================================================================================================
+    // TROCAS SEM COSTURA (docs/PLANO_NAVE_ATMOSFERA.md, fase 2g): -PshOnly=shipseam. Mede, quadro a quadro, o salto da câmera e do casco em cada troca:
+    // decolar e pousar com o jogador em pé, entrar ao pisar, entrar, sentar, levantar e sair do convés de uma nave que anda e gira, ancorar e desancorar
+    // (a pé e pela ponte). As medidas ficam em ShipSeamDevtest; o critério é < 0,1 bloco e < 1 grau entre quadros seguidos.
+    // ===================================================================================================================
+    private void shipSeamScenario() {
+        BlockPos b = ShipGroundDevtest.BASE;
+        java.util.function.BiFunction<String, org.joml.Vector3d, Consumer<Minecraft>> open = (label, v) -> mc -> ShipSeamDevtest.begin(label, v, 0.0);
+        org.joml.Vector3d still = new org.joml.Vector3d();
+        org.joml.Vector3d slowZ = new org.joml.Vector3d(0.0, 0.0, 0.3);
+        org.joml.Vector3d fastX = new org.joml.Vector3d(2.5, 0.0, 0.0);
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "difficulty peaceful");
+        cmd(5, "gamemode survival");
+        step(5, mc -> {
+            mc.options.fov().set(90);
+            ShipSeamDevtest.register();
+        });
+        step(10, ShipDeckRealDevtest::build);
+        // 1. decolar: montar no chão pela ponte com o jogador em pé sobre o piso (ele entra no convés)
+        cmd(20, "tp @s " + (b.getX() + 1.5) + " " + (b.getY() + 2.0) + " " + (b.getZ() + 0.5));
+        step(40, open.apply("decolar (montar, jogador em pé)", still));
+        step(1, ShipSeamDevtest::assembleStanding);
+        tickerStep(0, waitUntil("SEAM: o cliente entrou no convés ao montar", 200, ShipSeamDevtest::aboard));
+        step(60, ShipSeamDevtest::end);
+        // 2. pousar: desmontar no chão com o jogador em pé no convés
+        step(5, open.apply("pousar (desmontar, jogador em pé)", still));
+        step(1, ShipSeamDevtest::landNow);
+        tickerStep(0, waitUntil("SEAM: em pé no chão depois de pousar", 200, ShipSeamDevtest::standingOnGround));
+        step(60, ShipSeamDevtest::end);
+        // 3. entrar ao pisar: a nave passa a 0,3 b/t a 0,9 bloco do chão e o jogador pula nela
+        step(10, mc -> ShipSeamDevtest.standOnGround(mc));
+        step(20, mc -> ShipSeamDevtest.spawnScripted(mc, slowZ, 0.0, 40, false, 0.9, 15.0, 5.0, true));
+        step(25, open.apply("entrar pisando (nave a 0,3 b/t)", slowZ));
+        step(10, ShipSeamDevtest::jump);
+        tickerStep(0, waitUntil("SEAM: embarcou ao pisar", 100, ShipSeamDevtest::boardedByStepping));
+        step(60, ShipSeamDevtest::end);
+        step(5, ShipSeamDevtest::cleanup);
+        // 4. nave rápida demais para o embarque automático (2,5 b/t) que gira (0,5 grau por tick): entrar pelo comando, sentar, levantar e sair
+        step(20, ShipSeamDevtest::standOnGround);
+        step(20, mc -> ShipSeamDevtest.spawnScripted(mc, fastX, 0.5, 45, true, 0.0, 8.5, 2.5, true));
+        step(25, mc -> ShipSeamDevtest.begin("entrar (comando, nave a 2,5 b/t)", fastX, 0.5));
+        tickerStep(0, waitUntil("SEAM: no convés pelo comando", 200, ShipSeamDevtest::aboard));
+        step(60, ShipSeamDevtest::end);
+        step(5, mc -> ShipSeamDevtest.begin("sentar (assento)", fastX, 0.5));
+        step(1, ShipSeamDevtest::sit);
+        tickerStep(0, waitUntil("SEAM: sentado", 100, ShipSeamDevtest::sat));
+        step(60, ShipSeamDevtest::end);
+        step(5, mc -> ShipSeamDevtest.begin("levantar (assento)", fastX, 0.5));
+        step(1, ShipSeamDevtest::standUp);
+        tickerStep(0, waitUntil("SEAM: em pé no convés ao levantar", 100, ShipSeamDevtest::standingAboard));
+        step(60, ShipSeamDevtest::end);
+        step(5, mc -> ShipSeamDevtest.begin("sair (comando)", fastX, 0.5));
+        step(1, ShipSeamDevtest::leaveNow);
+        tickerStep(0, waitUntil("SEAM: fora do convés", 100, ShipSeamDevtest::notAboard));
+        step(60, ShipSeamDevtest::end);
+        step(5, ShipSeamDevtest::cleanup);
+        // 5. ancorar e desancorar (a pé), montar pela ponte e ancorar sentado
+        // longe da plataforma do chão (a nave de 28 blocos de altura parada a 60 do chão encostaria nela): 200 blocos a leste, em criativo para a queda
+        cmd(10, "gamemode creative");
+        cmd(10, "tp @s 200 120 0");
+        step(160, mc -> {
+        });
+        cmd(5, "gamemode survival");
+        step(40, mc -> {
+        });
+        step(10, ShipAnchorDevtest::begin);
+        tickerStep(0, waitUntil("SEAM: embarcou no convés da nave da âncora", 600, ShipAnchorDevtest::aboard));
+        tickerStep(0, waitUntil("SEAM: a nave parou a 60 blocos do chão", 400, ShipAnchorDevtest::scriptDone));
+        step(20, ShipAnchorDevtest::stopScript);
+        step(20, open.apply("ancorar (a pé no convés)", still));
+        step(1, mc -> ShipAnchorDevtest.anchorNow(mc, "ancorar 1 (em pé no convés)"));
+        tickerStep(0, waitUntil("SEAM: ancorou 1", 400, ShipAnchorDevtest::anchored));
+        step(60, ShipSeamDevtest::end);
+        step(2, mc -> ShipAnchorDevtest.checkAnchored(mc, "ancorar 1 (em pé no convés)", false));
+        step(10, ShipAnchorDevtest::standAtStart);
+        step(30, open.apply("desancorar (a pé volta ao convés)", still));
+        step(1, ShipAnchorDevtest::unanchor);
+        tickerStep(0, waitUntil("SEAM: de volta ao convés depois de desancorar", 200, ShipAnchorDevtest::aboard));
+        step(60, ShipSeamDevtest::end);
+        step(10, ShipAnchorDevtest::stopScript);
+        step(20, mc -> ShipAnchorDevtest.anchorNow(mc, "ancorar 2"));
+        tickerStep(0, waitUntil("SEAM: ancorou 2", 400, ShipAnchorDevtest::anchored));
+        step(2, mc -> ShipAnchorDevtest.checkAnchored(mc, "ancorar 2", false));
+        step(30, ShipAnchorDevtest::standAtBridge);
+        step(20, mc -> mc.options.keyShift.setDown(true));
+        step(10, open.apply("desancorar montando pela ponte", still));
+        step(1, mc -> {
+            ShipAnchorDevtest.clickBridge(mc);
+            mc.options.keyShift.setDown(false);
+        });
+        step(60, ShipSeamDevtest::end);
+        step(2, ShipAnchorDevtest::checkBridgeMounted);
+        step(20, open.apply("ancorar (piloto sentado)", still));
+        step(1, mc -> ShipAnchorDevtest.anchorNow(mc, "ancorar 3 (piloto sentado)"));
+        tickerStep(0, waitUntil("SEAM: ancorou 3", 400, ShipAnchorDevtest::anchored));
+        step(60, ShipSeamDevtest::end);
+        step(20, mc -> {
+            ShipSeamDevtest.summary();
             ShipDevtest.summary();
             SpaceHorizons.LOGGER.info(TAG + "FIM");
             mc.stop();
