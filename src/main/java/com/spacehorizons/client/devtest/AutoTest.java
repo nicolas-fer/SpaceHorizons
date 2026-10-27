@@ -111,6 +111,11 @@ public final class AutoTest {
     private double pushZ;
 
     private AutoTest() {
+        if ("shipdeck2b".equals(ONLY)) {
+            // o observador do autoteste de dois clientes: não cria mundo, entra pela LAN do anfitrião
+            shipDeck2ObserverScenario();
+            return;
+        }
         ServerSampler.launch();
         cmd(0, "gamemode creative");
         cmd(20, "gamerule advance_time false");
@@ -214,6 +219,10 @@ public final class AutoTest {
         }
         if ("shipground".equals(ONLY)) {
             shipGroundScenario();
+            return;
+        }
+        if ("shipdeck2".equals(ONLY)) {
+            shipDeck2HostScenario();
             return;
         }
         if ("shipdeck".equals(ONLY)) {
@@ -3444,6 +3453,14 @@ public final class AutoTest {
             mc.gui.setScreen(new TitleScreen());
             SpaceHorizons.LOGGER.info(TAG + "tela de acessibilidade da primeira execução fechada");
         }
+        if ("shipdeck2b".equals(ONLY) && !freshRequested && mc.level == null && mc.gui.screen() instanceof TitleScreen) {
+            // o observador espera o anfitrião abrir a LAN e entra
+            if (ShipDeck2Devtest.hostReady(mc)) {
+                freshRequested = true;
+                ShipDeck2Devtest.join(mc);
+            }
+            return;
+        }
         if (FRESH_WORLD != null && !freshRequested && mc.level == null && mc.gui.screen() instanceof TitleScreen) {
             freshRequested = true;
             createFreshWorld(mc);
@@ -5317,6 +5334,70 @@ public final class AutoTest {
         });
     }
 
+    // ===================================================================================================================
+    // CONVÉS ANDÁVEL, DOIS CLIENTES (fase 2e): ./gradlew shipdeck2 (A = -PshOnly=shipdeck2, B = shipdeck2b). O anfitrião A roda o roteiro do shipdeck e o
+    // observador B entra pela LAN e mede onde desenha A (ShipDeck2Devtest). SH_DECK_CONFIGS troca a matriz de A como no shipdeck.
+    // ===================================================================================================================
+    private void shipDeck2HostScenario() {
+        cmd(5, "gamerule send_command_feedback false");
+        cmd(5, "gamerule show_advancement_messages false");
+        cmd(5, "weather clear 1000000");
+        cmd(5, "time set 6000");
+        cmd(5, "difficulty peaceful");
+        cmd(5, "gamemode survival");
+        step(5, mc -> mc.options.fov().set(90));
+        step(5, ShipDeck2Devtest::hostOpen);
+        tickerStep(0, waitUntil("DECK2: o observador B entrou no servidor", 6_000, ShipDeck2Devtest::observerJoined));
+        String env = System.getenv("SH_DECK_CONFIGS");
+        List<int[]> configs = new ArrayList<>();
+        if (env == null || env.isBlank()) {
+            // 1, 10 e 100 b/t sem latência e 100 b/t com 100 ms por sentido
+            configs.add(new int[] {1, 0});
+            configs.add(new int[] {10, 0});
+            configs.add(new int[] {100, 0});
+            configs.add(new int[] {100, 100});
+        } else {
+            for (String part : env.split(",")) {
+                String[] f = part.trim().split(":");
+                configs.add(new int[] {Integer.parseInt(f[0]), Integer.parseInt(f[1])});
+            }
+        }
+        for (int i = 0; i < configs.size(); i++) {
+            int index = i;
+            int speed = configs.get(i)[0];
+            int latency = configs.get(i)[1];
+            step(10, mc -> ShipDeck2Devtest.hostBegin(mc, index, speed, latency));
+            tickerStep(0, waitUntil("DECK2: embarcou no convés e a nave chegou ao cliente", 600, ShipDeckDevtest::ready));
+            tickerStep(0, deckWalk(ShipDeckDevtest.RUN_TICKS, null));
+            step(5, mc -> {
+                ShipDeckDevtest.release(mc);
+                ShipDeck2Devtest.hostStopFollow(mc);
+                ShipDeckDevtest.finish(mc);
+                ShipDeck2Devtest.hostEnd(mc, index);
+            });
+            tickerStep(0, waitUntil("DECK2: o observador mediu o cenário " + index, 1_200, mc -> ShipDeck2Devtest.acked(mc, index)));
+        }
+        step(20, mc -> {
+            ShipDeck2Devtest.hostFinish(mc);
+            ShipDeckDevtest.summary();
+            ShipDevtest.summary();
+        });
+        step(100, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM");
+            mc.stop();
+        });
+    }
+
+    /** O observador: sem mundo próprio; entra pela LAN, segue o estado que A publica, tira os prints e mede ao fim de cada cenário. */
+    private void shipDeck2ObserverScenario() {
+        step(1, mc -> ShipDeck2Devtest.observerStart(mc));
+        tickerStep(0, mc -> ShipDeck2Devtest.observerTick(mc, name -> grab(mc, name)));
+        step(40, mc -> {
+            SpaceHorizons.LOGGER.info(TAG + "FIM (observador)");
+            mc.stop();
+        });
+    }
+
     /** O robô anda em quadrado até {@code untilTick} da corrida; com {@code shotPrefix}, tira prints em 3a e em 1a pessoa em instantes fixos. */
     private Ticker deckWalk(int untilTick, String shotPrefix) {
         return new Ticker() {
@@ -5329,6 +5410,9 @@ public final class AutoTest {
                 }
                 boolean done = ShipDeckDevtest.walk(mc, untilTick);
                 int t = ShipDeckDevtest.runTick();
+                if ("shipdeck2".equals(ONLY)) {
+                    ShipDeck2Devtest.hostTick(mc, t);
+                }
                 if (shotPrefix != null) {
                     switch (t) {
                         case 200 -> mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);

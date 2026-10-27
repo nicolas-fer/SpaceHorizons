@@ -566,6 +566,21 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         return timeline.sample(clientTick, this.pivotLocal());
     }
 
+    /**
+     * Cliente: o tick do servidor (fracionário) que a linha do tempo mostra no tempo do cliente {@code clientTick}, ou NaN se ela não está ativa. É o
+     * tempo em que se lê o estado dos tripulantes vistos por observadores, para ficarem na mesma pose do casco.
+     */
+    public double smoothServerTimeAt(double clientTick) {
+        com.spacehorizons.ship.deck.DeckPoseTimeline timeline = this.deckTimeline;
+        return timeline == null || !this.level().isClientSide() || !timeline.active(clientTick) ? Double.NaN : timeline.serverTimeAt(clientTick);
+    }
+
+    /** Cliente: a linha do tempo está ativa mas o tempo mostrado passou da pose mais nova (sem dado novo; diagnóstico do autoteste). */
+    public boolean smoothStarved(double clientTick) {
+        com.spacehorizons.ship.deck.DeckPoseTimeline timeline = this.deckTimeline;
+        return timeline != null && this.level().isClientSide() && timeline.active(clientTick) && timeline.starved(clientTick);
+    }
+
     /** Cliente: a atitude suavizada em dupla precisão (para medir o tremor), ou null. */
     public org.joml.@Nullable Quaterniond smoothAttitude(double clientTick) {
         com.spacehorizons.ship.deck.DeckPoseTimeline timeline = this.deckTimeline;

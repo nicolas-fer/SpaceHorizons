@@ -47,6 +47,7 @@ public final class DeckSetup {
         registrar.playToClient(DeckBoardPayload.TYPE, DeckBoardPayload.CODEC);
         registrar.playToClient(DeckLeavePayload.TYPE, DeckLeavePayload.CODEC);
         registrar.playToClient(DeckCorrectionPayload.TYPE, DeckCorrectionPayload.CODEC);
+        registrar.playToClient(DeckObservePayload.TYPE, DeckObservePayload.CODEC);
     }
 
     @SubscribeEvent

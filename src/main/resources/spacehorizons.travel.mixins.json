@@ -8,6 +8,7 @@
     "ChunkMapMixin",
     "ConnectionLatencyMixin",
     "EntityMixin",
+    "ServerEntityMixin",
     "ServerGamePacketListenerImplMixin"
   ],
   "client": [
