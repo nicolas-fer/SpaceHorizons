@@ -36,8 +36,8 @@ import net.neoforged.neoforge.client.event.ViewportEvent;
  */
 @EventBusSubscriber(modid = SpaceHorizons.MODID, value = Dist.CLIENT)
 public final class CameraSeam {
-    /** Duração da mistura (ticks do cliente): 1 segundo, curva suave. */
-    public static final double BLEND_TICKS = 20.0;
+    /** Duração mínima da mistura (ticks do cliente): 1,5 segundo, curva suave. */
+    public static final double BLEND_TICKS = 30.0;
     /** A mistura mais longa (ticks): diferenças grandes (um olhar a 130 graus, 20 blocos) levam mais tempo para não passar de 1 grau ou 0,1 bloco por quadro. */
     private static final double MAX_BLEND_TICKS = 60.0;
     /** Acima desta diferença (blocos) a troca é um teletransporte de verdade (outro lugar), e não se mistura. */
@@ -103,6 +103,8 @@ public final class CameraSeam {
         Entity vehicle = mc.player == null ? null : mc.player.getVehicle();
         int vehicleId = vehicle == null ? -1 : vehicle.getId();
         if (deckRocket != lastDeckRocket || vehicleId != lastVehicle) {
+            int lastDeckRocketOld = lastDeckRocket;
+            int lastVehicleOld = lastVehicle;
             lastDeckRocket = deckRocket;
             lastVehicle = vehicleId;
             if (havePosition || haveRotation) {
@@ -110,6 +112,7 @@ public final class CameraSeam {
                 pendingRotation = true;
                 graceUntil = clock(mc) + GRACE_TICKS;
                 blends++;
+                SpaceHorizons.LOGGER.info("[seam] troca de fonte da câmera: no convés da nave {} -> {}, veículo {} -> {}", lastDeckRocketOld, deckRocket, lastVehicleOld, vehicleId);
             }
         }
     }
@@ -135,13 +138,14 @@ public final class CameraSeam {
             if (clock < graceUntil && step > Math.max(SPIKE_DEGREES, 4.0 * lastRotationStep)) {
                 pendingRotation = true;
                 blends++;
+                SpaceHorizons.LOGGER.info("[seam] tranco da câmera de {} graus (passo anterior {}) misturado", step, lastRotationStep);
             }
             lastRotationStep = step;
         }
         LAST_NATURAL_ROTATION.set(natural);
         haveNaturalRotation = true;
         if (pendingRotation && haveRotation) {
-            BLEND.beginRotation(clock, Math.min(MAX_BLEND_TICKS, Math.max(BLEND_TICKS, SeamJump.angleDegrees(PREVIOUS_ROTATION, natural) / 3.0)), PREVIOUS_ROTATION,
+            BLEND.beginRotation(clock, Math.min(MAX_BLEND_TICKS, Math.max(BLEND_TICKS, 0.75 * SeamJump.angleDegrees(PREVIOUS_ROTATION, natural))), PREVIOUS_ROTATION,
                     natural);
         }
         pendingRotation = false;
@@ -174,6 +178,7 @@ public final class CameraSeam {
             if (clock < graceUntil && step > Math.max(SPIKE_BLOCKS, 4.0 * lastPositionStep)) {
                 pendingPosition = true;
                 blends++;
+                SpaceHorizons.LOGGER.info("[seam] tranco da câmera de {} blocos (passo anterior {}) misturado", step, lastPositionStep);
             }
             lastPositionStep = step;
         }
@@ -181,7 +186,7 @@ public final class CameraSeam {
         haveNaturalPosition = true;
         if (pendingPosition && havePosition) {
             if (PREVIOUS_POSITION.distance(n) <= MAX_BLEND_DISTANCE) {
-                BLEND.beginPosition(clock, Math.min(MAX_BLEND_TICKS, Math.max(BLEND_TICKS, 2.0 * PREVIOUS_POSITION.distance(n))), PREVIOUS_POSITION, n);
+                BLEND.beginPosition(clock, Math.min(MAX_BLEND_TICKS, Math.max(BLEND_TICKS, 3.0 * PREVIOUS_POSITION.distance(n))), PREVIOUS_POSITION, n);
             }
         }
         pendingPosition = false;

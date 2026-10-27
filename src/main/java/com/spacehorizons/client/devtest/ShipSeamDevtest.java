@@ -52,7 +52,7 @@ final class ShipSeamDevtest {
     private static final double BOARD_Y = 1.0;
     private static final double BOARD_Z = 2.5;
 
-    private record Frame(double clock, Vector3d eye, Quaterniond rotation, Vector3d hull, Quaterniond hullRotation, int signature, int timeline) {
+    private record Frame(double clock, Vector3d eye, Quaterniond rotation, Vector3d hull, Quaterniond hullRotation, int signature, int timeline, int blends) {
     }
 
     private static final List<Frame> FRAMES = new ArrayList<>();
@@ -67,9 +67,11 @@ final class ShipSeamDevtest {
     private static RocketEntity ship;
     private static ScriptedShip scripted;
     private static RocketEntity landed;
-    private static final double LONG_FRAME_TICKS = 0.6;
+    private static final double LONG_FRAME_TICKS = 0.4;
     private static int longFrames;
     private static String worstPosition = "";
+    private static int worstPositionIndex;
+    private static int worstRotationIndex;
     private static String worstRotation = "";
     /** A nave cujo casco é gravado (id da entidade, igual no servidor integrado e no cliente), ou -1. */
     private static volatile int trackedId = -1;
@@ -120,7 +122,7 @@ final class ShipSeamDevtest {
             double c = rocket.clientTickAt(partial);
             timeline = rocket.smoothFrame(c) == null ? 0 : (rocket.smoothStarved(c) ? 2 : 1);
         }
-        FRAMES.add(new Frame(clock, new Vector3d(p.x, p.y, p.z), new Quaterniond(q.x(), q.y(), q.z(), q.w()), hull, hullRotation, signature, timeline));
+        FRAMES.add(new Frame(clock, new Vector3d(p.x, p.y, p.z), new Quaterniond(q.x(), q.y(), q.z(), q.w()), hull, hullRotation, signature, timeline, com.spacehorizons.client.ship.CameraSeam.blendCount()));
     }
 
     // ============================================================================================================ janelas de medida
@@ -158,6 +160,22 @@ final class ShipSeamDevtest {
         String line = String.format(Locale.ROOT, "%-34s | câmera %.4f bloco (aos +%.2f ticks), %.3f° (aos +%.2f) | casco %.4f bloco, %.3f° | ruído antes: câmera %.4f bloco, %.3f°, casco %.4f, %.3f° | %d quadros, câmera andou até %.2f blocos",
                 swapLabel, camera[0], camera[2] - t0, camera[1], camera[3] - t0, hull[0], hull[1], cameraBase[0], cameraBase[1], hullBase[0], hullBase[1], to - swapStart, travelled);
         SpaceHorizons.LOGGER.info(TAG + line);
+        if (!worstPosition.isEmpty() && camera[0] >= LIMIT_POSITION) {
+            StringBuilder around = new StringBuilder();
+            for (int i = Math.max(0, worstPositionIndex - 4); i < Math.min(FRAMES.size(), worstPositionIndex + 4); i++) {
+                Frame fr = FRAMES.get(i);
+                around.append(String.format(Locale.ROOT, "[%d t+%.2f (%.3f, %.3f, %.3f) as %d] ", i - worstPositionIndex, fr.clock - t0, fr.eye.x, fr.eye.y, fr.eye.z, fr.signature));
+            }
+            SpaceHorizons.LOGGER.info(TAG + "  quadros em volta do pior salto de posição: " + around);
+        }
+        if (!worstRotation.isEmpty() && camera[1] >= LIMIT_DEGREES) {
+            StringBuilder around = new StringBuilder();
+            for (int i = Math.max(0, worstRotationIndex - 4); i < Math.min(FRAMES.size(), worstRotationIndex + 4); i++) {
+                Frame fr = FRAMES.get(i);
+                around.append(String.format(Locale.ROOT, "[%d t+%.2f %s as %d misturas %d] ", i - worstRotationIndex, fr.clock - t0, euler(fr.rotation), fr.signature, fr.blends));
+            }
+            SpaceHorizons.LOGGER.info(TAG + "  quadros em volta do pior salto de rotação: " + around);
+        }
         SpaceHorizons.LOGGER.info(TAG + "  pior da câmera na janela: posição [{}]; rotação [{}]; quadros longos (> {} ticks) descartados: {}", worstPosition, worstRotation, LONG_FRAME_TICKS, longFrames);
         TABLE.add(line);
         if (!assertIt) {
@@ -205,6 +223,7 @@ final class ShipSeamDevtest {
                 maxPos = pos;
                 atPos = b.clock;
                 if (!hull && from >= swapStart) {
+                    worstPositionIndex = i;
                     worstPosition = String.format(Locale.ROOT, "dt %.2f ticks, assinatura %d->%d, linha do tempo %d->%d, deslocamento (%.3f, %.3f, %.3f)", dt, a.signature, b.signature, a.timeline, b.timeline, pb.x - pa.x, pb.y - pa.y, pb.z - pa.z);
                 }
             }
@@ -212,11 +231,18 @@ final class ShipSeamDevtest {
                 maxAng = ang;
                 atAng = b.clock;
                 if (!hull && from >= swapStart) {
-                    worstRotation = String.format(Locale.ROOT, "dt %.2f ticks, assinatura %d->%d, ângulo %.3f", dt, a.signature, b.signature, SeamJump.angleDegrees(a.rotation, b.rotation));
+                    worstRotationIndex = i;
+                    worstRotation = String.format(Locale.ROOT, "dt %.2f ticks, assinatura %d->%d, ângulo %.3f, euler YXZ antes %s depois %s", dt, a.signature, b.signature,
+                            SeamJump.angleDegrees(a.rotation, b.rotation), euler(a.rotation), euler(b.rotation));
                 }
             }
         }
         return new double[] {maxPos, maxAng, atPos, atAng};
+    }
+
+    private static String euler(Quaterniond q) {
+        Vector3d e = q.getEulerAnglesYXZ(new Vector3d());
+        return String.format(Locale.ROOT, "(%.1f, %.1f, %.1f)", Math.toDegrees(e.y), Math.toDegrees(e.x), Math.toDegrees(e.z));
     }
 
     static void summary() {
@@ -379,6 +405,10 @@ final class ShipSeamDevtest {
     static void leaveNow(Minecraft mc) {
         onServer(mc, player -> {
             // voando em criativo: quem sai de uma nave que anda longe da plataforma não despenca durante a janela de medida (a queda livre não é salto)
+            if (ship != null) {
+                // pousada (sem empuxo): o embarque automático não leva o jogador de volta ao convés logo depois de sair
+                ship.flight().setMode(FlightMode.LANDED);
+            }
             player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
             player.getAbilities().flying = true;
             player.onUpdateAbilities();

@@ -5281,7 +5281,7 @@ public final class AutoTest {
         BlockPos b = ShipGroundDevtest.BASE;
         java.util.function.BiFunction<String, org.joml.Vector3d, Consumer<Minecraft>> open = (label, v) -> mc -> ShipSeamDevtest.begin(label, v, 0.0);
         org.joml.Vector3d still = new org.joml.Vector3d();
-        org.joml.Vector3d slowZ = new org.joml.Vector3d(0.0, 0.0, 0.3);
+        org.joml.Vector3d slowZ = new org.joml.Vector3d(0.0, 0.0, 0.15);
         org.joml.Vector3d fastX = new org.joml.Vector3d(2.5, 0.0, 0.0);
         cmd(5, "gamerule send_command_feedback false");
         cmd(5, "gamerule show_advancement_messages false");
@@ -5305,10 +5305,10 @@ public final class AutoTest {
         step(1, ShipSeamDevtest::landNow);
         tickerStep(0, waitUntil("SEAM: em pé no chão depois de pousar", 200, ShipSeamDevtest::standingOnGround));
         step(60, ShipSeamDevtest::end);
-        // 3. nave lenta (0,3 b/t, girando 0,5 grau por tick): entrar pisando, sentar, levantar e sair
+        // 3. nave lenta (0,15 b/t, girando 0,5 grau por tick): entrar pisando, sentar, levantar e sair
         step(10, mc -> ShipSeamDevtest.standOnGround(mc));
         step(20, mc -> ShipSeamDevtest.spawnScripted(mc, slowZ, 0.5, 40, false, 0.9, 15.0, 5.0, true));
-        step(25, mc -> ShipSeamDevtest.begin("entrar pisando (nave a 0,3 b/t)", slowZ, 0.5));
+        step(25, mc -> ShipSeamDevtest.begin("entrar pisando (nave a 0,15 b/t)", slowZ, 0.5));
         step(10, ShipSeamDevtest::jump);
         tickerStep(0, waitUntil("SEAM: embarcou ao pisar", 100, ShipSeamDevtest::boardedByStepping));
         step(60, ShipSeamDevtest::end);
