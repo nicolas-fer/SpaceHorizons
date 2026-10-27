@@ -104,6 +104,26 @@ neoForge {
             }
         }
 
+        // Autoteste de DOIS clientes do convés (fase 2e): A cria o mundo, abre a LAN e roda o roteiro; B entra pela LAN e observa. Sobem juntos pela
+        // tarefa shipdeck2 (mais abaixo); cada um tem a sua pasta run-test/shipdeck2 e run-test/shipdeck2b e conversam por run-test/shipdeck2-shared.
+        clientTestShipdeck2 {
+            client()
+            gameDirectory = project.file('run-test/shipdeck2')
+            jvmArguments.add('-Xmx4G')
+            programArguments.addAll('--username', 'ObsA')
+            systemProperty 'spacehorizons.autotest', 'true'
+            systemProperty 'spacehorizons.autotest.fresh', 'SpaceAuto'
+            systemProperty 'spacehorizons.autotest.only', 'shipdeck2'
+        }
+        clientTestShipdeck2b {
+            client()
+            gameDirectory = project.file('run-test/shipdeck2b')
+            jvmArguments.add('-Xmx3G')
+            programArguments.addAll('--username', 'ObsB')
+            systemProperty 'spacehorizons.autotest', 'true'
+            systemProperty 'spacehorizons.autotest.only', 'shipdeck2b'
+        }
+
         server {
             server()
             programArgument '--nogui'
@@ -256,6 +276,57 @@ tasks.register('regression') {
         logger.lifecycle(lines.join(System.lineSeparator()))
         if (bad) {
             throw new GradleException("Regressão com problema em: ${bad.join(', ')} (logs em run-test/<trecho>/logs/latest.log)")
+        }
+    }
+}
+
+// Autoteste de dois clientes (fase 2e, outros clientes veem o tripulante no convés): ./gradlew shipdeck2 --console=plain
+// Sobe o cliente A (anfitrião, run-test/shipdeck2) e o cliente B (observador, run-test/shipdeck2b) ao mesmo tempo; B espera A abrir o mundo na
+// porta 25599 (-Dspacehorizons.autotest.port) e entra. Não faz parte da regressão padrão (é um par de clientes, ~12 min). No fim resume as
+// verificações dos dois logs; falha se alguma falhou ou se algum dos dois não registrou nenhuma.
+def shipdeck2SharedDir = file('run-test/shipdeck2-shared')
+def prepareShipdeck2Shared = tasks.register('prepareShipdeck2Shared') {
+    doLast { shipdeck2SharedDir.deleteDir() }
+}
+def prepareShipdeck2A = registerPrepareClientTest('prepareClientTestShipdeck2', file('run'), file('run-test/shipdeck2'))
+def prepareShipdeck2B = registerPrepareClientTest('prepareClientTestShipdeck2b', file('run'), file('run-test/shipdeck2b'))
+['clientTestShipdeck2': prepareShipdeck2A, 'clientTestShipdeck2b': prepareShipdeck2B].each { String run, prepare ->
+    tasks.matching { it.name == "run${run.capitalize()}" }.configureEach {
+        dependsOn prepare
+        dependsOn prepareShipdeck2Shared
+        usesService(clientSlots)
+        ignoreExitValue = true
+    }
+}
+tasks.register('shipdeck2') {
+    group = 'verification'
+    description = 'Autoteste de dois clientes do convés andável: A anda no convés, B observa e mede onde desenha A.'
+    dependsOn 'runClientTestShipdeck2', 'runClientTestShipdeck2b'
+    def logs = ['A (anfitrião)': file('run-test/shipdeck2/logs/latest.log'), 'B (observador)': file('run-test/shipdeck2b/logs/latest.log')]
+    doLast {
+        def bad = []
+        def lines = ['', 'Autoteste de dois clientes (shipdeck2):', String.format('  %-16s %8s %8s', 'cliente', 'passou', 'falhou')]
+        logs.each { String who, File log ->
+            int passed = 0
+            int checks = 0
+            if (log.isFile()) {
+                def checkLine = ~/\[AUTOTEST\].*?[A-Z0-9]*CHECK (\S+)/
+                log.eachLine('UTF-8') { String line ->
+                    def m = checkLine.matcher(line)
+                    if (m.find() && m.group(1) != 'RESUMO' && m.group(1) != 'RESUMO:') {
+                        checks++
+                        if (m.group(1) == 'PASSOU') passed++
+                    }
+                }
+            }
+            int failed = checks - passed
+            if (checks == 0 || failed > 0) bad << who
+            lines << String.format('  %-16s %8d %8d', who, passed, failed) + (checks == 0 ? '  <- nenhuma verificação (o cliente caiu)' : (failed > 0 ? '  <- FALHOU' : ''))
+        }
+        lines << ''
+        logger.lifecycle(lines.join(System.lineSeparator()))
+        if (bad) {
+            throw new GradleException("shipdeck2 com problema em: ${bad.join(', ')} (logs em run-test/shipdeck2/logs/latest.log e run-test/shipdeck2b/logs/latest.log)")
         }
     }
 }

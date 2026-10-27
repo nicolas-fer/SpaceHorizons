@@ -304,7 +304,8 @@ final class ShipDeckDevtest {
         String label = String.format(Locale.ROOT, "%d b/t, latência %d ms", speed, latencyMs);
         int clientCorrections = DeckClient.correctionCount() - clientCorrections0;
         long rejected = DeckCrew.REJECTED.get() - rejected0;
-        long teleports = DeckCrew.TELEPORTS.get() - teleports0;
+        // no autoteste de dois clientes o servidor também teletransporta o observador a cada tick: esses não contam
+        long teleports = DeckCrew.TELEPORTS.get() - teleports0 - ShipDeck2Devtest.observerTeleports();
         long accepted = DeckCrew.ACCEPTED.get() - accepted0;
         double seenP99 = SEEN_FOOT.percentile(0.99);
         double seenMax = SEEN_FOOT.max();
@@ -357,6 +358,11 @@ final class ShipDeckDevtest {
             return null;
         });
         NetLatency.setDelayMs(0);
+    }
+
+    /** A nave do cenário atual no servidor, ou null (para o autoteste de dois clientes, que põe o observador ao lado dela). */
+    static RocketEntity currentRocket(MinecraftServer server) {
+        return rocketUuid == null ? null : findRocket(server);
     }
 
     private static RocketEntity findRocket(MinecraftServer server) {

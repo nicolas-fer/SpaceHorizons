@@ -122,4 +122,35 @@ class DeckPoseTimelineTest {
             previous = q;
         }
     }
+
+    @Test
+    void deslocamentoInfladoPorRajadaInicialDesceDeUmaVez() {
+        // um cliente ocupado processa os primeiros pacotes 31 ticks atrasados; quando a rede normaliza, o relógio não pode levar minutos para voltar
+        DeckPoseTimeline t = new DeckPoseTimeline();
+        t.record(100, 0, 1000, 0, attitude(100), 131.0);
+        t.record(101, 0, 1100, 0, attitude(101), 132.0);
+        t.record(102, 0, 1200, 0, attitude(102), 133.0);
+        assertEquals(31.0, t.offset(), 1e-9);
+        t.record(103, 0, 1300, 0, attitude(103), 106.0);
+        assertEquals(3.0, t.offset(), 1e-9, "uma queda de mais de 3 ticks vai direto ao novo valor");
+        t.record(104, 0, 1400, 0, attitude(104), 106.9);
+        assertEquals(3.0 - 0.002, t.offset(), 1e-9, "uma queda pequena segue limitada a 0,002 por pacote");
+    }
+
+    @Test
+    void relogioAdiantadoSobeDeUmaVezEFicaAtrasDaPoseMaisNova() {
+        // o cliente recuperou ticks atrasados: o relógio dele andou 7 ticks à frente do que os pacotes sustentam
+        DeckPoseTimeline t = new DeckPoseTimeline();
+        for (int k = 0; k < 6; k++) {
+            t.record(100 + k, 0, 1000 + 10 * k, 0, attitude(100 + k), 120.0 + k);
+        }
+        assertEquals(20.0, t.offset(), 1e-9);
+        double now = 130.0;
+        assertTrue(t.starved(now), "o tempo mostrado (" + t.serverTimeAt(now) + ") passou da pose mais nova (105)");
+        t.record(106, 0, 1060, 0, attitude(106), 133.0);
+        assertEquals(27.0, t.offset(), 1e-9, "um pacote 7 ticks mais tarde que o esperado sobe o deslocamento direto");
+        assertFalse(t.starved(133.0));
+        t.record(107, 0, 1070, 0, attitude(107), 134.5);
+        assertEquals(27.0 + 0.0004, t.offset(), 1e-9, "uma variação pequena segue limitada");
+    }
 }

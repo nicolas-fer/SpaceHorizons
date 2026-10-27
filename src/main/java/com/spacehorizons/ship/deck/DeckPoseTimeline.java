@@ -32,6 +32,10 @@ public final class DeckPoseTimeline {
     private static final double OFFSET_RELAX = 0.0004;
     /** Quanto ele pode DESCER por pacote (ticks): um pacote que chega "cedo" demais não faz o tempo mostrado saltar (a 100 b/t, 0,01 tick são 1 bloco). */
     private static final double OFFSET_SLEW_DOWN = 0.002;
+    /** Se um pacote chega com o deslocamento mais de tantos ticks abaixo do atual, o atual era inflado por um atraso de processamento: vai direto ao novo. */
+    static final double SNAP_DOWN_TICKS = 3.0;
+    /** Se o pacote chega com o deslocamento mais de tantos ticks (o atraso do desenho) acima do atual, o tempo mostrado passou da pose mais nova: vai direto ao novo. */
+    static final double SNAP_UP_TICKS = DELAY_TICKS;
     private static final int CAPACITY = 32;
     /** Sem pacote por tantos ticks, a linha do tempo está velha e o desenho volta ao do vanilla. */
     private static final double STALE_TICKS = 10.0;
@@ -53,7 +57,13 @@ public final class DeckPoseTimeline {
         if (Double.isNaN(this.offset)) {
             this.offset = raw;
         } else if (raw < this.offset) {
-            this.offset = Math.max(raw, this.offset - OFFSET_SLEW_DOWN);
+            // um cliente que estava ocupado (carregando o mundo, observador que acabou de entrar) processa os primeiros pacotes em rajada, tarde, e o
+            // deslocamento nasce dezenas de ticks acima do real; descer 0,002 por pacote levaria minutos: acima do limite, vai direto ao menor
+            this.offset = this.offset - raw > SNAP_DOWN_TICKS ? raw : Math.max(raw, this.offset - OFFSET_SLEW_DOWN);
+        } else if (raw - this.offset > SNAP_UP_TICKS) {
+            // o pacote mais novo já está atrás do tempo mostrado (o relógio do cliente andou à frente, por exemplo depois de o cliente recuperar ticks
+            // atrasados): sem isto o desenho ficaria parado na última pose até o deslocamento subir 0,0004 por pacote; volta a DELAY_TICKS atrás do pacote
+            this.offset = raw;
         } else {
             this.offset = Math.min(raw, this.offset + OFFSET_RELAX);
         }
@@ -74,6 +84,12 @@ public final class DeckPoseTimeline {
         this.samples.clear();
         this.offset = Double.NaN;
         this.lastArrival = Double.NEGATIVE_INFINITY;
+    }
+
+    /** O tempo mostrado em {@code clientTick} já passou da pose mais nova (o desenho está preso na última pose, sem dado novo). */
+    public boolean starved(double clientTick) {
+        Sample last = this.samples.peekLast();
+        return last == null || this.serverTimeAt(clientTick) > last.stamp;
     }
 
     public int size() {

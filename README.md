@@ -475,6 +475,21 @@ sincronizar. Por enquanto o embarque é manual, só para teste: dentro da caixa 
 (`deck leave` tira, `deck info` mostra as contagens). Autoteste (um robô anda em quadrado por 2.000 ticks na nave que sobe, paira e desce a 1, 10,
 50 e 100 b/t girando e inclinada, com e sem 100 ms de latência por sentido): `./gradlew runClientTest -PshOnly=shipdeck`.
 
+**Outros clientes veem o tripulante (fase 2e).** Para quem está no convés, o servidor não manda aos outros clientes o pacote de posição do vanilla
+(o jogador andaria com a nave, que o cliente interpola por conta própria, e a 100 b/t o veriam até 200 blocos atrás do casco): manda o estado local
+com o tick do servidor (`DeckObservePayload`) e o cliente observador põe o jogador remoto pela pose da nave, na mesma linha do tempo do casco
+(`client/ship/DeckObserver`). Autoteste de **dois clientes** (não faz parte da regressão padrão):
+
+```bash
+./gradlew shipdeck2 --console=plain > shipdeck2.log 2>&1
+```
+
+Sobe o cliente A (`run-test/shipdeck2`, cria o mundo, abre a LAN na porta 25599 e roda o roteiro do `shipdeck` a 1, 10 e 100 b/t, mais 100 b/t com
+100 ms de latência) e o cliente B (`run-test/shipdeck2b`, entra pela LAN e observa de um ponto fixo na nave, fora e dentro do casco). Os dois conversam por
+`run-test/shipdeck2-shared`; B mede onde desenha A contra a posição exata que o servidor de A gravou, tira prints (`run-test/shipdeck2b/screenshots/
+autotest_sdk2_*`) e no fim a tarefa resume as verificações dos dois logs. `SH_DECK_CONFIGS="10:0"` (ambiente) reduz a matriz; `-Dspacehorizons.autotest.port`
+troca a porta.
+
 ### Âncora no ar (spike S6)
 
 Uma nave parada no ar vira blocos reais no ar (`docs/PLANO_NAVE_ATMOSFERA.md`): `/spacehorizons ship anchor` (a nave que você pilota, a do convés
