@@ -5307,22 +5307,22 @@ public final class AutoTest {
         step(1, ShipSeamDevtest::landNow);
         tickerStep(0, waitUntil("SEAM: em pé no chão depois de pousar", 200, ShipSeamDevtest::standingOnGround));
         step(60, ShipSeamDevtest::end);
-        // 3. nave lenta (0,15 b/t, girando 0,5 grau por tick): entrar pisando, sentar, levantar e sair
+        // 3. nave lenta (0,15 b/t, girando 0,25 grau por tick): entrar pisando, sentar, levantar e sair
         step(10, mc -> ShipSeamDevtest.standOnGround(mc));
-        step(20, mc -> ShipSeamDevtest.spawnScripted(mc, slowZ, 0.5, 40, false, 0.9, 15.0, 5.0, true));
-        step(25, mc -> ShipSeamDevtest.begin("entrar pisando (nave a 0,15 b/t)", slowZ, 0.5));
+        step(20, mc -> ShipSeamDevtest.spawnScripted(mc, slowZ, 0.25, 40, false, 0.9, 15.0, 5.0, true));
+        step(25, mc -> ShipSeamDevtest.begin("entrar pisando (nave a 0,15 b/t)", slowZ, 0.25));
         step(10, ShipSeamDevtest::jump);
         tickerStep(0, waitUntil("SEAM: embarcou ao pisar", 100, ShipSeamDevtest::boardedByStepping));
         step(60, ShipSeamDevtest::end);
-        step(5, mc -> ShipSeamDevtest.begin("sentar (assento)", slowZ, 0.5));
+        step(5, mc -> ShipSeamDevtest.begin("sentar (assento)", slowZ, 0.25));
         step(1, ShipSeamDevtest::sit);
         tickerStep(0, waitUntil("SEAM: sentado", 100, ShipSeamDevtest::sat));
         step(60, ShipSeamDevtest::end);
-        step(5, mc -> ShipSeamDevtest.begin("levantar (assento)", slowZ, 0.5));
+        step(5, mc -> ShipSeamDevtest.begin("levantar (assento)", slowZ, 0.25));
         step(1, ShipSeamDevtest::standUp);
         tickerStep(0, waitUntil("SEAM: em pé no convés ao levantar", 100, ShipSeamDevtest::standingAboard));
         step(60, ShipSeamDevtest::end);
-        step(5, mc -> ShipSeamDevtest.begin("sair (comando)", slowZ, 0.5));
+        step(5, mc -> ShipSeamDevtest.begin("sair (comando)", slowZ, 0.25));
         step(1, ShipSeamDevtest::leaveNow);
         tickerStep(0, waitUntil("SEAM: fora do convés", 100, ShipSeamDevtest::notAboard));
         step(60, ShipSeamDevtest::end);
