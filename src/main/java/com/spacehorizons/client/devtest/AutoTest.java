@@ -5305,32 +5305,45 @@ public final class AutoTest {
         step(1, ShipSeamDevtest::landNow);
         tickerStep(0, waitUntil("SEAM: em pé no chão depois de pousar", 200, ShipSeamDevtest::standingOnGround));
         step(60, ShipSeamDevtest::end);
-        // 3. entrar ao pisar: a nave passa a 0,3 b/t a 0,9 bloco do chão e o jogador pula nela
+        // 3. nave lenta (0,3 b/t, girando 0,5 grau por tick): entrar pisando, sentar, levantar e sair
         step(10, mc -> ShipSeamDevtest.standOnGround(mc));
-        step(20, mc -> ShipSeamDevtest.spawnScripted(mc, slowZ, 0.0, 40, false, 0.9, 15.0, 5.0, true));
-        step(25, open.apply("entrar pisando (nave a 0,3 b/t)", slowZ));
+        step(20, mc -> ShipSeamDevtest.spawnScripted(mc, slowZ, 0.5, 40, false, 0.9, 15.0, 5.0, true));
+        step(25, mc -> ShipSeamDevtest.begin("entrar pisando (nave a 0,3 b/t)", slowZ, 0.5));
         step(10, ShipSeamDevtest::jump);
         tickerStep(0, waitUntil("SEAM: embarcou ao pisar", 100, ShipSeamDevtest::boardedByStepping));
         step(60, ShipSeamDevtest::end);
-        step(5, ShipSeamDevtest::cleanup);
-        // 4. nave rápida demais para o embarque automático (2,5 b/t) que gira (0,5 grau por tick): entrar pelo comando, sentar, levantar e sair
-        step(20, ShipSeamDevtest::standOnGround);
-        step(20, mc -> ShipSeamDevtest.spawnScripted(mc, fastX, 0.5, 45, true, 0.0, 8.5, 2.5, true));
-        step(25, mc -> ShipSeamDevtest.begin("entrar (comando, nave a 2,5 b/t)", fastX, 0.5));
-        tickerStep(0, waitUntil("SEAM: no convés pelo comando", 200, ShipSeamDevtest::aboard));
-        step(60, ShipSeamDevtest::end);
-        step(5, mc -> ShipSeamDevtest.begin("sentar (assento)", fastX, 0.5));
+        step(5, mc -> ShipSeamDevtest.begin("sentar (assento)", slowZ, 0.5));
         step(1, ShipSeamDevtest::sit);
         tickerStep(0, waitUntil("SEAM: sentado", 100, ShipSeamDevtest::sat));
         step(60, ShipSeamDevtest::end);
-        step(5, mc -> ShipSeamDevtest.begin("levantar (assento)", fastX, 0.5));
+        step(5, mc -> ShipSeamDevtest.begin("levantar (assento)", slowZ, 0.5));
         step(1, ShipSeamDevtest::standUp);
         tickerStep(0, waitUntil("SEAM: em pé no convés ao levantar", 100, ShipSeamDevtest::standingAboard));
         step(60, ShipSeamDevtest::end);
-        step(5, mc -> ShipSeamDevtest.begin("sair (comando)", fastX, 0.5));
+        step(5, mc -> ShipSeamDevtest.begin("sair (comando)", slowZ, 0.5));
         step(1, ShipSeamDevtest::leaveNow);
         tickerStep(0, waitUntil("SEAM: fora do convés", 100, ShipSeamDevtest::notAboard));
         step(60, ShipSeamDevtest::end);
+        step(5, ShipSeamDevtest::cleanup);
+        // 4. nave rápida demais para o embarque automático (2,5 b/t), girando: entrar pelo comando, sentar, levantar e sair (informativo: o casco do vanilla,
+        // que é o destino de quem sai, treme por si só 1 tick de movimento da nave)
+        step(20, ShipSeamDevtest::standOnGround);
+        step(20, mc -> ShipSeamDevtest.spawnScripted(mc, fastX, 0.5, 45, true, 0.0, 8.5, 2.5, true));
+        step(25, mc -> ShipSeamDevtest.begin("[info 2,5 b/t] entrar (comando)", fastX, 0.5));
+        tickerStep(0, waitUntil("SEAM: no convés pelo comando", 200, ShipSeamDevtest::aboard));
+        step(60, ShipSeamDevtest::endInfo);
+        step(5, mc -> ShipSeamDevtest.begin("[info 2,5 b/t] sentar (assento)", fastX, 0.5));
+        step(1, ShipSeamDevtest::sit);
+        tickerStep(0, waitUntil("SEAM: sentado", 100, ShipSeamDevtest::sat));
+        step(60, ShipSeamDevtest::endInfo);
+        step(5, mc -> ShipSeamDevtest.begin("[info 2,5 b/t] levantar (assento)", fastX, 0.5));
+        step(1, ShipSeamDevtest::standUp);
+        tickerStep(0, waitUntil("SEAM: em pé no convés ao levantar", 100, ShipSeamDevtest::standingAboard));
+        step(60, ShipSeamDevtest::endInfo);
+        step(5, mc -> ShipSeamDevtest.begin("[info 2,5 b/t] sair (comando)", fastX, 0.5));
+        step(1, ShipSeamDevtest::leaveNow);
+        tickerStep(0, waitUntil("SEAM: fora do convés", 100, ShipSeamDevtest::notAboard));
+        step(60, ShipSeamDevtest::endInfo);
         step(5, ShipSeamDevtest::cleanup);
         // 5. ancorar e desancorar (a pé), montar pela ponte e ancorar sentado
         // longe da plataforma do chão (a nave de 28 blocos de altura parada a 60 do chão encostaria nela): 200 blocos a leste, em criativo para a queda

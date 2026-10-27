@@ -254,6 +254,7 @@ public final class DeckCrew {
             autoBoard(here, rocket);
         }
         if (MEMBERS.isEmpty()) {
+            rocket.clearPoseStamp();
             return;
         }
         List<Member> mine = null;
@@ -266,6 +267,10 @@ public final class DeckCrew {
             }
         }
         if (mine == null || !(rocket.level() instanceof ServerLevel level)) {
+            if (mine == null) {
+                // ninguém a pé nesta nave: o cliente deixa a linha do tempo da pose e volta ao vanilla, misturando (fase 2g)
+                rocket.clearPoseStamp();
+            }
             return;
         }
         // a pose deste tick vai marcada com o tick do servidor (o cliente dos tripulantes desenha a nave nessa linha do tempo)

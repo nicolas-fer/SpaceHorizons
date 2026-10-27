@@ -52,7 +52,7 @@ final class ShipSeamDevtest {
     private static final double BOARD_Y = 1.0;
     private static final double BOARD_Z = 2.5;
 
-    private record Frame(double clock, Vector3d eye, Quaterniond rotation, Vector3d hull, Quaterniond hullRotation) {
+    private record Frame(double clock, Vector3d eye, Quaterniond rotation, Vector3d hull, Quaterniond hullRotation, int signature, int timeline) {
     }
 
     private static final List<Frame> FRAMES = new ArrayList<>();
@@ -67,6 +67,10 @@ final class ShipSeamDevtest {
     private static RocketEntity ship;
     private static ScriptedShip scripted;
     private static RocketEntity landed;
+    private static final double LONG_FRAME_TICKS = 0.6;
+    private static int longFrames;
+    private static String worstPosition = "";
+    private static String worstRotation = "";
     /** A nave cujo casco é gravado (id da entidade, igual no servidor integrado e no cliente), ou -1. */
     private static volatile int trackedId = -1;
 
@@ -110,7 +114,13 @@ final class ShipSeamDevtest {
             Quaternionfc a = frame.attitude();
             hullRotation.set(a.x(), a.y(), a.z(), a.w());
         }
-        FRAMES.add(new Frame(clock, new Vector3d(p.x, p.y, p.z), new Quaterniond(q.x(), q.y(), q.z(), q.w()), hull, hullRotation));
+        int signature = (DeckClient.isAboard() ? 1 : 0) + (mc.player.isPassenger() ? 2 : 0);
+        int timeline = 0;
+        if (rocket != null) {
+            double c = rocket.clientTickAt(partial);
+            timeline = rocket.smoothFrame(c) == null ? 0 : (rocket.smoothStarved(c) ? 2 : 1);
+        }
+        FRAMES.add(new Frame(clock, new Vector3d(p.x, p.y, p.z), new Quaterniond(q.x(), q.y(), q.z(), q.w()), hull, hullRotation, signature, timeline));
     }
 
     // ============================================================================================================ janelas de medida
@@ -125,6 +135,15 @@ final class ShipSeamDevtest {
 
     /** Fecha a janela e confere o salto da troca (câmera e casco). */
     static void end(Minecraft mc) {
+        close(true);
+    }
+
+    /** Fecha a janela só registrando os números (sem verificação). */
+    static void endInfo(Minecraft mc) {
+        close(false);
+    }
+
+    private static void close(boolean assertIt) {
         int to = FRAMES.size();
         int from = Math.max(1, swapStart - BASELINE_FRAMES);
         double[] cameraBase = worst(from, swapStart, false);
@@ -139,7 +158,11 @@ final class ShipSeamDevtest {
         String line = String.format(Locale.ROOT, "%-34s | câmera %.4f bloco (aos +%.2f ticks), %.3f° (aos +%.2f) | casco %.4f bloco, %.3f° | ruído antes: câmera %.4f bloco, %.3f°, casco %.4f, %.3f° | %d quadros, câmera andou até %.2f blocos",
                 swapLabel, camera[0], camera[2] - t0, camera[1], camera[3] - t0, hull[0], hull[1], cameraBase[0], cameraBase[1], hullBase[0], hullBase[1], to - swapStart, travelled);
         SpaceHorizons.LOGGER.info(TAG + line);
+        SpaceHorizons.LOGGER.info(TAG + "  pior da câmera na janela: posição [{}]; rotação [{}]; quadros longos (> {} ticks) descartados: {}", worstPosition, worstRotation, LONG_FRAME_TICKS, longFrames);
         TABLE.add(line);
+        if (!assertIt) {
+            return;
+        }
         check(swapLabel + ": câmera sem salto (< 0,1 bloco e < 1°)", camera[0] < LIMIT_POSITION && camera[1] < LIMIT_DEGREES,
                 "posição " + f(camera[0]) + " bloco, rotação " + f(camera[1]) + "°");
         check(swapLabel + ": casco desenhado sem salto (< 0,1 bloco e < 1°)", hull[0] < LIMIT_POSITION && hull[1] < LIMIT_DEGREES,
@@ -152,11 +175,23 @@ final class ShipSeamDevtest {
         double maxAng = 0.0;
         double atPos = 0.0;
         double atAng = 0.0;
+        if (!hull && from >= swapStart) {
+            longFrames = 0;
+            worstPosition = "";
+            worstRotation = "";
+        }
         for (int i = Math.max(1, from); i < to && i < FRAMES.size(); i++) {
             Frame a = FRAMES.get(i - 1);
             Frame b = FRAMES.get(i);
             double dt = b.clock - a.clock;
             if (dt <= 0.0) {
+                continue;
+            }
+            if (dt > LONG_FRAME_TICKS) {
+                // um quadro longo (carregando chunk, coleta de lixo) não é salto de troca: a nave andou o dt inteiro e é contado à parte
+                if (!hull) {
+                    longFrames++;
+                }
                 continue;
             }
             Vector3d pa = hull ? a.hull : a.eye;
@@ -169,10 +204,16 @@ final class ShipSeamDevtest {
             if (pos > maxPos) {
                 maxPos = pos;
                 atPos = b.clock;
+                if (!hull && from >= swapStart) {
+                    worstPosition = String.format(Locale.ROOT, "dt %.2f ticks, assinatura %d->%d, linha do tempo %d->%d, deslocamento (%.3f, %.3f, %.3f)", dt, a.signature, b.signature, a.timeline, b.timeline, pb.x - pa.x, pb.y - pa.y, pb.z - pa.z);
+                }
             }
             if (ang > maxAng) {
                 maxAng = ang;
                 atAng = b.clock;
+                if (!hull && from >= swapStart) {
+                    worstRotation = String.format(Locale.ROOT, "dt %.2f ticks, assinatura %d->%d, ângulo %.3f", dt, a.signature, b.signature, SeamJump.angleDegrees(a.rotation, b.rotation));
+                }
             }
         }
         return new double[] {maxPos, maxAng, atPos, atAng};
@@ -337,6 +378,10 @@ final class ShipSeamDevtest {
     /** O jogador sai do convés pelo comando (volta ao mundo, em pé, onde estava). */
     static void leaveNow(Minecraft mc) {
         onServer(mc, player -> {
+            // voando em criativo: quem sai de uma nave que anda longe da plataforma não despenca durante a janela de medida (a queda livre não é salto)
+            player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+            player.getAbilities().flying = true;
+            player.onUpdateAbilities();
             DeckCrew.leave(player, "autoteste shipseam");
             return null;
         });
@@ -361,6 +406,9 @@ final class ShipSeamDevtest {
     /** O pé do jogador voltou ao chão (depois de sair da nave): põe o jogador sobre o ponto do chão de novo para a próxima troca. */
     static void standOnGround(Minecraft mc) {
         onServer(mc, player -> {
+            player.setGameMode(net.minecraft.world.level.GameType.SURVIVAL);
+            player.getAbilities().flying = false;
+            player.onUpdateAbilities();
             player.teleportTo(BASE.getX() + 6.5, BASE.getY() + 1.0, BASE.getZ() + 0.5);
             player.setDeltaMovement(Vec3.ZERO);
             return null;

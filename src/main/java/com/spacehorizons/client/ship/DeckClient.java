@@ -213,6 +213,9 @@ public final class DeckClient {
         LocalPlayer p = mc.player;
         p.setYRot(s.yaw);
         p.setXRot(s.pitch);
+        // o olhar anterior é o novo: sem isto o vanilla interpola o olhar do mundo para o local ao longo do primeiro tick e a câmera gira (fase 2g)
+        p.yRotO = s.yaw;
+        p.xRotO = s.pitch;
         p.setDeltaMovement(Vec3.ZERO);
         glue(p, rocket);
         SpaceHorizons.LOGGER.info("[deck] no convés da nave {} em ({}, {}, {}) locais", rocketId, s.pos.x, s.pos.y, s.pos.z);

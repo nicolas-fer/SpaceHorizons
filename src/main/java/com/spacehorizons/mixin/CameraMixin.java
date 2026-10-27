@@ -3,6 +3,7 @@ package com.spacehorizons.mixin;
 import com.spacehorizons.client.curvature.CurvatureState;
 
 import com.spacehorizons.client.rocket.RocketCamera;
+import com.spacehorizons.client.ship.CameraSeam;
 import com.spacehorizons.client.ship.DeckClient;
 import com.spacehorizons.client.ship.DeckObserver;
 
@@ -27,6 +28,15 @@ abstract class CameraMixin {
             at = @At(value = "INVOKE", target = "Ljava/lang/Math;max(FF)F", ordinal = 0))
     private float spacehorizons$depthFar(float renderDepth, float cloudDepth) {
         return Math.max(renderDepth, CurvatureState.cloudRangeChunks(Math.round(cloudDepth / 16.0F)) * 16.0F);
+    }
+
+    /** Troca sem costura (fase 2g): no fim do quadro a posição final da câmera recebe a mistura da última troca de fonte (ver {@link CameraSeam}). */
+    @Inject(method = "update", at = @At("RETURN"))
+    private void spacehorizons$seam(DeltaTracker deltaTracker, CallbackInfo ci) {
+        Vec3 adjusted = CameraSeam.adjustPosition(((Camera) (Object) this).position());
+        if (adjusted != null) {
+            this.setPosition(adjusted);
+        }
     }
 
     @Shadow

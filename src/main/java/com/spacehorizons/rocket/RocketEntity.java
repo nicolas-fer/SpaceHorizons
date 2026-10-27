@@ -536,14 +536,41 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
         this.entityData.set(POSE_STAMP, Math.max(1, stamp));
     }
 
+    /** Servidor: a tripulação a pé acabou; o cliente deixa a linha do tempo e volta à interpolação do vanilla (a troca é misturada, fase 2g). */
+    public void clearPoseStamp() {
+        this.entityData.set(POSE_STAMP, 0);
+    }
+
+    /** Quantos ticks do cliente dura a mistura do desenho do casco ao trocar da interpolação do vanilla para a linha do tempo, ou o contrário. */
+    public static final double SEAM_BLEND_TICKS = 20.0;
+    /** Cliente: a mistura das trocas do desenho do casco entre as duas fontes de pose (fase 2g): a diferença do instante da troca desce a zero. */
+    private final com.spacehorizons.ship.deck.PoseBlend hullBlend = new com.spacehorizons.ship.deck.PoseBlend();
+    /** Cliente: o desenho está na linha do tempo (a pose vem dela) ou no vanilla. */
+    private boolean timelineOn;
+    /** Cliente: o servidor avisou que não há mais tripulação (marca 0): a linha do tempo não vale mais, as amostras ficam só para a troca. */
+    private boolean timelineStopped;
+
     /** Cliente: chegou o tick do servidor da pose; guarda a posição e a atitude que o vanilla acabou de receber (a posição vem antes dos dados). */
     private void recordPoseStamp(int stamp) {
         DoubleSupplier clock = clientClock;
-        if (stamp <= 0 || clock == null) {
+        if (clock == null) {
+            return;
+        }
+        if (stamp <= 0) {
+            // sem tripulação: a próxima leitura do desenho troca a fonte (misturando) de volta ao vanilla
+            this.timelineStopped = true;
             return;
         }
         if (this.deckTimeline == null) {
             this.deckTimeline = new com.spacehorizons.ship.deck.DeckPoseTimeline();
+        }
+        if (this.timelineStopped) {
+            // nova tripulação depois de uma parada: as amostras antigas (de outro embarque) não servem de ponta para interpolar
+            if (this.timelineOn) {
+                this.switchPoseSource(clock.getAsDouble(), false);
+            }
+            this.deckTimeline.clear();
+            this.timelineStopped = false;
         }
         var handler = this.getInterpolation();
         var target = handler.target();
@@ -560,10 +587,56 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
     /** Cliente: a pose suavizada no tempo do cliente {@code clientTick}, ou null se não há (sem tripulação a pé ou sem pacotes recentes). */
     public com.spacehorizons.ship.deck.@Nullable DeckFrame smoothFrame(double clientTick) {
         com.spacehorizons.ship.deck.DeckPoseTimeline timeline = this.deckTimeline;
-        if (timeline == null || !this.level().isClientSide() || !timeline.active(clientTick)) {
+        if (timeline == null || !this.level().isClientSide()) {
             return null;
         }
-        return timeline.sample(clientTick, this.pivotLocal());
+        boolean on = !this.timelineStopped && timeline.active(clientTick);
+        if (on != this.timelineOn) {
+            this.switchPoseSource(clientTick, on);
+        }
+        com.spacehorizons.ship.deck.DeckFrame base = on ? timeline.sample(clientTick, this.pivotLocal()) : null;
+        if (!this.hullBlend.active(clientTick)) {
+            return base;
+        }
+        return this.blended(clientTick, base != null ? base : this.vanillaFrame(clientTick));
+    }
+
+    /** A pose do casco na interpolação do vanilla no tempo do cliente {@code clientTick} (a parcial é a fração desde o último tick do cliente). */
+    private com.spacehorizons.ship.deck.DeckFrame vanillaFrame(double clientTick) {
+        float partial = (float) Math.max(0.0, Math.min(1.0, clientTick - this.clientTickAt(0.0F)));
+        Vec3 p = this.getPosition(partial);
+        Quaternionf q = new Quaternionf();
+        this.attitudePrev.slerp(this.attitudeCur, partial, q);
+        return new com.spacehorizons.ship.deck.DeckFrame(p.x, p.y, p.z, q, this.pivotLocal());
+    }
+
+    /** A pose {@code base} da fonte atual com o que resta da mistura da última troca (posição do centro e atitude). */
+    private com.spacehorizons.ship.deck.DeckFrame blended(double clientTick, com.spacehorizons.ship.deck.DeckFrame base) {
+        org.joml.Vector3d center = this.hullBlend.position(clientTick, new org.joml.Vector3d(base.cx(), base.cy(), base.cz()), new org.joml.Vector3d());
+        Quaternionfc a = base.attitude();
+        org.joml.Quaterniond q = this.hullBlend.rotation(clientTick, new org.joml.Quaterniond(a.x(), a.y(), a.z(), a.w()), new org.joml.Quaterniond());
+        return new com.spacehorizons.ship.deck.DeckFrame(center.x, center.y, center.z, new Quaternionf((float) q.x, (float) q.y, (float) q.z, (float) q.w), this.pivotLocal());
+    }
+
+    /**
+     * A fonte da pose do casco mudou (a linha do tempo da nave ligou ou desligou): a pose que estava sendo desenhada e a da fonte nova diferem de até
+     * 2 ticks de movimento da nave; a diferença é guardada e desce a zero em {@link #SEAM_BLEND_TICKS} ticks, e o desenho, a câmera e o tripulante,
+     * que leem a mesma pose, não pulam (fase 2g).
+     */
+    private void switchPoseSource(double clientTick, boolean on) {
+        com.spacehorizons.ship.deck.DeckPoseTimeline timeline = this.deckTimeline;
+        com.spacehorizons.ship.deck.DeckFrame fromTimeline = timeline == null || timeline.size() == 0 ? null : timeline.sample(clientTick, this.pivotLocal());
+        com.spacehorizons.ship.deck.DeckFrame old = this.timelineOn && fromTimeline != null ? fromTimeline : this.vanillaFrame(clientTick);
+        if (this.hullBlend.active(clientTick)) {
+            old = this.blended(clientTick, old);
+        }
+        com.spacehorizons.ship.deck.DeckFrame now = on && fromTimeline != null ? fromTimeline : this.vanillaFrame(clientTick);
+        Quaternionfc oa = old.attitude();
+        Quaternionfc na = now.attitude();
+        this.hullBlend.beginPosition(clientTick, SEAM_BLEND_TICKS, new org.joml.Vector3d(old.cx(), old.cy(), old.cz()), new org.joml.Vector3d(now.cx(), now.cy(), now.cz()));
+        this.hullBlend.beginRotation(clientTick, SEAM_BLEND_TICKS, new org.joml.Quaterniond(oa.x(), oa.y(), oa.z(), oa.w()),
+                new org.joml.Quaterniond(na.x(), na.y(), na.z(), na.w()));
+        this.timelineOn = on;
     }
 
     /**
@@ -572,19 +645,19 @@ public class RocketEntity extends Entity implements IEntityWithComplexSpawn {
      */
     public double smoothServerTimeAt(double clientTick) {
         com.spacehorizons.ship.deck.DeckPoseTimeline timeline = this.deckTimeline;
-        return timeline == null || !this.level().isClientSide() || !timeline.active(clientTick) ? Double.NaN : timeline.serverTimeAt(clientTick);
+        return timeline == null || this.timelineStopped || !this.level().isClientSide() || !timeline.active(clientTick) ? Double.NaN : timeline.serverTimeAt(clientTick);
     }
 
     /** Cliente: a linha do tempo está ativa mas o tempo mostrado passou da pose mais nova (sem dado novo; diagnóstico do autoteste). */
     public boolean smoothStarved(double clientTick) {
         com.spacehorizons.ship.deck.DeckPoseTimeline timeline = this.deckTimeline;
-        return timeline != null && this.level().isClientSide() && timeline.active(clientTick) && timeline.starved(clientTick);
+        return timeline != null && !this.timelineStopped && this.level().isClientSide() && timeline.active(clientTick) && timeline.starved(clientTick);
     }
 
     /** Cliente: a atitude suavizada em dupla precisão (para medir o tremor), ou null. */
     public org.joml.@Nullable Quaterniond smoothAttitude(double clientTick) {
         com.spacehorizons.ship.deck.DeckPoseTimeline timeline = this.deckTimeline;
-        return timeline == null || !this.level().isClientSide() || !timeline.active(clientTick) ? null : timeline.sampleAttitude(clientTick);
+        return timeline == null || this.timelineStopped || !this.level().isClientSide() || !timeline.active(clientTick) ? null : timeline.sampleAttitude(clientTick);
     }
 
     // ---------------------------------------------------------------- pose para o convés andável (S5)
