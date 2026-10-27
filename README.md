@@ -477,6 +477,12 @@ sincronizar. Por enquanto o embarque é manual, só para teste: dentro da caixa 
 
 Com a nave em movimento (fase 2e) o clique direito vale nos blocos da própria nave: a mira os enxerga (contorno preto no bloco) e o clique abre ou fecha portas, alçapões e portões, abre baús e barris em um menu que guarda o conteúdo no retrato da nave, senta no assento (`ship_seat`) ou na ponte e, nas máquinas (fornalha, bancada, alavanca), avisa que a nave precisa estar ancorada, pousada ou no espaço. Levantar (Shift) do assento devolve ao convés em pé. Autoteste: `./gradlew runClientTest -PshOnly=shipdeckuse`.
 
+**Trocas sem costura (fase 2g).** Entrar e sair do convés, sentar e levantar do assento, ancorar e desancorar, pousar e decolar não dão mais salto: a
+câmera desliza do olho de antes para o de depois em 1,5 a 3 segundos (mais tempo quanto maior a diferença, por exemplo um olhar a 130 graus ao levantar
+do cockpit) e o casco da nave passa da interpolação do vanilla para a linha do tempo de pose, e de volta, também misturando. Medida quadro a quadro:
+`./gradlew runClientTest -PshOnly=shipseam` (critério: menos de 0,1 bloco e 1 grau entre quadros seguidos). A subida ao estaleiro e a descida trocam
+de dimensão e têm a tela de carregamento do vanilla (alguns ticks): ali o que se mantém é a posição relativa à nave, não a imagem.
+
 **Outros clientes veem o tripulante (fase 2e).** Para quem está no convés, o servidor não manda aos outros clientes o pacote de posição do vanilla
 (o jogador andaria com a nave, que o cliente interpola por conta própria, e a 100 b/t o veriam até 200 blocos atrás do casco): manda o estado local
 com o tick do servidor (`DeckObservePayload`) e o cliente observador põe o jogador remoto pela pose da nave, na mesma linha do tempo do casco
